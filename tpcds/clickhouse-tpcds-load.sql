@@ -6,18 +6,12 @@ FROM s3(
     'CSV'
 ) SETTINGS format_csv_delimiter='|';
 
-
 INSERT INTO catalog_page
 SELECT *
 FROM s3(
     'https://tpcds-tokyo-bucket.s3.ap-northeast-1.amazonaws.com/data/catalog_page.dat',
     'CSV'
 ) SETTINGS format_csv_delimiter='|';
-
-
-
-
-
 
 INSERT INTO catalog_returns
 SELECT *
@@ -200,3 +194,4 @@ FROM s3(
     'https://tpcds-tokyo-bucket.s3.ap-northeast-1.amazonaws.com/data/web_site.dat',
     'CSV'
 ) SETTINGS format_csv_delimiter='|';
+
