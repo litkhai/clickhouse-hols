@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- 기본 경로 -->
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+
+    <!-- 네트워크 설정 -->
+    <listen_host>0.0.0.0</listen_host>
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+
+    <!-- 로그 설정 -->
+    <logger>
+        <level>information</level>
+        <console>true</console>
+    </logger>
+
+    <!-- 메모리 설정 -->
+    <max_server_memory_usage>0</max_server_memory_usage>
+    <max_concurrent_queries>100</max_concurrent_queries>
+
+    <!-- 시간대 -->
+    <timezone>Asia/Seoul</timezone>
+
+    <!-- 사용자 설정 -->
+    <users_config>users.xml</users_config>
+</clickhouse>
