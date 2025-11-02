@@ -1,59 +1,59 @@
 # ClickHouse OSS Environment
 
-macOS에 최적화된 ClickHouse 개발 환경입니다.
+ClickHouse development environment optimized for macOS.
 
-## 🚀 빠른 시작
+## 🚀 Quick Start
 
 ```bash
-# 1. 설정 (최초 1회만)
+# 1. Setup (first time only)
 ./setup.sh
 
-# 2. 시작
+# 2. Start
 ./start.sh
 
-# 3. 접속
+# 3. Connect
 ./client.sh
 ```
 
-## 📍 접속 정보
+## 📍 Connection Information
 
-- **웹 UI**: http://localhost:8123/play
+- **Web UI**: http://localhost:8123/play
 - **HTTP API**: http://localhost:8123
 - **TCP**: localhost:9000
-- **사용자**: default (비밀번호 없음)
+- **User**: default (no password)
 
-## 🛠 관리 스크립트
+## 🛠 Management Scripts
 
-- `./setup.sh` - 초기 환경 설정 (최초 1회)
-- `./start.sh` - ClickHouse 시작
-- `./stop.sh` - ClickHouse 중지  
-- `./status.sh` - 상태 확인
-- `./client.sh` - CLI 클라이언트 접속
-- `./cleanup.sh` - 완전 데이터 삭제
+- `./setup.sh` - Initial environment setup (first time only)
+- `./start.sh` - Start ClickHouse
+- `./stop.sh` - Stop ClickHouse
+- `./status.sh` - Check status
+- `./client.sh` - Connect to CLI client
+- `./cleanup.sh` - Complete data deletion
 
-## 🔧 고급 사용법
+## 🔧 Advanced Usage
 
 ```bash
-# 실시간 로그 확인
+# View real-time logs
 docker-compose logs -f
 
-# 직접 SQL 실행
+# Execute SQL directly
 docker-compose exec clickhouse clickhouse-client --query "SHOW DATABASES"
 
-# 컨테이너 내부 접속
+# Access container shell
 docker-compose exec clickhouse bash
 ```
 
-## 📂 데이터 저장
+## 📂 Data Storage
 
-데이터는 Docker Named Volume에 저장되어 영구 보존됩니다:
-- `clickhouse-oss_clickhouse_data` - 데이터베이스 파일
-- `clickhouse-oss_clickhouse_logs` - 로그 파일
+Data is stored in Docker Named Volumes for persistence:
+- `clickhouse-oss_clickhouse_data` - Database files
+- `clickhouse-oss_clickhouse_logs` - Log files
 
-## 🔄 업데이트
+## 🔄 Updates
 
 ```bash
-# 새 버전으로 업데이트
+# Update to new version
 docker-compose pull
 docker-compose up -d
 ```
