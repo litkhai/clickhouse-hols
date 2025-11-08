@@ -1,13 +1,13 @@
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:24.9
+    image: clickhouse/clickhouse-server:latest
     container_name: clickhouse-oss
     hostname: clickhouse
     ports:
       - "8123:8123"  # HTTP Interface
       - "9000:9000"  # TCP Interface
     volumes:
-      # Named volume 사용 (macOS 권한 문제 해결)
+      # Using Named volume (resolves macOS permission issues)
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
     environment:
