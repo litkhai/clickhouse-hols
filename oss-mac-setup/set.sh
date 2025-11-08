@@ -452,8 +452,14 @@ echo "========================"
 # Clean up existing container if present
 if docker ps -a --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
     echo "🔄 Cleaning up existing container..."
-    docker-compose down
+    docker stop clickhouse-oss 2>/dev/null || true
+    docker rm clickhouse-oss 2>/dev/null || true
+    docker-compose down 2>/dev/null || true
 fi
+
+# Pull latest image
+echo "📥 Pulling ClickHouse image..."
+docker-compose pull
 
 # Start ClickHouse
 echo "▶️  Starting ClickHouse container..."
