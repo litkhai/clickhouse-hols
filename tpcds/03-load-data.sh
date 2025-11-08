@@ -13,7 +13,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -f "$SCRIPT_DIR/config.sh" ]; then
     source "$SCRIPT_DIR/config.sh"
 else
-    echo "Error: config.sh not found. Please create it from config.sh.example"
+    echo "Error: config.sh not found. Please run setup first:"
+    echo "  ./00-set.sh"
     exit 1
 fi
 
@@ -103,7 +104,7 @@ load_from_s3() {
     log "INFO" "Loading data from S3: $S3_BUCKET"
 
     # Use the existing load script if available
-    LOAD_FILE="$SCRIPT_DIR/clickhouse-tpcds-load.sql"
+    LOAD_FILE="$SCRIPT_DIR/sql/clickhouse-tpcds-load.sql"
     if [ -f "$LOAD_FILE" ]; then
         log "INFO" "Executing load script: $LOAD_FILE"
         if execute_sql_file "$LOAD_FILE" "$CLICKHOUSE_DATABASE"; then

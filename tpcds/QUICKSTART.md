@@ -12,28 +12,25 @@ Get up and running with TPC-DS benchmark on ClickHouse in minutes.
 
 ### 1. Configure Connection
 
-Edit the configuration file:
-```bash
-vim config.sh
-```
-
-Update these settings:
-```bash
-export CLICKHOUSE_HOST="localhost"
-export CLICKHOUSE_PORT="9000"
-export CLICKHOUSE_USER="default"
-export CLICKHOUSE_PASSWORD=""
-export CLICKHOUSE_DATABASE="tpcds"
-```
-
-### 2. Test Connection
+Run the setup script to generate your configuration:
 
 ```bash
-source config.sh
-test_connection
+# Interactive mode (recommended)
+./00-set.sh --interactive
+
+# Or provide parameters directly
+./00-set.sh --host localhost --port 9000 --user default --database tpcds
+
+# For Docker environments
+./00-set.sh --docker
 ```
 
-### 3. Run Complete Benchmark
+The setup script will:
+- Generate `config.sh` with your settings
+- Test the connection to ClickHouse
+- Verify all parameters are correct
+
+### 2. Run Complete Benchmark
 
 Use the all-in-one script:
 ```bash
@@ -51,6 +48,12 @@ This will:
 ## Step-by-Step Execution
 
 If you prefer to run each step manually:
+
+### Step 0: Setup Configuration (if not done)
+
+```bash
+./00-set.sh --interactive
+```
 
 ### Step 1: Create Schema (30 seconds)
 

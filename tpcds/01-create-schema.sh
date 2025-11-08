@@ -13,8 +13,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -f "$SCRIPT_DIR/config.sh" ]; then
     source "$SCRIPT_DIR/config.sh"
 else
-    echo "Error: config.sh not found. Please create it from config.sh.example"
-    echo "  cp config.sh.example config.sh"
+    echo "Error: config.sh not found. Please run setup first:"
+    echo "  ./00-set.sh"
     exit 1
 fi
 
@@ -37,7 +37,7 @@ execute_query "CREATE DATABASE IF NOT EXISTS $CLICKHOUSE_DATABASE" "default" || 
 }
 
 # Check if DDL file exists
-DDL_FILE="$SCRIPT_DIR/clickhouse-tpcds-ddl.sql"
+DDL_FILE="$SCRIPT_DIR/sql/clickhouse-tpcds-ddl.sql"
 if [ ! -f "$DDL_FILE" ]; then
     log "ERROR" "DDL file not found: $DDL_FILE"
     exit 1
