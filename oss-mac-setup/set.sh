@@ -10,7 +10,7 @@ set -e
 
 # Version parameter (default to latest if not specified)
 CLICKHOUSE_VERSION="${1:-latest}"
-BASE_DIR="/Users/kenlee/clickhouse/oss"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="ClickHouse OSS Setup"
 
 echo "🚀 $SCRIPT_NAME"
