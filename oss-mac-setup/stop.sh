@@ -46,6 +46,12 @@ if [ "$CLEANUP" = true ]; then
     docker network rm clickhouse-network 2>/dev/null && echo "   ✓ Removed clickhouse-network" || true
 
     echo ""
+    echo "🗑️  Removing Docker images..."
+    docker images clickhouse/clickhouse-server --format "{{.Repository}}:{{.Tag}}" | while read image; do
+        docker rmi "$image" 2>/dev/null && echo "   ✓ Removed $image" || true
+    done
+
+    echo ""
     echo "✅ Complete cleanup finished!"
 fi
 
