@@ -1,25 +1,25 @@
 #!/bin/bash
 
-echo "🔌 ClickHouse 클라이언트 접속"
+echo "🔌 ClickHouse Client Connection"
 echo "============================"
 
-# 컨테이너 상태 확인
+# Check container status
 if ! docker ps --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "❌ ClickHouse가 실행되지 않고 있습니다."
-    echo "   시작하려면: ./start.sh"
+    echo "❌ ClickHouse is not running."
+    echo "   To start: ./start.sh"
     exit 1
 fi
 
-# 서비스 상태 확인
+# Check service status
 if ! curl -s http://localhost:8123/ping > /dev/null 2>&1; then
-    echo "❌ ClickHouse 서비스가 응답하지 않습니다."
-    echo "   상태 확인: ./status.sh"
+    echo "❌ ClickHouse service is not responding."
+    echo "   Check status: ./status.sh"
     exit 1
 fi
 
-echo "✅ 연결 중..."
-echo "   종료하려면: exit 입력 또는 Ctrl+D"
+echo "✅ Connecting..."
+echo "   To exit: type 'exit' or press Ctrl+D"
 echo ""
 
-# 클라이언트 접속
+# Connect to client
 docker-compose exec clickhouse clickhouse-client
