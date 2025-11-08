@@ -17,7 +17,6 @@ echo "🚀 $SCRIPT_NAME"
 echo "=================================="
 echo "📍 Installation directory: $BASE_DIR"
 echo "📦 ClickHouse version: $CLICKHOUSE_VERSION"
-echo "🔒 Security: Seccomp profile enabled (fixes get_mempolicy error)"
 echo ""
 
 # Check Docker environment
