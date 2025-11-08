@@ -17,9 +17,11 @@ TPC-DS (Transaction Processing Performance Council - Decision Support) is a deci
 ## Quick Start
 
 ```bash
-# 1. Configure your environment
-cp config.sh.example config.sh
-vim config.sh  # Edit with your ClickHouse connection details
+# 1. Configure your environment (generates config.sh)
+./00-set.sh --host localhost --port 9000 --user default
+
+# Or use interactive mode
+./00-set.sh --interactive
 
 # 2. Create the schema
 ./01-create-schema.sh
@@ -42,15 +44,19 @@ vim config.sh  # Edit with your ClickHouse connection details
 ```
 tpcds/
 ├── README.md                           # This file
-├── config.sh                           # Configuration file (create from config.sh.example)
+├── QUICKSTART.md                       # Quick start guide
+├── 00-set.sh                          # Setup script (generates config.sh)
+├── config.sh                           # Configuration file (auto-generated)
 ├── config.sh.example                   # Example configuration
-├── clickhouse-tpcds-ddl.sql           # Schema definitions
-├── clickhouse-tpcds-load.sql          # Data loading from S3
 ├── 01-create-schema.sh                # Schema creation script
 ├── 02-generate-data.sh                # Data generation script (using tpcds-kit)
 ├── 03-load-data.sh                    # Data loading script
 ├── 04-run-queries-sequential.sh       # Sequential query execution
 ├── 05-run-queries-parallel.sh         # Parallel query execution
+├── run-all.sh                         # Complete workflow runner
+├── sql/                               # SQL files
+│   ├── clickhouse-tpcds-ddl.sql      # Schema definitions
+│   └── clickhouse-tpcds-load.sql     # Data loading from S3
 ├── queries/                           # TPC-DS query templates
 │   ├── query01.sql
 │   ├── query02.sql
@@ -58,30 +64,41 @@ tpcds/
 ├── results/                           # Query execution results
 │   ├── sequential/
 │   └── parallel/
+├── logs/                              # Execution logs
 └── data/                              # Generated data files (optional)
 ```
 
 ## Configuration
 
-Edit `config.sh` with your ClickHouse connection details:
+Generate `config.sh` using the setup script with your ClickHouse connection details:
 
 ```bash
-# ClickHouse connection
-CLICKHOUSE_HOST="localhost"
-CLICKHOUSE_PORT="9000"
-CLICKHOUSE_USER="default"
-CLICKHOUSE_PASSWORD=""
-CLICKHOUSE_DATABASE="tpcds"
+# Interactive mode (recommended for first-time setup)
+./00-set.sh --interactive
 
-# TPC-DS settings
-SCALE_FACTOR=1                         # Data scale factor (1 = 1GB)
-DATA_DIR="./data"                      # Directory for generated data
-RESULTS_DIR="./results"                # Directory for query results
-QUERIES_DIR="./queries"                # Directory containing query files
+# Command-line mode with parameters
+./00-set.sh \
+  --host localhost \
+  --port 9000 \
+  --user default \
+  --password "" \
+  --database tpcds \
+  --scale-factor 1 \
+  --parallel 4
 
-# Parallel execution settings
-PARALLEL_JOBS=4                        # Number of parallel query executions
+# Docker mode (for containerized ClickHouse)
+./00-set.sh --docker
+
+# Show all options
+./00-set.sh --help
 ```
+
+Generated configuration includes:
+- ClickHouse connection settings (host, port, user, password)
+- Database name
+- Scale factor for data generation
+- Parallel execution settings
+- Data directories and S3 bucket URLs
 
 ## Schema Setup
 

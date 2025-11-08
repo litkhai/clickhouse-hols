@@ -13,9 +13,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -f "$SCRIPT_DIR/config.sh" ]; then
     source "$SCRIPT_DIR/config.sh"
 else
-    echo "Error: config.sh not found. Creating from template..."
-    cp "$SCRIPT_DIR/config.sh.example" "$SCRIPT_DIR/config.sh"
-    echo "Please edit config.sh with your settings and run again."
+    echo "Error: config.sh not found. Please run setup first:"
+    echo "  ./00-set.sh"
     exit 1
 fi
 
