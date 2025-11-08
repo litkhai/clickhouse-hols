@@ -816,6 +816,8 @@ chmod +x *.sh
 
 # Download Docker image
 echo "📥 Downloading ClickHouse image..."
+# Remove old images to ensure we get the actual latest version
+docker rmi clickhouse/clickhouse-server:${CLICKHOUSE_VERSION} 2>/dev/null || true
 docker pull clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
 
 echo ""
