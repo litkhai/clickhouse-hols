@@ -1,0 +1,144 @@
+#!/bin/bash
+
+#################################################
+# TPC-DS Benchmark Configuration
+#################################################
+
+# ClickHouse Connection Settings
+export CLICKHOUSE_HOST="${CLICKHOUSE_HOST:-localhost}"
+export CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-9000}"
+export CLICKHOUSE_HTTP_PORT="${CLICKHOUSE_HTTP_PORT:-8123}"
+export CLICKHOUSE_USER="${CLICKHOUSE_USER:-default}"
+export CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-}"
+export CLICKHOUSE_DATABASE="${CLICKHOUSE_DATABASE:-tpcds}"
+
+# TPC-DS Data Generation Settings
+export SCALE_FACTOR="${SCALE_FACTOR:-1}"           # 1 = 1GB, 10 = 10GB, 100 = 100GB, 1000 = 1TB
+export DSDGEN_PATH="${DSDGEN_PATH:-./tpcds-kit/tools/dsdgen}"
+export DATA_DIR="${DATA_DIR:-./data}"
+
+# Query Execution Settings
+export QUERIES_DIR="${QUERIES_DIR:-./queries}"
+export RESULTS_DIR="${RESULTS_DIR:-./results}"
+export PARALLEL_JOBS="${PARALLEL_JOBS:-4}"
+export QUERY_ITERATIONS="${QUERY_ITERATIONS:-1}"
+
+# S3 Data Source (alternative to local generation)
+export S3_BUCKET="${S3_BUCKET:-https://tpcds-tokyo-bucket.s3.ap-northeast-1.amazonaws.com/data}"
+
+# ClickHouse Client Settings
+export CLICKHOUSE_CLIENT="${CLICKHOUSE_CLIENT:-clickhouse-client}"
+export CLICKHOUSE_CLIENT_OPTS="${CLICKHOUSE_CLIENT_OPTS:---send_logs_level=none}"
+
+# Logging
+export LOG_DIR="${LOG_DIR:-./logs}"
+export VERBOSE="${VERBOSE:-false}"
+
+#################################################
+# Helper Functions
+#################################################
+
+# Function to test ClickHouse connection
+test_connection() {
+    echo "Testing ClickHouse connection..."
+    $CLICKHOUSE_CLIENT \
+        --host="$CLICKHOUSE_HOST" \
+        --port="$CLICKHOUSE_PORT" \
+        --user="$CLICKHOUSE_USER" \
+        --password="$CLICKHOUSE_PASSWORD" \
+        --query="SELECT version() AS version, uptime() AS uptime" 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo "Connection successful!"
+        return 0
+    else
+        echo "Connection failed!"
+        return 1
+    fi
+}
+
+# Function to execute ClickHouse query
+execute_query() {
+    local query="$1"
+    local database="${2:-$CLICKHOUSE_DATABASE}"
+
+    $CLICKHOUSE_CLIENT \
+        --host="$CLICKHOUSE_HOST" \
+        --port="$CLICKHOUSE_PORT" \
+        --user="$CLICKHOUSE_USER" \
+        --password="$CLICKHOUSE_PASSWORD" \
+        --database="$database" \
+        $CLICKHOUSE_CLIENT_OPTS \
+        --query="$query"
+}
+
+# Function to execute SQL file
+execute_sql_file() {
+    local file="$1"
+    local database="${2:-$CLICKHOUSE_DATABASE}"
+
+    if [ ! -f "$file" ]; then
+        echo "Error: SQL file not found: $file"
+        return 1
+    fi
+
+    $CLICKHOUSE_CLIENT \
+        --host="$CLICKHOUSE_HOST" \
+        --port="$CLICKHOUSE_PORT" \
+        --user="$CLICKHOUSE_USER" \
+        --password="$CLICKHOUSE_PASSWORD" \
+        --database="$database" \
+        $CLICKHOUSE_CLIENT_OPTS \
+        --queries-file="$file"
+}
+
+# Function to create directory if it doesn't exist
+ensure_directory() {
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+        echo "Created directory: $dir"
+    fi
+}
+
+# Function to log message
+log() {
+    local level="$1"
+    shift
+    local message="$@"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    echo "[$timestamp] [$level] $message"
+
+    if [ "$VERBOSE" = "true" ] && [ -d "$LOG_DIR" ]; then
+        echo "[$timestamp] [$level] $message" >> "$LOG_DIR/benchmark.log"
+    fi
+}
+
+# Initialize directories
+initialize_directories() {
+    ensure_directory "$DATA_DIR"
+    ensure_directory "$RESULTS_DIR"
+    ensure_directory "$LOG_DIR"
+    ensure_directory "$QUERIES_DIR"
+}
+
+# Export functions for use in other scripts
+export -f test_connection
+export -f execute_query
+export -f execute_sql_file
+export -f ensure_directory
+export -f log
+export -f initialize_directories
+
+# Print configuration if verbose
+if [ "$VERBOSE" = "true" ]; then
+    log "INFO" "Configuration loaded:"
+    log "INFO" "  CLICKHOUSE_HOST: $CLICKHOUSE_HOST"
+    log "INFO" "  CLICKHOUSE_PORT: $CLICKHOUSE_PORT"
+    log "INFO" "  CLICKHOUSE_DATABASE: $CLICKHOUSE_DATABASE"
+    log "INFO" "  SCALE_FACTOR: $SCALE_FACTOR"
+    log "INFO" "  DATA_DIR: $DATA_DIR"
+    log "INFO" "  QUERIES_DIR: $QUERIES_DIR"
+    log "INFO" "  RESULTS_DIR: $RESULTS_DIR"
+fi
