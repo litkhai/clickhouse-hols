@@ -1,51 +1,51 @@
 #!/bin/bash
 
-echo "🚀 ClickHouse 시작 중..."
+echo "🚀 Starting ClickHouse..."
 echo "========================"
 
-# 기존 컨테이너가 있다면 정리
+# Clean up existing container if present
 if docker ps -a --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "🔄 기존 컨테이너 정리 중..."
+    echo "🔄 Cleaning up existing container..."
     docker-compose down
 fi
 
-# ClickHouse 시작
-echo "▶️  ClickHouse 컨테이너 시작..."
+# Start ClickHouse
+echo "▶️  Starting ClickHouse container..."
 docker-compose up -d
 
-# 초기화 대기
-echo "⏳ ClickHouse 초기화 대기 중..."
-echo "   (최대 45초 소요)"
+# Wait for initialization
+echo "⏳ Waiting for ClickHouse initialization..."
+echo "   (up to 45 seconds)"
 
-# 상태 확인 (최대 45초 대기)
+# Check status (wait up to 45 seconds)
 for i in {1..45}; do
     if curl -s http://localhost:8123/ping > /dev/null 2>&1; then
         echo ""
-        echo "✅ ClickHouse 시작 완료!"
+        echo "✅ ClickHouse started successfully!"
         break
     fi
-    
+
     if [ $i -eq 45 ]; then
         echo ""
-        echo "⚠️  시작 시간이 오래 걸리고 있습니다. 로그를 확인하세요:"
+        echo "⚠️  Startup is taking longer than expected. Check logs:"
         echo "   docker-compose logs clickhouse"
         exit 1
     fi
-    
-    echo -ne "\r   대기 중... ${i}초"
+
+    echo -ne "\r   Waiting... ${i}s"
     sleep 1
 done
 
 echo ""
-echo "🎯 접속 정보:"
-echo "   📍 웹 UI: http://localhost:8123/play"
+echo "🎯 Connection Information:"
+echo "   📍 Web UI: http://localhost:8123/play"
 echo "   📍 HTTP API: http://localhost:8123"
 echo "   📍 TCP: localhost:9000"
-echo "   👤 사용자: default (비밀번호 없음)"
+echo "   👤 User: default (no password)"
 echo ""
-echo "🔧 관리 명령어:"
-echo "   ./stop.sh      - ClickHouse 중지"
-echo "   ./status.sh    - 상태 확인"
-echo "   ./client.sh    - CLI 클라이언트 접속"
+echo "🔧 Management Commands:"
+echo "   ./stop.sh      - Stop ClickHouse"
+echo "   ./status.sh    - Check status"
+echo "   ./client.sh    - Connect to CLI client"
 echo ""
-echo "✨ ClickHouse가 준비되었습니다!"
+echo "✨ ClickHouse is ready!"
