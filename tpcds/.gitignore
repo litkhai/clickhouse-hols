@@ -1,0 +1,33 @@
+# TPC-DS Benchmark .gitignore
+
+# Configuration (may contain credentials)
+config.sh
+
+# Data files
+data/*.dat
+data/*.csv
+
+# Generated results
+results/**/*.csv
+results/**/*.txt
+results/**/*.log
+results/**/*.out
+results/**/*.err
+
+# Logs
+logs/*.log
+logs/*.txt
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
