@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password123}
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - datalake
+
+  # Create MinIO buckets
+  minio-setup:
+    image: minio/mc:latest
+    container_name: minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-password123};
+      mc mb myminio/${SAMPLE_DATA_BUCKET:-warehouse} --ignore-existing;
+      mc anonymous set download myminio/${SAMPLE_DATA_BUCKET:-warehouse};
+      echo 'MinIO setup complete';
+      "
+    networks:
+      - datalake
+
+  # Nessie Catalog
+  nessie:
+    image: projectnessie/nessie:latest
+    container_name: nessie
+    ports:
+      - "${NESSIE_PORT:-19120}:19120"
+    environment:
+      - NESSIE_VERSION_STORE_TYPE=IN_MEMORY
+    profiles:
+      - nessie
+    networks:
+      - datalake
+
+  # PostgreSQL for Hive Metastore
+  postgres:
+    image: postgres:15
+    container_name: postgres-hive
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hive}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    profiles:
+      - hive
+    networks:
+      - datalake
+
+  # Hive Metastore
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    depends_on:
+      - postgres
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore
+        -Djavax.jdo.option.ConnectionUserName=hive
+        -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD:-hive}
+    ports:
+      - "${HIVE_METASTORE_PORT:-9083}:9083"
+    profiles:
+      - hive
+    networks:
+      - datalake
+
+  # Iceberg REST Catalog
+  iceberg-rest:
+    image: tabulario/iceberg-rest:latest
+    container_name: iceberg-rest
+    ports:
+      - "${ICEBERG_REST_PORT:-8181}:8181"
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+      - AWS_REGION=us-east-1
+      - CATALOG_WAREHOUSE=s3://${SAMPLE_DATA_BUCKET:-warehouse}/
+      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+      - CATALOG_S3_ENDPOINT=http://minio:9000
+      - CATALOG_S3_PATH__STYLE__ACCESS=true
+    profiles:
+      - iceberg-rest
+    networks:
+      - datalake
+    depends_on:
+      - minio
+
+  # Jupyter Notebook for data exploration
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+      - AWS_REGION=us-east-1
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./sample-data:/home/jovyan/sample-data
+    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+    networks:
+      - datalake
+    depends_on:
+      - minio
+
+networks:
+  datalake:
+    driver: bridge
+
+volumes:
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./minio-storage
+  postgres-data:

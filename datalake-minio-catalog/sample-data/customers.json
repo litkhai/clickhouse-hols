@@ -1,0 +1,92 @@
+[
+  {
+    "customer_id": 1,
+    "name": "Alice Johnson",
+    "email": "alice.johnson@example.com",
+    "age": 28,
+    "city": "New York",
+    "registration_date": "2023-01-15",
+    "lifetime_value": 1250.50
+  },
+  {
+    "customer_id": 2,
+    "name": "Bob Smith",
+    "email": "bob.smith@example.com",
+    "age": 35,
+    "city": "Los Angeles",
+    "registration_date": "2023-02-20",
+    "lifetime_value": 890.25
+  },
+  {
+    "customer_id": 3,
+    "name": "Carol White",
+    "email": "carol.white@example.com",
+    "age": 42,
+    "city": "Chicago",
+    "registration_date": "2023-03-10",
+    "lifetime_value": 2100.75
+  },
+  {
+    "customer_id": 4,
+    "name": "David Brown",
+    "email": "david.brown@example.com",
+    "age": 31,
+    "city": "Houston",
+    "registration_date": "2023-04-05",
+    "lifetime_value": 1500.00
+  },
+  {
+    "customer_id": 5,
+    "name": "Emma Davis",
+    "email": "emma.davis@example.com",
+    "age": 26,
+    "city": "Phoenix",
+    "registration_date": "2023-05-12",
+    "lifetime_value": 750.30
+  },
+  {
+    "customer_id": 6,
+    "name": "Frank Miller",
+    "email": "frank.miller@example.com",
+    "age": 45,
+    "city": "Philadelphia",
+    "registration_date": "2023-06-18",
+    "lifetime_value": 3200.80
+  },
+  {
+    "customer_id": 7,
+    "name": "Grace Wilson",
+    "email": "grace.wilson@example.com",
+    "age": 33,
+    "city": "San Antonio",
+    "registration_date": "2023-07-22",
+    "lifetime_value": 1800.45
+  },
+  {
+    "customer_id": 8,
+    "name": "Henry Moore",
+    "email": "henry.moore@example.com",
+    "age": 29,
+    "city": "San Diego",
+    "registration_date": "2023-08-30",
+    "lifetime_value": 950.60
+  },
+  {
+    "customer_id": 9,
+    "name": "Ivy Taylor",
+    "email": "ivy.taylor@example.com",
+    "age": 38,
+    "city": "Dallas",
+    "registration_date": "2023-09-14",
+    "lifetime_value": 2750.20
+  },
+  {
+    "customer_id": 10,
+    "name": "Jack Anderson",
+    "email": "jack.anderson@example.com",
+    "age": 27,
+    "city": "San Jose",
+    "registration_date": "2023-10-08",
+    "lifetime_value": 1100.90
+  }
+]
