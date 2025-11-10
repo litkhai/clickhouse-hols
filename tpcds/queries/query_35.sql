@@ -1,46 +1,54 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select   
+with ss_denorm as
+ (
+
+    select count(*) > 0 as ss_exists, ss_customer_sk
+    from store_sales
+    where ss_sold_date_sk IN (SELECT d_date_sk FROM date_dim WHERE d_year = 1999 and d_qoy < 4)
+    group by ss_customer_sk
+ ),
+ws_denorm as
+ (
+    select count(*) > 0 as ws_exists, ws_bill_customer_sk
+    from web_sales
+    where ws_sold_date_sk IN (SELECT d_date_sk FROM date_dim WHERE d_year = 1999 and d_qoy < 4) 
+    group by ws_bill_customer_sk
+ ),
+cs_denorm as
+ (
+    select count(*) > 0 as cs_exists, cs_ship_customer_sk
+    from catalog_sales
+    where cs_sold_date_sk IN (SELECT d_date_sk FROM date_dim WHERE d_year = 1999 and d_qoy < 4)
+    group by cs_ship_customer_sk
+ )
+ select
   ca_state,
   cd_gender,
   cd_marital_status,
   cd_dep_count,
   count(*) cnt1,
-  avg(cd_dep_count),
   max(cd_dep_count),
+  avg(cd_dep_count),
   sum(cd_dep_count),
   cd_dep_employed_count,
   count(*) cnt2,
-  avg(cd_dep_employed_count),
   max(cd_dep_employed_count),
+  avg(cd_dep_employed_count),
   sum(cd_dep_employed_count),
   cd_dep_college_count,
   count(*) cnt3,
-  avg(cd_dep_college_count),
   max(cd_dep_college_count),
+  avg(cd_dep_college_count),
   sum(cd_dep_college_count)
  from
-  customer c,customer_address ca,customer_demographics
+  customer c,customer_address ca,customer_demographics,
+  ss_denorm, ws_denorm, cs_denorm
  where
   c.c_current_addr_sk = ca.ca_address_sk and
   cd_demo_sk = c.c_current_cdemo_sk and 
-  exists (select *
-          from store_sales,date_dim
-          where c.c_customer_sk = ss_customer_sk and
-                ss_sold_date_sk = d_date_sk and
-                d_year = 1999 and
-                d_qoy < 4) and
-   (exists (select *
-            from web_sales,date_dim
-            where c.c_customer_sk = ws_bill_customer_sk and
-                  ws_sold_date_sk = d_date_sk and
-                  d_year = 1999 and
-                  d_qoy < 4) or 
-    exists (select * 
-            from catalog_sales,date_dim
-            where c.c_customer_sk = cs_ship_customer_sk and
-                  cs_sold_date_sk = d_date_sk and
-                  d_year = 1999 and
-                  d_qoy < 4))
+  c.c_customer_sk = ss_customer_sk and
+  c.c_customer_sk = ws_bill_customer_sk and 
+  c.c_customer_sk = cs_ship_customer_sk and
+  ss_exists and (cs_exists or ws_exists)
  group by ca_state,
           cd_gender,
           cd_marital_status,
@@ -53,6 +61,4 @@ select
           cd_dep_count,
           cd_dep_employed_count,
           cd_dep_college_count
- LIMIT 100;
-
-
+ limit 100;

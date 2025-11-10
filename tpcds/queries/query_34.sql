@@ -1,31 +1,43 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select c_last_name
-       ,c_first_name
-       ,c_salutation
-       ,c_preferred_cust_flag
-       ,ss_ticket_number
-       ,cnt from
-   (select ss_ticket_number
-          ,ss_customer_sk
-          ,count(*) cnt
-    from store_sales,date_dim,store,household_demographics
-    where store_sales.ss_sold_date_sk = date_dim.d_date_sk
-    and store_sales.ss_store_sk = store.s_store_sk  
-    and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
-    and (date_dim.d_dom between 1 and 3 or date_dim.d_dom between 25 and 28)
-    and (household_demographics.hd_buy_potential = '>10000' or
-         household_demographics.hd_buy_potential = 'Unknown')
-    and household_demographics.hd_vehicle_count > 0
-    and (case when household_demographics.hd_vehicle_count > 0 
-	then household_demographics.hd_dep_count/ household_demographics.hd_vehicle_count 
-	else null 
-	end)  > 1.2
-    and date_dim.d_year in (1998,1998+1,1998+2)
-    and store.s_county in ('Williamson County','Williamson County','Williamson County','Williamson County',
-                           'Williamson County','Williamson County','Williamson County','Williamson County')
-    group by ss_ticket_number,ss_customer_sk) dn,customer
-    where ss_customer_sk = c_customer_sk
-      and cnt between 15 and 20
-    order by c_last_name,c_first_name,c_salutation,c_preferred_cust_flag desc, ss_ticket_number;
-
-
+SELECT c_last_name,
+       c_first_name,
+       c_salutation,
+       c_preferred_cust_flag,
+       ss_ticket_number,
+       cnt
+FROM   (SELECT ss_ticket_number,
+               ss_customer_sk,
+               Count(*) cnt
+        FROM   store_sales
+        WHERE  store_sales.ss_sold_date_sk
+                     IN (SELECT d_date_sk FROM date_dim WHERE
+                            ( d_dom BETWEEN 1 AND 3 OR d_dom BETWEEN 25 AND 28 )
+                            AND d_year IN ( 1999, 1999 + 1, 1999 + 2 ))
+               AND store_sales.ss_hdemo_sk 
+                     IN (SELECT hd_demo_sk FROM household_demographics WHERE
+                            ( hd_buy_potential = '>10000'
+                            OR hd_buy_potential = 'unknown' )
+               AND hd_vehicle_count > 0
+               AND ( CASE
+                       WHEN hd_vehicle_count > 0 THEN
+                       hd_dep_count /
+                       hd_vehicle_count
+                       ELSE NULL
+                     END ) > 1.2)
+               AND store_sales.ss_store_sk IN (SELECT s_store_sk FROM store WHERE
+                     s_county IN (
+                     'Levy County',
+                     'Walker County',
+                     'Franklin Parish',
+                     'Mobile County',
+                     'Luce County',
+                     'Mesa County',
+                     'Williamson County'))
+        GROUP  BY ss_ticket_number,
+                  ss_customer_sk) dn,
+       customer
+WHERE  ss_customer_sk = c_customer_sk
+       AND cnt BETWEEN 15 AND 20
+ORDER  BY c_last_name,
+          c_first_name,
+          c_salutation,
+          c_preferred_cust_flag DESC;

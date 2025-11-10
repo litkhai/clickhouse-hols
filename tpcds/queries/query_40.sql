@@ -1,11 +1,10 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  
+select
    w_state
   ,i_item_id
-  ,sum(case when (cast(d_date as date) < cast ('1998-04-08' as date)) 
- 		then cs_sales_price - coalesce(cr_refunded_cash,0) else 0 end) as sales_before
-  ,sum(case when (cast(d_date as date) >= cast ('1998-04-08' as date)) 
- 		then cs_sales_price - coalesce(cr_refunded_cash,0) else 0 end) as sales_after
+  ,sum(case when (cast(d_date as date) < cast ('1999-01-31' as date)) 
+        then cs_sales_price - coalesce(cr_refunded_cash,0) else 0 end) as sales_before
+  ,sum(case when (cast(d_date as date) >= cast ('1999-01-31' as date)) 
+        then cs_sales_price - coalesce(cr_refunded_cash,0) else 0 end) as sales_after
  from
    catalog_sales left outer join catalog_returns on
        (cs_order_number = cr_order_number 
@@ -16,13 +15,14 @@ select
  where
      i_current_price between 0.99 and 1.49
  and i_item_sk          = cs_item_sk
+ and cs_item_sk in (select i_item_sk from item where i_current_price between 0.99 and 1.49)
  and cs_warehouse_sk    = w_warehouse_sk 
  and cs_sold_date_sk    = d_date_sk
- and d_date between (cast ('1998-04-08' as date) - 30 days)
-                and (cast ('1998-04-08' as date) + 30 days) 
+ and cast(d_date as date) between (cast ('1999-01-31' as date) - interval 30 day)
+                and (cast ('1999-01-31' as date) + interval 30 day) 
+ and cs_sold_date_sk in (select d_date_sk from date_dim where cast(d_date as date) between (cast ('1999-01-31' as date) - interval 30 day)
+                and (cast ('1999-01-31' as date) + interval 30 day) )
  group by
     w_state,i_item_id
  order by w_state,i_item_id
-LIMIT 100;
-
-
+limit 100;

@@ -1,22 +1,21 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  cast(amc as decimal(15,4))/cast(pmc as decimal(15,4)) am_pm_ratio
- from ( select count(*) amc
-       from web_sales, household_demographics , time_dim, web_page
-       where ws_sold_time_sk = time_dim.t_time_sk
-         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
-         and ws_web_page_sk = web_page.wp_web_page_sk
-         and time_dim.t_hour between 6 and 6+1
-         and household_demographics.hd_dep_count = 8
-         and web_page.wp_char_count between 5000 and 5200) at,
-      ( select count(*) pmc
-       from web_sales, household_demographics , time_dim, web_page
-       where ws_sold_time_sk = time_dim.t_time_sk
-         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
-         and ws_web_page_sk = web_page.wp_web_page_sk
-         and time_dim.t_hour between 14 and 14+1
-         and household_demographics.hd_dep_count = 8
-         and web_page.wp_char_count between 5000 and 5200) pt
- order by am_pm_ratio
- LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unnecessary joins after 1)
+--- 3) ILLEGAL_DIVISION works on tpcds1000+
+SELECT CAST(amc, 'decimal(15, 4)') / CAST(pmc, 'decimal(15, 4)') AS am_pm_ratio
+FROM
+(
+    SELECT count(*) AS amc
+    FROM web_sales
+    WHERE ws_sold_time_sk IN (SELECT t_time_sk FROM time_dim WHERE t_hour >= 8 AND t_hour <= (8 + 1))
+    AND ws_ship_hdemo_sk IN (SELECT hd_demo_sk FROM household_demographics WHERE hd_dep_count = 1)
+    AND ws_web_page_sk IN (SELECT wp_web_page_sk FROM web_page WHERE wp_char_count >= 5000 AND wp_char_count <= 5200)
+) AS at,
+(
+    SELECT count(*) AS pmc
+    FROM web_sales
+    WHERE ws_sold_time_sk IN (SELECT t_time_sk FROM time_dim WHERE t_hour >= 19 AND t_hour <= (19 + 1))
+    AND ws_ship_hdemo_sk IN (SELECT hd_demo_sk FROM household_demographics WHERE hd_dep_count = 1)
+    AND ws_web_page_sk IN (SELECT wp_web_page_sk FROM web_page WHERE wp_char_count >= 5000 AND wp_char_count <= 5200)
+) AS pt
+ORDER BY am_pm_ratio ASC
+LIMIT 1

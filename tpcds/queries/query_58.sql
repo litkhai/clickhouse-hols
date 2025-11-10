@@ -1,47 +1,40 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
 with ss_items as
  (select i_item_id item_id
         ,sum(ss_ext_sales_price) ss_item_rev 
  from store_sales
      ,item
-     ,date_dim
  where ss_item_sk = i_item_sk
-   and d_date in (select d_date
+   and ss_sold_date_sk  IN (select d_date_sk
                   from date_dim
                   where d_week_seq = (select d_week_seq 
                                       from date_dim
-                                      where d_date = '1998-02-19'))
-   and ss_sold_date_sk   = d_date_sk
+                                      where d_date = '1999-07-24'))
  group by i_item_id),
  cs_items as
  (select i_item_id item_id
         ,sum(cs_ext_sales_price) cs_item_rev
   from catalog_sales
       ,item
-      ,date_dim
  where cs_item_sk = i_item_sk
-  and  d_date in (select d_date
+  and  cs_sold_date_sk IN (select d_date_sk
                   from date_dim
                   where d_week_seq = (select d_week_seq 
                                       from date_dim
-                                      where d_date = '1998-02-19'))
-  and  cs_sold_date_sk = d_date_sk
+                                      where d_date = '1999-07-24'))
  group by i_item_id),
  ws_items as
  (select i_item_id item_id
         ,sum(ws_ext_sales_price) ws_item_rev
   from web_sales
       ,item
-      ,date_dim
  where ws_item_sk = i_item_sk
-  and  d_date in (select d_date
+  and ws_sold_date_sk IN (select d_date_sk
                   from date_dim
-                  where d_week_seq =(select d_week_seq 
-                                     from date_dim
-                                     where d_date = '1998-02-19'))
-  and ws_sold_date_sk   = d_date_sk
+                  where d_week_seq = (select d_week_seq 
+                                      from date_dim
+                                      where d_date = '1999-07-24'))
  group by i_item_id)
-  select  ss_items.item_id
+ select ss_items.item_id
        ,ss_item_rev
        ,ss_item_rev/((ss_item_rev+cs_item_rev+ws_item_rev)/3) * 100 ss_dev
        ,cs_item_rev
@@ -58,8 +51,6 @@ with ss_items as
    and cs_item_rev between 0.9 * ws_item_rev and 1.1 * ws_item_rev
    and ws_item_rev between 0.9 * ss_item_rev and 1.1 * ss_item_rev
    and ws_item_rev between 0.9 * cs_item_rev and 1.1 * cs_item_rev
- order by item_id
+ order by ss_items.item_id
          ,ss_item_rev
  LIMIT 100;
-
-

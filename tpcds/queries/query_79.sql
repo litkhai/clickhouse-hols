@@ -1,23 +1,44 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select 
-  c_last_name,c_first_name,substr(s_city,1,30),ss_ticket_number,amt,profit
-  from
-   (select ss_ticket_number
-          ,ss_customer_sk
-          ,store.s_city
-          ,sum(ss_coupon_amt) amt
-          ,sum(ss_net_profit) profit
-    from store_sales,date_dim,store,household_demographics
-    where store_sales.ss_sold_date_sk = date_dim.d_date_sk
-    and store_sales.ss_store_sk = store.s_store_sk  
-    and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
-    and (household_demographics.hd_dep_count = 8 or household_demographics.hd_vehicle_count > 0)
-    and date_dim.d_dow = 1
-    and date_dim.d_year in (1998,1998+1,1998+2) 
-    and store.s_number_employees between 200 and 295
-    group by ss_ticket_number,ss_customer_sk,ss_addr_sk,store.s_city) ms,customer
-    where ss_customer_sk = c_customer_sk
- order by c_last_name,c_first_name,substr(s_city,1,30), profit
-LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unneccessary joins after 1) 
+SELECT
+    c_last_name,
+    c_first_name,
+    substr(s_city, 1, 30),
+    ss_ticket_number,
+    amt,
+    profit
+FROM
+(
+    SELECT
+        ss_ticket_number,
+        ss_customer_sk,
+        store.s_city,
+        sum(ss_coupon_amt) AS amt,
+        sum(ss_net_profit) AS profit
+    FROM store_sales, store
+    WHERE (store_sales.ss_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE (date_dim.d_dow = 1) AND (date_dim.d_year IN (1998, 1998 + 1, 1998 + 2))
+    )) AND (store_sales.ss_hdemo_sk IN (
+        SELECT hd_demo_sk
+        FROM household_demographics
+        WHERE (hd_dep_count = 0) OR (hd_vehicle_count > -1)
+    )) AND ((store.s_number_employees >= 200) AND (store.s_number_employees <= 295)) AND (store_sales.ss_store_sk = store.s_store_sk) AND (store_sales.ss_store_sk IN (
+        SELECT s_store_sk
+        FROM store
+        WHERE (s_number_employees >= 200) AND (s_number_employees <= 295)
+    ))
+    GROUP BY
+        ss_ticket_number,
+        ss_customer_sk,
+        ss_addr_sk,
+        store.s_city
+) AS ms, customer
+WHERE ss_customer_sk = c_customer_sk
+ORDER BY
+    c_last_name ASC,
+    c_first_name ASC,
+    substr(s_city, 1, 30) ASC,
+    profit ASC
+LIMIT 100

@@ -1,18 +1,21 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  ss_customer_sk
-            ,sum(act_sales) sumsales
-      from (select ss_item_sk
-                  ,ss_ticket_number
-                  ,ss_customer_sk
-                  ,case when sr_return_quantity is not null then (ss_quantity-sr_return_quantity)*ss_sales_price
-                                                            else (ss_quantity*ss_sales_price) end act_sales
-            from store_sales left outer join store_returns on (sr_item_sk = ss_item_sk
-                                                               and sr_ticket_number = ss_ticket_number)
-                ,reason
-            where sr_reason_sk = r_reason_sk
-              and r_reason_desc = 'Did not like the warranty') t
-      group by ss_customer_sk
-      order by sumsales, ss_customer_sk
-LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unnecessary joins after 1)
+SELECT
+    ss_customer_sk,
+    sum(act_sales) AS sumsales
+FROM
+(
+    SELECT
+        ss_item_sk,
+        ss_ticket_number,
+        ss_customer_sk,
+        multiIf(sr_return_quantity IS NOT NULL, (ss_quantity - sr_return_quantity) * ss_sales_price, ss_quantity * ss_sales_price) AS act_sales
+    FROM store_sales
+    LEFT JOIN store_returns ON (sr_item_sk = ss_item_sk) AND (sr_ticket_number = ss_ticket_number)
+    WHERE sr_reason_sk IN (SELECT r_reason_sk FROM reason WHERE r_reason_desc = 'Stopped working')
+) AS t
+GROUP BY ss_customer_sk
+ORDER BY
+    sumsales ASC,
+    ss_customer_sk ASC
+LIMIT 100

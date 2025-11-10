@@ -1,52 +1,55 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  distinct(i_product_name)
- from item i1
- where i_manufact_id between 742 and 742+40 
-   and (select count(*) as item_cnt
-        from item
-        where (i_manufact = i1.i_manufact and
+with t as 
+(select count(*) as item_cnt, i_manufact 
+ from item
+ where (
         ((i_category = 'Women' and 
-        (i_color = 'orchid' or i_color = 'papaya') and 
-        (i_units = 'Pound' or i_units = 'Lb') and
-        (i_size = 'petite' or i_size = 'medium')
+        (i_color = 'aquamarine' or i_color = 'navy') and 
+        (i_units = 'Pallet' or i_units = 'Dozen') and
+        (i_size = 'extra large' or i_size = 'small')
         ) or
         (i_category = 'Women' and
-        (i_color = 'burlywood' or i_color = 'navy') and
-        (i_units = 'Bundle' or i_units = 'Each') and
-        (i_size = 'N/A' or i_size = 'extra large')
+        (i_color = 'burlywood' or i_color = 'black') and
+        (i_units = 'Tbl' or i_units = 'Bundle') and
+        (i_size = 'petite' or i_size = 'economy')
         ) or
         (i_category = 'Men' and
-        (i_color = 'bisque' or i_color = 'azure') and
-        (i_units = 'N/A' or i_units = 'Tsp') and
-        (i_size = 'small' or i_size = 'large')
+        (i_color = 'orchid' or i_color = 'brown') and
+        (i_units = 'Ounce' or i_units = 'Cup') and
+        (i_size = 'extra large' or i_size = 'small')
         ) or
         (i_category = 'Men' and
-        (i_color = 'chocolate' or i_color = 'cornflower') and
-        (i_units = 'Bunch' or i_units = 'Gross') and
-        (i_size = 'petite' or i_size = 'medium')
+        (i_color = 'chocolate' or i_color = 'maroon') and
+        (i_units = 'Tsp' or i_units = 'Gross') and
+        (i_size = 'petite' or i_size = 'economy')
         ))) or
-       (i_manufact = i1.i_manufact and
+       (
         ((i_category = 'Women' and 
-        (i_color = 'salmon' or i_color = 'midnight') and 
-        (i_units = 'Oz' or i_units = 'Box') and
-        (i_size = 'petite' or i_size = 'medium')
+        (i_color = 'moccasin' or i_color = 'antique') and 
+        (i_units = 'Box' or i_units = 'Lb') and
+        (i_size = 'extra large' or i_size = 'small')
         ) or
         (i_category = 'Women' and
-        (i_color = 'snow' or i_color = 'steel') and
-        (i_units = 'Carton' or i_units = 'Tbl') and
-        (i_size = 'N/A' or i_size = 'extra large')
+        (i_color = 'blush' or i_color = 'dark') and
+        (i_units = 'Carton' or i_units = 'Oz') and
+        (i_size = 'petite' or i_size = 'economy')
         ) or
         (i_category = 'Men' and
-        (i_color = 'purple' or i_color = 'gainsboro') and
-        (i_units = 'Dram' or i_units = 'Unknown') and
-        (i_size = 'small' or i_size = 'large')
+        (i_color = 'deep' or i_color = 'firebrick') and
+        (i_units = 'Each' or i_units = 'Gram') and
+        (i_size = 'extra large' or i_size = 'small')
         ) or
         (i_category = 'Men' and
-        (i_color = 'metallic' or i_color = 'forest') and
-        (i_units = 'Gram' or i_units = 'Ounce') and
-        (i_size = 'petite' or i_size = 'medium')
-        )))) > 0
+        (i_color = 'almond' or i_color = 'honeydew') and
+        (i_units = 'Case' or i_units = 'Unknown') and
+        (i_size = 'petite' or i_size = 'economy')
+        )))
+group by i_manufact
+having item_cnt>0
+)
+ select distinct(i_product_name)
+ from item i1, t
+ where i_manufact_id between 771 and 771+40
+ and i1.i_manufact = t.i_manufact
+ and t.item_cnt > 0
  order by i_product_name
- LIMIT 100;
-
-
+ limit 100;

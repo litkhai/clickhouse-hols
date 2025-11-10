@@ -1,31 +1,27 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  
-   count(distinct cs_order_number) as "order count"
-  ,sum(cs_ext_ship_cost) as "total shipping cost"
-  ,sum(cs_net_profit) as "total net profit"
-from
-   catalog_sales cs1
-  ,date_dim
-  ,customer_address
-  ,call_center
-where
-    d_date between '1999-2-01' and 
-           (cast('1999-2-01' as date) + 60 days)
-and cs1.cs_ship_date_sk = d_date_sk
-and cs1.cs_ship_addr_sk = ca_address_sk
-and ca_state = 'IL'
-and cs1.cs_call_center_sk = cc_call_center_sk
-and cc_county in ('Williamson County','Williamson County','Williamson County','Williamson County',
-                  'Williamson County'
-)
-and exists (select *
-            from catalog_sales cs2
-            where cs1.cs_order_number = cs2.cs_order_number
-              and cs1.cs_warehouse_sk <> cs2.cs_warehouse_sk)
-and not exists(select *
-               from catalog_returns cr1
-               where cs1.cs_order_number = cr1.cr_order_number)
-order by count(distinct cs_order_number)
+SELECT
+         Count(DISTINCT cs_order_number) AS order_count ,
+         Sum(cs_ext_ship_cost)           AS total_shipping_cost ,
+         Sum(cs_net_profit)              AS total_net_profit
+FROM     catalog_sales cs1
+WHERE    
+         cs1.cs_ship_date_sk IN (SELECT d_date_sk FROM date_dim WHERE Cast(d_date AS DATE) BETWEEN Cast('2002-3-01' AS DATE) AND (
+                  Cast('2002-5-01' AS DATE)))
+AND      cs1.cs_ship_addr_sk IN (SELECT ca_address_sk FROM customer_address WHERE ca_state = 'IA')
+AND      cs1.cs_call_center_sk IN (SELECT cc_call_center_sk FROM call_center WHERE cc_county IN ('Brule County',
+'Gonzales County',
+'Delta County',
+'Falls County',
+'Kingman County'))
+AND cs_order_number IN
+         (
+                SELECT cs_order_number 
+                FROM   catalog_sales cs2
+                GROUP BY cs_order_number HAVING COUNT(cs2.cs_warehouse_sk)>1
+         )
+AND cs_order_number NOT IN
+         (
+                SELECT cr_order_number
+                FROM   catalog_returns
+         )
+ORDER BY count(DISTINCT cs_order_number)
 LIMIT 100;
-
-

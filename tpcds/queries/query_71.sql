@@ -1,40 +1,79 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select i_brand_id brand_id, i_brand brand,t_hour,t_minute,
- 	sum(ext_price) ext_price
- from item, (select ws_ext_sales_price as ext_price, 
-                        ws_sold_date_sk as sold_date_sk,
-                        ws_item_sk as sold_item_sk,
-                        ws_sold_time_sk as time_sk  
-                 from web_sales,date_dim
-                 where d_date_sk = ws_sold_date_sk
-                   and d_moy=12
-                   and d_year=2000
-                 union all
-                 select cs_ext_sales_price as ext_price,
-                        cs_sold_date_sk as sold_date_sk,
-                        cs_item_sk as sold_item_sk,
-                        cs_sold_time_sk as time_sk
-                 from catalog_sales,date_dim
-                 where d_date_sk = cs_sold_date_sk
-                   and d_moy=12
-                   and d_year=2000
-                 union all
-                 select ss_ext_sales_price as ext_price,
-                        ss_sold_date_sk as sold_date_sk,
-                        ss_item_sk as sold_item_sk,
-                        ss_sold_time_sk as time_sk
-                 from store_sales,date_dim
-                 where d_date_sk = ss_sold_date_sk
-                   and d_moy=12
-                   and d_year=2000
-                 ) tmp,time_dim
- where
-   sold_item_sk = i_item_sk
-   and i_manager_id=1
-   and time_sk = t_time_sk
-   and (t_meal_time = 'breakfast' or t_meal_time = 'dinner')
- group by i_brand, i_brand_id,t_hour,t_minute
- order by ext_price desc, i_brand_id
- ;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unnecessary joins after 1)
+SELECT
+    i_brand_id AS brand_id,
+    i_brand AS brand,
+    t_hour,
+    t_minute,
+    sum(ext_price) AS ext_price
+FROM item,
+(
+    SELECT
+        ws_ext_sales_price AS ext_price,
+        ws_sold_date_sk AS sold_date_sk,
+        ws_item_sk AS sold_item_sk,
+        ws_sold_time_sk AS time_sk
+    FROM web_sales
+    WHERE (ws_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE (d_moy = 12) AND (d_year = 2002)
+    )) AND (ws_item_sk IN (
+        SELECT i_item_sk
+        FROM item
+        WHERE i_manager_id = 1
+    )) AND (ws_sold_time_sk IN (
+        SELECT t_time_sk
+        FROM time_dim
+        WHERE (t_meal_time = 'breakfast') OR (t_meal_time = 'dinner')
+    ))
+    UNION ALL
+    SELECT
+        cs_ext_sales_price AS ext_price,
+        cs_sold_date_sk AS sold_date_sk,
+        cs_item_sk AS sold_item_sk,
+        cs_sold_time_sk AS time_sk
+    FROM catalog_sales
+    WHERE (cs_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE (d_moy = 12) AND (d_year = 2002)
+    )) AND (cs_item_sk IN (
+        SELECT i_item_sk
+        FROM item
+        WHERE i_manager_id = 1
+    )) AND (cs_sold_time_sk IN (
+        SELECT t_time_sk
+        FROM time_dim
+        WHERE (t_meal_time = 'breakfast') OR (t_meal_time = 'dinner')
+    ))
+    UNION ALL
+    SELECT
+        ss_ext_sales_price AS ext_price,
+        ss_sold_date_sk AS sold_date_sk,
+        ss_item_sk AS sold_item_sk,
+        ss_sold_time_sk AS time_sk
+    FROM store_sales
+    WHERE (ss_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE (d_moy = 12) AND (d_year = 2002)
+    )) AND (ss_item_sk IN (
+        SELECT i_item_sk
+        FROM item
+        WHERE i_manager_id = 1
+    )) AND (ss_sold_time_sk IN (
+        SELECT t_time_sk
+        FROM time_dim
+        WHERE (t_meal_time = 'breakfast') OR (t_meal_time = 'dinner')
+    ))
+) AS tmp, time_dim
+WHERE (sold_item_sk = i_item_sk) AND (i_manager_id = 1) AND (time_sk = t_time_sk) AND ((t_meal_time = 'breakfast') OR (t_meal_time = 'dinner'))
+GROUP BY
+    i_brand,
+    i_brand_id,
+    t_hour,
+    t_minute
+ORDER BY
+    ext_price DESC,
+    i_brand_id ASC
