@@ -1,38 +1,39 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  
-    sum(ss_net_profit) as total_sum
-   ,s_state
-   ,s_county
-   ,grouping(s_state)+grouping(s_county) as lochierarchy
-   ,rank() over (
- 	partition by grouping(s_state)+grouping(s_county),
- 	case when grouping(s_county) = 0 then s_state end 
- 	order by sum(ss_net_profit) desc) as rank_within_parent
- from
-    store_sales
-   ,date_dim       d1
-   ,store
- where
-    d1.d_month_seq between 1212 and 1212+11
- and d1.d_date_sk = ss_sold_date_sk
- and s_store_sk  = ss_store_sk
- and s_state in
-             ( select s_state
-               from  (select s_state as s_state,
- 			    rank() over ( partition by s_state order by sum(ss_net_profit) desc) as ranking
-                      from   store_sales, store, date_dim
-                      where  d_month_seq between 1212 and 1212+11
- 			    and d_date_sk = ss_sold_date_sk
- 			    and s_store_sk  = ss_store_sk
-                      group by s_state
-                     ) tmp1 
-               where ranking <= 5
-             )
- group by rollup(s_state,s_county)
- order by
-   lochierarchy desc
-  ,case when lochierarchy = 0 then s_state end
-  ,rank_within_parent
- LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) TODO: Fix grouping sets
+SELECT
+    sum(ss_net_profit) AS total_sum,
+    s_state,
+    s_county,
+    grouping(s_state) + grouping(s_county) AS lochierarchy,
+    rank() OVER (PARTITION BY grouping(s_state) + grouping(s_county), multiIf(grouping(s_county) = 0, s_state, NULL) ORDER BY sum(ss_net_profit) DESC) AS rank_within_parent
+FROM store_sales, date_dim AS d1, store
+WHERE ((d1.d_month_seq >= 1204) AND (d1.d_month_seq <= (1204 + 11))) AND (d1.d_date_sk = ss_sold_date_sk) AND (ss_sold_date_sk IN (
+    SELECT d_date_sk
+    FROM date_dim
+    WHERE (d_month_seq >= 1204) AND (d_month_seq <= (1204 + 11))
+)) AND (s_store_sk = ss_store_sk) AND (s_state IN (
+    SELECT s_state
+    FROM
+    (
+        SELECT
+            s_state AS s_state,
+            rank() OVER (PARTITION BY s_state ORDER BY sum(ss_net_profit) DESC) AS ranking
+        FROM store_sales, store, date_dim
+        WHERE ((d_month_seq >= 1204) AND (d_month_seq <= (1204 + 11))) AND (d_date_sk = ss_sold_date_sk) AND (ss_sold_date_sk IN (
+            SELECT d_date_sk
+            FROM date_dim
+            WHERE (d_month_seq >= 1204) AND (d_month_seq <= (1204 + 11))
+        )) AND (s_store_sk = ss_store_sk)
+        GROUP BY s_state
+    ) AS tmp1
+    WHERE ranking <= 5
+))
+GROUP BY
+    s_state,
+    s_county
+    WITH ROLLUP
+ORDER BY
+    lochierarchy DESC,
+    multiIf(lochierarchy = 0, s_state, NULL) ASC,
+    rank_within_parent ASC
+LIMIT 100

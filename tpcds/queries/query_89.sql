@@ -1,28 +1,35 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  *
-from(
-select i_category, i_class, i_brand,
-       s_store_name, s_company_name,
-       d_moy,
-       sum(ss_sales_price) sum_sales,
-       avg(sum(ss_sales_price)) over
-         (partition by i_category, i_brand, s_store_name, s_company_name)
-         avg_monthly_sales
-from item, store_sales, date_dim, store
-where ss_item_sk = i_item_sk and
-      ss_sold_date_sk = d_date_sk and
-      ss_store_sk = s_store_sk and
-      d_year in (2000) and
-        ((i_category in ('Home','Books','Electronics') and
-          i_class in ('wallpaper','parenting','musical')
-         )
-      or (i_category in ('Shoes','Jewelry','Men') and
-          i_class in ('womens','birdal','pants') 
-        ))
-group by i_category, i_class, i_brand,
-         s_store_name, s_company_name, d_moy) tmp1
-where case when (avg_monthly_sales <> 0) then (abs(sum_sales - avg_monthly_sales) / avg_monthly_sales) else null end > 0.1
-order by sum_sales - avg_monthly_sales, s_store_name
-LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+SELECT *
+FROM
+(
+    SELECT
+        i_category,
+        i_class,
+        i_brand,
+        s_store_name,
+        s_company_name,
+        d_moy,
+        sum(ss_sales_price) AS sum_sales,
+        avg(sum(ss_sales_price)) OVER (PARTITION BY i_category, i_brand, s_store_name, s_company_name) AS avg_monthly_sales
+    FROM item, store_sales, date_dim, store
+    WHERE 
+        ss_item_sk = i_item_sk
+        AND ss_item_sk IN (SELECT i_item_sk FROM item WHERE (((i_category IN ('Music', 'Electronics', 'Men')) AND (i_class IN ('classical', 'monitors', 'sports-apparel'))) OR ((i_category IN ('Shoes', 'Jewelry', 'Home')) AND (i_class IN ('mens', 'pendants', 'decor')))))
+        AND (((i_category IN ('Music', 'Electronics', 'Men')) AND (i_class IN ('classical', 'monitors', 'sports-apparel'))) OR ((i_category IN ('Shoes', 'Jewelry', 'Home')) AND (i_class IN ('mens', 'pendants', 'decor')))) 
+        AND ss_sold_date_sk = d_date_sk
+        AND (ss_sold_date_sk IN (SELECT d_date_sk FROM date_dim WHERE d_year = 2001))
+        AND (d_year IN (2001))
+        AND (ss_store_sk = s_store_sk) 
+    GROUP BY
+        i_category,
+        i_class,
+        i_brand,
+        s_store_name,
+        s_company_name,
+        d_moy
+) AS tmp1
+WHERE multiIf(avg_monthly_sales != 0, abs(sum_sales - avg_monthly_sales) / avg_monthly_sales, NULL) > 0.1
+ORDER BY
+    sum_sales - avg_monthly_sales ASC,
+    s_store_name ASC
+LIMIT 100

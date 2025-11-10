@@ -1,21 +1,17 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  i_item_id, 
+select i_item_id, 
         avg(cs_quantity) agg1,
         avg(cs_list_price) agg2,
         avg(cs_coupon_amt) agg3,
         avg(cs_sales_price) agg4 
- from catalog_sales, customer_demographics, date_dim, item, promotion
- where cs_sold_date_sk = d_date_sk and
+ from catalog_sales, item
+ where cs_sold_date_sk IN (SELECT d_date_sk FROM date_dim WHERE d_year = 1999) and
        cs_item_sk = i_item_sk and
-       cs_bill_cdemo_sk = cd_demo_sk and
-       cs_promo_sk = p_promo_sk and
-       cd_gender = 'F' and 
+       cs_bill_cdemo_sk IN (SELECT cd_demo_sk FROM customer_demographics WHERE
+       cd_gender = 'M' and 
        cd_marital_status = 'W' and
-       cd_education_status = 'Primary' and
-       (p_channel_email = 'N' or p_channel_event = 'N') and
-       d_year = 1998 
+       cd_education_status = 'Secondary') and
+       cs_promo_sk IN ( SELECT p_promo_sk FROM promotion WHERE
+       (p_channel_email = 'N' or p_channel_event = 'N'))
  group by i_item_id
  order by i_item_id
- LIMIT 100;
-
-
+ limit 100;

@@ -1,30 +1,33 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  *
- from(select w_warehouse_name
-            ,i_item_id
-            ,sum(case when (cast(d_date as date) < cast ('1998-04-08' as date))
-	                then inv_quantity_on_hand 
-                      else 0 end) as inv_before
-            ,sum(case when (cast(d_date as date) >= cast ('1998-04-08' as date))
-                      then inv_quantity_on_hand 
-                      else 0 end) as inv_after
-   from inventory
-       ,warehouse
-       ,item
-       ,date_dim
-   where i_current_price between 0.99 and 1.49
-     and i_item_sk          = inv_item_sk
-     and inv_warehouse_sk   = w_warehouse_sk
-     and inv_date_sk    = d_date_sk
-     and d_date between (cast ('1998-04-08' as date) - 30 days)
-                    and (cast ('1998-04-08' as date) + 30 days)
-   group by w_warehouse_name, i_item_id) x
- where (case when inv_before > 0 
-             then inv_after / inv_before 
-             else null
-             end) between 2.0/3.0 and 3.0/2.0
- order by w_warehouse_name
-         ,i_item_id
- LIMIT 100;
-
-
+SELECT
+    *
+FROM(
+    SELECT 
+        w_warehouse_name,
+        i_item_id,
+        Sum(CASE WHEN (CAST(d_date AS DATE) < CAST ('2000-05-13' AS DATE)) THEN inv_quantity_on_hand ELSE 0 END) AS inv_before,
+        Sum(CASE WHEN (CAST(d_date AS DATE) >= CAST ('2000-05-13' AS DATE)) THEN inv_quantity_on_hand ELSE 0 END) AS inv_after
+    FROM  
+        inventory ,
+        warehouse ,
+        item,
+        date_dim
+    WHERE
+    inv_date_sk IN 
+        ( SELECT  d_date_sk FROM date_dim 
+          WHERE CAST(d_date AS DATE) BETWEEN 
+            (cast ('2000-04-13' AS DATE)) AND
+            (cast ('2000-06-13' AS DATE)))
+    AND inv_date_sk = d_date_sk
+    AND i_current_price BETWEEN 0.99 AND 1.49
+    AND inv_item_sk IN (SELECT i_item_sk FROM item WHERE i_current_price BETWEEN 0.99 AND 1.49)
+    AND i_item_sk = inv_item_sk
+    AND inv_warehouse_sk = w_warehouse_sk
+    GROUP BY w_warehouse_name,i_item_id
+    ) x
+WHERE (
+      CASE
+               WHEN inv_before > 0 THEN inv_after / inv_before
+               ELSE NULL
+      END) BETWEEN 2.0/3.0 AND      3.0/2.0
+ORDER BY w_warehouse_name, i_item_id
+LIMIT 100;

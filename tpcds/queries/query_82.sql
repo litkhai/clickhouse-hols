@@ -1,17 +1,23 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select  i_item_id
-       ,i_item_desc
-       ,i_current_price
- from item, inventory, date_dim, store_sales
- where i_current_price between 30 and 30+30
- and inv_item_sk = i_item_sk
- and d_date_sk=inv_date_sk
- and d_date between cast('2002-05-30' as date) and (cast('2002-05-30' as date) +  60 days)
- and i_manufact_id in (437,129,727,663)
- and inv_quantity_on_hand between 100 and 500
- and ss_item_sk = i_item_sk
- group by i_item_id,i_item_desc,i_current_price
- order by i_item_id
- LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unnecessary joins after 1)
+--- 3) FIXED: 30 days -> INTERVAL 30 DAY
+SELECT
+    i_item_id,
+    i_item_desc,
+    i_current_price
+FROM item, store_sales
+WHERE ((i_current_price >= 2) AND (i_current_price <= (2 + 30))) AND (i_manufact_id IN (910, 476, 598, 346)) AND (i_item_sk IN (
+    SELECT inv_item_sk
+    FROM inventory
+    WHERE ((inv_quantity_on_hand >= 100) AND (inv_quantity_on_hand <= 500)) AND (inv_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE (d_date >= CAST('1998-03-28', 'date')) AND (d_date <= (CAST('1998-03-28', 'date') + toIntervalDay(60)))
+    ))
+)) AND (ss_item_sk = i_item_sk)
+GROUP BY
+    i_item_id,
+    i_item_desc,
+    i_current_price
+ORDER BY i_item_id ASC
+LIMIT 100

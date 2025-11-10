@@ -1,220 +1,173 @@
-USE tpcds; SET partial_merge_join = 1, partial_merge_join_optimizations = 1, max_bytes_before_external_group_by = 5000000000, max_bytes_before_external_sort = 5000000000;
-select   
-         w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
-        ,ship_carriers
-        ,year
- 	,sum(jan_sales) as jan_sales
- 	,sum(feb_sales) as feb_sales
- 	,sum(mar_sales) as mar_sales
- 	,sum(apr_sales) as apr_sales
- 	,sum(may_sales) as may_sales
- 	,sum(jun_sales) as jun_sales
- 	,sum(jul_sales) as jul_sales
- 	,sum(aug_sales) as aug_sales
- 	,sum(sep_sales) as sep_sales
- 	,sum(oct_sales) as oct_sales
- 	,sum(nov_sales) as nov_sales
- 	,sum(dec_sales) as dec_sales
- 	,sum(jan_sales/w_warehouse_sq_ft) as jan_sales_per_sq_foot
- 	,sum(feb_sales/w_warehouse_sq_ft) as feb_sales_per_sq_foot
- 	,sum(mar_sales/w_warehouse_sq_ft) as mar_sales_per_sq_foot
- 	,sum(apr_sales/w_warehouse_sq_ft) as apr_sales_per_sq_foot
- 	,sum(may_sales/w_warehouse_sq_ft) as may_sales_per_sq_foot
- 	,sum(jun_sales/w_warehouse_sq_ft) as jun_sales_per_sq_foot
- 	,sum(jul_sales/w_warehouse_sq_ft) as jul_sales_per_sq_foot
- 	,sum(aug_sales/w_warehouse_sq_ft) as aug_sales_per_sq_foot
- 	,sum(sep_sales/w_warehouse_sq_ft) as sep_sales_per_sq_foot
- 	,sum(oct_sales/w_warehouse_sq_ft) as oct_sales_per_sq_foot
- 	,sum(nov_sales/w_warehouse_sq_ft) as nov_sales_per_sq_foot
- 	,sum(dec_sales/w_warehouse_sq_ft) as dec_sales_per_sq_foot
- 	,sum(jan_net) as jan_net
- 	,sum(feb_net) as feb_net
- 	,sum(mar_net) as mar_net
- 	,sum(apr_net) as apr_net
- 	,sum(may_net) as may_net
- 	,sum(jun_net) as jun_net
- 	,sum(jul_net) as jul_net
- 	,sum(aug_net) as aug_net
- 	,sum(sep_net) as sep_net
- 	,sum(oct_net) as oct_net
- 	,sum(nov_net) as nov_net
- 	,sum(dec_net) as dec_net
- from (
-     select 
- 	w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
- 	,'DIAMOND' || ',' || 'AIRBORNE' as ship_carriers
-       ,d_year as year
- 	,sum(case when d_moy = 1 
- 		then ws_sales_price* ws_quantity else 0 end) as jan_sales
- 	,sum(case when d_moy = 2 
- 		then ws_sales_price* ws_quantity else 0 end) as feb_sales
- 	,sum(case when d_moy = 3 
- 		then ws_sales_price* ws_quantity else 0 end) as mar_sales
- 	,sum(case when d_moy = 4 
- 		then ws_sales_price* ws_quantity else 0 end) as apr_sales
- 	,sum(case when d_moy = 5 
- 		then ws_sales_price* ws_quantity else 0 end) as may_sales
- 	,sum(case when d_moy = 6 
- 		then ws_sales_price* ws_quantity else 0 end) as jun_sales
- 	,sum(case when d_moy = 7 
- 		then ws_sales_price* ws_quantity else 0 end) as jul_sales
- 	,sum(case when d_moy = 8 
- 		then ws_sales_price* ws_quantity else 0 end) as aug_sales
- 	,sum(case when d_moy = 9 
- 		then ws_sales_price* ws_quantity else 0 end) as sep_sales
- 	,sum(case when d_moy = 10 
- 		then ws_sales_price* ws_quantity else 0 end) as oct_sales
- 	,sum(case when d_moy = 11
- 		then ws_sales_price* ws_quantity else 0 end) as nov_sales
- 	,sum(case when d_moy = 12
- 		then ws_sales_price* ws_quantity else 0 end) as dec_sales
- 	,sum(case when d_moy = 1 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as jan_net
- 	,sum(case when d_moy = 2
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as feb_net
- 	,sum(case when d_moy = 3 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as mar_net
- 	,sum(case when d_moy = 4 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as apr_net
- 	,sum(case when d_moy = 5 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as may_net
- 	,sum(case when d_moy = 6 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as jun_net
- 	,sum(case when d_moy = 7 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as jul_net
- 	,sum(case when d_moy = 8 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as aug_net
- 	,sum(case when d_moy = 9 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as sep_net
- 	,sum(case when d_moy = 10 
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as oct_net
- 	,sum(case when d_moy = 11
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as nov_net
- 	,sum(case when d_moy = 12
- 		then ws_net_paid_inc_tax * ws_quantity else 0 end) as dec_net
-     from
-          web_sales
-         ,warehouse
-         ,date_dim
-         ,time_dim
- 	  ,ship_mode
-     where
-            ws_warehouse_sk =  w_warehouse_sk
-        and ws_sold_date_sk = d_date_sk
-        and ws_sold_time_sk = t_time_sk
- 	and ws_ship_mode_sk = sm_ship_mode_sk
-        and d_year = 2002
- 	and t_time between 49530 and 49530+28800 
- 	and sm_carrier in ('DIAMOND','AIRBORNE')
-     group by 
-        w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
-       ,d_year
- union all
-     select 
- 	w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
- 	,'DIAMOND' || ',' || 'AIRBORNE' as ship_carriers
-       ,d_year as year
- 	,sum(case when d_moy = 1 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as jan_sales
- 	,sum(case when d_moy = 2 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as feb_sales
- 	,sum(case when d_moy = 3 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as mar_sales
- 	,sum(case when d_moy = 4 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as apr_sales
- 	,sum(case when d_moy = 5 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as may_sales
- 	,sum(case when d_moy = 6 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as jun_sales
- 	,sum(case when d_moy = 7 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as jul_sales
- 	,sum(case when d_moy = 8 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as aug_sales
- 	,sum(case when d_moy = 9 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as sep_sales
- 	,sum(case when d_moy = 10 
- 		then cs_ext_sales_price* cs_quantity else 0 end) as oct_sales
- 	,sum(case when d_moy = 11
- 		then cs_ext_sales_price* cs_quantity else 0 end) as nov_sales
- 	,sum(case when d_moy = 12
- 		then cs_ext_sales_price* cs_quantity else 0 end) as dec_sales
- 	,sum(case when d_moy = 1 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as jan_net
- 	,sum(case when d_moy = 2 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as feb_net
- 	,sum(case when d_moy = 3 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as mar_net
- 	,sum(case when d_moy = 4 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as apr_net
- 	,sum(case when d_moy = 5 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as may_net
- 	,sum(case when d_moy = 6 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as jun_net
- 	,sum(case when d_moy = 7 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as jul_net
- 	,sum(case when d_moy = 8 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as aug_net
- 	,sum(case when d_moy = 9 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as sep_net
- 	,sum(case when d_moy = 10 
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as oct_net
- 	,sum(case when d_moy = 11
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as nov_net
- 	,sum(case when d_moy = 12
- 		then cs_net_paid_inc_ship_tax * cs_quantity else 0 end) as dec_net
-     from
-          catalog_sales
-         ,warehouse
-         ,date_dim
-         ,time_dim
- 	 ,ship_mode
-     where
-            cs_warehouse_sk =  w_warehouse_sk
-        and cs_sold_date_sk = d_date_sk
-        and cs_sold_time_sk = t_time_sk
- 	and cs_ship_mode_sk = sm_ship_mode_sk
-        and d_year = 2002
- 	and t_time between 49530 AND 49530+28800 
- 	and sm_carrier in ('DIAMOND','AIRBORNE')
-     group by 
-        w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
-       ,d_year
- ) x
- group by 
-        w_warehouse_name
- 	,w_warehouse_sq_ft
- 	,w_city
- 	,w_county
- 	,w_state
- 	,w_country
- 	,ship_carriers
-       ,year
- order by w_warehouse_name
- LIMIT 100;
-
-
+--- 1) Filtering joins rewritten to where join key IN ...
+--- 2) Remove unnecessary joins after 1)
+--- 1) FIXED added table name as scope for aliases creates clash with the result
+SELECT
+    w_warehouse_name,
+    w_warehouse_sq_ft,
+    w_city,
+    w_county,
+    w_state,
+    w_country,
+    ship_carriers,
+    year,
+    sum(x.jan_sales) AS jan_sales,
+    sum(x.feb_sales) AS feb_sales,
+    sum(x.mar_sales) AS mar_sales,
+    sum(x.apr_sales) AS apr_sales,
+    sum(x.may_sales) AS may_sales,
+    sum(x.jun_sales) AS jun_sales,
+    sum(x.jul_sales) AS jul_sales,
+    sum(x.aug_sales) AS aug_sales,
+    sum(x.sep_sales) AS sep_sales,
+    sum(x.oct_sales) AS oct_sales,
+    sum(x.nov_sales) AS nov_sales,
+    sum(x.dec_sales) AS dec_sales,
+    sum(x.jan_sales / w_warehouse_sq_ft) AS jan_sales_per_sq_foot,
+    sum(x.feb_sales / w_warehouse_sq_ft) AS feb_sales_per_sq_foot,
+    sum(x.mar_sales / w_warehouse_sq_ft) AS mar_sales_per_sq_foot,
+    sum(x.apr_sales / w_warehouse_sq_ft) AS apr_sales_per_sq_foot,
+    sum(x.may_sales / w_warehouse_sq_ft) AS may_sales_per_sq_foot,
+    sum(x.jun_sales / w_warehouse_sq_ft) AS jun_sales_per_sq_foot,
+    sum(x.jul_sales / w_warehouse_sq_ft) AS jul_sales_per_sq_foot,
+    sum(x.aug_sales / w_warehouse_sq_ft) AS aug_sales_per_sq_foot,
+    sum(x.sep_sales / w_warehouse_sq_ft) AS sep_sales_per_sq_foot,
+    sum(x.oct_sales / w_warehouse_sq_ft) AS oct_sales_per_sq_foot,
+    sum(x.nov_sales / w_warehouse_sq_ft) AS nov_sales_per_sq_foot,
+    sum(x.dec_sales / w_warehouse_sq_ft) AS dec_sales_per_sq_foot,
+    sum(x.jan_net) AS jan_net,
+    sum(x.feb_net) AS feb_net,
+    sum(x.mar_net) AS mar_net,
+    sum(x.apr_net) AS apr_net,
+    sum(x.may_net) AS may_net,
+    sum(x.jun_net) AS jun_net,
+    sum(x.jul_net) AS jul_net,
+    sum(x.aug_net) AS aug_net,
+    sum(x.sep_net) AS sep_net,
+    sum(x.oct_net) AS oct_net,
+    sum(x.nov_net) AS nov_net,
+    sum(x.dec_net) AS dec_net
+FROM
+(
+    SELECT
+        w_warehouse_name,
+        w_warehouse_sq_ft,
+        w_city,
+        w_county,
+        w_state,
+        w_country,
+        concat('BARIAN', ',', 'ORIENTAL') AS ship_carriers,
+        d_year AS year,
+        sum(multiIf(d_moy = 1, ws_ext_sales_price * ws_quantity, 0)) AS jan_sales,
+        sum(multiIf(d_moy = 2, ws_ext_sales_price * ws_quantity, 0)) AS feb_sales,
+        sum(multiIf(d_moy = 3, ws_ext_sales_price * ws_quantity, 0)) AS mar_sales,
+        sum(multiIf(d_moy = 4, ws_ext_sales_price * ws_quantity, 0)) AS apr_sales,
+        sum(multiIf(d_moy = 5, ws_ext_sales_price * ws_quantity, 0)) AS may_sales,
+        sum(multiIf(d_moy = 6, ws_ext_sales_price * ws_quantity, 0)) AS jun_sales,
+        sum(multiIf(d_moy = 7, ws_ext_sales_price * ws_quantity, 0)) AS jul_sales,
+        sum(multiIf(d_moy = 8, ws_ext_sales_price * ws_quantity, 0)) AS aug_sales,
+        sum(multiIf(d_moy = 9, ws_ext_sales_price * ws_quantity, 0)) AS sep_sales,
+        sum(multiIf(d_moy = 10, ws_ext_sales_price * ws_quantity, 0)) AS oct_sales,
+        sum(multiIf(d_moy = 11, ws_ext_sales_price * ws_quantity, 0)) AS nov_sales,
+        sum(multiIf(d_moy = 12, ws_ext_sales_price * ws_quantity, 0)) AS dec_sales,
+        sum(multiIf(d_moy = 1, ws_net_paid * ws_quantity, 0)) AS jan_net,
+        sum(multiIf(d_moy = 2, ws_net_paid * ws_quantity, 0)) AS feb_net,
+        sum(multiIf(d_moy = 3, ws_net_paid * ws_quantity, 0)) AS mar_net,
+        sum(multiIf(d_moy = 4, ws_net_paid * ws_quantity, 0)) AS apr_net,
+        sum(multiIf(d_moy = 5, ws_net_paid * ws_quantity, 0)) AS may_net,
+        sum(multiIf(d_moy = 6, ws_net_paid * ws_quantity, 0)) AS jun_net,
+        sum(multiIf(d_moy = 7, ws_net_paid * ws_quantity, 0)) AS jul_net,
+        sum(multiIf(d_moy = 8, ws_net_paid * ws_quantity, 0)) AS aug_net,
+        sum(multiIf(d_moy = 9, ws_net_paid * ws_quantity, 0)) AS sep_net,
+        sum(multiIf(d_moy = 10, ws_net_paid * ws_quantity, 0)) AS oct_net,
+        sum(multiIf(d_moy = 11, ws_net_paid * ws_quantity, 0)) AS nov_net,
+        sum(multiIf(d_moy = 12, ws_net_paid * ws_quantity, 0)) AS dec_net
+    FROM web_sales, warehouse, date_dim
+    WHERE (ws_sold_time_sk IN (
+        SELECT t_time_sk
+        FROM time_dim
+        WHERE (t_time >= 51258) AND (t_time <= (51258 + 28800))
+    )) AND (ws_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE d_year = 2001
+    )) AND (ws_sold_date_sk = d_date_sk) AND (d_year = 2001) AND (ws_warehouse_sk = w_warehouse_sk) AND (ws_ship_mode_sk IN (
+        SELECT sm_ship_mode_sk
+        FROM ship_mode
+        WHERE sm_carrier IN ('BARIAN', 'ORIENTAL')
+    ))
+    GROUP BY
+        w_warehouse_name,
+        w_warehouse_sq_ft,
+        w_city,
+        w_county,
+        w_state,
+        w_country,
+        d_year
+    UNION ALL
+    SELECT
+        w_warehouse_name,
+        w_warehouse_sq_ft,
+        w_city,
+        w_county,
+        w_state,
+        w_country,
+        concat('BARIAN', ',', 'ORIENTAL') AS ship_carriers,
+        d_year AS year,
+        sum(multiIf(d_moy = 1, cs_ext_sales_price * cs_quantity, 0)) AS jan_sales,
+        sum(multiIf(d_moy = 2, cs_ext_sales_price * cs_quantity, 0)) AS feb_sales,
+        sum(multiIf(d_moy = 3, cs_ext_sales_price * cs_quantity, 0)) AS mar_sales,
+        sum(multiIf(d_moy = 4, cs_ext_sales_price * cs_quantity, 0)) AS apr_sales,
+        sum(multiIf(d_moy = 5, cs_ext_sales_price * cs_quantity, 0)) AS may_sales,
+        sum(multiIf(d_moy = 6, cs_ext_sales_price * cs_quantity, 0)) AS jun_sales,
+        sum(multiIf(d_moy = 7, cs_ext_sales_price * cs_quantity, 0)) AS jul_sales,
+        sum(multiIf(d_moy = 8, cs_ext_sales_price * cs_quantity, 0)) AS aug_sales,
+        sum(multiIf(d_moy = 9, cs_ext_sales_price * cs_quantity, 0)) AS sep_sales,
+        sum(multiIf(d_moy = 10, cs_ext_sales_price * cs_quantity, 0)) AS oct_sales,
+        sum(multiIf(d_moy = 11, cs_ext_sales_price * cs_quantity, 0)) AS nov_sales,
+        sum(multiIf(d_moy = 12, cs_ext_sales_price * cs_quantity, 0)) AS dec_sales,
+        sum(multiIf(d_moy = 1, cs_net_paid_inc_ship * cs_quantity, 0)) AS jan_net,
+        sum(multiIf(d_moy = 2, cs_net_paid_inc_ship * cs_quantity, 0)) AS feb_net,
+        sum(multiIf(d_moy = 3, cs_net_paid_inc_ship * cs_quantity, 0)) AS mar_net,
+        sum(multiIf(d_moy = 4, cs_net_paid_inc_ship * cs_quantity, 0)) AS apr_net,
+        sum(multiIf(d_moy = 5, cs_net_paid_inc_ship * cs_quantity, 0)) AS may_net,
+        sum(multiIf(d_moy = 6, cs_net_paid_inc_ship * cs_quantity, 0)) AS jun_net,
+        sum(multiIf(d_moy = 7, cs_net_paid_inc_ship * cs_quantity, 0)) AS jul_net,
+        sum(multiIf(d_moy = 8, cs_net_paid_inc_ship * cs_quantity, 0)) AS aug_net,
+        sum(multiIf(d_moy = 9, cs_net_paid_inc_ship * cs_quantity, 0)) AS sep_net,
+        sum(multiIf(d_moy = 10, cs_net_paid_inc_ship * cs_quantity, 0)) AS oct_net,
+        sum(multiIf(d_moy = 11, cs_net_paid_inc_ship * cs_quantity, 0)) AS nov_net,
+        sum(multiIf(d_moy = 12, cs_net_paid_inc_ship * cs_quantity, 0)) AS dec_net
+    FROM catalog_sales, warehouse, date_dim
+    WHERE (cs_warehouse_sk = w_warehouse_sk) AND (cs_sold_date_sk = d_date_sk) AND (cs_sold_date_sk IN (
+        SELECT d_date_sk
+        FROM date_dim
+        WHERE d_year = 2001
+    )) AND (d_year = 2001) AND (cs_sold_time_sk IN (
+        SELECT t_time_sk
+        FROM time_dim
+        WHERE (t_time >= 51258) AND (t_time <= (51258 + 28800))
+    )) AND (cs_ship_mode_sk IN (
+        SELECT sm_ship_mode_sk
+        FROM ship_mode
+        WHERE sm_carrier IN ('BARIAN', 'ORIENTAL')
+    ))
+    GROUP BY
+        w_warehouse_name,
+        w_warehouse_sq_ft,
+        w_city,
+        w_county,
+        w_state,
+        w_country,
+        d_year
+) AS x
+GROUP BY
+    w_warehouse_name,
+    w_warehouse_sq_ft,
+    w_city,
+    w_county,
+    w_state,
+    w_country,
+    ship_carriers,
+    year
+ORDER BY w_warehouse_name ASC
+LIMIT 100
