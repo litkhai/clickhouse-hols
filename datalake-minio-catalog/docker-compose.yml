@@ -113,7 +113,9 @@ services:
 
   # Jupyter Notebook for data exploration
   jupyter:
-    image: jupyter/pyspark-notebook:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
     container_name: jupyter
     ports:
       - "8888:8888"
@@ -122,9 +124,11 @@ services:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
       - AWS_REGION=us-east-1
+      - SPARK_CLASSPATH=/usr/local/spark/jars/*
     volumes:
       - ./notebooks:/home/jovyan/work
       - ./sample-data:/home/jovyan/sample-data
+      - ./spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf:ro
     command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
     networks:
       - datalake
