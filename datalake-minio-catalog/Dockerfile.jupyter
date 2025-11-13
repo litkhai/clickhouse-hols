@@ -1,0 +1,28 @@
+FROM jupyter/pyspark-notebook:latest
+
+USER root
+
+# Download Iceberg Spark runtime and AWS bundle
+RUN cd /usr/local/spark/jars && \
+    wget -q https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.5.0/iceberg-spark-runtime-3.5_2.12-1.5.0.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/1.5.0/iceberg-aws-bundle-1.5.0.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
+    wget -q https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar && \
+    wget -q https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.20.18/bundle-2.20.18.jar && \
+    wget -q https://repo1.maven.org/maven2/software/amazon/awssdk/url-connection-client/2.20.18/url-connection-client-2.20.18.jar
+
+USER ${NB_UID}
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    'pyiceberg[s3fs,pyarrow]>=0.5.0' \
+    'pynessie>=0.60.0' \
+    'minio>=7.2.0' \
+    'boto3>=1.28.0'
+
+# Set Spark defaults
+RUN mkdir -p /home/jovyan/.ipython/profile_default/startup && \
+    echo "import os" > /home/jovyan/.ipython/profile_default/startup/00-spark-config.py && \
+    echo "os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0,org.apache.iceberg:iceberg-aws-bundle:1.5.0 pyspark-shell'" >> /home/jovyan/.ipython/profile_default/startup/00-spark-config.py
+
+WORKDIR /home/jovyan

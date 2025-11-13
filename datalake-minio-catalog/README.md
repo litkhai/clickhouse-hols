@@ -48,10 +48,13 @@ python3 generate_parquet.py
 ```
 
 This will:
+- Build the custom Jupyter image with Iceberg support (first time only)
 - Create necessary directories
 - Start Docker containers
 - Wait for services to be ready
 - Display connection endpoints
+
+**Note**: First-time startup takes 5-10 minutes to build the Jupyter image with all dependencies.
 
 ### 4. Register Sample Data
 
@@ -258,9 +261,19 @@ The setup includes pre-configured Jupyter notebooks:
    - Basic data analysis
 
 2. **02_iceberg_nessie.ipynb**
-   - Configure Nessie catalog
+   - Configure Nessie catalog (PyIceberg)
    - Query Iceberg tables
    - Work with Nessie branches
+
+3. **03_clickhouse_integration.ipynb**
+   - Connect ClickHouse to MinIO
+   - Query data via S3 functions
+
+4. **04_spark_iceberg_nessie.ipynb** ⭐ **Recommended**
+   - Full PySpark + Iceberg + Nessie integration
+   - Create tables, insert, update, delete
+   - Schema evolution and time travel
+   - Git-like branching
 
 Access Jupyter at: http://localhost:8888
 
