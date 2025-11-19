@@ -1,25 +1,25 @@
 Confluent Platform Deployment Information
 ==========================================
-Deployment Date: Wed Nov 19 13:15:46 KST 2025
+Deployment Date: Wed Nov 19 13:23:51 KST 2025
 
-Control Center URL: http://3.37.129.245:9021
-Public IP: 3.37.129.245
-Kafka Bootstrap Servers: 3.37.129.245:9093
-SSH Command: SSH key pair not configured
+Control Center URL: http://13.125.208.23:9021
+Public IP: 13.125.208.23
+Kafka Bootstrap Servers: 13.125.208.23:9093
+SSH Command: ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.125.208.23
 
 Management Commands:
 -------------------
 Check Status:
-  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/status.sh'
+  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/status.sh'
 
 Stop Services:
-  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/stop.sh'
+  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/stop.sh'
 
 Start Services:
-  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/start.sh'
+  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/start.sh'
 
 View Producer Logs:
-  ssh ubuntu@3.37.129.245 'sudo journalctl -u confluent-producer -f'
+  ssh ubuntu@13.125.208.23 'sudo journalctl -u confluent-producer -f'
 
 Cleanup:
 --------
