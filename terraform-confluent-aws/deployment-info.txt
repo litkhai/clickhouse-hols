@@ -1,0 +1,29 @@
+Confluent Platform Deployment Information
+==========================================
+Deployment Date: Wed Nov 19 13:15:46 KST 2025
+
+Control Center URL: http://3.37.129.245:9021
+Public IP: 3.37.129.245
+Kafka Bootstrap Servers: 3.37.129.245:9093
+SSH Command: SSH key pair not configured
+
+Management Commands:
+-------------------
+Check Status:
+  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/status.sh'
+
+Stop Services:
+  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/stop.sh'
+
+Start Services:
+  ssh ubuntu@3.37.129.245 'sudo /opt/confluent/start.sh'
+
+View Producer Logs:
+  ssh ubuntu@3.37.129.245 'sudo journalctl -u confluent-producer -f'
+
+Cleanup:
+--------
+To destroy all resources:
+  ./destroy.sh
+  or
+  terraform destroy
