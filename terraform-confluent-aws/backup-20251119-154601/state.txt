@@ -1,0 +1,365 @@
+# data.aws_ami.ubuntu:
+data "aws_ami" "ubuntu" {
+    architecture          = "x86_64"
+    arn                   = "arn:aws:ec2:ap-northeast-2::image/ami-0d7f51b914bb4b808"
+    block_device_mappings = [
+        {
+            device_name  = "/dev/sda1"
+            ebs          = {
+                "delete_on_termination"      = "true"
+                "encrypted"                  = "false"
+                "iops"                       = "0"
+                "snapshot_id"                = "snap-083b6ed1850592252"
+                "throughput"                 = "0"
+                "volume_initialization_rate" = "0"
+                "volume_size"                = "8"
+                "volume_type"                = "gp2"
+            }
+            no_device    = ""
+            virtual_name = ""
+        },
+        {
+            device_name  = "/dev/sdb"
+            ebs          = {}
+            no_device    = ""
+            virtual_name = "ephemeral0"
+        },
+        {
+            device_name  = "/dev/sdc"
+            ebs          = {}
+            no_device    = ""
+            virtual_name = "ephemeral1"
+        },
+    ]
+    boot_mode             = "uefi-preferred"
+    creation_date         = "2025-11-11T07:03:47.000Z"
+    deprecation_time      = "2027-11-11T07:03:47.000Z"
+    description           = "Canonical, Ubuntu, 22.04, amd64 jammy image"
+    ena_support           = true
+    hypervisor            = "xen"
+    id                    = "ami-0d7f51b914bb4b808"
+    image_id              = "ami-0d7f51b914bb4b808"
+    image_location        = "amazon/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20251111"
+    image_owner_alias     = "amazon"
+    image_type            = "machine"
+    include_deprecated    = false
+    most_recent           = true
+    name                  = "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20251111"
+    owner_id              = "099720109477"
+    owners                = [
+        "099720109477",
+    ]
+    platform_details      = "Linux/UNIX"
+    product_codes         = []
+    public                = true
+    root_device_name      = "/dev/sda1"
+    root_device_type      = "ebs"
+    root_snapshot_id      = "snap-083b6ed1850592252"
+    sriov_net_support     = "simple"
+    state                 = "available"
+    state_reason          = {
+        "code"    = "UNSET"
+        "message" = "UNSET"
+    }
+    tags                  = {}
+    usage_operation       = "RunInstances"
+    virtualization_type   = "hvm"
+
+    filter {
+        name   = "name"
+        values = [
+            "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*",
+        ]
+    }
+    filter {
+        name   = "virtualization-type"
+        values = [
+            "hvm",
+        ]
+    }
+}
+
+# data.aws_vpc.default:
+data "aws_vpc" "default" {
+    arn                                  = "arn:aws:ec2:ap-northeast-2:959934561610:vpc/vpc-085d897ef32a68be4"
+    cidr_block                           = "172.31.0.0/16"
+    cidr_block_associations              = [
+        {
+            association_id = "vpc-cidr-assoc-074ce29b5fd049cda"
+            cidr_block     = "172.31.0.0/16"
+            state          = "associated"
+        },
+    ]
+    default                              = true
+    dhcp_options_id                      = "dopt-09874ef16a4b2d6a2"
+    enable_dns_hostnames                 = true
+    enable_dns_support                   = true
+    enable_network_address_usage_metrics = false
+    id                                   = "vpc-085d897ef32a68be4"
+    instance_tenancy                     = "default"
+    main_route_table_id                  = "rtb-08ab103924acf7fe4"
+    owner_id                             = "959934561610"
+    tags                                 = {}
+}
+
+# aws_instance.confluent:
+resource "aws_instance" "confluent" {
+    ami                                  = "ami-0d7f51b914bb4b808"
+    arn                                  = "arn:aws:ec2:ap-northeast-2:959934561610:instance/i-0ddfd87a038a23c00"
+    associate_public_ip_address          = true
+    availability_zone                    = "ap-northeast-2c"
+    cpu_core_count                       = 2
+    cpu_threads_per_core                 = 2
+    disable_api_stop                     = false
+    disable_api_termination              = false
+    ebs_optimized                        = false
+    get_password_data                    = false
+    hibernation                          = false
+    id                                   = "i-0ddfd87a038a23c00"
+    instance_initiated_shutdown_behavior = "stop"
+    instance_state                       = "running"
+    instance_type                        = "r5.xlarge"
+    ipv6_address_count                   = 0
+    ipv6_addresses                       = []
+    key_name                             = "kenlee_seoul_key"
+    monitoring                           = false
+    placement_partition_number           = 0
+    primary_network_interface_id         = "eni-0f07692305e05a609"
+    private_dns                          = "ip-172-31-43-234.ap-northeast-2.compute.internal"
+    private_ip                           = "172.31.43.234"
+    public_dns                           = "ec2-13-209-22-75.ap-northeast-2.compute.amazonaws.com"
+    public_ip                            = "13.209.22.75"
+    secondary_private_ips                = []
+    security_groups                      = [
+        "confluent-server-sg",
+    ]
+    source_dest_check                    = true
+    subnet_id                            = "subnet-0b2f21ad1aa023b3f"
+    tags                                 = {
+        "Name" = "confluent-server"
+    }
+    tags_all                             = {
+        "Name" = "confluent-server"
+    }
+    tenancy                              = "default"
+    user_data                            = "88591467023deba29f22be94d703a4686b118778"
+    user_data_replace_on_change          = false
+    vpc_security_group_ids               = [
+        "sg-03b8031313b6e13f8",
+    ]
+
+    capacity_reservation_specification {
+        capacity_reservation_preference = "open"
+    }
+
+    cpu_options {
+        core_count       = 2
+        threads_per_core = 2
+    }
+
+    enclave_options {
+        enabled = false
+    }
+
+    maintenance_options {
+        auto_recovery = "default"
+    }
+
+    metadata_options {
+        http_endpoint               = "enabled"
+        http_protocol_ipv6          = "disabled"
+        http_put_response_hop_limit = 1
+        http_tokens                 = "optional"
+        instance_metadata_tags      = "disabled"
+    }
+
+    private_dns_name_options {
+        enable_resource_name_dns_a_record    = false
+        enable_resource_name_dns_aaaa_record = false
+        hostname_type                        = "ip-name"
+    }
+
+    root_block_device {
+        delete_on_termination = true
+        device_name           = "/dev/sda1"
+        encrypted             = true
+        iops                  = 3000
+        kms_key_id            = "arn:aws:kms:ap-northeast-2:959934561610:key/7a3daf8a-42ea-40dd-b784-216625de722d"
+        tags                  = {
+            "Name" = "confluent-server-root-volume"
+        }
+        tags_all              = {
+            "Name" = "confluent-server-root-volume"
+        }
+        throughput            = 125
+        volume_id             = "vol-032d9656c0068ff9c"
+        volume_size           = 100
+        volume_type           = "gp3"
+    }
+}
+
+# aws_security_group.confluent_sg:
+resource "aws_security_group" "confluent_sg" {
+    arn                    = "arn:aws:ec2:ap-northeast-2:959934561610:security-group/sg-03b8031313b6e13f8"
+    description            = "Security group for Confluent Platform server"
+    egress                 = [
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "Allow all outbound traffic"
+            from_port        = 0
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "-1"
+            security_groups  = []
+            self             = false
+            to_port          = 0
+        },
+    ]
+    id                     = "sg-03b8031313b6e13f8"
+    ingress                = [
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "Confluent Control Center Web UI"
+            from_port        = 9021
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 9021
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "Kafka Broker"
+            from_port        = 9092
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 9092
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "Kafka Connect"
+            from_port        = 8083
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 8083
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "REST Proxy"
+            from_port        = 8082
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 8082
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "SSH"
+            from_port        = 22
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 22
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "Schema Registry"
+            from_port        = 8081
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 8081
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "ZooKeeper"
+            from_port        = 2181
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 2181
+        },
+        {
+            cidr_blocks      = [
+                "0.0.0.0/0",
+            ]
+            description      = "ksqlDB Server"
+            from_port        = 8088
+            ipv6_cidr_blocks = []
+            prefix_list_ids  = []
+            protocol         = "tcp"
+            security_groups  = []
+            self             = false
+            to_port          = 8088
+        },
+    ]
+    name                   = "confluent-server-sg"
+    owner_id               = "959934561610"
+    revoke_rules_on_delete = false
+    tags                   = {
+        "Name" = "confluent-server-sg"
+    }
+    tags_all               = {
+        "Name" = "confluent-server-sg"
+    }
+    vpc_id                 = "vpc-085d897ef32a68be4"
+}
+
+
+Outputs:
+
+control_center_url = "http://13.209.22.75:9021"
+instance_id = "i-0ddfd87a038a23c00"
+instance_private_ip = "172.31.43.234"
+instance_public_ip = "13.209.22.75"
+kafka_bootstrap_servers = "13.209.22.75:9092"
+kafka_connect_url = "http://13.209.22.75:8083"
+ksqldb_url = "http://13.209.22.75:8088"
+rest_proxy_url = "http://13.209.22.75:8082"
+sample_topic_name = "sample-data-topic"
+schema_registry_url = "http://13.209.22.75:8081"
+ssh_command = "ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75"
+useful_commands = <<-EOT
+    # Check status
+    ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/status.sh'
+    
+    # Stop Confluent Platform
+    ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/stop.sh'
+    
+    # Start Confluent Platform
+    ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/start.sh'
+    
+    # View data producer logs
+    ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo journalctl -u confluent-producer -f'
+EOT
