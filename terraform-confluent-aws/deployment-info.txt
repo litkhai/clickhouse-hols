@@ -1,25 +1,28 @@
 Confluent Platform Deployment Information
 ==========================================
-Deployment Date: Wed Nov 19 13:23:51 KST 2025
+Deployment Date: Wed Nov 19 15:30:39 KST 2025
 
-Control Center URL: http://13.125.208.23:9021
-Public IP: 13.125.208.23
-Kafka Bootstrap Servers: 13.125.208.23:9093
-SSH Command: ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.125.208.23
+Control Center URL: http://13.209.22.75:9021
+Public IP: 13.209.22.75
+Kafka Bootstrap Servers: 13.209.22.75:9092
+SSH Command: ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75
 
 Management Commands:
 -------------------
 Check Status:
-  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/status.sh'
+  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/status.sh'
 
 Stop Services:
-  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/stop.sh'
+  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/stop.sh'
 
 Start Services:
-  ssh ubuntu@13.125.208.23 'sudo /opt/confluent/start.sh'
+  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/start.sh'
 
 View Producer Logs:
-  ssh ubuntu@13.125.208.23 'sudo journalctl -u confluent-producer -f'
+  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo journalctl -u confluent-producer -f'
+
+Monitor Installation:
+  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'tail -f /var/log/cloud-init-output.log'
 
 Cleanup:
 --------
