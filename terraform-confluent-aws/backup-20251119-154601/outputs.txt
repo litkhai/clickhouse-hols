@@ -1,0 +1,24 @@
+control_center_url = "http://13.209.22.75:9021"
+instance_id = "i-0ddfd87a038a23c00"
+instance_private_ip = "172.31.43.234"
+instance_public_ip = "13.209.22.75"
+kafka_bootstrap_servers = "13.209.22.75:9092"
+kafka_connect_url = "http://13.209.22.75:8083"
+ksqldb_url = "http://13.209.22.75:8088"
+rest_proxy_url = "http://13.209.22.75:8082"
+sample_topic_name = "sample-data-topic"
+schema_registry_url = "http://13.209.22.75:8081"
+ssh_command = "ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75"
+useful_commands = <<EOT
+# Check status
+ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/status.sh'
+
+# Stop Confluent Platform
+ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/stop.sh'
+
+# Start Confluent Platform
+ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo /opt/confluent/start.sh'
+
+# View data producer logs
+ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@13.209.22.75 'sudo journalctl -u confluent-producer -f'
+EOT
