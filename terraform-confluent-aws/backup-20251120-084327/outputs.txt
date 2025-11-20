@@ -1,0 +1,40 @@
+connection_info = <sensitive>
+control_center_url = "http://3.39.233.60:9021"
+instance_id = "i-091eac4661c9a89ac"
+instance_private_ip = "172.31.36.241"
+instance_public_ip = "3.39.233.60"
+kafka_bootstrap_servers = "3.39.233.60:9092"
+kafka_connect_url = "http://3.39.233.60:8083"
+kafka_sasl_password = <sensitive>
+kafka_sasl_username = "admin"
+ksqldb_url = "http://3.39.233.60:8088"
+rest_proxy_url = "http://3.39.233.60:8082"
+sample_topic_name = "sample-data-topic"
+schema_registry_url = "http://3.39.233.60:8081"
+ssh_command = "ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60"
+test_sasl_connection = <<EOT
+# Download the Python test script (with correct IP already configured)
+scp -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60:/opt/confluent/test_kafka_sasl.py .
+
+# Install required Python package
+pip3 install confluent-kafka
+
+# Run the test
+python3 test_kafka_sasl.py
+
+# Or test directly on the EC2 instance (requires confluent-kafka Python package)
+ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60 'python3 /opt/confluent/test_kafka_sasl.py'
+EOT
+useful_commands = <<EOT
+# Check status
+ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60 'sudo /opt/confluent/status.sh'
+
+# Stop Confluent Platform
+ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60 'sudo /opt/confluent/stop.sh'
+
+# Start Confluent Platform
+ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60 'sudo /opt/confluent/start.sh'
+
+# View data producer logs
+ssh -i /path/to/kenlee_seoul_key.pem ubuntu@3.39.233.60 'sudo journalctl -u confluent-producer -f'
+EOT
