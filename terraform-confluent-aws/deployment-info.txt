@@ -1,28 +1,28 @@
 Confluent Platform Deployment Information
 ==========================================
-Deployment Date: Thu Nov 20 08:45:21 KST 2025
+Deployment Date: Thu Nov 20 10:52:06 KST 2025
 
-Control Center URL: http://43.200.5.108:9021
-Public IP: 43.200.5.108
-Kafka Bootstrap Servers: 43.200.5.108:9092
-SSH Command: ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108
+Control Center URL: http://ec2-13-209-99-83.ap-northeast-2.compute.amazonaws.com:9021
+Public IP: 13.209.99.83
+Kafka Bootstrap Servers: ec2-13-209-99-83.ap-northeast-2.compute.amazonaws.com:9092
+SSH Command: ssh -i /path/to/kenlee_seoul_key.pem ubuntu@ec2-13-209-99-83.ap-northeast-2.compute.amazonaws.com
 
 Management Commands:
 -------------------
 Check Status:
-  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108 'sudo /opt/confluent/status.sh'
+  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@13.209.99.83 'sudo /opt/confluent/status.sh'
 
 Stop Services:
-  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108 'sudo /opt/confluent/stop.sh'
+  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@13.209.99.83 'sudo /opt/confluent/stop.sh'
 
 Start Services:
-  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108 'sudo /opt/confluent/start.sh'
+  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@13.209.99.83 'sudo /opt/confluent/start.sh'
 
 View Producer Logs:
-  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108 'sudo journalctl -u confluent-producer -f'
+  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@13.209.99.83 'sudo journalctl -u confluent-producer -f'
 
 Monitor Installation:
-  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@43.200.5.108 'tail -f /var/log/cloud-init-output.log'
+  ssh -i /path/to/kenlee_seoul_key.pem ubuntu@13.209.99.83 'tail -f /var/log/cloud-init-output.log'
 
 Cleanup:
 --------
