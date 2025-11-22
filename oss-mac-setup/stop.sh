@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🛑 Stopping ClickHouse..."
-echo "======================="
+echo "🛑 Stopping ClickHouse Multi-Version..."
+echo "======================================="
 
 # Check for cleanup flag
 CLEANUP=false
@@ -10,6 +10,14 @@ if [ "$1" = "--cleanup" ] || [ "$1" = "-c" ]; then
     echo ""
     echo "⚠️  Cleanup mode enabled - will delete all data!"
     echo ""
+fi
+
+# Load configured versions
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+else
+    VERSIONS=()
 fi
 
 # Stop with Docker Compose
@@ -21,25 +29,45 @@ if [ -f "docker-compose.yml" ]; then
         docker-compose down
     fi
 else
-    echo "▶️  Stopping container directly..."
-    docker stop clickhouse-oss 2>/dev/null || true
-    docker rm clickhouse-oss 2>/dev/null || true
+    echo "▶️  Stopping containers directly..."
+    for version in "${VERSIONS[@]}"; do
+        CONTAINER_NAME="clickhouse-${version//./-}"
+        docker stop ${CONTAINER_NAME} 2>/dev/null || true
+        docker rm ${CONTAINER_NAME} 2>/dev/null || true
+    done
 fi
 
 # Check status
-if docker ps --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "⚠️  Container is still running."
-    echo "   Force stop: docker kill clickhouse-oss"
+echo ""
+echo "📊 Container status:"
+STILL_RUNNING=false
+for version in "${VERSIONS[@]}"; do
+    CONTAINER_NAME="clickhouse-${version//./-}"
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        echo "   ⚠️  ${CONTAINER_NAME} is still running."
+        STILL_RUNNING=true
+    else
+        echo "   ✓ ${CONTAINER_NAME} stopped"
+    fi
+done
+
+if [ "$STILL_RUNNING" = true ]; then
+    echo ""
+    echo "⚠️  Some containers are still running."
+    echo "   Force stop: docker-compose kill"
 else
-    echo "✅ ClickHouse stopped successfully."
+    echo ""
+    echo "✅ All ClickHouse containers stopped successfully."
 fi
 
 # Additional cleanup if requested
 if [ "$CLEANUP" = true ]; then
     echo ""
     echo "🗑️  Removing Docker volumes..."
-    docker volume rm clickhouse-oss_clickhouse_data 2>/dev/null && echo "   ✓ Removed clickhouse_data volume" || true
-    docker volume rm clickhouse-oss_clickhouse_logs 2>/dev/null && echo "   ✓ Removed clickhouse_logs volume" || true
+    for version in "${VERSIONS[@]}"; do
+        docker volume rm clickhouse-oss_clickhouse_data_${version//./_} 2>/dev/null && echo "   ✓ Removed data volume for ${version}" || true
+        docker volume rm clickhouse-oss_clickhouse_logs_${version//./_} 2>/dev/null && echo "   ✓ Removed logs volume for ${version}" || true
+    done
 
     echo ""
     echo "🧹 Cleaning up network..."
@@ -47,8 +75,8 @@ if [ "$CLEANUP" = true ]; then
 
     echo ""
     echo "🗑️  Removing Docker images..."
-    docker images clickhouse/clickhouse-server --format "{{.Repository}}:{{.Tag}}" | while read image; do
-        docker rmi "$image" 2>/dev/null && echo "   ✓ Removed $image" || true
+    for version in "${VERSIONS[@]}"; do
+        docker rmi clickhouse/clickhouse-server:${version} 2>/dev/null && echo "   ✓ Removed image ${version}" || true
     done
 
     echo ""
@@ -57,7 +85,7 @@ fi
 
 echo ""
 if [ "$CLEANUP" = true ]; then
-    echo "🔧 To setup again: cd /path/to/setup && ./set.sh"
+    echo "🔧 To setup again: ./set.sh <VERSION1> <VERSION2> ..."
 else
     echo "🔧 To restart: ./start.sh"
     echo "🧹 To stop with cleanup: ./stop.sh --cleanup"
