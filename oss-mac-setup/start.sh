@@ -1,59 +1,103 @@
 #!/bin/bash
 
-echo "🚀 Starting ClickHouse..."
-echo "========================"
+echo "🚀 Starting ClickHouse Multi-Version..."
+echo "======================================"
 
-# Clean up existing container if present
-if docker ps -a --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "🔄 Cleaning up existing container..."
-    docker stop clickhouse-oss 2>/dev/null || true
-    docker rm clickhouse-oss 2>/dev/null || true
-    docker-compose down 2>/dev/null || true
+# Function to convert version to port number
+version_to_port() {
+    local version=$1
+    if [ "$version" = "latest" ]; then
+        echo "9999"
+    else
+        # Split version by dot and pad the minor version to 2 digits
+        local major=$(echo "$version" | cut -d. -f1)
+        local minor=$(echo "$version" | cut -d. -f2)
+        printf "%02d%02d" "$major" "$minor"
+    fi
+}
+
+# Load configured versions from .env
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+else
+    echo "❌ .env file not found. Please run ./set.sh first."
+    exit 1
 fi
 
-# Pull latest image
-echo "📥 Pulling ClickHouse image..."
+echo "📦 Configured versions: ${VERSIONS[*]}"
+echo ""
+
+# Clean up existing containers if present
+echo "🔄 Cleaning up old containers..."
+docker-compose down 2>/dev/null || true
+
+# Pull latest images
+echo "📥 Pulling ClickHouse images..."
 docker-compose pull
 
-# Start ClickHouse
-echo "▶️  Starting ClickHouse container..."
+# Start all ClickHouse containers
+echo "▶️  Starting ClickHouse containers..."
 docker-compose up -d
 
-# Wait for initialization
+echo ""
 echo "⏳ Waiting for ClickHouse initialization..."
-echo "   (up to 45 seconds)"
+echo "   (checking each version, up to 45 seconds per version)"
+echo ""
 
-# Check status (wait up to 45 seconds)
-for i in {1..45}; do
-    if curl -s http://localhost:8123/ping > /dev/null 2>&1; then
+# Check status for each version
+ALL_STARTED=true
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    CONTAINER_NAME="clickhouse-${version//./-}"
+
+    echo "Checking version ${version} on port ${PORT}..."
+
+    # Wait up to 45 seconds
+    STARTED=false
+    for i in {1..45}; do
+        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
+            echo "✅ Version ${version} started successfully! (port ${PORT})"
+            STARTED=true
+            break
+        fi
+
+        echo -ne "\r   Waiting... ${i}s"
+        sleep 1
+    done
+
+    if [ "$STARTED" = false ]; then
         echo ""
-        echo "✅ ClickHouse started successfully!"
-        break
+        echo "⚠️  Version ${version} startup timeout. Check logs:"
+        echo "   docker logs ${CONTAINER_NAME}"
+        ALL_STARTED=false
     fi
-
-    if [ $i -eq 45 ]; then
-        echo ""
-        echo "⚠️  Startup is taking longer than expected. Check logs:"
-        echo "   docker-compose logs clickhouse"
-        exit 1
-    fi
-
-    echo -ne "\r   Waiting... ${i}s"
-    sleep 1
+    echo ""
 done
+
+if [ "$ALL_STARTED" = true ]; then
+    echo "✅ All ClickHouse versions started successfully!"
+else
+    echo "⚠️  Some versions failed to start. Check logs above."
+fi
 
 echo ""
 echo "🎯 Connection Information:"
-echo "   📍 Web UI: http://localhost:8123/play"
-echo "   📍 HTTP API: http://localhost:8123"
-echo "   📍 TCP: localhost:9000"
-echo "   👤 User: default (no password)"
-echo ""
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    echo "   Version ${version}:"
+    echo "      📍 Web UI: http://localhost:${PORT}/play"
+    echo "      📍 HTTP API: http://localhost:${PORT}"
+    echo "      📍 TCP: localhost:${PORT}1"
+    echo "      👤 User: default (no password)"
+    echo ""
+done
+
 echo "🔧 Management Commands:"
-echo "   ./stop.sh              - Stop ClickHouse (preserve data)"
+echo "   ./stop.sh              - Stop all versions (preserve data)"
 echo "   ./stop.sh --cleanup    - Stop and delete all data"
 echo "   ./status.sh            - Check status and resource usage"
-echo "   ./client.sh            - Connect to CLI client"
-echo "   docker logs clickhouse-oss - View container logs"
+echo "   ./client.sh <PORT>     - Connect to specific version"
+echo "   Example: ./client.sh ${PORT} (for version ${version})"
 echo ""
 echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"

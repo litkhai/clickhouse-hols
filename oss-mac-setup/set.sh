@@ -1,22 +1,27 @@
 #!/bin/bash
 
 # ClickHouse OSS environment initial setup script
-# Usage: ./setup.sh [VERSION]
-# Example: ./setup.sh 25.10
-#          ./setup.sh latest
-#          ./setup.sh (defaults to latest)
+# Usage: ./set.sh [VERSION1] [VERSION2] [VERSION3] ...
+# Example: ./set.sh 24.10 25.6 25.10
+#          ./set.sh 25.10
+#          ./set.sh (defaults to latest)
 
 set -e
 
-# Version parameter (default to latest if not specified)
-CLICKHOUSE_VERSION="${1:-latest}"
+# Version parameters (default to latest if not specified)
+if [ $# -eq 0 ]; then
+    CLICKHOUSE_VERSIONS=("latest")
+else
+    CLICKHOUSE_VERSIONS=("$@")
+fi
+
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_NAME="ClickHouse OSS Setup"
+SCRIPT_NAME="ClickHouse OSS Multi-Version Setup"
 
 echo "🚀 $SCRIPT_NAME"
 echo "=================================="
 echo "📍 Installation directory: $BASE_DIR"
-echo "📦 ClickHouse version: $CLICKHOUSE_VERSION"
+echo "📦 ClickHouse versions: ${CLICKHOUSE_VERSIONS[*]}"
 echo ""
 
 # Check Docker environment
@@ -385,19 +390,43 @@ EOF
 
 # Create docker-compose.yml (using Named Volume)
 echo "📝 Creating Docker Compose configuration..."
-cat > docker-compose.yml << EOF
+
+# Function to convert version to port number (e.g., 24.10 -> 2410, 25.6 -> 2506)
+version_to_port() {
+    local version=$1
+    if [ "$version" = "latest" ]; then
+        echo "9999"
+    else
+        # Split version by dot and pad the minor version to 2 digits
+        local major=$(echo "$version" | cut -d. -f1)
+        local minor=$(echo "$version" | cut -d. -f2)
+        printf "%02d%02d" "$major" "$minor"
+    fi
+}
+
+# Start docker-compose.yml
+cat > docker-compose.yml << 'COMPOSE_START'
 services:
-  clickhouse:
-    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
-    container_name: clickhouse-oss
-    hostname: clickhouse
+COMPOSE_START
+
+# Add service for each version
+for version in "${CLICKHOUSE_VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    HTTP_PORT="${PORT}"
+    TCP_PORT="${PORT}1"
+    CONTAINER_NAME="clickhouse-${version//./-}"
+
+    cat >> docker-compose.yml << EOF
+  clickhouse-${version//./-}:
+    image: clickhouse/clickhouse-server:${version}
+    container_name: ${CONTAINER_NAME}
+    hostname: clickhouse-${version//./-}
     ports:
-      - "8123:8123"  # HTTP Interface
-      - "9000:9000"  # TCP Interface
+      - "${HTTP_PORT}:8123"  # HTTP Interface
+      - "${TCP_PORT}:9000"   # TCP Interface
     volumes:
-      # Using Named volume (resolves macOS permission issues)
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_logs:/var/log/clickhouse-server
+      - clickhouse_data_${version//./_}:/var/lib/clickhouse
+      - clickhouse_logs_${version//./_}:/var/log/clickhouse-server
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: default
@@ -416,21 +445,35 @@ services:
         soft: 262144
         hard: 262144
 
+EOF
+done
+
+# Add volumes section
+cat >> docker-compose.yml << 'VOLUMES_START'
 volumes:
-  clickhouse_data:
+VOLUMES_START
+
+for version in "${CLICKHOUSE_VERSIONS[@]}"; do
+    cat >> docker-compose.yml << EOF
+  clickhouse_data_${version//./_}:
     driver: local
-  clickhouse_logs:
+  clickhouse_logs_${version//./_}:
     driver: local
+EOF
+done
+
+# Add networks section
+cat >> docker-compose.yml << 'NETWORKS_END'
 
 networks:
   default:
     name: clickhouse-network
     driver: bridge
-EOF
+NETWORKS_END
 
 # Create .env file
 echo "📝 Creating environment variables file..."
-cat > .env << 'EOF'
+cat > .env << EOF
 # ClickHouse configuration
 CLICKHOUSE_DB=default
 CLICKHOUSE_USER=default
@@ -438,79 +481,126 @@ CLICKHOUSE_PASSWORD=
 
 # Docker Compose configuration
 COMPOSE_PROJECT_NAME=clickhouse-oss
+
+# Configured versions
+CLICKHOUSE_VERSIONS="${CLICKHOUSE_VERSIONS[*]}"
 EOF
 
 # Create start.sh script
 echo "📝 Creating start script..."
-cat > start.sh << 'EOF'
+cat > start.sh << 'STARTSH'
 #!/bin/bash
 
-echo "🚀 Starting ClickHouse..."
-echo "========================"
+echo "🚀 Starting ClickHouse Multi-Version..."
+echo "======================================"
 
-# Clean up existing container if present
-if docker ps -a --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "🔄 Cleaning up existing container..."
-    docker stop clickhouse-oss 2>/dev/null || true
-    docker rm clickhouse-oss 2>/dev/null || true
-    docker-compose down 2>/dev/null || true
+# Function to convert version to port number
+version_to_port() {
+    local version=$1
+    if [ "$version" = "latest" ]; then
+        echo "9999"
+    else
+        # Split version by dot and pad the minor version to 2 digits
+        local major=$(echo "$version" | cut -d. -f1)
+        local minor=$(echo "$version" | cut -d. -f2)
+        printf "%02d%02d" "$major" "$minor"
+    fi
+}
+
+# Load configured versions from .env
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+else
+    echo "❌ .env file not found. Please run ./set.sh first."
+    exit 1
 fi
 
-# Pull latest image
-echo "📥 Pulling ClickHouse image..."
+echo "📦 Configured versions: ${VERSIONS[*]}"
+echo ""
+
+# Clean up existing containers if present
+echo "🔄 Cleaning up old containers..."
+docker-compose down 2>/dev/null || true
+
+# Pull latest images
+echo "📥 Pulling ClickHouse images..."
 docker-compose pull
 
-# Start ClickHouse
-echo "▶️  Starting ClickHouse container..."
+# Start all ClickHouse containers
+echo "▶️  Starting ClickHouse containers..."
 docker-compose up -d
 
-# Wait for initialization
+echo ""
 echo "⏳ Waiting for ClickHouse initialization..."
-echo "   (up to 45 seconds)"
+echo "   (checking each version, up to 45 seconds per version)"
+echo ""
 
-# Check status (wait up to 45 seconds)
-for i in {1..45}; do
-    if curl -s http://localhost:8123/ping > /dev/null 2>&1; then
+# Check status for each version
+ALL_STARTED=true
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    CONTAINER_NAME="clickhouse-${version//./-}"
+
+    echo "Checking version ${version} on port ${PORT}..."
+
+    # Wait up to 45 seconds
+    STARTED=false
+    for i in {1..45}; do
+        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
+            echo "✅ Version ${version} started successfully! (port ${PORT})"
+            STARTED=true
+            break
+        fi
+
+        echo -ne "\r   Waiting... ${i}s"
+        sleep 1
+    done
+
+    if [ "$STARTED" = false ]; then
         echo ""
-        echo "✅ ClickHouse started successfully!"
-        break
+        echo "⚠️  Version ${version} startup timeout. Check logs:"
+        echo "   docker logs ${CONTAINER_NAME}"
+        ALL_STARTED=false
     fi
-
-    if [ $i -eq 45 ]; then
-        echo ""
-        echo "⚠️  Startup is taking longer than expected. Check logs:"
-        echo "   docker-compose logs clickhouse"
-        exit 1
-    fi
-
-    echo -ne "\r   Waiting... ${i}s"
-    sleep 1
+    echo ""
 done
+
+if [ "$ALL_STARTED" = true ]; then
+    echo "✅ All ClickHouse versions started successfully!"
+else
+    echo "⚠️  Some versions failed to start. Check logs above."
+fi
 
 echo ""
 echo "🎯 Connection Information:"
-echo "   📍 Web UI: http://localhost:8123/play"
-echo "   📍 HTTP API: http://localhost:8123"
-echo "   📍 TCP: localhost:9000"
-echo "   👤 User: default (no password)"
-echo ""
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    echo "   Version ${version}:"
+    echo "      📍 Web UI: http://localhost:${PORT}/play"
+    echo "      📍 HTTP API: http://localhost:${PORT}"
+    echo "      📍 TCP: localhost:${PORT}1"
+    echo "      👤 User: default (no password)"
+    echo ""
+done
+
 echo "🔧 Management Commands:"
-echo "   ./stop.sh              - Stop ClickHouse (preserve data)"
+echo "   ./stop.sh              - Stop all versions (preserve data)"
 echo "   ./stop.sh --cleanup    - Stop and delete all data"
 echo "   ./status.sh            - Check status and resource usage"
-echo "   ./client.sh            - Connect to CLI client"
-echo "   docker logs clickhouse-oss - View container logs"
+echo "   ./client.sh <PORT>     - Connect to specific version"
+echo "   Example: ./client.sh ${PORT} (for version ${version})"
 echo ""
 echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"
-EOF
+STARTSH
 
 # Create stop.sh script
 echo "📝 Creating stop script..."
-cat > stop.sh << 'EOF'
+cat > stop.sh << 'STOPSH'
 #!/bin/bash
 
-echo "🛑 Stopping ClickHouse..."
-echo "======================="
+echo "🛑 Stopping ClickHouse Multi-Version..."
+echo "======================================="
 
 # Check for cleanup flag
 CLEANUP=false
@@ -519,6 +609,14 @@ if [ "$1" = "--cleanup" ] || [ "$1" = "-c" ]; then
     echo ""
     echo "⚠️  Cleanup mode enabled - will delete all data!"
     echo ""
+fi
+
+# Load configured versions
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+else
+    VERSIONS=()
 fi
 
 # Stop with Docker Compose
@@ -530,25 +628,45 @@ if [ -f "docker-compose.yml" ]; then
         docker-compose down
     fi
 else
-    echo "▶️  Stopping container directly..."
-    docker stop clickhouse-oss 2>/dev/null || true
-    docker rm clickhouse-oss 2>/dev/null || true
+    echo "▶️  Stopping containers directly..."
+    for version in "${VERSIONS[@]}"; do
+        CONTAINER_NAME="clickhouse-${version//./-}"
+        docker stop ${CONTAINER_NAME} 2>/dev/null || true
+        docker rm ${CONTAINER_NAME} 2>/dev/null || true
+    done
 fi
 
 # Check status
-if docker ps --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "⚠️  Container is still running."
-    echo "   Force stop: docker kill clickhouse-oss"
+echo ""
+echo "📊 Container status:"
+STILL_RUNNING=false
+for version in "${VERSIONS[@]}"; do
+    CONTAINER_NAME="clickhouse-${version//./-}"
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        echo "   ⚠️  ${CONTAINER_NAME} is still running."
+        STILL_RUNNING=true
+    else
+        echo "   ✓ ${CONTAINER_NAME} stopped"
+    fi
+done
+
+if [ "$STILL_RUNNING" = true ]; then
+    echo ""
+    echo "⚠️  Some containers are still running."
+    echo "   Force stop: docker-compose kill"
 else
-    echo "✅ ClickHouse stopped successfully."
+    echo ""
+    echo "✅ All ClickHouse containers stopped successfully."
 fi
 
 # Additional cleanup if requested
 if [ "$CLEANUP" = true ]; then
     echo ""
     echo "🗑️  Removing Docker volumes..."
-    docker volume rm clickhouse-oss_clickhouse_data 2>/dev/null && echo "   ✓ Removed clickhouse_data volume" || true
-    docker volume rm clickhouse-oss_clickhouse_logs 2>/dev/null && echo "   ✓ Removed clickhouse_logs volume" || true
+    for version in "${VERSIONS[@]}"; do
+        docker volume rm clickhouse-oss_clickhouse_data_${version//./_} 2>/dev/null && echo "   ✓ Removed data volume for ${version}" || true
+        docker volume rm clickhouse-oss_clickhouse_logs_${version//./_} 2>/dev/null && echo "   ✓ Removed logs volume for ${version}" || true
+    done
 
     echo ""
     echo "🧹 Cleaning up network..."
@@ -556,8 +674,8 @@ if [ "$CLEANUP" = true ]; then
 
     echo ""
     echo "🗑️  Removing Docker images..."
-    docker images clickhouse/clickhouse-server --format "{{.Repository}}:{{.Tag}}" | while read image; do
-        docker rmi "$image" 2>/dev/null && echo "   ✓ Removed $image" || true
+    for version in "${VERSIONS[@]}"; do
+        docker rmi clickhouse/clickhouse-server:${version} 2>/dev/null && echo "   ✓ Removed image ${version}" || true
     done
 
     echo ""
@@ -566,116 +684,255 @@ fi
 
 echo ""
 if [ "$CLEANUP" = true ]; then
-    echo "🔧 To setup again: cd /path/to/setup && ./set.sh"
+    echo "🔧 To setup again: ./set.sh <VERSION1> <VERSION2> ..."
 else
     echo "🔧 To restart: ./start.sh"
     echo "🧹 To stop with cleanup: ./stop.sh --cleanup"
 fi
-EOF
+STOPSH
 
 # Create status.sh script
 echo "📝 Creating status check script..."
-cat > status.sh << 'EOF'
+cat > status.sh << 'STATUSSH'
 #!/bin/bash
 
-echo "📊 ClickHouse Status"
-echo "=================="
+echo "📊 ClickHouse Multi-Version Status"
+echo "===================================="
+
+# Function to convert version to port number
+version_to_port() {
+    local version=$1
+    if [ "$version" = "latest" ]; then
+        echo "9999"
+    else
+        # Split version by dot and pad the minor version to 2 digits
+        local major=$(echo "$version" | cut -d. -f1)
+        local minor=$(echo "$version" | cut -d. -f2)
+        printf "%02d%02d" "$major" "$minor"
+    fi
+}
+
+# Load configured versions
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+else
+    echo "❌ .env file not found. Please run ./set.sh first."
+    exit 1
+fi
+
+echo ""
+echo "📦 Configured versions: ${VERSIONS[*]}"
+echo ""
 
 # Container status
 echo "🐳 Container Status:"
-if docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep clickhouse-oss; then
+ANY_RUNNING=false
+for version in "${VERSIONS[@]}"; do
+    CONTAINER_NAME="clickhouse-${version//./-}"
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        STATUS=$(docker ps --format '{{.Status}}' --filter "name=^${CONTAINER_NAME}$")
+        echo "   ✅ ${CONTAINER_NAME}: ${STATUS}"
+        ANY_RUNNING=true
+    else
+        echo "   ❌ ${CONTAINER_NAME}: Not running"
+    fi
+done
+
+if [ "$ANY_RUNNING" = false ]; then
     echo ""
-else
-    echo "❌ ClickHouse container is not running."
+    echo "❌ No ClickHouse containers are running."
     echo "   To start: ./start.sh"
     echo ""
     exit 1
 fi
 
-# Service health check
+echo ""
+
+# Service health check for each version
 echo "💓 Service Status:"
-if curl -s http://localhost:8123/ping > /dev/null 2>&1; then
-    echo "✅ HTTP Interface: OK (port 8123)"
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    CONTAINER_NAME="clickhouse-${version//./-}"
 
-    # Version information
-    VERSION=$(curl -s http://localhost:8123/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
-    if [ -n "$VERSION" ]; then
-        echo "✅ $VERSION"
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        echo ""
+        echo "   Version ${version} (port ${PORT}):"
+
+        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
+            echo "      ✅ HTTP Interface: OK (port ${PORT})"
+
+            # Version information
+            VERSION_INFO=$(curl -s http://localhost:${PORT}/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+            if [ -n "$VERSION_INFO" ]; then
+                echo "      ✅ ${VERSION_INFO}"
+            fi
+        else
+            echo "      ❌ HTTP Interface: Connection failed (port ${PORT})"
+        fi
+
+        # TCP port check
+        TCP_PORT="${PORT}1"
+        if nc -z localhost ${TCP_PORT} 2>/dev/null; then
+            echo "      ✅ TCP Interface: OK (port ${TCP_PORT})"
+        else
+            echo "      ❌ TCP Interface: Connection failed (port ${TCP_PORT})"
+        fi
     fi
-else
-    echo "❌ HTTP Interface: Connection failed (port 8123)"
-fi
-
-# TCP port check
-if nc -z localhost 9000 2>/dev/null; then
-    echo "✅ TCP Interface: OK (port 9000)"
-else
-    echo "❌ TCP Interface: Connection failed (port 9000)"
-fi
+done
 
 echo ""
 
 # Resource usage
 echo "💾 Resource Usage:"
-docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" clickhouse-oss 2>/dev/null
+for version in "${VERSIONS[@]}"; do
+    CONTAINER_NAME="clickhouse-${version//./-}"
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" ${CONTAINER_NAME} 2>/dev/null
+    fi
+done
 
 echo ""
 
 # Volume information
 echo "💿 Data Volumes:"
-docker volume ls | grep clickhouse || echo "Volume information not found."
+docker volume ls | grep clickhouse || echo "No volumes found."
 
 echo ""
 echo "🔧 Management Commands:"
-echo "   ./start.sh     - Start ClickHouse"
-echo "   ./stop.sh      - Stop ClickHouse"
-echo "   ./client.sh    - Connect to CLI client"
+echo "   ./start.sh          - Start all ClickHouse versions"
+echo "   ./stop.sh           - Stop all versions"
+echo "   ./client.sh <PORT>  - Connect to specific version"
 echo "   docker-compose logs -f  - View real-time logs"
-EOF
+echo ""
+echo "📍 Connection URLs:"
+for version in "${VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    echo "   Version ${version}: http://localhost:${PORT}/play"
+done
+STATUSSH
 
 # Create client.sh script
 echo "📝 Creating client connection script..."
-cat > client.sh << 'EOF'
+cat > client.sh << 'CLIENTSH'
 #!/bin/bash
 
 echo "🔌 ClickHouse Client Connection"
-echo "============================"
+echo "================================"
+
+# Function to convert version to port number
+version_to_port() {
+    local version=$1
+    if [ "$version" = "latest" ]; then
+        echo "9999"
+    else
+        # Split version by dot and pad the minor version to 2 digits
+        local major=$(echo "$version" | cut -d. -f1)
+        local minor=$(echo "$version" | cut -d. -f2)
+        printf "%02d%02d" "$major" "$minor"
+    fi
+}
+
+# Function to convert port to version
+port_to_version() {
+    local port=$1
+    # Load configured versions
+    if [ -f .env ]; then
+        source .env
+        IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+        for version in "${VERSIONS[@]}"; do
+            if [ "$(version_to_port "$version")" = "$port" ]; then
+                echo "$version"
+                return
+            fi
+        done
+    fi
+    echo ""
+}
+
+# Check if port parameter is provided
+if [ $# -eq 0 ]; then
+    echo "❌ Error: Port number required"
+    echo ""
+    echo "Usage: ./client.sh <PORT>"
+    echo ""
+    echo "Available versions and ports:"
+    if [ -f .env ]; then
+        source .env
+        IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+        for version in "${VERSIONS[@]}"; do
+            PORT=$(version_to_port "$version")
+            echo "   - Version ${version}: port ${PORT}"
+        done
+    fi
+    exit 1
+fi
+
+PORT=$1
+VERSION=$(port_to_version "$PORT")
+
+if [ -z "$VERSION" ]; then
+    echo "❌ Error: Port ${PORT} is not configured"
+    echo ""
+    echo "Available versions and ports:"
+    if [ -f .env ]; then
+        source .env
+        IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+        for version in "${VERSIONS[@]}"; do
+            VPORT=$(version_to_port "$version")
+            echo "   - Version ${version}: port ${VPORT}"
+        done
+    fi
+    exit 1
+fi
+
+CONTAINER_NAME="clickhouse-${VERSION//./-}"
 
 # Check container status
-if ! docker ps --format '{{.Names}}' | grep -q '^clickhouse-oss$'; then
-    echo "❌ ClickHouse is not running."
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "❌ ClickHouse version ${VERSION} (port ${PORT}) is not running."
     echo "   To start: ./start.sh"
     exit 1
 fi
 
 # Check service status
-if ! curl -s http://localhost:8123/ping > /dev/null 2>&1; then
-    echo "❌ ClickHouse service is not responding."
+if ! curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
+    echo "❌ ClickHouse version ${VERSION} service is not responding."
     echo "   Check status: ./status.sh"
     exit 1
 fi
 
-echo "✅ Connecting..."
+echo "✅ Connecting to version ${VERSION} on port ${PORT}..."
 echo "   To exit: type 'exit' or press Ctrl+D"
 echo ""
 
 # Connect to client
-docker-compose exec clickhouse clickhouse-client
-EOF
+docker exec -it ${CONTAINER_NAME} clickhouse-client
+CLIENTSH
 
 # Create cleanup.sh script (for complete data deletion)
 echo "📝 Creating cleanup script..."
-cat > cleanup.sh << 'EOF'
+cat > cleanup.sh << 'CLEANUPSH'
 #!/bin/bash
 
-echo "🧹 ClickHouse Complete Cleanup"
-echo "======================"
+echo "🧹 ClickHouse Multi-Version Complete Cleanup"
+echo "============================================="
 echo ""
 echo "⚠️  Warning: This will delete all ClickHouse data!"
-echo "   - All databases"
-echo "   - All tables"
+echo "   - All databases from all versions"
+echo "   - All tables from all versions"
 echo "   - All logs"
 echo ""
+
+# Load configured versions
+if [ -f .env ]; then
+    source .env
+    IFS=' ' read -ra VERSIONS <<< "$CLICKHOUSE_VERSIONS"
+    echo "Configured versions: ${VERSIONS[*]}"
+    echo ""
+else
+    VERSIONS=()
+fi
 
 read -p "Are you sure you want to delete all data? (yes/no): " -r
 echo
@@ -688,17 +945,28 @@ fi
 echo "🛑 Stopping and removing containers..."
 docker-compose down -v
 
+echo ""
 echo "🗑️  Removing Docker volumes..."
-docker volume rm clickhouse-oss_clickhouse_data 2>/dev/null || true
-docker volume rm clickhouse-oss_clickhouse_logs 2>/dev/null || true
+for version in "${VERSIONS[@]}"; do
+    docker volume rm clickhouse-oss_clickhouse_data_${version//./_} 2>/dev/null && echo "   ✓ Removed data volume for ${version}" || true
+    docker volume rm clickhouse-oss_clickhouse_logs_${version//./_} 2>/dev/null && echo "   ✓ Removed logs volume for ${version}" || true
+done
 
+echo ""
 echo "🧹 Cleaning up network..."
-docker network rm clickhouse-network 2>/dev/null || true
+docker network rm clickhouse-network 2>/dev/null && echo "   ✓ Removed clickhouse-network" || true
 
+echo ""
+echo "🗑️  Removing Docker images..."
+for version in "${VERSIONS[@]}"; do
+    docker rmi clickhouse/clickhouse-server:${version} 2>/dev/null && echo "   ✓ Removed image ${version}" || true
+done
+
+echo ""
 echo "✅ Cleanup complete!"
 echo ""
-echo "🔄 To restart: ./start.sh"
-EOF
+echo "🔄 To setup again: ./set.sh <VERSION1> <VERSION2> ..."
+CLEANUPSH
 
 # Create README.md
 echo "📝 Creating documentation..."
@@ -813,29 +1081,38 @@ EOF
 echo "🔐 Setting execution permissions..."
 chmod +x *.sh
 
-# Download Docker image
-echo "📥 Downloading ClickHouse image..."
-# Remove old images to ensure we get the actual latest version
-docker rmi clickhouse/clickhouse-server:${CLICKHOUSE_VERSION} 2>/dev/null || true
-docker pull clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
+# Download Docker images
+echo "📥 Downloading ClickHouse images..."
+for version in "${CLICKHOUSE_VERSIONS[@]}"; do
+    echo "   Pulling version ${version}..."
+    # Remove old images to ensure we get the actual latest version
+    docker rmi clickhouse/clickhouse-server:${version} 2>/dev/null || true
+    docker pull clickhouse/clickhouse-server:${version}
+done
 
 echo ""
-echo "✅ ClickHouse OSS environment setup complete!"
+echo "✅ ClickHouse OSS multi-version environment setup complete!"
 echo ""
 echo "📋 What was configured:"
 echo "   ✓ Seccomp profile (fixes NUMA syscall errors)"
-echo "   ✓ Docker Compose with version $CLICKHOUSE_VERSION"
+echo "   ✓ Docker Compose with versions: ${CLICKHOUSE_VERSIONS[*]}"
 echo "   ✓ Named volumes for data persistence"
 echo "   ✓ Management scripts (start/stop/status/client/cleanup)"
 echo ""
+echo "📍 Version to Port mapping:"
+for version in "${CLICKHOUSE_VERSIONS[@]}"; do
+    PORT=$(version_to_port "$version")
+    echo "   - Version ${version}: HTTP=${PORT}, TCP=${PORT}1"
+done
+echo ""
 echo "🎯 Next steps:"
-echo "   1. Start ClickHouse: cd $BASE_DIR && ./start.sh"
-echo "   2. Access Web UI: http://localhost:8123/play"
-echo "   3. Connect CLI: cd $BASE_DIR && ./client.sh"
+echo "   1. Start all ClickHouse versions: cd $BASE_DIR && ./start.sh"
+echo "   2. Connect to specific version: cd $BASE_DIR && ./client.sh <PORT>"
+echo "      Example: ./client.sh 2410 (for version 24.10)"
 echo ""
 echo "🔧 Useful commands:"
 echo "   ./status.sh          - Check system status"
-echo "   ./stop.sh            - Stop (preserve data)"
+echo "   ./stop.sh            - Stop all versions (preserve data)"
 echo "   ./stop.sh --cleanup  - Stop and delete all data"
 echo ""
 echo "📖 For more details, see README.md"
