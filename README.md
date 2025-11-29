@@ -171,6 +171,47 @@ Sample Table: sales_orders (10 records, partitioned by date)
 
 ---
 
+### 6. [terraform-chc-secures3-aws](terraform-chc-secures3-aws/)
+**Created:** November 2025
+**Purpose:** Secure ClickHouse Cloud S3 integration using IAM role-based authentication
+
+Production-ready S3 access for ClickHouse Cloud without managing access keys:
+- **IAM Role-Based Authentication**: Secure access using AWS IAM role assumption
+- **Read & Write Permissions**: Full support for SELECT, INSERT, and export operations
+- **S3 Table Engine Support**: Create tables backed by S3 storage
+- **Multiple Format Support**: Parquet, CSV, JSON, and more
+- **Automated Deployment**: One-command deployment with `deploy.sh`
+- **Production Security**: Encryption, versioning, and public access blocking
+
+**Use Cases:**
+- Secure S3 access for ClickHouse Cloud without access keys
+- Creating S3-backed tables for cost-effective cold storage
+- Exporting ClickHouse query results to S3
+- Querying large datasets directly from S3
+- Building data lake architectures with ClickHouse Cloud
+
+**Quick Start:**
+```bash
+cd terraform-chc-secures3-aws
+export AWS_ACCESS_KEY_ID="your-key"
+export AWS_SECRET_ACCESS_KEY="your-secret"
+./deploy.sh   # Interactive deployment
+# Copy SQL examples from output and run in ClickHouse Cloud
+```
+
+**Technical Architecture:**
+```
+ClickHouse Cloud Service
+    ↓ (AssumeRole)
+IAM Role (ClickHouseS3Access)
+    ↓ (S3 Permissions)
+S3 Bucket (Encrypted, Versioned)
+    ↓ (Parquet/CSV/JSON)
+Your Data Files
+```
+
+---
+
 ## 🛠 Prerequisites
 
 ### General Requirements
@@ -184,6 +225,7 @@ Sample Table: sales_orders (10 records, partitioned by date)
 - **datalake-minio-catalog**: Python 3.8+, 20GB+ disk space
 - **terraform-minio-on-aws**: Terraform, AWS CLI, AWS account, EC2 key pair
 - **terraform-glue-s3-chc-integration**: Terraform, AWS CLI, AWS account, ClickHouse Cloud account
+- **terraform-chc-secures3-aws**: Terraform, AWS CLI, AWS account, ClickHouse Cloud account
 
 ## 🚀 Getting Started
 
@@ -207,7 +249,8 @@ Sample Table: sales_orders (10 records, partitioned by date)
 2. **Try [datalake-minio-catalog](datalake-minio-catalog/)** → Understand data lake concepts and S3 integration
 3. **Explore [tpcds](tpcds/)** → Learn about ClickHouse performance and query optimization
 4. **Deploy [terraform-minio-on-aws](terraform-minio-on-aws/)** → Experience cloud infrastructure deployment
-5. **Advanced: [terraform-glue-s3-chc-integration](terraform-glue-s3-chc-integration/)** → Master ClickHouse Cloud + AWS integration
+5. **Intermediate: [terraform-chc-secures3-aws](terraform-chc-secures3-aws/)** → Secure S3 integration with ClickHouse Cloud
+6. **Advanced: [terraform-glue-s3-chc-integration](terraform-glue-s3-chc-integration/)** → Master ClickHouse Cloud + AWS Glue integration
 
 ## 🇰🇷 한국어 정보 (Korean Information)
 
