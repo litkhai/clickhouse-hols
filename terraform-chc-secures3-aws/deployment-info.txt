@@ -1,6 +1,6 @@
 ClickHouse Cloud Secure S3 Deployment Information
 ==================================================
-Deployment Date: Thu Nov 27 00:01:48 KST 2025
+Deployment Date: Fri Nov 28 23:48:21 KST 2025
 AWS Region: ap-northeast-2
 
 S3 Bucket:
