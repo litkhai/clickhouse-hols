@@ -14,7 +14,7 @@ SELECT '=== Basic Bech32 Encoding ===' AS title;
 SELECT
     'hello' AS original_data,
     bech32Encode('test', 'hello') AS encoded,
-    bech32Decode(bech32Encode('test', 'hello')) AS decoded;
+    bech32Decode(bech32Encode('test', 'hello')) AS decoded_tuple;
 
 -- Query 2: Encode various data types
 SELECT '=== Encoding Various Data Types ===' AS title;
@@ -37,8 +37,9 @@ SELECT
     original,
     hrp,
     bech32Encode(hrp, original) AS encoded,
-    bech32Decode(bech32Encode(hrp, original)) AS decoded,
-    original = bech32Decode(bech32Encode(hrp, original)) AS is_valid
+    bech32Decode(bech32Encode(hrp, original)) AS decoded_tuple,
+    bech32Decode(bech32Encode(hrp, original)).2 AS decoded_data,
+    original = bech32Decode(bech32Encode(hrp, original)).2 AS is_valid
 FROM test_data;
 
 -- Create a table for cryptocurrency addresses
@@ -144,7 +145,7 @@ SELECT '=== Decode Public IDs ===' AS title;
 SELECT
     entity_type,
     public_id,
-    bech32Decode(public_id) AS decoded_internal_id,
+    bech32Decode(public_id) AS decoded_tuple_internal_id,
     internal_id,
     bech32Decode(public_id) = internal_id AS matches
 FROM identifier_mapping
@@ -242,7 +243,7 @@ ORDER BY id;
 SELECT '=== Decode Short Code ===' AS title;
 SELECT
     short_code,
-    bech32Decode(short_code) AS decoded_id,
+    bech32Decode(short_code) AS decoded_tuple_id,
     original_url
 FROM url_mappings
 ORDER BY id

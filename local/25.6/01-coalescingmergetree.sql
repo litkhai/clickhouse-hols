@@ -32,8 +32,8 @@ SELECT * FROM metrics_coalescing ORDER BY metric_id, timestamp;
 -- Simulate an update by inserting the old value with Sign=-1 and new value with Sign=1
 -- Update metric_id=1 from 100.0 to 150.0
 INSERT INTO metrics_coalescing VALUES
-    (1, '2025-01-01 00:00:00', 100.0, -1),  -- Cancel old value
-    (1, '2025-01-01 00:00:00', 150.0, 1);   -- Insert new value
+    (1, '2025-01-01 00:00:00', 100.0, -1),
+    (1, '2025-01-01 00:00:00', 150.0, 1);
 
 -- Query 2: View data after update (before merge)
 SELECT '=== After Update (Before Merge) ===' AS title;
@@ -50,13 +50,11 @@ GROUP BY metric_id, timestamp
 ORDER BY metric_id;
 
 -- Insert more updates to demonstrate coalescing behavior
+-- Update metric_id=2, add new timestamp for metric_id=1, delete metric_id=3
 INSERT INTO metrics_coalescing VALUES
-    -- Update metric_id=2
     (2, '2025-01-01 00:00:00', 200.0, -1),
     (2, '2025-01-01 00:00:00', 250.0, 1),
-    -- Add new timestamp for metric_id=1
     (1, '2025-01-01 01:00:00', 160.0, 1),
-    -- Delete metric_id=3
     (3, '2025-01-01 00:00:00', 300.0, -1);
 
 -- Query 4: View all data with multiple updates
