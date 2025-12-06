@@ -1,0 +1,27 @@
+ClickHouse 25.7 Feature Test Environment
+=========================================
+
+Created: 2025-12-06
+Version: ClickHouse 25.7
+Ports: HTTP 2507, TCP 25071
+
+Files Created:
+--------------
+✅ 00-setup.sh (72 lines) - Setup script for ClickHouse 25.7
+✅ 01-sql-update-delete.sh + .sql (229 lines) - Lightweight UPDATE/DELETE operations
+✅ 02-count-optimization.sh + .sql (291 lines) - count() aggregation optimization
+✅ 03-join-performance.sh + .sql (370 lines) - JOIN performance improvements
+✅ 04-bulk-update.sh + .sql (386 lines) - Bulk UPDATE performance
+✅ README.md (387 lines) - Comprehensive bilingual documentation
+
+Total: 1,735+ lines of code and documentation
+
+Key Features Tested:
+--------------------
+1. SQL UPDATE/DELETE - up to 1000x faster with patch-part mechanism
+2. count() Optimization - 20-30% faster, reduced memory
+3. JOIN Performance - up to 1.8x speedups
+4. Bulk UPDATE - up to 4000x faster than PostgreSQL
+5. AI-Powered SQL - documented (requires API keys)
+
+All shell scripts are executable and ready to run.
