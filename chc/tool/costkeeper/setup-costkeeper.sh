@@ -24,6 +24,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CREDENTIALS_FILE="${SCRIPT_DIR}/.credentials"
 CONFIG_FILE="${SCRIPT_DIR}/costkeeper.conf"
 
+# Check if clickhouse-client is available (for information only)
+if ! command -v clickhouse-client &> /dev/null; then
+    HAS_CLICKHOUSE_CLIENT=false
+else
+    HAS_CLICKHOUSE_CLIENT=true
+fi
+
 # Function to print colored messages
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -98,6 +105,28 @@ if [ -f "$CREDENTIALS_FILE" ]; then
         source "$CREDENTIALS_FILE"
         print_success "기존 인증 정보를 불러왔습니다."
         SKIP_CREDENTIALS=true
+
+        echo ""
+
+        # Test connection with existing credentials
+        print_info "기존 인증 정보로 CHC 연결을 테스트합니다..."
+
+        # Remove https:// prefix if present in stored credentials
+        CH_HOST_CLEAN=$(echo "$CH_HOST" | sed 's|^https\?://||')
+
+        VERSION=$(curl -s "https://${CH_HOST_CLEAN}:${CH_PORT}/?query=SELECT%20version()" --user "${CH_USER}:${CH_PASSWORD}" 2>&1)
+        CURL_EXIT_CODE=$?
+
+        if [ $CURL_EXIT_CODE -eq 0 ] && [ -n "$VERSION" ] && [[ ! "$VERSION" =~ "Code:" ]]; then
+            print_success "CHC 연결 성공! (ClickHouse version: ${VERSION})"
+        else
+            print_error "CHC 연결 실패. 인증 정보가 만료되었거나 올바르지 않습니다."
+            if [[ "$VERSION" =~ "Code:" ]]; then
+                print_error "오류: ${VERSION}"
+            fi
+            print_error "다시 시작하려면 스크립트를 재실행하세요."
+            exit 1
+        fi
     else
         SKIP_CREDENTIALS=false
     fi
@@ -115,10 +144,77 @@ if [ "$SKIP_CREDENTIALS" = false ]; then
     print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    prompt_input "CHC 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)" "" CH_HOST
-    prompt_input "CHC 포트" "8443" CH_PORT
-    prompt_input "CHC 사용자" "default" CH_USER
-    prompt_password "CHC 비밀번호" CH_PASSWORD
+    print_info "CHC 연결 정보를 입력하세요."
+    echo ""
+
+    # Validate CHC Host
+    while true; do
+        prompt_input "CHC 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)" "" CH_HOST
+
+        # Remove https:// or http:// prefix if present
+        CH_HOST=$(echo "$CH_HOST" | sed 's|^https\?://||')
+
+        # Validate host format
+        if [ -z "$CH_HOST" ]; then
+            print_error "호스트를 입력해주세요."
+            continue
+        fi
+
+        if [[ ! "$CH_HOST" =~ \.clickhouse\.cloud$ ]]; then
+            print_warning "경고: CHC 호스트는 일반적으로 '.clickhouse.cloud'로 끝납니다."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_HOST
+            if [ "$CONFIRM_HOST" != "yes" ] && [ "$CONFIRM_HOST" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "호스트: ${CH_HOST}"
+        break
+    done
+
+    # Validate CHC Password
+    while true; do
+        prompt_password "CHC 비밀번호" CH_PASSWORD
+
+        if [ -z "$CH_PASSWORD" ]; then
+            print_error "비밀번호를 입력해주세요."
+            continue
+        fi
+
+        if [ ${#CH_PASSWORD} -lt 8 ]; then
+            print_warning "비밀번호가 너무 짧습니다 (최소 8자 권장)."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_PWD
+            if [ "$CONFIRM_PWD" != "yes" ] && [ "$CONFIRM_PWD" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "비밀번호가 입력되었습니다."
+        break
+    done
+
+    # CHC 고정값
+    CH_PORT=8443
+    CH_USER=default
+
+    echo ""
+
+    # Test connection immediately after credential input
+    print_info "입력하신 정보로 CHC 연결을 테스트합니다..."
+
+    VERSION=$(curl -s "https://${CH_HOST}:${CH_PORT}/?query=SELECT%20version()" --user "${CH_USER}:${CH_PASSWORD}" 2>&1)
+    CURL_EXIT_CODE=$?
+
+    if [ $CURL_EXIT_CODE -eq 0 ] && [ -n "$VERSION" ] && [[ ! "$VERSION" =~ "Code:" ]]; then
+        print_success "CHC 연결 성공! (ClickHouse version: ${VERSION})"
+    else
+        print_error "CHC 연결 실패. 호스트 또는 비밀번호를 확인해주세요."
+        if [[ "$VERSION" =~ "Code:" ]]; then
+            print_error "오류: ${VERSION}"
+        fi
+        print_error "다시 시작하려면 스크립트를 재실행하세요."
+        exit 1
+    fi
 
     echo ""
 
@@ -130,12 +226,73 @@ if [ "$SKIP_CREDENTIALS" = false ]; then
     print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    print_info "CHC API Key는 Billing 데이터를 수집하는데 필요합니다."
+    print_info "CHC API는 Billing 데이터를 수집하는데 필요합니다."
     print_info "API Key는 ClickHouse Cloud Console에서 발급받을 수 있습니다."
     echo ""
 
-    prompt_input "CHC Organization ID" "" CHC_ORG_ID
-    prompt_password "CHC API Key" CHC_API_KEY
+    # Validate Organization ID (UUID format)
+    while true; do
+        prompt_input "CHC Organization ID (UUID 형식)" "" CHC_ORG_ID
+
+        if [ -z "$CHC_ORG_ID" ]; then
+            print_error "Organization ID를 입력해주세요."
+            continue
+        fi
+
+        # UUID format validation (8-4-4-4-12 hex digits)
+        if [[ ! "$CHC_ORG_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            print_warning "경고: Organization ID는 일반적으로 UUID 형식입니다 (예: 12345678-1234-1234-1234-123456789abc)."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_ORG_ID
+            if [ "$CONFIRM_ORG_ID" != "yes" ] && [ "$CONFIRM_ORG_ID" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "Organization ID: ${CHC_ORG_ID}"
+        break
+    done
+
+    # Validate API Key ID
+    while true; do
+        prompt_input "CHC API Key ID" "" CHC_API_KEY_ID
+
+        if [ -z "$CHC_API_KEY_ID" ]; then
+            print_error "API Key ID를 입력해주세요."
+            continue
+        fi
+
+        if [ ${#CHC_API_KEY_ID} -lt 10 ]; then
+            print_warning "API Key ID가 너무 짧습니다 (최소 10자 권장)."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_KEY_ID
+            if [ "$CONFIRM_KEY_ID" != "yes" ] && [ "$CONFIRM_KEY_ID" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "API Key ID: ${CHC_API_KEY_ID}"
+        break
+    done
+
+    # Validate API Key Secret
+    while true; do
+        prompt_password "CHC API Key Secret" CHC_API_KEY_SECRET
+
+        if [ -z "$CHC_API_KEY_SECRET" ]; then
+            print_error "API Key Secret을 입력해주세요."
+            continue
+        fi
+
+        if [ ${#CHC_API_KEY_SECRET} -lt 20 ]; then
+            print_warning "API Key Secret이 너무 짧습니다 (최소 20자 권장)."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_KEY_SECRET
+            if [ "$CONFIRM_KEY_SECRET" != "yes" ] && [ "$CONFIRM_KEY_SECRET" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "API Key Secret이 입력되었습니다."
+        break
+    done
 
     echo ""
 
@@ -148,15 +305,16 @@ if [ "$SKIP_CREDENTIALS" = false ]; then
 # Generated: $(date)
 # ============================================================================
 
-# ClickHouse Cloud Connection
+# ClickHouse Cloud Connection (CHC Exclusive - Fixed Values)
 CH_HOST=${CH_HOST}
-CH_PORT=${CH_PORT}
-CH_USER=${CH_USER}
+CH_PORT=8443
+CH_USER=default
 CH_PASSWORD=${CH_PASSWORD}
 
 # CHC API Configuration
 CHC_ORG_ID=${CHC_ORG_ID}
-CHC_API_KEY=${CHC_API_KEY}
+CHC_API_KEY_ID=${CHC_API_KEY_ID}
+CHC_API_KEY_SECRET=${CHC_API_KEY_SECRET}
 EOF
 
     chmod 600 "$CREDENTIALS_FILE"
@@ -174,49 +332,306 @@ EOF
 fi
 
 # ============================================================================
-# Step 4: Service Configuration
+# Step 4: Check for existing configuration
 # ============================================================================
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-print_header "Step 3: Service Configuration"
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+SKIP_CONFIG=false
+if [ -f "$CONFIG_FILE" ]; then
+    print_warning "기존 설정 파일이 발견되었습니다."
+    prompt_input "기존 설정을 사용하시겠습니까? (yes/no)" "yes" USE_EXISTING_CONFIG
 
-prompt_input "Database 이름" "costkeeper" DATABASE_NAME
-prompt_input "서비스 이름" "production" SERVICE_NAME
-prompt_input "할당된 CPU 코어 수" "2.0" ALLOCATED_CPU
-prompt_input "할당된 메모리 (GB)" "8.0" ALLOCATED_MEMORY
-
-echo ""
-
-# ============================================================================
-# Step 5: Alert Configuration
-# ============================================================================
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-print_header "Step 4: Alert Configuration"
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-prompt_input "Alert 임계값 (%)" "20.0" ALERT_THRESHOLD_PCT
-prompt_input "Warning Severity 임계값 (%)" "30.0" WARNING_THRESHOLD_PCT
-prompt_input "Critical Severity 임계값 (%)" "50.0" CRITICAL_THRESHOLD_PCT
-
-echo ""
+    if [ "$USE_EXISTING_CONFIG" = "yes" ] || [ "$USE_EXISTING_CONFIG" = "y" ]; then
+        source "$CONFIG_FILE"
+        print_success "기존 설정을 불러왔습니다."
+        echo ""
+        print_info "현재 설정:"
+        echo "  • Database: ${DATABASE_NAME}"
+        echo "  • 서비스: ${SERVICE_NAME}"
+        echo "  • CPU: ${ALLOCATED_CPU} cores, 메모리: ${ALLOCATED_MEMORY} GB"
+        echo "  • Alert 임계값: ${ALERT_THRESHOLD_PCT}%, Warning: ${WARNING_THRESHOLD_PCT}%, Critical: ${CRITICAL_THRESHOLD_PCT}%"
+        echo "  • 데이터 보관: ${DATA_RETENTION_DAYS}일, Alert: ${ALERT_RETENTION_DAYS}일"
+        echo ""
+        SKIP_CONFIG=true
+    fi
+    echo ""
+fi
 
 # ============================================================================
-# Step 6: Data Retention Configuration
+# Step 5: Service Configuration
 # ============================================================================
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-print_header "Step 5: Data Retention Configuration"
-print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+if [ "$SKIP_CONFIG" = false ]; then
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_header "Step 3: Service Configuration"
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
 
-prompt_input "분석 데이터 보관 기간 (일)" "365" DATA_RETENTION_DAYS
-prompt_input "Alert 데이터 보관 기간 (일)" "90" ALERT_RETENTION_DAYS
+    # Validate Database Name
+    while true; do
+        prompt_input "Database 이름" "costkeeper" DATABASE_NAME
 
-echo ""
+        if [ -z "$DATABASE_NAME" ]; then
+            print_error "Database 이름을 입력해주세요."
+            continue
+        fi
+
+        # Check valid database name (alphanumeric and underscore only)
+        if [[ ! "$DATABASE_NAME" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
+            print_error "Database 이름은 영문자로 시작하고 영문자, 숫자, 밑줄(_)만 사용할 수 있습니다."
+            continue
+        fi
+
+        print_success "Database: ${DATABASE_NAME}"
+        break
+    done
+
+    # Validate Service Name
+    while true; do
+        prompt_input "서비스 이름" "production" SERVICE_NAME
+
+        if [ -z "$SERVICE_NAME" ]; then
+            print_error "서비스 이름을 입력해주세요."
+            continue
+        fi
+
+        print_success "서비스: ${SERVICE_NAME}"
+        break
+    done
+
+    # Validate Allocated CPU
+    while true; do
+        prompt_input "할당된 CPU 코어 수" "2.0" ALLOCATED_CPU
+
+        if [ -z "$ALLOCATED_CPU" ]; then
+            print_error "CPU 코어 수를 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid number
+        if ! [[ "$ALLOCATED_CPU" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            print_error "CPU 코어 수는 숫자여야 합니다 (예: 2 또는 2.0)."
+            continue
+        fi
+
+        # Check if positive
+        if (( $(echo "$ALLOCATED_CPU <= 0" | bc -l) )); then
+            print_error "CPU 코어 수는 0보다 커야 합니다."
+            continue
+        fi
+
+        print_success "CPU: ${ALLOCATED_CPU} cores"
+        break
+    done
+
+    # Validate Allocated Memory
+    while true; do
+        prompt_input "할당된 메모리 (GB)" "8.0" ALLOCATED_MEMORY
+
+        if [ -z "$ALLOCATED_MEMORY" ]; then
+            print_error "메모리를 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid number
+        if ! [[ "$ALLOCATED_MEMORY" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            print_error "메모리는 숫자여야 합니다 (예: 8 또는 8.0)."
+            continue
+        fi
+
+        # Check if positive
+        if (( $(echo "$ALLOCATED_MEMORY <= 0" | bc -l) )); then
+            print_error "메모리는 0보다 커야 합니다."
+            continue
+        fi
+
+        print_success "메모리: ${ALLOCATED_MEMORY} GB"
+        break
+    done
+
+    echo ""
+
+    # ============================================================================
+    # Step 6: Alert Configuration
+    # ============================================================================
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_header "Step 4: Alert Configuration"
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Validate Alert Threshold
+    while true; do
+        prompt_input "Alert 임계값 (%)" "20.0" ALERT_THRESHOLD_PCT
+
+        if [ -z "$ALERT_THRESHOLD_PCT" ]; then
+            print_error "Alert 임계값을 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid number
+        if ! [[ "$ALERT_THRESHOLD_PCT" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            print_error "임계값은 숫자여야 합니다 (예: 20 또는 20.0)."
+            continue
+        fi
+
+        # Check if in valid range (0-100)
+        if (( $(echo "$ALERT_THRESHOLD_PCT < 0 || $ALERT_THRESHOLD_PCT > 100" | bc -l) )); then
+            print_error "임계값은 0에서 100 사이여야 합니다."
+            continue
+        fi
+
+        print_success "Alert 임계값: ${ALERT_THRESHOLD_PCT}%"
+        break
+    done
+
+    # Validate Warning Threshold
+    while true; do
+        prompt_input "Warning Severity 임계값 (%)" "30.0" WARNING_THRESHOLD_PCT
+
+        if [ -z "$WARNING_THRESHOLD_PCT" ]; then
+            print_error "Warning 임계값을 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid number
+        if ! [[ "$WARNING_THRESHOLD_PCT" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            print_error "임계값은 숫자여야 합니다 (예: 30 또는 30.0)."
+            continue
+        fi
+
+        # Check if in valid range (0-100)
+        if (( $(echo "$WARNING_THRESHOLD_PCT < 0 || $WARNING_THRESHOLD_PCT > 100" | bc -l) )); then
+            print_error "임계값은 0에서 100 사이여야 합니다."
+            continue
+        fi
+
+        # Check if greater than alert threshold
+        if (( $(echo "$WARNING_THRESHOLD_PCT < $ALERT_THRESHOLD_PCT" | bc -l) )); then
+            print_warning "경고: Warning 임계값(${WARNING_THRESHOLD_PCT}%)이 Alert 임계값(${ALERT_THRESHOLD_PCT}%)보다 낮습니다."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_WARNING
+            if [ "$CONFIRM_WARNING" != "yes" ] && [ "$CONFIRM_WARNING" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "Warning 임계값: ${WARNING_THRESHOLD_PCT}%"
+        break
+    done
+
+    # Validate Critical Threshold
+    while true; do
+        prompt_input "Critical Severity 임계값 (%)" "50.0" CRITICAL_THRESHOLD_PCT
+
+        if [ -z "$CRITICAL_THRESHOLD_PCT" ]; then
+            print_error "Critical 임계값을 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid number
+        if ! [[ "$CRITICAL_THRESHOLD_PCT" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            print_error "임계값은 숫자여야 합니다 (예: 50 또는 50.0)."
+            continue
+        fi
+
+        # Check if in valid range (0-100)
+        if (( $(echo "$CRITICAL_THRESHOLD_PCT < 0 || $CRITICAL_THRESHOLD_PCT > 100" | bc -l) )); then
+            print_error "임계값은 0에서 100 사이여야 합니다."
+            continue
+        fi
+
+        # Check if greater than warning threshold
+        if (( $(echo "$CRITICAL_THRESHOLD_PCT < $WARNING_THRESHOLD_PCT" | bc -l) )); then
+            print_warning "경고: Critical 임계값(${CRITICAL_THRESHOLD_PCT}%)이 Warning 임계값(${WARNING_THRESHOLD_PCT}%)보다 낮습니다."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_CRITICAL
+            if [ "$CONFIRM_CRITICAL" != "yes" ] && [ "$CONFIRM_CRITICAL" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "Critical 임계값: ${CRITICAL_THRESHOLD_PCT}%"
+        break
+    done
+
+    echo ""
+
+    # ============================================================================
+    # Step 7: Data Retention Configuration
+    # ============================================================================
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_header "Step 5: Data Retention Configuration"
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Validate Data Retention Days
+    while true; do
+        prompt_input "분석 데이터 보관 기간 (일)" "365" DATA_RETENTION_DAYS
+
+        if [ -z "$DATA_RETENTION_DAYS" ]; then
+            print_error "데이터 보관 기간을 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid integer
+        if ! [[ "$DATA_RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
+            print_error "보관 기간은 정수여야 합니다 (예: 365)."
+            continue
+        fi
+
+        # Check if positive
+        if [ "$DATA_RETENTION_DAYS" -le 0 ]; then
+            print_error "보관 기간은 0보다 커야 합니다."
+            continue
+        fi
+
+        # Warning for very short retention
+        if [ "$DATA_RETENTION_DAYS" -lt 30 ]; then
+            print_warning "경고: 보관 기간이 30일 미만입니다. 데이터 분석에 충분하지 않을 수 있습니다."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_DATA_RETENTION
+            if [ "$CONFIRM_DATA_RETENTION" != "yes" ] && [ "$CONFIRM_DATA_RETENTION" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "데이터 보관 기간: ${DATA_RETENTION_DAYS}일"
+        break
+    done
+
+    # Validate Alert Retention Days
+    while true; do
+        prompt_input "Alert 데이터 보관 기간 (일)" "90" ALERT_RETENTION_DAYS
+
+        if [ -z "$ALERT_RETENTION_DAYS" ]; then
+            print_error "Alert 보관 기간을 입력해주세요."
+            continue
+        fi
+
+        # Check if it's a valid integer
+        if ! [[ "$ALERT_RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
+            print_error "보관 기간은 정수여야 합니다 (예: 90)."
+            continue
+        fi
+
+        # Check if positive
+        if [ "$ALERT_RETENTION_DAYS" -le 0 ]; then
+            print_error "보관 기간은 0보다 커야 합니다."
+            continue
+        fi
+
+        # Warning for very short retention
+        if [ "$ALERT_RETENTION_DAYS" -lt 7 ]; then
+            print_warning "경고: Alert 보관 기간이 7일 미만입니다. Alert 이력 추적이 어려울 수 있습니다."
+            prompt_input "계속하시겠습니까? (yes/no)" "no" CONFIRM_ALERT_RETENTION
+            if [ "$CONFIRM_ALERT_RETENTION" != "yes" ] && [ "$CONFIRM_ALERT_RETENTION" != "y" ]; then
+                continue
+            fi
+        fi
+
+        print_success "Alert 보관 기간: ${ALERT_RETENTION_DAYS}일"
+        break
+    done
+
+    echo ""
+fi
 
 # ============================================================================
-# Step 7: Generate Configuration File
+# Step 8: Generate Configuration File
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_header "Step 6: Generating Configuration"
@@ -256,7 +671,7 @@ print_success "설정 파일 생성 완료: $CONFIG_FILE"
 echo ""
 
 # ============================================================================
-# Step 8: Generate SQL Script
+# Step 9: Generate SQL Script
 # ============================================================================
 print_info "SQL 스크립트 생성 중..."
 
@@ -278,7 +693,7 @@ print_success "SQL 스크립트 생성 완료: $SQL_FILE"
 echo ""
 
 # ============================================================================
-# Step 9: Test Connection
+# Step 10: Test Connection
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_header "Step 7: Connection Test"
@@ -310,7 +725,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 10: Create Database
+# Step 11: Create Database
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_header "Step 8: Database Creation"
@@ -329,7 +744,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 11: Execute SQL Script
+# Step 12: Execute SQL Script
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_header "Step 9: SQL Script Execution"
@@ -366,7 +781,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 12: Verification
+# Step 13: Verification
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_header "Step 10: Verification"
@@ -409,7 +824,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 13: Summary
+# Step 14: Summary
 # ============================================================================
 print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}"

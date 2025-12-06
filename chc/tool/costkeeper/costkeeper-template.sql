@@ -98,10 +98,6 @@ CREATE TABLE ${DATABASE_NAME}.hourly_analysis
     memory_efficiency_pct Float64,
     overall_efficiency_pct Float64,
 
-    -- Unused cost (waste)
-    unused_cpu_cores Float64,
-    unused_compute_cost_hourly Float64,
-
     -- ========================================
     -- Comparison baseline (lagInFrame based, no JOIN)
     -- ========================================
@@ -357,10 +353,6 @@ SELECT
     memory_usage_pct_avg AS memory_efficiency_pct,
     if(allocated_cpu > 0, (((cpu_usage_avg / allocated_cpu) * 100) + memory_usage_pct_avg) / 2, 0) AS overall_efficiency_pct,
 
-    -- Waste metrics
-    allocated_cpu - cpu_usage_avg AS unused_cpu_cores,
-    if(allocated_cpu > 0, (daily_compute_chc / 24) * (1 - (cpu_usage_avg / allocated_cpu)), 0) AS unused_compute_cost_hourly,
-
     -- Previous period values
     coalesce(prev_1h_cpu, 0) AS prev_1h_cpu_usage,
     prev_1h_daily_cost / 24 AS prev_1h_hourly_cost,
@@ -496,9 +488,6 @@ SELECT
     round(cpu_usage_avg, 4) AS cpu_cores,
     round(cpu_efficiency_pct, 1) AS cpu_eff_pct,
     round(memory_usage_pct_avg, 1) AS mem_eff_pct,
-    round(unused_compute_cost_hourly, 4) AS waste_hourly_chc,
-    round(unused_compute_cost_hourly * 24, 2) AS waste_daily_chc,
-    round(unused_compute_cost_hourly * 24 * 30, 2) AS waste_monthly_chc,
     round(pct_change_1h_cpu, 1) AS chg_1h_pct,
     round(pct_change_3h_cpu, 1) AS chg_3h_pct,
     round(pct_change_24h_cpu, 1) AS chg_24h_pct,
@@ -597,9 +586,6 @@ SELECT
     if(allocated_cpu > 0, (cpu_usage_avg / allocated_cpu) * 100, 0),
     memory_usage_pct_avg,
     if(allocated_cpu > 0, ((cpu_usage_avg / allocated_cpu) * 100 + memory_usage_pct_avg) / 2, 0),
-
-    allocated_cpu - cpu_usage_avg,
-    if(allocated_cpu > 0, (daily_compute_chc / 24) * (1 - cpu_usage_avg / allocated_cpu), 0),
 
     coalesce(prev_1h_cpu, 0),
     coalesce(prev_1h_daily_cost, 0) / 24,

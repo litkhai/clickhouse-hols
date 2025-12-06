@@ -159,21 +159,23 @@ cd /path/to/clickhouse-hols/chc/tool/costkeeper
 
 1. **CHC 연결 정보**
    - CHC 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)
-   - CHC 포트 (기본값: 8443)
-   - CHC 사용자 (기본값: default)
    - CHC 비밀번호 (숨김 입력)
+   - ⚙️ 포트(8443), 사용자(default)는 자동 설정됨
 
 2. **CHC API 정보**
    - Organization ID
-   - API Key (숨김 입력)
+   - API Key ID
+   - API Key Secret (숨김 입력)
 
-3. **서비스 설정**
+3. **서비스 설정** (기존 설정 파일이 있으면 재사용 가능)
    - Database 이름 (기본값: costkeeper)
    - 서비스 이름, CPU/메모리 할당량
 
 4. **Alert 및 보관 기간 설정**
 
 > ⚠️ **보안**: 민감한 정보(비밀번호, API Key)는 `.credentials` 파일에 안전하게 저장됩니다 (권한: 600)
+>
+> 💡 **Tip**: 기존 `.credentials`나 `costkeeper.conf` 파일이 있으면 재사용 여부를 물어봅니다
 
 ### 확인
 
@@ -202,13 +204,13 @@ SELECT * FROM system.view_refreshes WHERE database = 'costkeeper';
 
 1. **CHC 연결 설정** (CHC 전용, Secure 연결 고정)
    - CHC 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)
-   - CHC 포트 (기본값: 8443, CHC는 항상 secure 연결 사용)
-   - CHC 사용자 (기본값: default)
    - CHC 비밀번호 (숨김 입력) 🔒
+   - ⚙️ 포트(8443), 사용자(default)는 자동 설정됨 (CHC 표준)
 
 2. **CHC API 설정**
    - Organization ID (CHC Console에서 확인)
-   - API Key (CHC Console에서 발급, 숨김 입력) 🔒
+   - API Key ID (CHC Console에서 발급)
+   - API Key Secret (숨김 입력) 🔒
 
 3. **서비스 설정**
    - Database 이름 (기본값: `costkeeper`)
@@ -231,7 +233,7 @@ SELECT * FROM system.view_refreshes WHERE database = 'costkeeper';
 
 | 파일 | 권한 | 내용 | Git |
 |------|------|------|-----|
-| `.credentials` | 600 (소유자만 읽기/쓰기) | CHC 비밀번호, API Key | ❌ 제외 |
+| `.credentials` | 600 (소유자만 읽기/쓰기) | CHC 비밀번호, API Key ID/Secret | ❌ 제외 |
 | `costkeeper.conf` | 644 (일반 읽기) | 비민감 설정 | ❌ 제외 |
 | `.gitignore` | 644 | Git 제외 파일 목록 | ✅ 포함 |
 
@@ -239,7 +241,7 @@ SELECT * FROM system.view_refreshes WHERE database = 'costkeeper';
 
 - ✅ `.credentials` 파일은 자동으로 권한 600 설정
 - ✅ `.gitignore`에 자동 추가되어 Git 커밋 방지
-- ✅ 비밀번호와 API Key는 터미널에 표시되지 않음
+- ✅ 비밀번호와 API Key Secret은 터미널에 표시되지 않음
 - ⚠️ `.credentials` 파일을 절대 공유하지 마세요
 - ⚠️ 프로덕션 환경에서는 환경 변수 사용 권장
 
@@ -258,7 +260,8 @@ CH_PASSWORD=your_chc_password
 
 # CHC API Configuration
 CHC_ORG_ID=your_org_id
-CHC_API_KEY=your_api_key
+CHC_API_KEY_ID=your_api_key_id
+CHC_API_KEY_SECRET=your_api_key_secret
 ```
 
 **보안 설정:**
