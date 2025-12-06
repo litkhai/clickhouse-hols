@@ -10,10 +10,29 @@ These hands-on labs are designed to provide practical experience with:
 
 Whether you're a beginner learning ClickHouse fundamentals or an experienced user exploring advanced features, these labs offer structured, step-by-step exercises to build your skills with real-world scenarios.
 
+## 📁 Repository Structure
+
+```
+clickhouse-hols/
+├── local/          # Local environment setups
+│   ├── oss-mac-setup/           # ClickHouse OSS on macOS
+│   └── datalake-minio-catalog/  # Local data lake with MinIO
+├── chc/            # ClickHouse Cloud integrations
+│   ├── api/        # API testing and integration
+│   ├── kafka/      # Kafka/Confluent integrations
+│   ├── lake/       # Data lake integrations (Glue, MinIO)
+│   └── s3/         # S3 integration examples
+├── tpcds/          # TPC-DS benchmark
+└── workload/       # Performance testing workloads
+    ├── sql-lab-delete-benchmark/  # DELETE operation benchmark
+    └── sql-lab-gnome-variants/    # Genomics data workload
+```
+
 ## 📚 Available Labs
 
-### 1. [oss-mac-setup](oss-mac-setup/)
-**Created:** November 2025
+### 🏠 Local Environment (`local/`)
+
+#### 1. [local/oss-mac-setup](local/oss-mac-setup/)
 **Purpose:** Quick setup for running ClickHouse OSS (Open Source) on macOS
 
 Development environment optimized for macOS with Docker, featuring:
@@ -23,14 +42,9 @@ Development environment optimized for macOS with Docker, featuring:
 - Easy management scripts for start/stop/cleanup operations
 - Multiple access interfaces (Web UI, HTTP API, TCP)
 
-**Use Cases:**
-- Local ClickHouse development on macOS
-- Testing ClickHouse features before cloud deployment
-- Learning ClickHouse fundamentals in a safe local environment
-
 **Quick Start:**
 ```bash
-cd oss-mac-setup
+cd local/oss-mac-setup
 ./set.sh        # Setup with latest version
 ./start.sh      # Start ClickHouse
 ./client.sh     # Connect to CLI
@@ -38,36 +52,7 @@ cd oss-mac-setup
 
 ---
 
-### 2. [tpcds](tpcds/)
-**Created:** November 2025 *(Under Development)*
-**Purpose:** TPC-DS benchmark for ClickHouse performance testing
-
-Industry-standard decision support benchmark for evaluating ClickHouse performance:
-- Complete TPC-DS schema with 24 tables (7 fact tables, 17 dimension tables)
-- 99 analytical query templates covering various patterns
-- Automated data generation and loading scripts
-- Sequential and parallel query execution
-- Performance metrics and result analysis
-
-**Use Cases:**
-- Benchmarking ClickHouse performance at different scale factors
-- Testing query optimization and tuning
-- Comparing performance across different ClickHouse versions or configurations
-- Stress testing production environments
-
-**Quick Start:**
-```bash
-cd tpcds
-./00-set.sh --interactive     # Configure environment
-./01-create-schema.sh         # Create schema
-./03-load-data.sh --source s3 # Load data from S3
-./04-run-queries-sequential.sh # Run benchmark
-```
-
----
-
-### 3. [datalake-minio-catalog](datalake-minio-catalog/)
-**Created:** November 2025
+#### 2. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
 **Purpose:** Local data lake environment with MinIO and multiple catalog options
 
 Complete data lake stack running locally with Docker:
@@ -77,15 +62,9 @@ Complete data lake stack running locally with Docker:
 - **Jupyter Notebooks**: Interactive data exploration with pre-configured examples
 - **Sample Data**: Pre-loaded JSON and Parquet datasets
 
-**Use Cases:**
-- Learning data lake architecture and Apache Iceberg concepts
-- Testing ClickHouse integration with S3-compatible storage
-- Experimenting with different catalog implementations
-- Prototyping data lake solutions before cloud deployment
-
 **Quick Start:**
 ```bash
-cd datalake-minio-catalog
+cd local/datalake-minio-catalog
 ./setup.sh --configure  # Choose catalog type
 ./setup.sh --start      # Start all services
 # Access Jupyter at http://localhost:8888
@@ -94,36 +73,64 @@ cd datalake-minio-catalog
 
 ---
 
-### 4. [terraform-minio-on-aws](terraform-minio-on-aws/)
-**Created:** November 2025
-**Purpose:** Deploy single-node MinIO server on AWS EC2 with Terraform
+### ☁️ ClickHouse Cloud Integration (`chc/`)
 
-Production-ready MinIO deployment on AWS infrastructure:
-- **Ubuntu 22.04 LTS**: Following MinIO's official recommendations
-- **Automated Deployment**: One-command deployment with `deploy.sh`
-- **Configurable Resources**: Instance type and EBS volume size
-- **Security Groups**: Pre-configured firewall rules for MinIO API/Console/SSH
-- **Optional Elastic IP**: Stable public IP for production use
-- **Health Monitoring**: Automated health checks and detailed installation logs
+#### API Testing
 
-**Use Cases:**
-- Deploying S3-compatible object storage on AWS
-- Creating MinIO infrastructure for ClickHouse Cloud integration
-- Testing ClickHouse S3 functions with real cloud storage
-- Cost-effective alternative to AWS S3 for specific workloads
+##### [chc/api/chc-api-test](chc/api/chc-api-test/)
+**Purpose:** ClickHouse Cloud API testing and integration examples
+
+Comprehensive API testing suite for ClickHouse Cloud:
+- REST API examples with Python
+- Authentication and connection handling
+- Query execution and result processing
+- Performance testing and monitoring
 
 **Quick Start:**
 ```bash
-cd terraform-minio-on-aws
-export AWS_ACCESS_KEY_ID="your-key"
-export AWS_SECRET_ACCESS_KEY="your-secret"
-./deploy.sh   # Automated deployment
-./destroy.sh  # Cleanup when done
+cd chc/api/chc-api-test
+cp .env.example .env
+# Edit .env with your CHC credentials
+python3 apitest.py
 ```
 
 ---
 
-### 5. [terraform-glue-s3-chc-integration](terraform-glue-s3-chc-integration/)
+#### Kafka/Confluent Integration
+
+##### [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/)
+**Purpose:** Confluent Cloud Kafka integration with ClickHouse Cloud
+
+##### [chc/kafka/terraform-confluent-aws-nlb-ssl](chc/kafka/terraform-confluent-aws-nlb-ssl/)
+**Purpose:** Secure Kafka connection using AWS NLB with SSL/TLS
+
+##### [chc/kafka/terraform-confluent-aws-connect-sink](chc/kafka/terraform-confluent-aws-connect-sink/)
+**Purpose:** Kafka Connect Sink connector for streaming data to ClickHouse Cloud
+
+---
+
+#### Data Lake Integration
+
+##### [chc/lake/terraform-minio-on-aws](chc/lake/terraform-minio-on-aws/)
+**Purpose:** Deploy single-node MinIO server on AWS EC2 with Terraform
+
+Production-ready MinIO deployment on AWS infrastructure:
+- Ubuntu 22.04 LTS with automated deployment
+- Configurable instance type and EBS volume size
+- Security groups and optional Elastic IP
+- Health monitoring and installation logs
+
+**Quick Start:**
+```bash
+cd chc/lake/terraform-minio-on-aws
+export AWS_ACCESS_KEY_ID="your-key"
+export AWS_SECRET_ACCESS_KEY="your-secret"
+./deploy.sh   # Automated deployment
+```
+
+---
+
+##### [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)
 **Created:** November 2025
 **Purpose:** ClickHouse Cloud integration with AWS Glue Catalog using Apache Iceberg
 
@@ -169,45 +176,97 @@ S3 Bucket (Apache Iceberg Data)
 Sample Table: sales_orders (10 records, partitioned by date)
 ```
 
+**Quick Start:**
+```bash
+cd chc/lake/terraform-glue-s3-chc-integration
+./deploy.sh  # Prompts for AWS credentials, deploys everything
+```
+
 ---
 
-### 6. [terraform-chc-secures3-aws](terraform-chc-secures3-aws/)
-**Created:** November 2025
+#### S3 Integration
+
+##### [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/)
 **Purpose:** Secure ClickHouse Cloud S3 integration using IAM role-based authentication
 
-Production-ready S3 access for ClickHouse Cloud without managing access keys:
-- **IAM Role-Based Authentication**: Secure access using AWS IAM role assumption
-- **Read & Write Permissions**: Full support for SELECT, INSERT, and export operations
-- **S3 Table Engine Support**: Create tables backed by S3 storage
-- **Multiple Format Support**: Parquet, CSV, JSON, and more
-- **Automated Deployment**: One-command deployment with `deploy.sh`
-- **Production Security**: Encryption, versioning, and public access blocking
-
-**Use Cases:**
-- Secure S3 access for ClickHouse Cloud without access keys
-- Creating S3-backed tables for cost-effective cold storage
-- Exporting ClickHouse query results to S3
-- Querying large datasets directly from S3
-- Building data lake architectures with ClickHouse Cloud
+Production-ready S3 access for ClickHouse Cloud:
+- IAM role-based authentication (no access keys)
+- Read & write permissions for SELECT, INSERT, export
+- S3 Table Engine support
+- Multiple format support (Parquet, CSV, JSON)
+- Encryption, versioning, and security
 
 **Quick Start:**
 ```bash
-cd terraform-chc-secures3-aws
+cd chc/s3/terraform-chc-secures3-aws
 export AWS_ACCESS_KEY_ID="your-key"
 export AWS_SECRET_ACCESS_KEY="your-secret"
 ./deploy.sh   # Interactive deployment
-# Copy SQL examples from output and run in ClickHouse Cloud
 ```
 
-**Technical Architecture:**
+---
+
+##### [chc/s3/terraform-chc-secures3-aws-direct-attach](chc/s3/terraform-chc-secures3-aws-direct-attach/)
+**Purpose:** Direct IAM policy attachment for ClickHouse Cloud S3 access
+
+Alternative approach using direct policy attachment to ClickHouse Cloud IAM role.
+
+---
+
+### 📊 Benchmarks & Workloads
+
+#### [tpcds/](tpcds/)
+**Purpose:** TPC-DS benchmark for ClickHouse performance testing
+
+Industry-standard decision support benchmark:
+- Complete TPC-DS schema with 24 tables
+- 99 analytical query templates
+- Automated data generation and loading
+- Sequential and parallel query execution
+- Performance metrics and analysis
+
+**Quick Start:**
+```bash
+cd tpcds
+./00-set.sh --interactive
+./01-create-schema.sh
+./03-load-data.sh --source s3
+./04-run-queries-sequential.sh
 ```
-ClickHouse Cloud Service
-    ↓ (AssumeRole)
-IAM Role (ClickHouseS3Access)
-    ↓ (S3 Permissions)
-S3 Bucket (Encrypted, Versioned)
-    ↓ (Parquet/CSV/JSON)
-Your Data Files
+
+---
+
+### 🔬 Performance Testing (`workload/`)
+
+#### [workload/sql-lab-delete-benchmark](workload/sql-lab-delete-benchmark/)
+**Purpose:** DELETE operation performance benchmark
+
+Comprehensive DELETE operation testing:
+- Various DELETE patterns and scenarios
+- Performance metrics collection
+- Comparison of different deletion strategies
+- Impact analysis on query performance
+
+**Quick Start:**
+```bash
+cd workload/sql-lab-delete-benchmark
+# Execute SQL scripts in order: 01 through 05
+```
+
+---
+
+#### [workload/sql-lab-gnome-variants](workload/sql-lab-gnome-variants/)
+**Purpose:** Genomics data workload testing
+
+Real-world genomics data processing scenarios:
+- Genome variant analysis
+- Large-scale genomics data handling
+- Performance optimization for scientific workloads
+
+**Quick Start:**
+```bash
+cd workload/sql-lab-gnome-variants
+# Execute SQL scripts in order: 01 through 05
 ```
 
 ---
@@ -219,13 +278,11 @@ Your Data Files
 - Docker and Docker Compose
 - Basic command-line knowledge
 
-### Specific Requirements by Lab
-- **oss-mac-setup**: Docker Desktop for Mac
-- **tpcds**: ClickHouse client, bash, sufficient disk space
-- **datalake-minio-catalog**: Python 3.8+, 20GB+ disk space
-- **terraform-minio-on-aws**: Terraform, AWS CLI, AWS account, EC2 key pair
-- **terraform-glue-s3-chc-integration**: Terraform, AWS CLI, AWS account, ClickHouse Cloud account
-- **terraform-chc-secures3-aws**: Terraform, AWS CLI, AWS account, ClickHouse Cloud account
+### Specific Requirements
+- **Local Labs**: Docker Desktop, Python 3.8+
+- **Cloud Labs**: Terraform, AWS CLI, AWS account
+- **ClickHouse Cloud Labs**: ClickHouse Cloud account
+- **Benchmarks**: ClickHouse client, sufficient disk space
 
 ## 🚀 Getting Started
 
@@ -243,20 +300,27 @@ Your Data Files
 
 ## 📖 Learning Path
 
-**Recommended progression for beginners:**
+### For Beginners
+1. **[local/oss-mac-setup](local/oss-mac-setup/)** - Learn ClickHouse basics locally
+2. **[local/datalake-minio-catalog](local/datalake-minio-catalog/)** - Explore data lake concepts
+3. **[tpcds](tpcds/)** - Understand performance and benchmarking
 
-1. **Start with [oss-mac-setup](oss-mac-setup/)** → Learn basic ClickHouse operations locally
-2. **Try [datalake-minio-catalog](datalake-minio-catalog/)** → Understand data lake concepts and S3 integration
-3. **Explore [tpcds](tpcds/)** → Learn about ClickHouse performance and query optimization
-4. **Deploy [terraform-minio-on-aws](terraform-minio-on-aws/)** → Experience cloud infrastructure deployment
-5. **Intermediate: [terraform-chc-secures3-aws](terraform-chc-secures3-aws/)** → Secure S3 integration with ClickHouse Cloud
-6. **Advanced: [terraform-glue-s3-chc-integration](terraform-glue-s3-chc-integration/)** → Master ClickHouse Cloud + AWS Glue integration
+### For Cloud Users
+1. **[chc/api/chc-api-test](chc/api/chc-api-test/)** - Learn ClickHouse Cloud API
+2. **[chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/)** - Secure S3 integration
+3. **[chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)** - AWS Glue integration
 
-## 🇰🇷 한국어 정보 (Korean Information)
+### For Advanced Users
+1. **[chc/kafka](chc/kafka/)** - Real-time data streaming
+2. **[workload](workload/)** - Performance testing and optimization
+
+## 🇰🇷 한국어 문서 (Korean Documentation)
+
+한국어 사용자를 위한 상세한 문서는 [README.ko.md](README.ko.md)를 참조하세요.
+
+For detailed Korean documentation, please refer to [README.ko.md](README.ko.md).
 
 ClickHouse에 대한 더 많은 정보와 한국어 리소스는 [clickhouse.kr](https://clickhouse.kr)에서 확인하실 수 있습니다.
-
-If you are Korean, you can get more information from [clickhouse.kr](https://clickhouse.kr).
 
 ## 🤝 Contributing
 
