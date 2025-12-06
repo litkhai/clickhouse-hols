@@ -43,11 +43,11 @@ brew install ollama
 ollama serve
 ```
 
-### 2. 설정 구성
+### 2. 초기 설정
 
 ```bash
 cd local/llm-mac-librechat
-./setup.sh --configure
+./setup.sh
 ```
 
 대화형 프롬프트에서 다음을 입력합니다:
@@ -58,7 +58,7 @@ cd local/llm-mac-librechat
 ### 3. 서비스 시작
 
 ```bash
-./setup.sh --start
+./start.sh
 ```
 
 ### 4. 접속
@@ -74,29 +74,28 @@ cd local/llm-mac-librechat
 ### 기본 명령어
 
 ```bash
-# 설정 (최초 1회)
-./setup.sh --configure
+# 초기 설정 (최초 1회)
+./setup.sh
 
 # 서비스 시작
-./setup.sh --start
+./start.sh
 
 # 서비스 중지
-./setup.sh --stop
+./stop.sh
 
 # 재시작
-./setup.sh --restart
+./restart.sh
 
 # 상태 확인
-./setup.sh --status
+./status.sh
 
 # 로그 보기
-./setup.sh --logs
+./logs.sh
 
-# 엔드포인트 정보
-./setup.sh --endpoints
-
-# 완전 삭제 (데이터 포함)
-./setup.sh --clean
+# 특정 서비스 로그만 보기
+./logs.sh librechat
+./logs.sh mcp-server
+./logs.sh mongodb
 ```
 
 ### ClickHouse 쿼리 예제
@@ -116,7 +115,12 @@ MCP 서버가 자동으로 ClickHouse 쿼리를 실행하고 결과를 반환합
 
 ```
 local/llm-mac-librechat/
-├── setup.sh                    # 메인 설정 스크립트
+├── setup.sh                    # 초기 설정 스크립트
+├── start.sh                    # 서비스 시작
+├── stop.sh                     # 서비스 중지
+├── restart.sh                  # 서비스 재시작
+├── logs.sh                     # 로그 조회
+├── status.sh                   # 상태 확인
 ├── docker-compose.yml          # Docker 서비스 정의
 ├── config.env                  # 환경 설정 (자동 생성)
 ├── .credentials               # ClickHouse 인증 정보 (자동 생성, git 제외)
@@ -242,13 +246,13 @@ curl "http://localhost:8123/?query=SELECT%20version()"
 
 ```bash
 # 컨테이너 상태 확인
-docker ps
+./status.sh
 
 # 로그 확인
-./setup.sh --logs
+./logs.sh
 
 # 재시작
-./setup.sh --restart
+./restart.sh
 ```
 
 ### MongoDB 오류
@@ -257,8 +261,8 @@ docker ps
 # MongoDB 컨테이너 재시작
 docker restart librechat-mongodb
 
-# 볼륨 초기화 (주의: 데이터 삭제됨)
-./setup.sh --clean
+# 컨테이너 로그 확인
+./logs.sh mongodb
 ```
 
 ## 보안 고려사항
@@ -306,7 +310,7 @@ docker restart librechat-mongodb
 docker compose pull
 
 # 재시작
-./setup.sh --restart
+./restart.sh
 ```
 
 ### 모델 업데이트
