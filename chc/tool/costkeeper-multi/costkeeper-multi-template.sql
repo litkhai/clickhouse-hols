@@ -1,16 +1,14 @@
 -- ============================================================================
--- CostKeeper: ClickHouse Cloud Cost Monitoring & Alerting System
+-- CostKeeper Multi-Service: ClickHouse Cloud Cost Monitoring & Alerting
 -- ============================================================================
--- Description: Automated cost monitoring with hourly analysis and alerts
--- Version: 1.0
--- Date: 2025-12-06
+-- Description: Multi-service monitoring with remoteSecure() support
+-- Version: 2.0-multi
+-- Date: 2025-12-07
 -- ============================================================================
 --
 -- Configuration Variables (replaced by setup script):
 --   ${DATABASE_NAME}            - Database name (default: costkeeper)
---   ${SERVICE_NAME}             - Service display name (e.g., production)
 --   ${CHC_ORG_ID}               - CHC Organization ID (UUID)
---   ${CHC_SERVICE_ID}           - CHC Service ID (UUID)
 --   ${CHC_API_KEY_ID}           - CHC API Key ID (used as Bearer token)
 --   ${CHC_API_KEY_SECRET}       - CHC API Key Secret
 --   ${ALERT_THRESHOLD_PCT}      - Alert threshold percentage (e.g., 20.0)
@@ -19,7 +17,11 @@
 --   ${DATA_RETENTION_DAYS}      - Data retention in days (e.g., 365)
 --   ${ALERT_RETENTION_DAYS}     - Alert retention in days (e.g., 90)
 --
--- Note: CPU/Memory allocation is retrieved dynamically from CHC API
+-- Multi-Service Variables (generated dynamically by setup script):
+--   ${SERVICE_METRICS_CTES}     - Generated CTEs for each service metrics collection
+--   ${SERVICE_UNION_ALL}        - Generated UNION ALL statements
+--
+-- Note: This template supports monitoring multiple CHC services using remoteSecure()
 --
 -- ============================================================================
 
@@ -344,16 +346,22 @@ FROM (
         headers('Authorization' = concat('Basic ', base64Encode('${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}')))
     )
 )
-WHERE JSONExtractString(cost_item, 'entityType') = 'service'
-  AND JSONExtractString(cost_item, 'serviceId') = '${CHC_SERVICE_ID}';
+WHERE JSONExtractString(cost_item, 'entityType') = 'service';
+-- ⚠️ Multi-Service: No service_id filter - collect all services in Organization
 
 
 -- ----------------------------------------------------------------------------
--- RMV 2: 15-Minute Metrics Collection (from System Tables)
+-- RMV 2: 15-Minute Metrics Collection (Multi-Service with remoteSecure)
 -- ----------------------------------------------------------------------------
 -- ⚠️ CRITICAL: Collects every 15 minutes to avoid data loss
 -- ClickHouse Cloud's system.asynchronous_metric_log has ~33min retention
 -- This RMV captures data before it gets purged
+--
+-- ⚠️ Multi-Service Architecture:
+-- - For PRIMARY service: queries local system.asynchronous_metric_log
+-- - For REMOTE services: uses remoteSecure() to access remote system tables
+-- - All services combined via UNION ALL
+-- - Each service identified by service_name column
 CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_metrics_15min
 REFRESH EVERY 15 MINUTE APPEND
 TO ${DATABASE_NAME}.metrics_15min
@@ -362,91 +370,56 @@ WITH
     target_period AS (
         SELECT now() - INTERVAL 15 MINUTE as start_time
     ),
-    metrics_agg AS (
-        SELECT
-            toStartOfFifteenMinutes(now()) as collected_at,
-
-            -- Allocated resources from CGroup metrics
-            avgIf(value, metric = 'CGroupMaxCPU') as allocated_cpu,
-            avgIf(value, metric = 'CGroupMemoryTotal') / (1024 * 1024 * 1024) as allocated_memory_gb,
-
-            -- CPU metrics
-            avgIf(value, metric = 'CGroupUserTimeNormalized') +
-            avgIf(value, metric = 'CGroupSystemTimeNormalized') as cpu_usage_avg,
-
-            quantileIf(0.5)(value, metric = 'CGroupUserTimeNormalized') +
-            quantileIf(0.5)(value, metric = 'CGroupSystemTimeNormalized') as cpu_usage_p50,
-
-            quantileIf(0.9)(value, metric = 'CGroupUserTimeNormalized') +
-            quantileIf(0.9)(value, metric = 'CGroupSystemTimeNormalized') as cpu_usage_p90,
-
-            quantileIf(0.99)(value, metric = 'CGroupUserTimeNormalized') +
-            quantileIf(0.99)(value, metric = 'CGroupSystemTimeNormalized') as cpu_usage_p99,
-
-            maxIf(value, metric = 'CGroupUserTimeNormalized') +
-            maxIf(value, metric = 'CGroupSystemTimeNormalized') as cpu_usage_max,
-
-            avgIf(value, metric = 'CGroupUserTimeNormalized') as cpu_user_cores,
-            avgIf(value, metric = 'CGroupSystemTimeNormalized') as cpu_system_cores,
-
-            -- Memory metrics (using CGroup metrics)
-            avgIf(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_avg_gb,
-            quantileIf(0.99)(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_p99_gb,
-            maxIf(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_max_gb,
-
-            (avgIf(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_avg,
-            (quantileIf(0.99)(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_p99,
-            (maxIf(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_max,
-
-            -- Disk metrics
-            sumIf(value, metric LIKE 'BlockReadBytes%') as disk_read_bytes,
-            sumIf(value, metric LIKE 'BlockWriteBytes%') as disk_write_bytes,
-            maxIf(value, metric = 'FilesystemMainPathTotalBytes') / (1024 * 1024 * 1024) as disk_total_gb,
-            maxIf(value, metric = 'FilesystemMainPathUsedBytes') / (1024 * 1024 * 1024) as disk_used_gb,
-            (maxIf(value, metric = 'FilesystemMainPathUsedBytes') / maxIf(value, metric = 'FilesystemMainPathTotalBytes')) * 100 as disk_usage_pct,
-
-            -- Network metrics
-            sumIf(value, metric = 'NetworkReceiveBytes_eth0') as network_rx_bytes,
-            sumIf(value, metric = 'NetworkSendBytes_eth0') as network_tx_bytes,
-
-            -- Load Average
-            avgIf(value, metric = 'LoadAverage1') as load_avg_1m,
-            avgIf(value, metric = 'LoadAverage5') as load_avg_5m,
-            avgIf(value, metric = 'OSProcessesRunning') as processes_running_avg
-
-        FROM system.asynchronous_metric_log
-        WHERE event_time >= (SELECT start_time FROM target_period)
-          AND event_time < now()
+    -- ========================================================================
+    -- PLACEHOLDER: Service-specific metric CTEs will be generated here
+    -- ========================================================================
+    -- The setup script will generate CTEs like:
+    --
+    -- service_0_metrics AS (
+    --     SELECT '${SERVICE_0_NAME}' as service_name,
+    --            toStartOfFifteenMinutes(now()) as collected_at,
+    --            avgIf(value, metric='CGroupMaxCPU') as allocated_cpu,
+    --            ...
+    --     FROM system.asynchronous_metric_log
+    --     WHERE event_time >= (SELECT start_time FROM target_period)
+    --       AND event_time < now()
+    -- ),
+    --
+    -- service_1_metrics AS (
+    --     SELECT '${SERVICE_1_NAME}' as service_name,
+    --            toStartOfFifteenMinutes(now()) as collected_at,
+    --            avgIf(value, metric='CGroupMaxCPU') as allocated_cpu,
+    --            ...
+    --     FROM remoteSecure(
+    --         '${SERVICE_1_HOST}:8443',
+    --         'system.asynchronous_metric_log',
+    --         '${SERVICE_1_USER}',
+    --         '${SERVICE_1_PASSWORD}'
+    --     )
+    --     WHERE event_time >= (SELECT start_time FROM target_period)
+    --       AND event_time < now()
+    -- ),
+    -- ... (more services)
+    -- ========================================================================
+${SERVICE_METRICS_CTES}
+    -- ========================================================================
+    -- PLACEHOLDER: UNION ALL to combine all services
+    -- ========================================================================
+    -- The setup script will generate:
+    --
+    -- all_metrics AS (
+    --     SELECT * FROM service_0_metrics
+    --     UNION ALL
+    --     SELECT * FROM service_1_metrics
+    --     UNION ALL
+    --     SELECT * FROM service_2_metrics
+    --     ...
+    -- )
+    -- ========================================================================
+    all_metrics AS (
+${SERVICE_UNION_ALL}
     )
-SELECT
-    collected_at,
-    allocated_cpu,
-    allocated_memory_gb,
-    cpu_usage_avg,
-    cpu_usage_p50,
-    cpu_usage_p90,
-    cpu_usage_p99,
-    cpu_usage_max,
-    cpu_user_cores,
-    cpu_system_cores,
-    memory_used_avg_gb,
-    memory_used_p99_gb,
-    memory_used_max_gb,
-    memory_usage_pct_avg,
-    memory_usage_pct_p99,
-    memory_usage_pct_max,
-    disk_read_bytes,
-    disk_write_bytes,
-    disk_total_gb,
-    disk_used_gb,
-    disk_usage_pct,
-    network_rx_bytes,
-    network_tx_bytes,
-    load_avg_1m,
-    load_avg_5m,
-    processes_running_avg,
-    '${SERVICE_NAME}' as service_name
-FROM metrics_agg;
+SELECT * FROM all_metrics;
 
 
 -- ----------------------------------------------------------------------------
