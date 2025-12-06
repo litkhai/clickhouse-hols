@@ -112,7 +112,7 @@ if [ -f "$CREDENTIALS_FILE" ]; then
         print_info "기존 인증 정보로 CHC 연결을 테스트합니다..."
 
         # Remove https:// prefix if present in stored credentials
-        CH_HOST_CLEAN=$(echo "$CH_HOST" | sed 's|^https\?://||')
+        CH_HOST_CLEAN=$(echo "$CH_HOST" | sed -E 's|^https?://||')
 
         VERSION=$(curl -s "https://${CH_HOST_CLEAN}:${CH_PORT}/?query=SELECT%20version()" --user "${CH_USER}:${CH_PASSWORD}" 2>&1)
         CURL_EXIT_CODE=$?
@@ -126,6 +126,39 @@ if [ -f "$CREDENTIALS_FILE" ]; then
             fi
             print_error "다시 시작하려면 스크립트를 재실행하세요."
             exit 1
+        fi
+
+        echo ""
+
+        # Test CHC API connection with existing credentials
+        print_info "기존 API 정보로 CHC API 연결을 테스트합니다..."
+
+        API_TEST_URL="https://api.clickhouse.cloud/v1/organizations/${CHC_ORG_ID}"
+        API_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_TEST_URL" \
+            -u "${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}" \
+            -H "Content-Type: application/json" 2>&1)
+
+        HTTP_CODE=$(echo "$API_RESPONSE" | tail -n1)
+        RESPONSE_BODY=$(echo "$API_RESPONSE" | sed '$d')
+
+        if [ "$HTTP_CODE" = "200" ]; then
+            ORG_NAME=$(echo "$RESPONSE_BODY" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | head -n1)
+            if [ -n "$ORG_NAME" ]; then
+                print_success "CHC API 연결 성공! (Organization: ${ORG_NAME})"
+            else
+                print_success "CHC API 연결 성공!"
+            fi
+        elif [ "$HTTP_CODE" = "401" ]; then
+            print_error "CHC API 인증 실패. API Key가 만료되었거나 올바르지 않습니다."
+            print_error "다시 시작하려면 스크립트를 재실행하세요."
+            exit 1
+        elif [ "$HTTP_CODE" = "404" ]; then
+            print_error "CHC API 연결 실패. Organization ID를 확인해주세요."
+            print_error "다시 시작하려면 스크립트를 재실행하세요."
+            exit 1
+        else
+            print_warning "CHC API 연결 테스트를 완료할 수 없습니다 (HTTP ${HTTP_CODE})."
+            print_warning "계속 진행하지만, API 정보가 정확한지 확인해주세요."
         fi
     else
         SKIP_CREDENTIALS=false
@@ -152,7 +185,7 @@ if [ "$SKIP_CREDENTIALS" = false ]; then
         prompt_input "CHC 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)" "" CH_HOST
 
         # Remove https:// or http:// prefix if present
-        CH_HOST=$(echo "$CH_HOST" | sed 's|^https\?://||')
+        CH_HOST=$(echo "$CH_HOST" | sed -E 's|^https?://||')
 
         # Validate host format
         if [ -z "$CH_HOST" ]; then
@@ -293,6 +326,39 @@ if [ "$SKIP_CREDENTIALS" = false ]; then
         print_success "API Key Secret이 입력되었습니다."
         break
     done
+
+    echo ""
+
+    # Test CHC API connection
+    print_info "입력하신 API 정보로 CHC API 연결을 테스트합니다..."
+
+    API_TEST_URL="https://api.clickhouse.cloud/v1/organizations/${CHC_ORG_ID}"
+    API_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_TEST_URL" \
+        -u "${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}" \
+        -H "Content-Type: application/json" 2>&1)
+
+    HTTP_CODE=$(echo "$API_RESPONSE" | tail -n1)
+    RESPONSE_BODY=$(echo "$API_RESPONSE" | sed '$d')
+
+    if [ "$HTTP_CODE" = "200" ]; then
+        ORG_NAME=$(echo "$RESPONSE_BODY" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | head -n1)
+        if [ -n "$ORG_NAME" ]; then
+            print_success "CHC API 연결 성공! (Organization: ${ORG_NAME})"
+        else
+            print_success "CHC API 연결 성공!"
+        fi
+    elif [ "$HTTP_CODE" = "401" ]; then
+        print_error "CHC API 인증 실패. API Key ID 또는 Secret을 확인해주세요."
+        print_error "다시 시작하려면 스크립트를 재실행하세요."
+        exit 1
+    elif [ "$HTTP_CODE" = "404" ]; then
+        print_error "CHC API 연결 실패. Organization ID를 확인해주세요."
+        print_error "다시 시작하려면 스크립트를 재실행하세요."
+        exit 1
+    else
+        print_warning "CHC API 연결 테스트를 완료할 수 없습니다 (HTTP ${HTTP_CODE})."
+        print_warning "계속 진행하지만, API 정보가 정확한지 확인해주세요."
+    fi
 
     echo ""
 
