@@ -48,9 +48,9 @@ SELECT * FROM negative_limit_demo ORDER BY id LIMIT 3 OFFSET 2;
 SELECT '=== Negative OFFSET -2 (Skip last 2) ===' AS title;
 SELECT * FROM negative_limit_demo ORDER BY id OFFSET -2;
 
--- Query 6: Combination - Negative LIMIT with positive OFFSET
-SELECT '=== OFFSET 2 LIMIT -3 (Skip 2, then last 3) ===' AS title;
-SELECT * FROM negative_limit_demo ORDER BY id OFFSET 2 LIMIT -3;
+-- Query 6: Combination - Negative OFFSET (Skip last 2)
+SELECT '=== OFFSET -2 LIMIT 5 (Last 5, skip last 2) ===' AS title;
+SELECT * FROM negative_limit_demo ORDER BY id LIMIT 5 OFFSET -2;
 
 -- Query 7: Get top scorers, then last 2 of them
 SELECT '=== Top Scorers, Last 2 ===' AS title;
@@ -86,15 +86,17 @@ ORDER BY category, id;
 
 -- Query 10: Compare positive vs negative LIMIT
 SELECT '=== Comparison: First 3 vs Last 3 ===' AS title;
-SELECT 'First 3' AS type, id, name, score
-FROM negative_limit_demo
-ORDER BY score DESC
-LIMIT 3
-UNION ALL
-SELECT 'Last 3' AS type, id, name, score
-FROM negative_limit_demo
-ORDER BY score DESC
-LIMIT -3
+SELECT * FROM (
+    SELECT 'First 3' AS type, id, name, score
+    FROM negative_limit_demo
+    ORDER BY score DESC
+    LIMIT 3
+    UNION ALL
+    SELECT 'Last 3' AS type, id, name, score
+    FROM negative_limit_demo
+    ORDER BY score DESC
+    LIMIT -3
+)
 ORDER BY type, score DESC;
 
 -- Practical Benefits
