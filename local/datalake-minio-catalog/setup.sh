@@ -50,7 +50,9 @@ configure_setup() {
     echo "1) Nessie (Default - Modern, Git-like catalog)"
     echo "2) Hive Metastore (Traditional, widely supported)"
     echo "3) Iceberg REST Catalog (Standard REST API)"
-    read -p "Enter selection (1-3, default: 1): " catalog_choice
+    echo "4) Polaris (Apache Polaris - Open source catalog for Apache Iceberg)"
+    echo "5) Unity Catalog (Databricks Unity Catalog)"
+    read -p "Enter selection (1-5, default: 1): " catalog_choice
     catalog_choice=${catalog_choice:-1}
 
     case $catalog_choice in
@@ -78,6 +80,24 @@ configure_setup() {
             read -p "Enter Iceberg REST port (default: 8181): " iceberg_port
             iceberg_port=${iceberg_port:-8181}
             sed -i.bak "s/ICEBERG_REST_PORT=.*/ICEBERG_REST_PORT=$iceberg_port/" "$CONFIG_FILE"
+            ;;
+        4)
+            catalog_type="polaris"
+            # Configure Polaris ports
+            read -p "Enter Polaris API port (default: 8182): " polaris_port
+            polaris_port=${polaris_port:-8182}
+            sed -i.bak "s/POLARIS_PORT=.*/POLARIS_PORT=$polaris_port/" "$CONFIG_FILE"
+
+            read -p "Enter Polaris Management port (default: 8183): " polaris_mgmt_port
+            polaris_mgmt_port=${polaris_mgmt_port:-8183}
+            sed -i.bak "s/POLARIS_MGMT_PORT=.*/POLARIS_MGMT_PORT=$polaris_mgmt_port/" "$CONFIG_FILE"
+            ;;
+        5)
+            catalog_type="unity"
+            # Configure Unity Catalog ports
+            read -p "Enter Unity Catalog port (default: 8080): " unity_port
+            unity_port=${unity_port:-8080}
+            sed -i.bak "s/UNITY_PORT=.*/UNITY_PORT=$unity_port/" "$CONFIG_FILE"
             ;;
         *)
             echo -e "${YELLOW}Invalid selection, using Nessie as default${NC}"
@@ -110,6 +130,13 @@ configure_setup() {
             ;;
         iceberg-rest)
             echo "  Iceberg REST Port: ${iceberg_port:-8181}"
+            ;;
+        polaris)
+            echo "  Polaris API Port: ${polaris_port:-8182}"
+            echo "  Polaris Management Port: ${polaris_mgmt_port:-8183}"
+            ;;
+        unity)
+            echo "  Unity Catalog Port: ${unity_port:-8080}"
             ;;
     esac
     echo ""
@@ -212,6 +239,28 @@ wait_for_services() {
                 sleep 2
             done
             ;;
+        polaris)
+            echo -n "Waiting for Polaris..."
+            for i in {1..30}; do
+                if curl -s http://localhost:${POLARIS_PORT:-8182}/health > /dev/null 2>&1; then
+                    echo -e " ${GREEN}Ready!${NC}"
+                    break
+                fi
+                echo -n "."
+                sleep 2
+            done
+            ;;
+        unity)
+            echo -n "Waiting for Unity Catalog..."
+            for i in {1..30}; do
+                if curl -s http://localhost:${UNITY_PORT:-8080}/api/2.1/unity-catalog/catalogs > /dev/null 2>&1; then
+                    echo -e " ${GREEN}Ready!${NC}"
+                    break
+                fi
+                echo -n "."
+                sleep 2
+            done
+            ;;
     esac
 
     echo ""
@@ -249,6 +298,17 @@ show_endpoints() {
         iceberg-rest)
             echo -e "${YELLOW}Iceberg REST Catalog:${NC}"
             echo "  API Endpoint: http://localhost:${ICEBERG_REST_PORT:-8181}"
+            ;;
+        polaris)
+            echo -e "${YELLOW}Polaris Catalog:${NC}"
+            echo "  API Endpoint: http://localhost:${POLARIS_PORT:-8182}"
+            echo "  Management API: http://localhost:${POLARIS_MGMT_PORT:-8183}"
+            echo "  Admin Credentials: realm=default-realm, client-id=admin, client-secret=polaris"
+            ;;
+        unity)
+            echo -e "${YELLOW}Unity Catalog:${NC}"
+            echo "  API Endpoint: http://localhost:${UNITY_PORT:-8080}"
+            echo "  API Version: 2.1"
             ;;
     esac
 
@@ -301,7 +361,7 @@ main() {
             echo -e "${GREEN}Cleanup complete!${NC}"
             ;;
         --status)
-            docker ps --filter "name=minio" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=jupyter"
+            docker ps --filter "name=minio" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity" --filter "name=jupyter"
             ;;
         --endpoints)
             show_endpoints
