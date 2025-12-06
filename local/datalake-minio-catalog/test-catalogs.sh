@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -20,7 +20,8 @@ source "$CONFIG_FILE"
 # Test results
 PASSED=0
 FAILED=0
-declare -A TEST_RESULTS
+TEST_RESULTS_FILE="/tmp/clickhouse_catalog_test_results_$$.txt"
+> "$TEST_RESULTS_FILE"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  ClickHouse 25.11 Catalog Integration Test${NC}"
@@ -31,25 +32,26 @@ echo ""
 check_clickhouse() {
     echo -e "${BLUE}Checking ClickHouse 25.11...${NC}"
 
-    # Check if clickhouse client is available
-    if ! command -v clickhouse &> /dev/null; then
-        echo -e "${RED}ClickHouse client not found. Please install ClickHouse 25.11${NC}"
-        echo "You can use the oss-mac-setup: ../oss-mac-setup/start.sh"
+    # Check if ClickHouse 25.11 container is running
+    if ! docker ps | grep -q clickhouse-25-11; then
+        echo -e "${RED}ClickHouse 25.11 container not found${NC}"
+        echo "Please start ClickHouse 25.11 first:"
+        echo "  cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh"
         exit 1
     fi
 
     # Check version
-    VERSION=$(clickhouse client --query "SELECT version()" 2>/dev/null || echo "unknown")
+    VERSION=$(docker exec clickhouse-25-11 clickhouse-client --query "SELECT version()" 2>/dev/null || echo "unknown")
     echo -e "${GREEN}ClickHouse version: $VERSION${NC}"
 
     # Try to connect
-    if ! clickhouse client --query "SELECT 1" &> /dev/null; then
+    if ! docker exec clickhouse-25-11 clickhouse-client --query "SELECT 1" &> /dev/null; then
         echo -e "${RED}Cannot connect to ClickHouse${NC}"
-        echo "Please start ClickHouse first"
+        echo "Please check ClickHouse status"
         exit 1
     fi
 
-    echo -e "${GREEN}ClickHouse is ready!${NC}"
+    echo -e "${GREEN}ClickHouse 25.11 is ready!${NC}"
     echo ""
 }
 
@@ -62,12 +64,16 @@ test_minio() {
         echo -e "${GREEN}✓ MinIO is healthy${NC}"
     else
         echo -e "${RED}✗ MinIO is not responding${NC}"
-        TEST_RESULTS["minio"]="FAILED"
+        echo "minio:FAILED" >> "$TEST_RESULTS_FILE"
+        FAILED=$((FAILED + 1))
+        echo ""
         return 1
     fi
 
     # Test with ClickHouse
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
+    SET s3_truncate_on_insert = 1;
+
     DROP TABLE IF EXISTS test_minio;
     CREATE TABLE test_minio (
         id UInt32,
@@ -77,9 +83,9 @@ test_minio() {
 
     INSERT INTO test_minio VALUES (1, 'test1', 100.5), (2, 'test2', 200.7);
 
-    -- Export to MinIO
+    -- Export to MinIO (use host.docker.internal from container)
     INSERT INTO FUNCTION s3(
-        'http://localhost:${MINIO_PORT:-19000}/warehouse/test/data.parquet',
+        'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/test/data.parquet',
         '${MINIO_ROOT_USER:-admin}',
         '${MINIO_ROOT_PASSWORD:-password123}',
         'Parquet'
@@ -90,9 +96,9 @@ test_minio() {
         echo -e "${GREEN}✓ Write to MinIO succeeded${NC}"
 
         # Test read
-        RESULT=$(clickhouse client --query "
+        RESULT=$(docker exec clickhouse-25-11 clickhouse-client --query "
         SELECT count() FROM s3(
-            'http://localhost:${MINIO_PORT:-19000}/warehouse/test/data.parquet',
+            'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/test/data.parquet',
             '${MINIO_ROOT_USER:-admin}',
             '${MINIO_ROOT_PASSWORD:-password123}',
             'Parquet'
@@ -100,21 +106,21 @@ test_minio() {
 
         if [ "$RESULT" = "2" ]; then
             echo -e "${GREEN}✓ Read from MinIO succeeded (count: $RESULT)${NC}"
-            TEST_RESULTS["minio"]="PASSED"
+            echo "minio:PASSED" >> "$TEST_RESULTS_FILE"
             PASSED=$((PASSED + 1))
         else
             echo -e "${RED}✗ Read from MinIO failed (expected 2, got $RESULT)${NC}"
-            TEST_RESULTS["minio"]="FAILED"
+            echo "minio:FAILED" >> "$TEST_RESULTS_FILE"
             FAILED=$((FAILED + 1))
         fi
     else
         echo -e "${RED}✗ Write to MinIO failed${NC}"
-        TEST_RESULTS["minio"]="FAILED"
+        echo "minio:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_minio" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_minio" 2>/dev/null
 
     echo ""
 }
@@ -132,7 +138,7 @@ test_nessie() {
     # Check Nessie health
     if ! curl -sf http://localhost:${NESSIE_PORT:-19120}/api/v2/config > /dev/null; then
         echo -e "${RED}✗ Nessie is not responding${NC}"
-        TEST_RESULTS["nessie"]="FAILED"
+        echo "nessie:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
         echo ""
         return
@@ -141,7 +147,7 @@ test_nessie() {
     echo -e "${GREEN}✓ Nessie is healthy${NC}"
 
     # Test Iceberg table with Nessie
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
     DROP TABLE IF EXISTS test_nessie;
     CREATE TABLE test_nessie (
         id UInt32,
@@ -157,16 +163,16 @@ test_nessie() {
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Nessie catalog test passed${NC}"
-        TEST_RESULTS["nessie"]="PASSED"
+        echo "nessie:PASSED" >> "$TEST_RESULTS_FILE"
         PASSED=$((PASSED + 1))
     else
         echo -e "${RED}✗ Nessie catalog test failed${NC}"
-        TEST_RESULTS["nessie"]="FAILED"
+        echo "nessie:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_nessie" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_nessie" 2>/dev/null
 
     echo ""
 }
@@ -184,7 +190,7 @@ test_hive() {
     # Check if Hive Metastore port is listening
     if ! nc -z localhost ${HIVE_METASTORE_PORT:-9083} 2>/dev/null; then
         echo -e "${RED}✗ Hive Metastore is not responding on port ${HIVE_METASTORE_PORT:-9083}${NC}"
-        TEST_RESULTS["hive"]="FAILED"
+        echo "hive:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
         echo ""
         return
@@ -193,7 +199,7 @@ test_hive() {
     echo -e "${GREEN}✓ Hive Metastore is listening${NC}"
 
     # Test basic connectivity
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
     DROP TABLE IF EXISTS test_hive;
     CREATE TABLE test_hive (
         id UInt32,
@@ -209,16 +215,16 @@ test_hive() {
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Hive Metastore test passed${NC}"
-        TEST_RESULTS["hive"]="PASSED"
+        echo "hive:PASSED" >> "$TEST_RESULTS_FILE"
         PASSED=$((PASSED + 1))
     else
         echo -e "${RED}✗ Hive Metastore test failed${NC}"
-        TEST_RESULTS["hive"]="FAILED"
+        echo "hive:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_hive" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_hive" 2>/dev/null
 
     echo ""
 }
@@ -236,7 +242,7 @@ test_iceberg_rest() {
     # Check Iceberg REST health
     if ! curl -sf http://localhost:${ICEBERG_REST_PORT:-8181}/v1/config > /dev/null; then
         echo -e "${RED}✗ Iceberg REST is not responding${NC}"
-        TEST_RESULTS["iceberg-rest"]="FAILED"
+        echo "iceberg-rest:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
         echo ""
         return
@@ -245,7 +251,7 @@ test_iceberg_rest() {
     echo -e "${GREEN}✓ Iceberg REST is healthy${NC}"
 
     # Test basic connectivity
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
     DROP TABLE IF EXISTS test_iceberg_rest;
     CREATE TABLE test_iceberg_rest (
         order_id UInt32,
@@ -261,16 +267,16 @@ test_iceberg_rest() {
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Iceberg REST catalog test passed${NC}"
-        TEST_RESULTS["iceberg-rest"]="PASSED"
+        echo "iceberg-rest:PASSED" >> "$TEST_RESULTS_FILE"
         PASSED=$((PASSED + 1))
     else
         echo -e "${RED}✗ Iceberg REST catalog test failed${NC}"
-        TEST_RESULTS["iceberg-rest"]="FAILED"
+        echo "iceberg-rest:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_iceberg_rest" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_iceberg_rest" 2>/dev/null
 
     echo ""
 }
@@ -285,10 +291,10 @@ test_polaris() {
         return
     fi
 
-    # Check Polaris health
-    if ! curl -sf http://localhost:${POLARIS_PORT:-8182}/health > /dev/null; then
+    # Check Polaris health (use management port)
+    if ! curl -sf http://localhost:${POLARIS_MGMT_PORT:-8183}/q/health > /dev/null; then
         echo -e "${RED}✗ Polaris is not responding${NC}"
-        TEST_RESULTS["polaris"]="FAILED"
+        echo "polaris:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
         echo ""
         return
@@ -297,7 +303,7 @@ test_polaris() {
     echo -e "${GREEN}✓ Polaris is healthy${NC}"
 
     # Test basic connectivity
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
     DROP TABLE IF EXISTS test_polaris;
     CREATE TABLE test_polaris (
         event_id UInt32,
@@ -313,16 +319,16 @@ test_polaris() {
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Polaris catalog test passed${NC}"
-        TEST_RESULTS["polaris"]="PASSED"
+        echo "polaris:PASSED" >> "$TEST_RESULTS_FILE"
         PASSED=$((PASSED + 1))
     else
         echo -e "${RED}✗ Polaris catalog test failed${NC}"
-        TEST_RESULTS["polaris"]="FAILED"
+        echo "polaris:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_polaris" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_polaris" 2>/dev/null
 
     echo ""
 }
@@ -340,7 +346,7 @@ test_unity() {
     # Check Unity Catalog health
     if ! curl -sf http://localhost:${UNITY_PORT:-8080}/api/2.1/unity-catalog/catalogs > /dev/null; then
         echo -e "${RED}✗ Unity Catalog is not responding${NC}"
-        TEST_RESULTS["unity"]="FAILED"
+        echo "unity:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
         echo ""
         return
@@ -349,7 +355,7 @@ test_unity() {
     echo -e "${GREEN}✓ Unity Catalog is healthy${NC}"
 
     # Test basic connectivity
-    clickhouse client --query "
+    docker exec clickhouse-25-11 clickhouse-client --query "
     DROP TABLE IF EXISTS test_unity;
     CREATE TABLE test_unity (
         user_id UInt32,
@@ -365,16 +371,16 @@ test_unity() {
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Unity Catalog test passed${NC}"
-        TEST_RESULTS["unity"]="PASSED"
+        echo "unity:PASSED" >> "$TEST_RESULTS_FILE"
         PASSED=$((PASSED + 1))
     else
         echo -e "${RED}✗ Unity Catalog test failed${NC}"
-        TEST_RESULTS["unity"]="FAILED"
+        echo "unity:FAILED" >> "$TEST_RESULTS_FILE"
         FAILED=$((FAILED + 1))
     fi
 
     # Cleanup
-    clickhouse client --query "DROP TABLE IF EXISTS test_unity" 2>/dev/null
+    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_unity" 2>/dev/null
 
     echo ""
 }
@@ -402,18 +408,20 @@ main() {
     echo -e "${YELLOW}Active Catalog: ${CATALOG_TYPE}${NC}"
     echo ""
 
-    for test_name in "${!TEST_RESULTS[@]}"; do
-        result="${TEST_RESULTS[$test_name]}"
+    while IFS=: read -r test_name result; do
         if [ "$result" = "PASSED" ]; then
             echo -e "  ${GREEN}✓${NC} $test_name: ${GREEN}PASSED${NC}"
         else
             echo -e "  ${RED}✗${NC} $test_name: ${RED}FAILED${NC}"
         fi
-    done
+    done < "$TEST_RESULTS_FILE"
 
     echo ""
     echo -e "Total: ${GREEN}$PASSED passed${NC}, ${RED}$FAILED failed${NC}"
     echo ""
+
+    # Cleanup
+    rm -f "$TEST_RESULTS_FILE"
 
     if [ $FAILED -eq 0 ]; then
         echo -e "${GREEN}All tests passed!${NC}"
