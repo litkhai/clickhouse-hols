@@ -25,13 +25,17 @@
 
 
 -- ############################################################################
--- PART 1: Cleanup Existing Objects (Safe Order)
+-- PART 1: Database Creation and Cleanup
 -- ############################################################################
+
+-- Create database if not exists
+CREATE DATABASE IF NOT EXISTS ${DATABASE_NAME};
 
 -- Step 1: Drop Materialized Views (dependency order)
 DROP VIEW IF EXISTS ${DATABASE_NAME}.mv_alerts;
 DROP VIEW IF EXISTS ${DATABASE_NAME}.rmv_hourly_analysis;
 DROP VIEW IF EXISTS ${DATABASE_NAME}.rmv_hourly_metrics;
+DROP VIEW IF EXISTS ${DATABASE_NAME}.rmv_metrics_15min;
 DROP VIEW IF EXISTS ${DATABASE_NAME}.rmv_daily_billing;
 
 -- Step 2: Drop Regular Views
@@ -43,6 +47,7 @@ DROP VIEW IF EXISTS ${DATABASE_NAME}.v_alerts;
 -- CREATE TABLE ${DATABASE_NAME}.alerts_backup AS SELECT * FROM ${DATABASE_NAME}.alerts;
 
 -- Step 4: Drop Tables (Warning: Data loss!)
+DROP TABLE IF EXISTS ${DATABASE_NAME}.metrics_15min;
 DROP TABLE IF EXISTS ${DATABASE_NAME}.daily_billing;
 DROP TABLE IF EXISTS ${DATABASE_NAME}.hourly_metrics;
 DROP TABLE IF EXISTS ${DATABASE_NAME}.hourly_analysis;
@@ -74,13 +79,65 @@ CREATE TABLE ${DATABASE_NAME}.daily_billing
     network_chc Float64,
     api_fetched_at DateTime64(3) DEFAULT now64(3)
 )
-ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}', api_fetched_at)
+ENGINE = ReplacingMergeTree(api_fetched_at)
 ORDER BY (date, service_id)
 TTL date + INTERVAL ${DATA_RETENTION_DAYS} DAY
 SETTINGS index_granularity = 8192;
 
 -- ----------------------------------------------------------------------------
--- Layer 1: Hourly Metrics (Raw Metrics Collection)
+-- Layer 0: 15-Minute Raw Metrics (Frequent Collection to Avoid Data Loss)
+-- ----------------------------------------------------------------------------
+-- ⚠️ This table collects metrics every 15 minutes to prevent data loss
+-- due to ClickHouse Cloud's aggressive cleanup of system.asynchronous_metric_log (~33min retention)
+CREATE TABLE ${DATABASE_NAME}.metrics_15min
+(
+    collected_at DateTime,
+    allocated_cpu Float64,
+    allocated_memory_gb Float64,
+
+    -- CPU metrics
+    cpu_usage_avg Float64,
+    cpu_usage_p50 Float64,
+    cpu_usage_p90 Float64,
+    cpu_usage_p99 Float64,
+    cpu_usage_max Float64,
+    cpu_user_cores Float64,
+    cpu_system_cores Float64,
+
+    -- Memory metrics
+    memory_used_avg_gb Float64,
+    memory_used_p99_gb Float64,
+    memory_used_max_gb Float64,
+    memory_usage_pct_avg Float64,
+    memory_usage_pct_p99 Float64,
+    memory_usage_pct_max Float64,
+
+    -- Disk metrics
+    disk_read_bytes Float64,
+    disk_write_bytes Float64,
+    disk_total_gb Float64,
+    disk_used_gb Float64,
+    disk_usage_pct Float64,
+
+    -- Network metrics
+    network_rx_bytes Float64,
+    network_tx_bytes Float64,
+
+    -- Load metrics
+    load_avg_1m Float64,
+    load_avg_5m Float64,
+    processes_running_avg Float64,
+
+    -- Metadata
+    service_name String DEFAULT '${SERVICE_NAME}'
+)
+ENGINE = SharedMergeTree()
+ORDER BY (collected_at, service_name)
+TTL collected_at + INTERVAL ${DATA_RETENTION_DAYS} DAY
+SETTINGS index_granularity = 8192;
+
+-- ----------------------------------------------------------------------------
+-- Layer 1: Hourly Metrics (Aggregated from 15-min data)
 -- ----------------------------------------------------------------------------
 CREATE TABLE ${DATABASE_NAME}.hourly_metrics
 (
@@ -122,13 +179,17 @@ CREATE TABLE ${DATABASE_NAME}.hourly_metrics
     processes_running_avg Float64,
 
     -- Metadata
-    service_name String DEFAULT '${SERVICE_NAME}',
-    collected_at DateTime64(3) DEFAULT now64(3)
+    service_name String DEFAULT '${SERVICE_NAME}'
 )
-ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}', collected_at)
+ENGINE = SharedMergeTree()
 ORDER BY (hour, service_name)
 TTL hour + INTERVAL ${DATA_RETENTION_DAYS} DAY
 SETTINGS index_granularity = 8192;
+
+-- ⚠️ NOTE: Initial data population is NOT needed
+-- Reason: system.asynchronous_metric_log in ClickHouse Cloud only retains ~1 hour of data
+-- The RMV (Refreshable Materialized View) will automatically collect data starting from
+-- the first hour after setup. Historical data collection is not possible.
 
 -- ----------------------------------------------------------------------------
 -- Layer 2: Hourly Analysis (Main Analysis Table)
@@ -195,14 +256,17 @@ CREATE TABLE ${DATABASE_NAME}.hourly_analysis
     alert_cost_spike_1h UInt8,
     alert_cost_spike_3h UInt8,
     alert_cost_spike_24h UInt8,
-    alert_any UInt8,
-
-    calculated_at DateTime64(3) DEFAULT now64(3)
+    alert_any UInt8
 )
-ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}', calculated_at)
+ENGINE = SharedMergeTree()
 ORDER BY (hour, service_name)
 TTL hour + INTERVAL ${DATA_RETENTION_DAYS} DAY
 SETTINGS index_granularity = 8192;
+
+-- ⚠️ NOTE: Initial data population is NOT needed
+-- Reason: hourly_analysis depends on hourly_metrics, which is populated by RMV
+-- RMV 2 (hourly_metrics) and RMV 3 (hourly_analysis) will automatically work together
+-- to collect and analyze data starting from the first hour after setup.
 
 -- ----------------------------------------------------------------------------
 -- Layer 3: Alerts Table
@@ -237,7 +301,7 @@ CREATE TABLE ${DATABASE_NAME}.alerts
 
     service_name String DEFAULT '${SERVICE_NAME}'
 )
-ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
+ENGINE = SharedMergeTree()
 ORDER BY (alert_time, hour, alert_type, comparison_period)
 TTL alert_time + INTERVAL ${ALERT_RETENTION_DAYS} DAY
 SETTINGS index_granularity = 8192;
@@ -251,7 +315,7 @@ SETTINGS index_granularity = 8192;
 -- RMV 1: Daily Billing (from CHC API)
 -- ----------------------------------------------------------------------------
 CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_daily_billing
-REFRESH EVERY 1 DAY OFFSET 1 HOUR
+REFRESH EVERY 1 DAY OFFSET 1 HOUR APPEND
 TO ${DATABASE_NAME}.daily_billing
 AS
 SELECT
@@ -280,37 +344,31 @@ FROM (
         headers('Authorization' = concat('Basic ', base64Encode('${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}')))
     )
 )
-WHERE JSONExtractString(cost_item, 'entityType') = 'service';
+WHERE JSONExtractString(cost_item, 'entityType') = 'service'
+  AND JSONExtractString(cost_item, 'serviceId') = '${CHC_SERVICE_ID}';
 
 
 -- ----------------------------------------------------------------------------
--- RMV 2: Hourly Metrics (from System Tables)
+-- RMV 2: 15-Minute Metrics Collection (from System Tables)
 -- ----------------------------------------------------------------------------
--- ⚠️ NOTE: This RMV collects metrics from system.asynchronous_metric_log
--- which only contains metrics for the CURRENT service (the one you're connected to).
--- For multi-service monitoring, see: TODO_MULTI_SERVICE_MONITORING.md
-CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_hourly_metrics
-REFRESH EVERY 1 HOUR
-TO ${DATABASE_NAME}.hourly_metrics
+-- ⚠️ CRITICAL: Collects every 15 minutes to avoid data loss
+-- ClickHouse Cloud's system.asynchronous_metric_log has ~33min retention
+-- This RMV captures data before it gets purged
+CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_metrics_15min
+REFRESH EVERY 15 MINUTE APPEND
+TO ${DATABASE_NAME}.metrics_15min
 AS
 WITH
-    target_hour AS (
-        SELECT toStartOfHour(now() - INTERVAL 1 HOUR) as h
-    ),
-    service_spec AS (
-        SELECT
-            maxTotalMemoryGb,
-            maxTotalMemoryGb / 4.0 AS max_cpu_cores
-        FROM url(
-            'https://${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}@api.clickhouse.cloud/v1/organizations/${CHC_ORG_ID}/services/${CHC_SERVICE_ID}',
-            'JSONEachRow',
-            'id String, name String, provider String, region String, state String, tier String, minTotalMemoryGb Float64, maxTotalMemoryGb Float64, numReplicas Int32, idleScaling Bool, idleTimeoutMinutes Int32'
-        )
-        LIMIT 1
+    target_period AS (
+        SELECT now() - INTERVAL 15 MINUTE as start_time
     ),
     metrics_agg AS (
         SELECT
-            (SELECT h FROM target_hour) as hour,
+            toStartOfFifteenMinutes(now()) as collected_at,
+
+            -- Allocated resources from CGroup metrics
+            avgIf(value, metric = 'CGroupMaxCPU') as allocated_cpu,
+            avgIf(value, metric = 'CGroupMemoryTotal') / (1024 * 1024 * 1024) as allocated_memory_gb,
 
             -- CPU metrics
             avgIf(value, metric = 'CGroupUserTimeNormalized') +
@@ -331,25 +389,25 @@ WITH
             avgIf(value, metric = 'CGroupUserTimeNormalized') as cpu_user_cores,
             avgIf(value, metric = 'CGroupSystemTimeNormalized') as cpu_system_cores,
 
-            -- Memory metrics
-            (avgIf(value, metric = 'OSMemoryTotal') - avgIf(value, metric = 'OSMemoryAvailable')) / (1024 * 1024 * 1024) as memory_used_avg_gb,
-            (quantileIf(0.99)(value, metric = 'OSMemoryTotal') - quantileIf(0.99)(value, metric = 'OSMemoryAvailable')) / (1024 * 1024 * 1024) as memory_used_p99_gb,
-            (maxIf(value, metric = 'OSMemoryTotal') - minIf(value, metric = 'OSMemoryAvailable')) / (1024 * 1024 * 1024) as memory_used_max_gb,
+            -- Memory metrics (using CGroup metrics)
+            avgIf(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_avg_gb,
+            quantileIf(0.99)(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_p99_gb,
+            maxIf(value, metric = 'CGroupMemoryUsed') / (1024 * 1024 * 1024) as memory_used_max_gb,
 
-            ((avgIf(value, metric = 'OSMemoryTotal') - avgIf(value, metric = 'OSMemoryAvailable')) / avgIf(value, metric = 'OSMemoryTotal')) * 100 as memory_usage_pct_avg,
-            ((quantileIf(0.99)(value, metric = 'OSMemoryTotal') - quantileIf(0.99)(value, metric = 'OSMemoryAvailable')) / quantileIf(0.99)(value, metric = 'OSMemoryTotal')) * 100 as memory_usage_pct_p99,
-            ((maxIf(value, metric = 'OSMemoryTotal') - minIf(value, metric = 'OSMemoryAvailable')) / maxIf(value, metric = 'OSMemoryTotal')) * 100 as memory_usage_pct_max,
+            (avgIf(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_avg,
+            (quantileIf(0.99)(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_p99,
+            (maxIf(value, metric = 'CGroupMemoryUsed') / avgIf(value, metric = 'CGroupMemoryTotal')) * 100 as memory_usage_pct_max,
 
             -- Disk metrics
-            sumIf(value, metric LIKE 'OSReadBytes%') as disk_read_bytes,
-            sumIf(value, metric LIKE 'OSWriteBytes%') as disk_write_bytes,
+            sumIf(value, metric LIKE 'BlockReadBytes%') as disk_read_bytes,
+            sumIf(value, metric LIKE 'BlockWriteBytes%') as disk_write_bytes,
             maxIf(value, metric = 'FilesystemMainPathTotalBytes') / (1024 * 1024 * 1024) as disk_total_gb,
             maxIf(value, metric = 'FilesystemMainPathUsedBytes') / (1024 * 1024 * 1024) as disk_used_gb,
             (maxIf(value, metric = 'FilesystemMainPathUsedBytes') / maxIf(value, metric = 'FilesystemMainPathTotalBytes')) * 100 as disk_usage_pct,
 
             -- Network metrics
-            sumIf(value, metric LIKE 'OSNetworkReceiveBytes%') as network_rx_bytes,
-            sumIf(value, metric LIKE 'OSNetworkTransmitBytes%') as network_tx_bytes,
+            sumIf(value, metric = 'NetworkReceiveBytes_eth0') as network_rx_bytes,
+            sumIf(value, metric = 'NetworkSendBytes_eth0') as network_tx_bytes,
 
             -- Load Average
             avgIf(value, metric = 'LoadAverage1') as load_avg_1m,
@@ -357,13 +415,13 @@ WITH
             avgIf(value, metric = 'OSProcessesRunning') as processes_running_avg
 
         FROM system.asynchronous_metric_log
-        WHERE event_time >= (SELECT h FROM target_hour)
-          AND event_time < (SELECT h + INTERVAL 1 HOUR FROM target_hour)
+        WHERE event_time >= (SELECT start_time FROM target_period)
+          AND event_time < now()
     )
 SELECT
-    hour,
-    (SELECT max_cpu_cores FROM service_spec) as allocated_cpu,
-    (SELECT maxTotalMemoryGb FROM service_spec) as allocated_memory_gb,
+    collected_at,
+    allocated_cpu,
+    allocated_memory_gb,
     cpu_usage_avg,
     cpu_usage_p50,
     cpu_usage_p90,
@@ -388,44 +446,86 @@ SELECT
     load_avg_5m,
     processes_running_avg,
     '${SERVICE_NAME}' as service_name
-    -- ⚠️ collected_at removed → table DEFAULT now64(3) is used
 FROM metrics_agg;
 
 
 -- ----------------------------------------------------------------------------
--- RMV 3: Hourly Analysis
+-- RMV 3: Hourly Metrics Aggregation (from 15-min data)
+-- ----------------------------------------------------------------------------
+-- ⚠️ This RMV aggregates four 15-minute periods into one hour
+CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_hourly_metrics
+REFRESH EVERY 1 HOUR OFFSET 2 MINUTE APPEND
+TO ${DATABASE_NAME}.hourly_metrics
+AS
+WITH
+    target_hour AS (
+        SELECT toStartOfHour(now() - INTERVAL 1 HOUR) as h
+    )
+SELECT
+    (SELECT h FROM target_hour) as hour,
+
+    -- Allocated resources (avg across 4 periods)
+    avg(allocated_cpu) as allocated_cpu,
+    avg(allocated_memory_gb) as allocated_memory_gb,
+
+    -- CPU metrics (aggregate across 4 periods)
+    avg(cpu_usage_avg) as cpu_usage_avg,
+    avg(cpu_usage_p50) as cpu_usage_p50,
+    avg(cpu_usage_p90) as cpu_usage_p90,
+    avg(cpu_usage_p99) as cpu_usage_p99,
+    max(cpu_usage_max) as cpu_usage_max,
+    avg(cpu_user_cores) as cpu_user_cores,
+    avg(cpu_system_cores) as cpu_system_cores,
+
+    -- Memory metrics
+    avg(memory_used_avg_gb) as memory_used_avg_gb,
+    avg(memory_used_p99_gb) as memory_used_p99_gb,
+    max(memory_used_max_gb) as memory_used_max_gb,
+    avg(memory_usage_pct_avg) as memory_usage_pct_avg,
+    avg(memory_usage_pct_p99) as memory_usage_pct_p99,
+    max(memory_usage_pct_max) as memory_usage_pct_max,
+
+    -- Disk metrics (sum for bytes, avg for usage %)
+    sum(disk_read_bytes) as disk_read_bytes,
+    sum(disk_write_bytes) as disk_write_bytes,
+    avg(disk_total_gb) as disk_total_gb,
+    avg(disk_used_gb) as disk_used_gb,
+    avg(disk_usage_pct) as disk_usage_pct,
+
+    -- Network metrics (sum bytes transferred)
+    sum(network_rx_bytes) as network_rx_bytes,
+    sum(network_tx_bytes) as network_tx_bytes,
+
+    -- Load metrics (avg)
+    avg(load_avg_1m) as load_avg_1m,
+    avg(load_avg_5m) as load_avg_5m,
+    avg(processes_running_avg) as processes_running_avg,
+
+    service_name
+FROM ${DATABASE_NAME}.metrics_15min
+WHERE collected_at >= (SELECT h FROM target_hour)
+  AND collected_at < (SELECT h + INTERVAL 1 HOUR FROM target_hour)
+GROUP BY service_name;
+
+
+-- ----------------------------------------------------------------------------
+-- RMV 4: Hourly Analysis
 -- ----------------------------------------------------------------------------
 
 CREATE MATERIALIZED VIEW ${DATABASE_NAME}.rmv_hourly_analysis
-REFRESH EVERY 1 HOUR OFFSET 5 MINUTE
+REFRESH EVERY 1 HOUR OFFSET 5 MINUTE APPEND
 TO ${DATABASE_NAME}.hourly_analysis
 AS
 WITH
 target_hour AS (
     SELECT toStartOfHour(now() - INTERVAL 1 HOUR) AS h
 ),
-service_spec AS (
-    SELECT
-        minTotalMemoryGb,
-        maxTotalMemoryGb,
-        numReplicas,
-        -- Convert memory to approximate CPU based on typical CHC ratios
-        -- Typical ratio: 1 CPU = 4GB memory
-        minTotalMemoryGb / 4.0 AS min_cpu_cores,
-        maxTotalMemoryGb / 4.0 AS max_cpu_cores
-    FROM url(
-        'https://${CHC_API_KEY_ID}:${CHC_API_KEY_SECRET}@api.clickhouse.cloud/v1/organizations/${CHC_ORG_ID}/services/${CHC_SERVICE_ID}',
-        'JSONEachRow',
-        'id String, name String, provider String, region String, state String, tier String, minTotalMemoryGb Float64, maxTotalMemoryGb Float64, numReplicas Int32, idleScaling Bool, idleTimeoutMinutes Int32'
-    )
-    LIMIT 1
-),
 metrics_with_lag AS (
     SELECT
         m.hour,
         m.service_name,
-        (SELECT max_cpu_cores FROM service_spec) AS allocated_cpu,
-        (SELECT maxTotalMemoryGb FROM service_spec) AS allocated_memory_gb,
+        m.allocated_cpu,
+        m.allocated_memory_gb,
         m.cpu_usage_avg,
         m.cpu_usage_p99,
         m.cpu_usage_max,
@@ -725,8 +825,7 @@ SELECT
         alert_cost_spike_3h = 1, 'cost_3h',
         alert_cost_spike_1h = 1, 'cost_1h',
         'none'
-    ) AS alert_source,
-    calculated_at
+    ) AS alert_source
 FROM ${DATABASE_NAME}.hourly_analysis
 ORDER BY hour DESC
 LIMIT 100;
