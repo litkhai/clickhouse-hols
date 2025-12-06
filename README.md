@@ -52,7 +52,69 @@ cd local/oss-mac-setup
 
 ---
 
-#### 2. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
+#### 2. [local/25.6](local/25.6/) - ClickHouse 25.6 New Features
+**Purpose:** Learn and test ClickHouse 25.6 new features
+
+Features tested:
+- CoalescingMergeTree table engine
+- Time and Time64 data types
+- Bech32 encoding functions
+- lag/lead window functions
+- Consistent snapshot across queries
+
+**Quick Start:**
+```bash
+cd local/25.6
+./00-setup.sh  # Deploy ClickHouse 25.6
+./01-coalescingmergetree.sh
+./02-time-datatypes.sh
+```
+
+---
+
+#### 3. [local/25.7](local/25.7/) - ClickHouse 25.7 New Features
+**Purpose:** Learn and test ClickHouse 25.7 new features
+
+Features tested:
+- SQL UPDATE/DELETE operations (up to 1000x faster)
+- count() aggregation optimization (20-30% faster)
+- JOIN performance improvements (up to 1.8x faster)
+- Bulk UPDATE performance
+
+**Quick Start:**
+```bash
+cd local/25.7
+./00-setup.sh  # Deploy ClickHouse 25.7
+./01-sql-update-delete.sh
+```
+
+---
+
+#### 4. [local/25.8](local/25.8/) - ClickHouse 25.8 New Features
+**Purpose:** Learn and test ClickHouse 25.8 new features (requires S3/Data Lake)
+
+Features tested:
+- New Parquet Reader (1.81x faster)
+- Data Lake enhancements (Iceberg, Delta Lake)
+- Hive-style partitioning
+- Temporary data on S3
+- Enhanced UNION ALL
+
+---
+
+#### 5. [local/25.10](local/25.10/) - ClickHouse 25.10 New Features
+**Purpose:** Learn and test ClickHouse 25.10 new features
+
+Features tested:
+- QBit data type for vector search
+- Negative LIMIT/OFFSET
+- JOIN improvements
+- LIMIT BY ALL
+- Auto statistics
+
+---
+
+#### 6. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
 **Purpose:** Local data lake environment with MinIO and multiple catalog options
 
 Complete data lake stack running locally with Docker:

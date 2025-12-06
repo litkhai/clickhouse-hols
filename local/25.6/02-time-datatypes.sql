@@ -2,6 +2,9 @@
 -- Purpose: Test the new Time and Time64 data types for time-of-day representation
 -- Reference: https://clickhouse.com/blog/clickhouse-release-25-06
 
+-- Enable Time and Time64 data types
+SET enable_time_time64_type = 1;
+
 -- Drop tables if exist
 DROP TABLE IF EXISTS business_hours;
 DROP TABLE IF EXISTS performance_metrics;

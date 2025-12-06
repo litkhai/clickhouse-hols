@@ -54,7 +54,69 @@ cd local/oss-mac-setup
 
 ---
 
-#### 2. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
+#### 2. [local/25.6](local/25.6/) - ClickHouse 25.6 신기능
+**목적:** ClickHouse 25.6 신기능 학습 및 테스트
+
+테스트 기능:
+- CoalescingMergeTree 테이블 엔진
+- Time 및 Time64 데이터 타입
+- Bech32 인코딩 함수
+- lag/lead 윈도우 함수
+- 일관된 스냅샷 기능
+
+**빠른 시작:**
+```bash
+cd local/25.6
+./00-setup.sh  # ClickHouse 25.6 배포
+./01-coalescingmergetree.sh
+./02-time-datatypes.sh
+```
+
+---
+
+#### 3. [local/25.7](local/25.7/) - ClickHouse 25.7 신기능
+**목적:** ClickHouse 25.7 신기능 학습 및 테스트
+
+테스트 기능:
+- SQL UPDATE/DELETE 연산 (최대 1000배 빠름)
+- count() 집계 최적화 (20-30% 빠름)
+- JOIN 성능 개선 (최대 1.8배 빠름)
+- 대량 UPDATE 성능
+
+**빠른 시작:**
+```bash
+cd local/25.7
+./00-setup.sh  # ClickHouse 25.7 배포
+./01-sql-update-delete.sh
+```
+
+---
+
+#### 4. [local/25.8](local/25.8/) - ClickHouse 25.8 신기능
+**목적:** ClickHouse 25.8 신기능 학습 및 테스트 (S3/Data Lake 필요)
+
+테스트 기능:
+- 새로운 Parquet Reader (1.81배 빠름)
+- Data Lake 개선 (Iceberg, Delta Lake)
+- Hive 스타일 파티셔닝
+- S3 임시 데이터 저장
+- 향상된 UNION ALL
+
+---
+
+#### 5. [local/25.10](local/25.10/) - ClickHouse 25.10 신기능
+**목적:** ClickHouse 25.10 신기능 학습 및 테스트
+
+테스트 기능:
+- 벡터 검색을 위한 QBit 데이터 타입
+- 음수 LIMIT/OFFSET
+- JOIN 개선
+- LIMIT BY ALL
+- 자동 통계 수집
+
+---
+
+#### 6. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
 **목적:** MinIO와 다양한 카탈로그 옵션을 갖춘 로컬 데이터 레이크 환경
 
 Docker로 로컬에서 실행되는 완전한 데이터 레이크 스택:
