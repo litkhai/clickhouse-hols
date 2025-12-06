@@ -1,0 +1,17 @@
+# Sensitive credential files
+.credentials
+
+# Generated configuration files
+costkeeper.conf
+costkeeper-setup.sql
+
+# Backup files
+*.backup
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
