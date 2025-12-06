@@ -323,152 +323,22 @@ create_directories() {
     echo ""
 }
 
-# Function to start services
-start_services() {
-    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    print_header "Starting Services"
-    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    # Check if docker compose or docker-compose
-    if docker compose version &> /dev/null; then
-        DOCKER_COMPOSE="docker compose"
-    else
-        DOCKER_COMPOSE="docker-compose"
-    fi
-
-    print_info "Starting services with Docker Compose..."
-    $DOCKER_COMPOSE --env-file "$CONFIG_FILE" up -d
-
-    echo ""
-    print_success "Services started!"
-    echo ""
-
-    # Wait for services
-    print_info "Waiting for services to be ready..."
-    sleep 10
-
-    echo ""
-}
-
-# Function to show endpoints
-show_endpoints() {
-    source "$CONFIG_FILE"
-
-    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    print_header "Service Endpoints"
-    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    echo -e "${YELLOW}LibreChat:${NC}"
-    echo "  URL: http://localhost:${LIBRECHAT_PORT:-3080}"
-    echo "  Create an account on first visit"
-    echo ""
-
-    echo -e "${YELLOW}Local LLM Models (Ollama):${NC}"
-    echo "  Primary: ${PRIMARY_MODEL:-qwen2.5-coder:3b}"
-    if [ -n "$SECONDARY_MODEL" ]; then
-        echo "  Secondary: ${SECONDARY_MODEL}"
-    fi
-    echo "  Ollama API: http://localhost:11434"
-    echo ""
-
-    echo -e "${YELLOW}ClickHouse MCP Server:${NC}"
-    echo "  Host: ${CH_HOST:-localhost}:${CH_PORT:-8123}"
-    echo "  Database: ${CH_DATABASE:-default}"
-    echo "  MCP Port: ${MCP_SERVER_PORT:-3001}"
-    echo ""
-
-    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    print_info "Next Steps:"
-    echo "  1. Open LibreChat: http://localhost:${LIBRECHAT_PORT:-3080}"
-    echo "  2. Create an account"
-    echo "  3. Select your local model from the dropdown"
-    echo "  4. Start chatting with ClickHouse data access via MCP!"
-    echo ""
-}
-
-# Main execution
+# Main setup execution
 main() {
-    case "${1:-}" in
-        --configure)
-            check_prerequisites
-            configure_clickhouse
-            configure_models
-            configure_librechat
-            save_configuration
-            create_directories
-            print_success "Configuration complete! Run './setup.sh --start' to start services."
-            ;;
-        --start)
-            if [ ! -f "$CONFIG_FILE" ]; then
-                print_error "Configuration not found. Run './setup.sh --configure' first."
-                exit 1
-            fi
-            start_services
-            show_endpoints
-            ;;
-        --stop)
-            if docker compose version &> /dev/null; then
-                docker compose down
-            else
-                docker-compose down
-            fi
-            print_success "Services stopped"
-            ;;
-        --restart)
-            $0 --stop
-            sleep 3
-            $0 --start
-            ;;
-        --status)
-            docker ps --filter "name=librechat" --filter "name=mcp-server" --filter "name=mongo"
-            ;;
-        --logs)
-            if docker compose version &> /dev/null; then
-                docker compose logs -f
-            else
-                docker-compose logs -f
-            fi
-            ;;
-        --clean)
-            print_warning "This will remove all data including chat history!"
-            prompt_input "Continue? (yes/no)" "no" CONFIRM_CLEAN
-            if [ "$CONFIRM_CLEAN" = "yes" ] || [ "$CONFIRM_CLEAN" = "y" ]; then
-                if docker compose version &> /dev/null; then
-                    docker compose down -v
-                else
-                    docker-compose down -v
-                fi
-                rm -rf librechat-data/*
-                print_success "Cleanup complete"
-            fi
-            ;;
-        --endpoints)
-            show_endpoints
-            ;;
-        *)
-            echo "Usage: $0 [OPTION]"
-            echo ""
-            echo "Options:"
-            echo "  --configure    Configure the setup interactively"
-            echo "  --start        Start all services"
-            echo "  --stop         Stop all services"
-            echo "  --restart      Restart all services"
-            echo "  --status       Show running services"
-            echo "  --logs         Show service logs"
-            echo "  --clean        Stop services and remove all data"
-            echo "  --endpoints    Show service endpoints"
-            echo ""
-            echo "Quick Start:"
-            echo "  1. ./setup.sh --configure"
-            echo "  2. ./setup.sh --start"
-            echo ""
-            exit 1
-            ;;
-    esac
+    check_prerequisites
+    configure_clickhouse
+    configure_models
+    configure_librechat
+    save_configuration
+    create_directories
+
+    echo ""
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_success "Setup completed successfully!"
+    print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    print_info "Next step: Run './start.sh' to start all services"
+    echo ""
 }
 
-main "$@"
+main
