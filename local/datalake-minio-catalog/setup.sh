@@ -242,7 +242,7 @@ wait_for_services() {
         polaris)
             echo -n "Waiting for Polaris..."
             for i in {1..30}; do
-                if curl -s http://localhost:${POLARIS_PORT:-8182}/health > /dev/null 2>&1; then
+                if curl -s http://localhost:${POLARIS_MGMT_PORT:-8183}/q/health > /dev/null 2>&1; then
                     echo -e " ${GREEN}Ready!${NC}"
                     break
                 fi
