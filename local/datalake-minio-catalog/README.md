@@ -2,16 +2,19 @@
 
 A complete setup for running a local data lake environment with MinIO object storage and choice of data catalogs (Nessie, Hive Metastore, or Iceberg REST).
 
+**🔗 Integrated with:** [ClickHouse 25.8 Lab](../25.8/) - This data lake is automatically deployed when running the ClickHouse 25.8 lab for testing MinIO integration and new Parquet reader features.
+
 ## Features
 
-- **MinIO Object Storage**: S3-compatible object storage
+- **MinIO Object Storage**: S3-compatible object storage (ports 19000 API, 19001 Console)
 - **Multiple Catalog Options**:
-  - **Nessie** (Default): Git-like catalog with branching and versioning
-  - **Hive Metastore**: Traditional, widely-supported catalog
-  - **Iceberg REST**: Standard REST API catalog
+  - **Nessie** (Default): Git-like catalog with branching and versioning (port 19120)
+  - **Hive Metastore**: Traditional, widely-supported catalog (port 9083)
+  - **Iceberg REST**: Standard REST API catalog (port 8181)
 - **Apache Iceberg**: Table format for huge analytic datasets
-- **Jupyter Notebooks**: Interactive data exploration
+- **Jupyter Notebooks**: Interactive data exploration (port 8888)
 - **Sample Data**: Pre-loaded JSON and Parquet files
+- **ClickHouse Integration**: Ready to use with ClickHouse 25.8+ for data lake analytics
 
 ## Prerequisites
 
@@ -29,7 +32,18 @@ A complete setup for running a local data lake environment with MinIO object sto
 
 This will prompt you to:
 - Set MinIO storage size (default: 20GB)
+- Configure MinIO ports (default: 19000 API, 19001 Console)
 - Choose data catalog: Nessie (1), Hive (2), or Iceberg REST (3)
+- Configure catalog-specific ports
+
+**Default Port Configuration:**
+- **MinIO API**: 19000 (compatible with ClickHouse 25.8 lab)
+- **MinIO Console**: 19001
+- **Nessie**: 19120
+- **Hive Metastore**: 9083
+- **PostgreSQL** (for Hive): 5432
+- **Iceberg REST**: 8181
+- **Jupyter**: 8888
 
 ### 2. Generate Sample Data
 
@@ -71,22 +85,25 @@ python3 register_data.py
 After starting the services, you'll have access to:
 
 ### MinIO Object Storage
-- **Console UI**: http://localhost:9001
-- **API Endpoint**: http://localhost:9000
+- **Console UI**: http://localhost:19001 (default port, configurable)
+- **API Endpoint**: http://localhost:19000 (default port, configurable)
 - **Credentials**:
   - Access Key: `admin`
   - Secret Key: `password123`
+- **Default Bucket**: `warehouse`
+
+**Note**: Ports 19000/19001 are used by default for compatibility with ClickHouse 25.8 lab. You can change these during `./setup.sh --configure`.
 
 ### Data Catalogs
 
 #### Nessie (Default)
-- **API**: http://localhost:19120/api/v2
+- **API**: http://localhost:19120/api/v2 (default port, configurable)
 - **UI**: http://localhost:19120
 - **Features**: Git-like versioning, branching, time-travel
 
 #### Hive Metastore
-- **Thrift URI**: `thrift://localhost:9083`
-- **PostgreSQL**: `localhost:5432`
+- **Thrift URI**: `thrift://localhost:9083` (default port, configurable)
+- **PostgreSQL**: `localhost:5432` (default port, configurable)
   - Database: `metastore`
   - User: `hive`
   - Password: `hive`
@@ -163,8 +180,9 @@ Parquet file with 100 order records including:
 ```python
 from minio import Minio
 
+# Note: Use port 19000 (default), or your configured port
 client = Minio(
-    "localhost:9000",
+    "localhost:19000",  # Default port for ClickHouse 25.8 compatibility
     access_key="admin",
     secret_key="password123",
     secure=False
@@ -181,12 +199,13 @@ for bucket in buckets:
 ```python
 from pyiceberg.catalog import load_catalog
 
+# Note: Use configured ports (defaults: 19120 for Nessie, 19000 for MinIO)
 catalog = load_catalog(
     "nessie",
     **{
-        "uri": "http://localhost:19120/api/v2",
+        "uri": "http://localhost:19120/api/v2",  # Nessie API
         "warehouse": "s3://warehouse/",
-        "s3.endpoint": "http://localhost:9000",
+        "s3.endpoint": "http://localhost:19000",  # MinIO API
         "s3.access-key-id": "admin",
         "s3.secret-access-key": "password123",
         "s3.path-style-access": "true",
@@ -203,9 +222,10 @@ df = table.scan().to_pandas()
 ```python
 import boto3
 
+# Note: Use port 19000 (default), or your configured port
 s3 = boto3.client(
     's3',
-    endpoint_url='http://localhost:9000',
+    endpoint_url='http://localhost:19000',  # MinIO API endpoint
     aws_access_key_id='admin',
     aws_secret_access_key='password123'
 )
@@ -218,11 +238,12 @@ response = s3.list_objects_v2(Bucket='warehouse')
 
 ### Using ClickHouse with MinIO
 
+**For external ClickHouse** (running on host):
 ```sql
--- Create table with S3 engine
+-- Create table with S3 engine using default ports
 CREATE TABLE orders_from_s3
 ENGINE = S3(
-    'http://localhost:9000/warehouse/data/orders.parquet',
+    'http://localhost:19000/warehouse/data/orders.parquet',
     'admin',
     'password123',
     'Parquet'
@@ -232,23 +253,43 @@ ENGINE = S3(
 SELECT * FROM orders_from_s3 LIMIT 10;
 ```
 
+**For ClickHouse running in Docker** (e.g., ClickHouse 25.8 lab):
+```sql
+-- Use host.docker.internal to access MinIO from ClickHouse container
+CREATE TABLE orders_from_s3
+ENGINE = S3(
+    'http://host.docker.internal:19000/warehouse/data/orders.parquet',
+    'admin',
+    'password123',
+    'Parquet'
+);
+```
+
+**For comprehensive examples**, see the [ClickHouse 25.8 Lab](../25.8/) which includes:
+- 10 test scenarios with MinIO integration
+- 50,000 sample e-commerce orders
+- Parquet export/import workflows
+- Analytics queries on data lake
+
 ### Using ClickHouse with Iceberg
 
 ```sql
 -- Enable Iceberg integration (requires ClickHouse 23.3+)
 SET allow_experimental_object_type = 1;
 
--- Create Iceberg table
+-- Create Iceberg table with Nessie catalog
 CREATE TABLE orders_iceberg
 ENGINE = Iceberg(
-    'http://localhost:19120/api/v2',
+    'http://localhost:19120/api/v2',  -- Nessie catalog endpoint
     'warehouse',
     'demo.orders'
 )
 SETTINGS
-    s3_endpoint = 'http://localhost:9000',
+    s3_endpoint = 'http://localhost:19000',  -- MinIO endpoint
     s3_access_key_id = 'admin',
     s3_secret_access_key = 'password123';
+
+-- Note: Use host.docker.internal if ClickHouse runs in Docker
 ```
 
 ## Jupyter Notebooks
@@ -287,36 +328,96 @@ docker logs nessie  # or hive-metastore, iceberg-rest
 
 # Verify Docker Compose
 docker compose ps
+
+# Check all running containers
+docker ps
 ```
 
 ### Cannot connect to MinIO
 ```bash
-# Check if MinIO is healthy
-curl http://localhost:9000/minio/health/live
+# Check if MinIO is healthy (use your configured port)
+curl http://localhost:19000/minio/health/live
+
+# Check MinIO Console access
+curl http://localhost:19001
 
 # Check MinIO logs
 docker logs minio
+
+# Verify MinIO is listening on correct ports
+docker port minio
 ```
 
 ### Catalog connection issues
 ```bash
-# For Nessie
+# For Nessie (default port 19120)
 curl http://localhost:19120/api/v2/config
 
-# For Iceberg REST
+# For Iceberg REST (default port 8181)
 curl http://localhost:8181/v1/config
 
+# For Hive Metastore (port 9083)
+netstat -an | grep 9083
+
 # Check catalog logs
-docker logs nessie  # or iceberg-rest
+docker logs nessie  # or iceberg-rest, hive-metastore
+```
+
+### ClickHouse connection issues
+
+**Problem**: ClickHouse cannot connect to MinIO
+```
+Code: 198. DB::NetException: Not found address of host: minio
+```
+
+**Solution**: Use `host.docker.internal` instead of `localhost` or `minio` when ClickHouse runs in Docker:
+```sql
+-- Change this:
+s3('http://localhost:19000/warehouse/data.parquet', ...)
+
+-- To this:
+s3('http://host.docker.internal:19000/warehouse/data.parquet', ...)
+```
+
+**Problem**: File already exists error
+```
+Code: 36. DB::Exception: Object in bucket already exists
+```
+
+**Solution**: Enable overwrite setting:
+```sql
+SET s3_truncate_on_insert = 1;
 ```
 
 ### Port conflicts
-Edit [config.env](config.env) to change default ports:
+
+If you get port binding errors:
+
+1. **Check what's using the port:**
 ```bash
-MINIO_PORT=9000
-MINIO_CONSOLE_PORT=9001
+lsof -i :19000  # Check MinIO API port
+lsof -i :19001  # Check MinIO Console port
+lsof -i :19120  # Check Nessie port
+```
+
+2. **Change ports during configuration:**
+```bash
+./setup.sh --configure
+# Then enter your preferred ports
+```
+
+3. **Or manually edit** [config.env](config.env):
+```bash
+MINIO_PORT=19000
+MINIO_CONSOLE_PORT=19001
 NESSIE_PORT=19120
 # ... etc
+```
+
+4. **Restart services** after port changes:
+```bash
+./setup.sh --stop
+./setup.sh --start
 ```
 
 ## Switching Catalogs

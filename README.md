@@ -91,14 +91,29 @@ cd local/25.7
 ---
 
 #### 4. [local/25.8](local/25.8/) - ClickHouse 25.8 New Features
-**Purpose:** Learn and test ClickHouse 25.8 new features (requires S3/Data Lake)
+**Purpose:** Learn and test ClickHouse 25.8 new features with MinIO Data Lake integration
 
 Features tested:
-- New Parquet Reader (1.81x faster)
-- Data Lake enhancements (Iceberg, Delta Lake)
-- Hive-style partitioning
-- Temporary data on S3
-- Enhanced UNION ALL
+- **New Parquet Reader** (1.81x faster, 99.98% less data scanned)
+- **MinIO Integration** (S3-compatible storage)
+- Column pruning optimization
+- Multiple file querying with wildcards
+- E-commerce analytics on data lake
+- Data Lake enhancements (Iceberg, Delta Lake concepts)
+
+**Quick Start:**
+```bash
+cd local/25.8
+./00-setup.sh              # Deploys ClickHouse 25.8 + MinIO + Nessie
+./06-minio-integration.sh  # Test MinIO S3-compatible storage
+```
+
+**What's Included:**
+- Automatic MinIO and Nessie deployment
+- 50,000 sample e-commerce orders
+- Parquet export/import tests
+- Daily sales analytics
+- Customer segmentation analysis
 
 ---
 

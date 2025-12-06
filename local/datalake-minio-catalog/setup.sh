@@ -31,6 +31,19 @@ configure_setup() {
     storage_size=${storage_size:-20G}
     sed -i.bak "s/MINIO_STORAGE_SIZE=.*/MINIO_STORAGE_SIZE=$storage_size/" "$CONFIG_FILE"
 
+    # MinIO Port Configuration
+    echo ""
+    echo -e "${YELLOW}MinIO Port Configuration:${NC}"
+    echo "Default ports: 19000 (API), 19001 (Console)"
+    echo "Note: These ports are compatible with ClickHouse 25.8 lab"
+    read -p "Enter MinIO API port (default: 19000): " minio_port
+    minio_port=${minio_port:-19000}
+    sed -i.bak "s/MINIO_PORT=.*/MINIO_PORT=$minio_port/" "$CONFIG_FILE"
+
+    read -p "Enter MinIO Console port (default: 19001): " minio_console_port
+    minio_console_port=${minio_console_port:-19001}
+    sed -i.bak "s/MINIO_CONSOLE_PORT=.*/MINIO_CONSOLE_PORT=$minio_console_port/" "$CONFIG_FILE"
+
     # Catalog Type Selection
     echo ""
     echo "Select Data Catalog Type:"
@@ -43,23 +56,62 @@ configure_setup() {
     case $catalog_choice in
         1)
             catalog_type="nessie"
+            # Configure Nessie port
+            read -p "Enter Nessie port (default: 19120): " nessie_port
+            nessie_port=${nessie_port:-19120}
+            sed -i.bak "s/NESSIE_PORT=.*/NESSIE_PORT=$nessie_port/" "$CONFIG_FILE"
             ;;
         2)
             catalog_type="hive"
+            # Configure Hive ports
+            read -p "Enter Hive Metastore port (default: 9083): " hive_port
+            hive_port=${hive_port:-9083}
+            sed -i.bak "s/HIVE_METASTORE_PORT=.*/HIVE_METASTORE_PORT=$hive_port/" "$CONFIG_FILE"
+
+            read -p "Enter PostgreSQL port (default: 5432): " postgres_port
+            postgres_port=${postgres_port:-5432}
+            sed -i.bak "s/POSTGRES_PORT=.*/POSTGRES_PORT=$postgres_port/" "$CONFIG_FILE"
             ;;
         3)
             catalog_type="iceberg-rest"
+            # Configure Iceberg REST port
+            read -p "Enter Iceberg REST port (default: 8181): " iceberg_port
+            iceberg_port=${iceberg_port:-8181}
+            sed -i.bak "s/ICEBERG_REST_PORT=.*/ICEBERG_REST_PORT=$iceberg_port/" "$CONFIG_FILE"
             ;;
         *)
             echo -e "${YELLOW}Invalid selection, using Nessie as default${NC}"
             catalog_type="nessie"
+            sed -i.bak "s/NESSIE_PORT=.*/NESSIE_PORT=19120/" "$CONFIG_FILE"
             ;;
     esac
 
     sed -i.bak "s/CATALOG_TYPE=.*/CATALOG_TYPE=$catalog_type/" "$CONFIG_FILE"
+
+    # Clean up backup files
     rm -f "${CONFIG_FILE}.bak"
 
+    echo ""
     echo -e "${GREEN}Configuration saved!${NC}"
+    echo ""
+    echo -e "${BLUE}Configuration Summary:${NC}"
+    echo "  Storage Size: $storage_size"
+    echo "  MinIO API Port: $minio_port"
+    echo "  MinIO Console Port: $minio_console_port"
+    echo "  Catalog Type: $catalog_type"
+
+    case $catalog_type in
+        nessie)
+            echo "  Nessie Port: ${nessie_port:-19120}"
+            ;;
+        hive)
+            echo "  Hive Metastore Port: ${hive_port:-9083}"
+            echo "  PostgreSQL Port: ${postgres_port:-5432}"
+            ;;
+        iceberg-rest)
+            echo "  Iceberg REST Port: ${iceberg_port:-8181}"
+            ;;
+    esac
     echo ""
 }
 
