@@ -117,6 +117,48 @@ services:
     depends_on:
       - minio
 
+  # Polaris Catalog
+  polaris:
+    image: apache/polaris:latest
+    container_name: polaris
+    ports:
+      - "${POLARIS_PORT:-8182}:8181"
+      - "${POLARIS_MGMT_PORT:-8183}:8182"
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+      - AWS_REGION=us-east-1
+      - POLARIS_BOOTSTRAP_REALM=default-realm
+      - POLARIS_BOOTSTRAP_CLIENT_ID=admin
+      - POLARIS_BOOTSTRAP_CLIENT_SECRET=polaris
+    profiles:
+      - polaris
+    networks:
+      - datalake
+    depends_on:
+      - minio
+
+  # Unity Catalog
+  unity-catalog:
+    image: unitycatalog/unitycatalog:latest
+    container_name: unity-catalog
+    ports:
+      - "${UNITY_PORT:-8080}:8080"
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_PATH_STYLE_ACCESS=true
+    volumes:
+      - unity-data:/var/lib/unitycatalog
+    profiles:
+      - unity
+    networks:
+      - datalake
+    depends_on:
+      - minio
+
   # Jupyter Notebook for data exploration
   jupyter:
     build:
@@ -153,3 +195,4 @@ volumes:
       o: bind
       device: ./minio-storage
   postgres-data:
+  unity-data:
