@@ -117,7 +117,28 @@ cd local/25.8
 
 ---
 
-#### 5. [local/25.10](local/25.10/) - ClickHouse 25.10 New Features
+#### 5. [local/25.9](local/25.9/) - ClickHouse 25.9 New Features
+**Purpose:** Learn and test ClickHouse 25.9 new features
+
+Features tested:
+- **Automatic Global Join Reordering** (statistics-based join optimization)
+- **New Text Index** (experimental full-text search)
+- **Streaming Secondary Indices** (faster query startup)
+- **arrayExcept Function** (efficient array filtering)
+
+**Quick Start:**
+```bash
+cd local/25.9
+./00-setup.sh              # Deploy ClickHouse 25.9
+./01-join-reordering.sh    # Test join optimization
+./02-text-index.sh         # Test full-text search
+./03-streaming-indices.sh  # Test streaming indices
+./05-array-except.sh       # Test array function
+```
+
+---
+
+#### 6. [local/25.10](local/25.10/) - ClickHouse 25.10 New Features
 **Purpose:** Learn and test ClickHouse 25.10 new features
 
 Features tested:
@@ -129,7 +150,7 @@ Features tested:
 
 ---
 
-#### 6. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
+#### 7. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
 **Purpose:** Local data lake environment with MinIO and multiple catalog options
 
 Complete data lake stack running locally with Docker:

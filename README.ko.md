@@ -119,7 +119,28 @@ cd local/25.8
 
 ---
 
-#### 5. [local/25.10](local/25.10/) - ClickHouse 25.10 신기능
+#### 5. [local/25.9](local/25.9/) - ClickHouse 25.9 신기능
+**목적:** ClickHouse 25.9 신기능 학습 및 테스트
+
+테스트 기능:
+- **자동 글로벌 조인 재정렬** (통계 기반 조인 최적화)
+- **새로운 텍스트 인덱스** (실험적 전문 검색 기능)
+- **스트리밍 보조 인덱스** (더 빠른 쿼리 시작)
+- **arrayExcept 함수** (효율적인 배열 필터링)
+
+**빠른 시작:**
+```bash
+cd local/25.9
+./00-setup.sh              # ClickHouse 25.9 배포
+./01-join-reordering.sh    # 조인 최적화 테스트
+./02-text-index.sh         # 전문 검색 테스트
+./03-streaming-indices.sh  # 스트리밍 인덱스 테스트
+./05-array-except.sh       # 배열 함수 테스트
+```
+
+---
+
+#### 6. [local/25.10](local/25.10/) - ClickHouse 25.10 신기능
 **목적:** ClickHouse 25.10 신기능 학습 및 테스트
 
 테스트 기능:
@@ -131,7 +152,7 @@ cd local/25.8
 
 ---
 
-#### 6. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
+#### 7. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
 **목적:** MinIO와 다양한 카탈로그 옵션을 갖춘 로컬 데이터 레이크 환경
 
 Docker로 로컬에서 실행되는 완전한 데이터 레이크 스택:
