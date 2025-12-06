@@ -1,6 +1,6 @@
 # ClickHouse 25.8 New Features Lab
 
-ClickHouse 25.8 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.8에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+ClickHouse 25.8 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.8에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있으며, **MinIO 기반 Data Lake 환경이 통합**되어 있습니다.
 
 ## 📋 Overview
 
@@ -9,10 +9,11 @@ ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake �
 ### 🎯 Key Features
 
 1. **New Parquet Reader** - 1.81배 빠른 성능, 99.98% 적은 데이터 스캔
-2. **Data Lake Enhancements** - Iceberg CREATE/DROP, Delta Lake 쓰기, 시간 여행
-3. **Hive-Style Partitioning** - partition_strategy 파라미터, 디렉토리 기반 파티셔닝
-4. **Temporary Data on S3** - 로컬 디스크 대신 S3를 임시 데이터 저장소로 활용
-5. **Enhanced UNION ALL** - _table 가상 컬럼 지원
+2. **MinIO Integration** - S3 호환 스토리지를 통한 Data Lake 구현
+3. **Data Lake Enhancements** - Iceberg CREATE/DROP, Delta Lake 쓰기, 시간 여행
+4. **Hive-Style Partitioning** - partition_strategy 파라미터, 디렉토리 기반 파티셔닝
+5. **Temporary Data on S3** - 로컬 디스크 대신 S3를 임시 데이터 저장소로 활용
+6. **Enhanced UNION ALL** - _table 가상 컬럼 지원
 
 ## 🚀 Quick Start
 
@@ -20,21 +21,40 @@ ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake �
 
 - macOS (with Docker Desktop)
 - [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [datalake-minio-catalog](../datalake-minio-catalog/) 자동 배포 (setup 스크립트가 처리)
 
 ### Setup and Run
 
 ```bash
-# 1. ClickHouse 25.8 설치 및 시작
+# 1. ClickHouse 25.8 + MinIO Data Lake 설치 및 시작
 cd local/25.8
-./00-setup.sh
+./00-setup.sh   # ClickHouse 25.8, MinIO, Nessie를 모두 배포합니다
 
 # 2. 각 기능별 테스트 실행
-./01-new-parquet-reader.sh
+./01-new-parquet-reader.sh      # 로컬 파일 기반 Parquet Reader 테스트
+./06-minio-integration.sh       # MinIO S3 통합 테스트 (★ 추천)
 ./02-hive-partitioning.sh
 ./03-temp-data-s3.sh
 ./04-union-all-table.sh
 ./05-data-lake-features.sh
 ```
+
+### What Gets Deployed
+
+`./00-setup.sh` 실행 시 다음이 자동으로 배포됩니다:
+
+1. **MinIO** (포트 19000, 19001)
+   - S3 호환 객체 스토리지
+   - 웹 콘솔: http://localhost:19001
+   - 자격증명: admin / password123
+
+2. **Nessie** (포트 19120)
+   - Git-like 데이터 카탈로그
+   - REST API: http://localhost:19120
+
+3. **ClickHouse 25.8** (포트 2508, 25081)
+   - 웹 UI: http://localhost:2508/play
+   - TCP 포트: 25081
 
 ### Manual Execution (SQL only)
 
@@ -51,6 +71,47 @@ source 01-new-parquet-reader.sql
 ```
 
 ## 📚 Feature Details
+
+### 0. MinIO Integration (06-minio-integration) ★ 추천
+
+**새로운 기능:** ClickHouse 25.8 + MinIO S3 호환 스토리지를 통한 실전 Data Lake 구현
+
+**테스트 내용:**
+- 50,000개 이커머스 주문 데이터 생성
+- MinIO로 Parquet 형식 데이터 내보내기
+- S3 함수로 MinIO에서 데이터 읽기
+- 컬럼 프루닝 최적화 (99.98% 적은 데이터 스캔)
+- 국가별 파일 분할 및 와일드카드 쿼리
+- 일일 매출 분석 (14일)
+- 제품 카테고리 성능 분석
+- 고객 세분화 분석 (VIP, Premium)
+
+**실행:**
+```bash
+./06-minio-integration.sh
+```
+
+**주요 학습 포인트:**
+- S3 호환 스토리지 (MinIO)와 ClickHouse 통합
+- `s3()` 함수를 통한 데이터 읽기/쓰기
+- 새로운 Parquet Reader의 실제 성능 (1.81배 빠름)
+- 컬럼 프루닝을 통한 최소 데이터 스캔
+- 와일드카드를 사용한 다중 파일 쿼리
+- 로컬 개발 환경에서의 Data Lake 구현
+
+**실무 활용:**
+- 로컬 Data Lake 개발 및 테스트
+- S3 마이그레이션 전 로컬 검증
+- 비용 효율적인 데이터 저장소
+- 데이터 분석 파이프라인 프로토타입
+- 이커머스 매출 분석 대시보드
+- 고객 행동 분석 및 세분화
+
+**데이터셋:**
+- 50,000개 주문 (8개 국가, 5,000명 고객)
+- 8개 제품 카테고리
+- 4가지 주문 상태
+- 38M+ 총 매출
 
 ### 1. New Parquet Reader (01-new-parquet-reader)
 
@@ -587,6 +648,77 @@ SELECT
     formatReadableSize(total_space) AS total
 FROM system.disks;
 ```
+
+## 🛠 Management Commands
+
+### ClickHouse 관리
+
+```bash
+# ClickHouse 상태 확인
+cd ../oss-mac-setup
+./status.sh
+
+# ClickHouse CLI 접속
+./client.sh 2508
+
+# ClickHouse 중지
+./stop.sh
+
+# ClickHouse 재시작
+./start.sh
+```
+
+### Data Lake (MinIO + Nessie) 관리
+
+```bash
+# MinIO 웹 콘솔 접속
+# 브라우저에서: http://localhost:19001
+# 자격증명: admin / password123
+
+# MinIO 및 Nessie 중지
+cd ../datalake-minio-catalog
+docker-compose down
+
+# MinIO 및 Nessie 재시작
+docker-compose up -d minio nessie minio-setup
+
+# MinIO 데이터 완전 삭제
+docker-compose down -v
+
+# 컨테이너 로그 확인
+docker-compose logs -f minio
+docker-compose logs -f nessie
+```
+
+### 전체 환경 재구성
+
+```bash
+# 1. 모든 서비스 중지 및 정리
+cd ../oss-mac-setup
+./stop.sh
+
+cd ../datalake-minio-catalog
+docker-compose down -v
+
+# 2. 전체 재시작
+cd ../25.8
+./00-setup.sh
+```
+
+### 데이터 확인
+
+```bash
+# MinIO에 저장된 파일 확인
+docker exec -it minio mc ls myminio/warehouse/
+
+# ClickHouse 테이블 확인
+docker exec -it clickhouse-25-8 clickhouse-client -q "SHOW TABLES"
+
+# ClickHouse 데이터베이스 크기 확인
+docker exec -it clickhouse-25-8 clickhouse-client -q "SELECT database, formatReadableSize(sum(bytes)) as size FROM system.parts GROUP BY database"
+```
+
+---
 
 ### Migration Strategy
 

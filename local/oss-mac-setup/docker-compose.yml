@@ -1,14 +1,14 @@
 services:
-  clickhouse-25-10:
-    image: clickhouse/clickhouse-server:25.10
-    container_name: clickhouse-25-10
-    hostname: clickhouse-25-10
+  clickhouse-25-8:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: clickhouse-25-8
+    hostname: clickhouse-25-8
     ports:
-      - "2510:8123"  # HTTP Interface
-      - "25101:9000"   # TCP Interface
+      - "2508:8123"  # HTTP Interface
+      - "25081:9000"   # TCP Interface
     volumes:
-      - clickhouse_data_25_10:/var/lib/clickhouse
-      - clickhouse_logs_25_10:/var/log/clickhouse-server
+      - clickhouse_data_25_8:/var/lib/clickhouse
+      - clickhouse_logs_25_8:/var/log/clickhouse-server
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: default
@@ -28,9 +28,9 @@ services:
         hard: 262144
 
 volumes:
-  clickhouse_data_25_10:
+  clickhouse_data_25_8:
     driver: local
-  clickhouse_logs_25_10:
+  clickhouse_logs_25_8:
     driver: local
 
 networks:
