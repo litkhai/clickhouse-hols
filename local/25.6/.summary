@@ -1,0 +1,20 @@
+ClickHouse 25.6 Feature Test Environment
+=========================================
+
+This directory contains comprehensive tests for ClickHouse 25.6 new features:
+
+✅ Files Created:
+- 00-setup.sh                    (Setup script for ClickHouse 25.6)
+- 01-coalescingmergetree.sh/.sql (CoalescingMergeTree table engine tests)
+- 02-time-datatypes.sh/.sql      (Time and Time64 data type tests)
+- 03-bech32-encoding.sh/.sql     (Bech32 encoding function tests)
+- 04-lag-lead-functions.sh/.sql  (lag/lead window function tests)
+- 05-consistent-snapshot.sh/.sql (Consistent snapshot tests)
+- README.md                      (Comprehensive documentation)
+
+📦 Quick Start:
+1. Run: ./00-setup.sh
+2. Execute tests: ./01-coalescingmergetree.sh
+3. Continue with other tests in sequence
+
+🔗 Reference: https://clickhouse.com/blog/clickhouse-release-25-06
