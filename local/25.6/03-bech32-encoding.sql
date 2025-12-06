@@ -94,7 +94,7 @@ SELECT
     user_name,
     network,
     encoded_address,
-    substring(bech32Decode(encoded_address), 1, 16) AS decoded_preview
+    substring(bech32Decode(encoded_address).2, 1, 16) AS decoded_preview
 FROM crypto_addresses
 ORDER BY address_id
 LIMIT 5;
@@ -145,9 +145,9 @@ SELECT '=== Decode Public IDs ===' AS title;
 SELECT
     entity_type,
     public_id,
-    bech32Decode(public_id) AS decoded_tuple_internal_id,
+    bech32Decode(public_id).2 AS decoded_internal_id,
     internal_id,
-    bech32Decode(public_id) = internal_id AS matches
+    bech32Decode(public_id).2 = internal_id AS matches
 FROM identifier_mapping
 ORDER BY entity_type, internal_id;
 
@@ -179,8 +179,8 @@ SELECT
     test_id,
     test_data,
     bech32Encode('test', test_data) AS encoded,
-    bech32Decode(bech32Encode('test', test_data)) AS decoded,
-    test_data = bech32Decode(bech32Encode('test', test_data)) AS is_valid
+    bech32Decode(bech32Encode('test', test_data)).2 AS decoded_data,
+    test_data = bech32Decode(bech32Encode('test', test_data)).2 AS is_valid
 FROM test_cases;
 
 -- Query 11: Different HRP (Human Readable Prefix) examples
@@ -243,7 +243,7 @@ ORDER BY id;
 SELECT '=== Decode Short Code ===' AS title;
 SELECT
     short_code,
-    bech32Decode(short_code) AS decoded_tuple_id,
+    bech32Decode(short_code).2 AS decoded_id,
     original_url
 FROM url_mappings
 ORDER BY id

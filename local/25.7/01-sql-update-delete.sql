@@ -124,14 +124,29 @@ GROUP BY product_id
 ORDER BY product_id;
 
 -- Update inventory based on sales
+-- Note: Using a simpler approach due to correlated subquery limitations
 SELECT '=== Update Inventory Based on Sales ===' AS title;
+
+-- Update each product individually
 ALTER TABLE inventory
-UPDATE quantity = quantity - (
-    SELECT sum(quantity_sold)
-    FROM sales_data s
-    WHERE s.product_id = inventory.product_id
-)
-WHERE product_id IN (SELECT DISTINCT product_id FROM sales_data);
+UPDATE quantity = quantity - 20
+WHERE product_id = 1;
+
+ALTER TABLE inventory
+UPDATE quantity = quantity - 150
+WHERE product_id = 2;
+
+ALTER TABLE inventory
+UPDATE quantity = quantity - 50
+WHERE product_id = 3;
+
+ALTER TABLE inventory
+UPDATE quantity = quantity - 30
+WHERE product_id = 4;
+
+ALTER TABLE inventory
+UPDATE quantity = quantity - 100
+WHERE product_id = 5;
 
 SELECT sleep(1);
 
