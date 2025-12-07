@@ -56,27 +56,34 @@ echo ""
 # Service health check for each version
 echo "💓 Service Status:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     CONTAINER_NAME="clickhouse-${version//./-}"
 
     if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         echo ""
-        echo "   Version ${version} (port ${PORT}):"
+        echo "   Version ${version} (port ${HTTP_PORT}):"
 
-        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
-            echo "      ✅ HTTP Interface: OK (port ${PORT})"
+        if curl -s http://localhost:${HTTP_PORT}/ping > /dev/null 2>&1; then
+            echo "      ✅ HTTP Interface: OK (port ${HTTP_PORT})"
 
             # Version information
-            VERSION_INFO=$(curl -s http://localhost:${PORT}/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+            VERSION_INFO=$(curl -s http://localhost:${HTTP_PORT}/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
             if [ -n "$VERSION_INFO" ]; then
                 echo "      ✅ ${VERSION_INFO}"
             fi
         else
-            echo "      ❌ HTTP Interface: Connection failed (port ${PORT})"
+            echo "      ❌ HTTP Interface: Connection failed (port ${HTTP_PORT})"
         fi
 
         # TCP port check
-        TCP_PORT="${PORT}1"
         if nc -z localhost ${TCP_PORT} 2>/dev/null; then
             echo "      ✅ TCP Interface: OK (port ${TCP_PORT})"
         else
@@ -111,6 +118,11 @@ echo "   docker-compose logs -f  - View real-time logs"
 echo ""
 echo "📍 Connection URLs:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
-    echo "   Version ${version}: http://localhost:${PORT}/play"
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+    else
+        HTTP_PORT=$(version_to_port "$version")
+    fi
+    echo "   Version ${version}: http://localhost:${HTTP_PORT}/play"
 done
