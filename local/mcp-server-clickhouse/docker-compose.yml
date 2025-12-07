@@ -28,6 +28,7 @@ services:
       ENABLE_CHDB_TOOLS: false
     networks:
       - clickhouse-network
+      - mcp-network
     healthcheck:
       test: ["CMD", "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost', 3001); conn.request('GET', '/health'); r = conn.getresponse(); exit(0 if r.status == 200 else 1)"]
       interval: 30s
@@ -38,3 +39,5 @@ services:
 networks:
   clickhouse-network:
     external: true
+  mcp-network:
+    driver: bridge

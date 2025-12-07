@@ -17,7 +17,7 @@ services:
       retries: 5
 
   librechat:
-    image: ghcr.io/danny-avila/librechat:latest
+    image: ghcr.io/danny-avila/librechat:v0.7.6
     container_name: librechat
     restart: unless-stopped
     ports:
@@ -43,7 +43,6 @@ services:
       - ./librechat.yaml:/app/librechat.yaml:ro
     networks:
       - librechat-network
-      - mcp-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -54,6 +53,3 @@ volumes:
 networks:
   librechat-network:
     driver: bridge
-  mcp-network:
-    external: true
-    name: mcp-server-clickhouse_mcp-network
