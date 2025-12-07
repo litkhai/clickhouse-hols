@@ -48,16 +48,24 @@ echo ""
 # Check status for each version
 ALL_STARTED=true
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     CONTAINER_NAME="clickhouse-${version//./-}"
 
-    echo "Checking version ${version} on port ${PORT}..."
+    echo "Checking version ${version} on port ${HTTP_PORT}..."
 
     # Wait up to 45 seconds
     STARTED=false
     for i in {1..45}; do
-        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
-            echo "✅ Version ${version} started successfully! (port ${PORT})"
+        if curl -s http://localhost:${HTTP_PORT}/ping > /dev/null 2>&1; then
+            echo "✅ Version ${version} started successfully! (port ${HTTP_PORT})"
             STARTED=true
             break
         fi
@@ -84,11 +92,19 @@ fi
 echo ""
 echo "🎯 Connection Information:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     echo "   Version ${version}:"
-    echo "      📍 Web UI: http://localhost:${PORT}/play"
-    echo "      📍 HTTP API: http://localhost:${PORT}"
-    echo "      📍 TCP: localhost:${PORT}1"
+    echo "      📍 Web UI: http://localhost:${HTTP_PORT}/play"
+    echo "      📍 HTTP API: http://localhost:${HTTP_PORT}"
+    echo "      📍 TCP: localhost:${TCP_PORT}"
     echo "      👤 User: default (no password)"
     echo ""
 done
@@ -97,7 +113,11 @@ echo "🔧 Management Commands:"
 echo "   ./stop.sh              - Stop all versions (preserve data)"
 echo "   ./stop.sh --cleanup    - Stop and delete all data"
 echo "   ./status.sh            - Check status and resource usage"
-echo "   ./client.sh <PORT>     - Connect to specific version"
-echo "   Example: ./client.sh ${PORT} (for version ${version})"
+if [ ${#VERSIONS[@]} -eq 1 ]; then
+    echo "   ./client.sh ${HTTP_PORT}     - Connect to ClickHouse client"
+else
+    echo "   ./client.sh <PORT>     - Connect to specific version"
+    echo "   Example: ./client.sh ${HTTP_PORT} (for version ${version})"
+fi
 echo ""
 echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"

@@ -411,9 +411,15 @@ COMPOSE_START
 
 # Add service for each version
 for version in "${CLICKHOUSE_VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
-    HTTP_PORT="${PORT}"
-    TCP_PORT="${PORT}1"
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#CLICKHOUSE_VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     CONTAINER_NAME="clickhouse-${version//./-}"
 
     cat >> docker-compose.yml << EOF
@@ -539,16 +545,24 @@ echo ""
 # Check status for each version
 ALL_STARTED=true
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     CONTAINER_NAME="clickhouse-${version//./-}"
 
-    echo "Checking version ${version} on port ${PORT}..."
+    echo "Checking version ${version} on port ${HTTP_PORT}..."
 
     # Wait up to 45 seconds
     STARTED=false
     for i in {1..45}; do
-        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
-            echo "✅ Version ${version} started successfully! (port ${PORT})"
+        if curl -s http://localhost:${HTTP_PORT}/ping > /dev/null 2>&1; then
+            echo "✅ Version ${version} started successfully! (port ${HTTP_PORT})"
             STARTED=true
             break
         fi
@@ -575,11 +589,19 @@ fi
 echo ""
 echo "🎯 Connection Information:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     echo "   Version ${version}:"
-    echo "      📍 Web UI: http://localhost:${PORT}/play"
-    echo "      📍 HTTP API: http://localhost:${PORT}"
-    echo "      📍 TCP: localhost:${PORT}1"
+    echo "      📍 Web UI: http://localhost:${HTTP_PORT}/play"
+    echo "      📍 HTTP API: http://localhost:${HTTP_PORT}"
+    echo "      📍 TCP: localhost:${TCP_PORT}"
     echo "      👤 User: default (no password)"
     echo ""
 done
@@ -588,8 +610,12 @@ echo "🔧 Management Commands:"
 echo "   ./stop.sh              - Stop all versions (preserve data)"
 echo "   ./stop.sh --cleanup    - Stop and delete all data"
 echo "   ./status.sh            - Check status and resource usage"
-echo "   ./client.sh <PORT>     - Connect to specific version"
-echo "   Example: ./client.sh ${PORT} (for version ${version})"
+if [ ${#VERSIONS[@]} -eq 1 ]; then
+    echo "   ./client.sh ${HTTP_PORT}     - Connect to ClickHouse client"
+else
+    echo "   ./client.sh <PORT>     - Connect to specific version"
+    echo "   Example: ./client.sh ${HTTP_PORT} (for version ${version})"
+fi
 echo ""
 echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"
 STARTSH
@@ -752,27 +778,34 @@ echo ""
 # Service health check for each version
 echo "💓 Service Status:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+        TCP_PORT="9000"
+    else
+        PORT=$(version_to_port "$version")
+        HTTP_PORT="${PORT}"
+        TCP_PORT="${PORT}1"
+    fi
     CONTAINER_NAME="clickhouse-${version//./-}"
 
     if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         echo ""
-        echo "   Version ${version} (port ${PORT}):"
+        echo "   Version ${version} (port ${HTTP_PORT}):"
 
-        if curl -s http://localhost:${PORT}/ping > /dev/null 2>&1; then
-            echo "      ✅ HTTP Interface: OK (port ${PORT})"
+        if curl -s http://localhost:${HTTP_PORT}/ping > /dev/null 2>&1; then
+            echo "      ✅ HTTP Interface: OK (port ${HTTP_PORT})"
 
             # Version information
-            VERSION_INFO=$(curl -s http://localhost:${PORT}/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+            VERSION_INFO=$(curl -s http://localhost:${HTTP_PORT}/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
             if [ -n "$VERSION_INFO" ]; then
                 echo "      ✅ ${VERSION_INFO}"
             fi
         else
-            echo "      ❌ HTTP Interface: Connection failed (port ${PORT})"
+            echo "      ❌ HTTP Interface: Connection failed (port ${HTTP_PORT})"
         fi
 
         # TCP port check
-        TCP_PORT="${PORT}1"
         if nc -z localhost ${TCP_PORT} 2>/dev/null; then
             echo "      ✅ TCP Interface: OK (port ${TCP_PORT})"
         else
@@ -807,8 +840,13 @@ echo "   docker-compose logs -f  - View real-time logs"
 echo ""
 echo "📍 Connection URLs:"
 for version in "${VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
-    echo "   Version ${version}: http://localhost:${PORT}/play"
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#VERSIONS[@]} -eq 1 ]; then
+        HTTP_PORT="8123"
+    else
+        HTTP_PORT=$(version_to_port "$version")
+    fi
+    echo "   Version ${version}: http://localhost:${HTTP_PORT}/play"
 done
 STATUSSH
 
@@ -1101,14 +1139,23 @@ echo "   ✓ Management scripts (start/stop/status/client/cleanup)"
 echo ""
 echo "📍 Version to Port mapping:"
 for version in "${CLICKHOUSE_VERSIONS[@]}"; do
-    PORT=$(version_to_port "$version")
-    echo "   - Version ${version}: HTTP=${PORT}, TCP=${PORT}1"
+    # Use default ports (8123, 9000) if only one version is configured
+    if [ ${#CLICKHOUSE_VERSIONS[@]} -eq 1 ]; then
+        echo "   - Version ${version}: HTTP=8123, TCP=9000 (default ports)"
+    else
+        PORT=$(version_to_port "$version")
+        echo "   - Version ${version}: HTTP=${PORT}, TCP=${PORT}1"
+    fi
 done
 echo ""
 echo "🎯 Next steps:"
-echo "   1. Start all ClickHouse versions: cd $BASE_DIR && ./start.sh"
-echo "   2. Connect to specific version: cd $BASE_DIR && ./client.sh <PORT>"
-echo "      Example: ./client.sh 2410 (for version 24.10)"
+echo "   1. Start all ClickHouse versions: ./start.sh"
+if [ ${#CLICKHOUSE_VERSIONS[@]} -eq 1 ]; then
+    echo "   2. Connect to ClickHouse: ./client.sh 8123"
+else
+    echo "   2. Connect to specific version: ./client.sh <PORT>"
+    echo "      Example: ./client.sh 2410 (for version 24.10)"
+fi
 echo ""
 echo "🔧 Useful commands:"
 echo "   ./status.sh          - Check system status"
