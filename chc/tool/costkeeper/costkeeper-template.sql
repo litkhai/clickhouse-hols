@@ -92,8 +92,11 @@ SETTINGS index_granularity = 8192;
 CREATE TABLE ${DATABASE_NAME}.metrics_15min
 (
     collected_at DateTime,
+    replica_count UInt32,
     allocated_cpu Float64,
     allocated_memory_gb Float64,
+    total_cluster_cpu Float64,
+    total_cluster_memory_gb Float64,
 
     -- CPU metrics
     cpu_usage_avg Float64,
@@ -142,8 +145,11 @@ SETTINGS index_granularity = 8192;
 CREATE TABLE ${DATABASE_NAME}.hourly_metrics
 (
     hour DateTime,
+    replica_count UInt32,
     allocated_cpu Float64,
     allocated_memory_gb Float64,
+    total_cluster_cpu Float64,
+    total_cluster_memory_gb Float64,
 
     -- CPU metrics
     cpu_usage_avg Float64,
@@ -214,8 +220,11 @@ CREATE TABLE ${DATABASE_NAME}.hourly_analysis
     cost_per_cpu_core_hour Float64,
 
     -- Resource allocation and usage
+    replica_count UInt32,
     allocated_cpu Float64,
     allocated_memory_gb Float64,
+    total_cluster_cpu Float64,
+    total_cluster_memory_gb Float64,
     cpu_usage_avg Float64,
     cpu_usage_p99 Float64,
     cpu_usage_max Float64,
@@ -362,6 +371,10 @@ WITH
     target_period AS (
         SELECT now() - INTERVAL 15 MINUTE as start_time
     ),
+    replica_info AS (
+        SELECT count(DISTINCT host_name) as replica_count
+        FROM system.clusters
+    ),
     metrics_agg AS (
         SELECT
             toStartOfFifteenMinutes(now()) as collected_at,
@@ -420,8 +433,11 @@ WITH
     )
 SELECT
     collected_at,
+    (SELECT replica_count FROM replica_info) as replica_count,
     allocated_cpu,
     allocated_memory_gb,
+    allocated_cpu * (SELECT replica_count FROM replica_info) as total_cluster_cpu,
+    allocated_memory_gb * (SELECT replica_count FROM replica_info) as total_cluster_memory_gb,
     cpu_usage_avg,
     cpu_usage_p50,
     cpu_usage_p90,
@@ -464,9 +480,14 @@ WITH
 SELECT
     (SELECT h FROM target_hour) as hour,
 
+    -- Replica count (should be consistent, but take max for safety)
+    max(replica_count) as replica_count,
+
     -- Allocated resources (avg across 4 periods)
     avg(allocated_cpu) as allocated_cpu,
     avg(allocated_memory_gb) as allocated_memory_gb,
+    avg(total_cluster_cpu) as total_cluster_cpu,
+    avg(total_cluster_memory_gb) as total_cluster_memory_gb,
 
     -- CPU metrics (aggregate across 4 periods)
     avg(cpu_usage_avg) as cpu_usage_avg,
@@ -524,8 +545,11 @@ metrics_with_lag AS (
     SELECT
         m.hour,
         m.service_name,
+        m.replica_count,
         m.allocated_cpu,
         m.allocated_memory_gb,
+        m.total_cluster_cpu,
+        m.total_cluster_memory_gb,
         m.cpu_usage_avg,
         m.cpu_usage_p99,
         m.cpu_usage_max,
@@ -570,12 +594,15 @@ SELECT
     daily_storage_chc / 24 AS estimated_hourly_storage_chc,
     daily_network_chc / 24 AS estimated_hourly_network_chc,
 
-    -- Cost per CPU core
-    if(allocated_cpu > 0, (daily_compute_chc / 24) / allocated_cpu, 0) AS cost_per_cpu_core_hour,
+    -- Cost per CPU core (based on total cluster CPU)
+    if(total_cluster_cpu > 0, (daily_compute_chc / 24) / total_cluster_cpu, 0) AS cost_per_cpu_core_hour,
 
     -- Resource metrics
+    replica_count AS replica_count,
     allocated_cpu AS allocated_cpu,
     allocated_memory_gb AS allocated_memory_gb,
+    total_cluster_cpu AS total_cluster_cpu,
+    total_cluster_memory_gb AS total_cluster_memory_gb,
     cpu_usage_avg AS cpu_usage_avg,
     cpu_usage_p99 AS cpu_usage_p99,
     cpu_usage_max AS cpu_usage_max,
@@ -808,6 +835,9 @@ CREATE VIEW ${DATABASE_NAME}.v_dashboard AS
 SELECT
     hour,
     service_name,
+    replica_count,
+    round(allocated_cpu, 2) AS cpu_per_replica,
+    round(total_cluster_cpu, 2) AS total_cpu,
     round(daily_total_chc, 2) AS daily_chc,
     round(estimated_hourly_total_chc, 4) AS hourly_chc,
     round(cpu_usage_avg, 4) AS cpu_cores,
