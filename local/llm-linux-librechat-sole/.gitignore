@@ -1,0 +1,22 @@
+# Environment variables
+.env
+
+# LibreChat data
+librechat-data/
+
+# MongoDB backups
+mongodb-backup/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
