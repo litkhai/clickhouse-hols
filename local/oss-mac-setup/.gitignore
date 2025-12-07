@@ -1,0 +1,10 @@
+# ClickHouse data
+data/
+logs/
+
+# Node.js (if accidentally added)
+node_modules/
+package-lock.json
+
+# Environment
+.env

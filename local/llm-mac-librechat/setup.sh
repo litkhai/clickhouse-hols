@@ -222,8 +222,13 @@ deploy_clickhouse_docker() {
     if docker ps | grep -q "clickhouse"; then
         print_success "ClickHouse container is already running"
 
-        # Try to detect the port from docker ps
-        CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | grep -oP '\d+(?=->8123)' | head -1)
+        # Try to detect the port from docker ps (using sed instead of grep -P for macOS compatibility)
+        CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | sed -n 's/.*0.0.0.0:\([0-9]*\)->8123.*/\1/p' | head -1)
+
+        if [ -z "$CH_HTTP_PORT" ]; then
+            # Try alternative format (without 0.0.0.0)
+            CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | sed -n 's/.*:\([0-9]*\)->8123.*/\1/p' | head -1)
+        fi
 
         if [ -z "$CH_HTTP_PORT" ]; then
             # Default to 8123 if we can't detect the port
@@ -279,8 +284,13 @@ deploy_clickhouse_docker() {
     if docker ps | grep -q "clickhouse"; then
         print_success "ClickHouse container detected"
 
-        # Try to detect the port
-        CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | grep -oP '\d+(?=->8123)' | head -1)
+        # Try to detect the port (macOS compatible)
+        CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | sed -n 's/.*0.0.0.0:\([0-9]*\)->8123.*/\1/p' | head -1)
+
+        if [ -z "$CH_HTTP_PORT" ]; then
+            # Try alternative format (without 0.0.0.0)
+            CH_HTTP_PORT=$(docker ps --filter "name=clickhouse" --format "{{.Ports}}" | sed -n 's/.*:\([0-9]*\)->8123.*/\1/p' | head -1)
+        fi
 
         if [ -z "$CH_HTTP_PORT" ]; then
             CH_HTTP_PORT="8123"
@@ -387,8 +397,16 @@ configure_models() {
     print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
+    # Check if Ollama is installed to show appropriate menu
+    OLLAMA_INSTALLED=false
+    if command -v ollama &> /dev/null; then
+        OLLAMA_INSTALLED=true
+        print_success "Ollama is already installed"
+        echo ""
+    fi
+
     print_info "Recommended lightweight models for Mac:"
-    echo "  1. Install Ollama (if not installed)"
+    echo "  1. Install/Reinstall Ollama"
     echo "  2. qwen2.5-coder:3b (3B) - Best for coding tasks"
     echo "  3. phi-3.5:3.8b (3.8B) - Microsoft's efficient model"
     echo "  4. gemma2:2b (2B) - Lightweight Google model"
@@ -396,30 +414,18 @@ configure_models() {
     echo "  6. Custom model name"
     echo ""
 
-    # Primary model selection
-    prompt_input "Select primary model (1-6)" "2" MODEL_CHOICE
+    # Primary model selection (default is always 1)
+    prompt_input "Select primary model (1-6)" "1" MODEL_CHOICE
 
     case $MODEL_CHOICE in
         1)
             install_ollama
-            # After installation, ask again
             echo ""
-            print_info "Now select a model to use:"
-            echo "  2. qwen2.5-coder:3b (3B) - Best for coding tasks"
-            echo "  3. phi-3.5:3.8b (3.8B) - Microsoft's efficient model"
-            echo "  4. gemma2:2b (2B) - Lightweight Google model"
-            echo "  5. tinyllama:1.1b (1.1B) - Ultra lightweight"
-            echo "  6. Custom model name"
-            echo ""
-            prompt_input "Select primary model (2-6)" "2" MODEL_CHOICE
-            case $MODEL_CHOICE in
-                2) PRIMARY_MODEL="qwen2.5-coder:3b" ;;
-                3) PRIMARY_MODEL="phi-3.5:3.8b" ;;
-                4) PRIMARY_MODEL="gemma2:2b" ;;
-                5) PRIMARY_MODEL="tinyllama:1.1b" ;;
-                6) prompt_input "Enter custom model name" "" PRIMARY_MODEL ;;
-                *) PRIMARY_MODEL="qwen2.5-coder:3b" ;;
-            esac
+            print_success "Ollama installation completed"
+            print_info "You can manually pull models later using: ollama pull <model-name>"
+            PRIMARY_MODEL=""
+            SECONDARY_MODEL=""
+            return 0
             ;;
         2) PRIMARY_MODEL="qwen2.5-coder:3b" ;;
         3) PRIMARY_MODEL="phi-3.5:3.8b" ;;
@@ -440,6 +446,13 @@ configure_models() {
     # Optional secondary model
     prompt_input "Add a secondary model? (yes/no)" "no" ADD_SECONDARY
     if [ "$ADD_SECONDARY" = "yes" ] || [ "$ADD_SECONDARY" = "y" ]; then
+        echo ""
+        print_info "Select secondary model:"
+        echo "  2. qwen2.5-coder:3b (3B) - Best for coding tasks"
+        echo "  3. phi-3.5:3.8b (3.8B) - Microsoft's efficient model"
+        echo "  4. gemma2:2b (2B) - Lightweight Google model"
+        echo "  5. tinyllama:1.1b (1.1B) - Ultra lightweight"
+        echo "  6. Custom model name"
         echo ""
         prompt_input "Select secondary model (2-6)" "3" SECONDARY_CHOICE
 
@@ -462,8 +475,8 @@ configure_models() {
 
     echo ""
 
-    # Pull models if Ollama is available
-    if command -v ollama &> /dev/null; then
+    # Pull models if Ollama is available and models are configured
+    if command -v ollama &> /dev/null && [ -n "$PRIMARY_MODEL" ]; then
         prompt_input "Pull models now? (yes/no)" "yes" PULL_MODELS
         if [ "$PULL_MODELS" = "yes" ] || [ "$PULL_MODELS" = "y" ]; then
             echo ""
@@ -518,7 +531,7 @@ SESSION_SECRET=${SESSION_SECRET}
 
 # Ollama Settings
 OLLAMA_BASE_URL=http://host.docker.internal:11434
-PRIMARY_MODEL=${PRIMARY_MODEL:-qwen2.5-coder:3b}
+PRIMARY_MODEL=${PRIMARY_MODEL}
 SECONDARY_MODEL=${SECONDARY_MODEL}
 
 # ClickHouse MCP Server Settings

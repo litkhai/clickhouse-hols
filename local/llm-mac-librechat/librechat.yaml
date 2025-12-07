@@ -1,7 +1,7 @@
 # LibreChat Configuration
 # https://docs.librechat.ai/install/configuration/custom_config.html
 
-version: 1.1.0
+version: 1.3.1
 
 # Cache settings
 cache: true
@@ -17,48 +17,6 @@ registration:
   socialLogins: []
   allowedDomains: []
 
-# Endpoints configuration
-endpoints:
-  # Ollama endpoint for local LLM
-  ollama:
-    # Ollama API URL (should match docker-compose environment)
-    host: "http://host.docker.internal:11434"
-
-    # Available models - these will be auto-discovered from Ollama
-    # But you can also explicitly list them here
-    models:
-      default:
-        - "qwen2.5-coder:3b"
-        - "phi-3.5:3.8b"
-        - "gemma2:2b"
-        - "tinyllama:1.1b"
-
-    # Model display names
-    titleModel: "qwen2.5-coder:3b"
-
-    # Model parameters
-    modelDisplayLabel: "Ollama"
-
-    # Enable/disable specific features
-    capabilities:
-      - "chat"
-      - "tools"
-
-    # Advanced settings
-    fetchModels: true
-
-# MCP (Model Context Protocol) Configuration
-mcp:
-  enabled: true
-  servers:
-    - name: "clickhouse"
-      description: "ClickHouse Database MCP Server"
-      url: "http://mcp-server:3001"
-      capabilities:
-        - "query"
-        - "schema"
-        - "tables"
-
 # Interface settings
 interface:
   privacyPolicy:
@@ -67,51 +25,6 @@ interface:
   termsOfService:
     externalUrl: ""
     openNewTab: true
-
-# Model specifications
-modelSpecs:
-  enforce: false
-  prioritize: true
-  list:
-    - name: "qwen2.5-coder:3b"
-      label: "Qwen 2.5 Coder (3B)"
-      description: "Optimized for coding tasks"
-      preset:
-        endpoint: "ollama"
-        model: "qwen2.5-coder:3b"
-        temperature: 0.7
-        top_p: 0.9
-        max_tokens: 4096
-
-    - name: "phi-3.5:3.8b"
-      label: "Phi 3.5 (3.8B)"
-      description: "Microsoft's efficient model"
-      preset:
-        endpoint: "ollama"
-        model: "phi-3.5:3.8b"
-        temperature: 0.7
-        top_p: 0.9
-        max_tokens: 4096
-
-    - name: "gemma2:2b"
-      label: "Gemma 2 (2B)"
-      description: "Lightweight Google model"
-      preset:
-        endpoint: "ollama"
-        model: "gemma2:2b"
-        temperature: 0.7
-        top_p: 0.9
-        max_tokens: 2048
-
-    - name: "tinyllama:1.1b"
-      label: "TinyLlama (1.1B)"
-      description: "Ultra lightweight model"
-      preset:
-        endpoint: "ollama"
-        model: "tinyllama:1.1b"
-        temperature: 0.7
-        top_p: 0.9
-        max_tokens: 2048
 
 # Rate limiting
 rateLimits:
