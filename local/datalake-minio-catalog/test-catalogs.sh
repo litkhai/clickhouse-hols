@@ -30,28 +30,34 @@ echo ""
 
 # Function to check if ClickHouse is available
 check_clickhouse() {
-    echo -e "${BLUE}Checking ClickHouse 25.11...${NC}"
-
-    # Check if ClickHouse 25.11 container is running
-    if ! docker ps | grep -q clickhouse-25-11; then
-        echo -e "${RED}ClickHouse 25.11 container not found${NC}"
-        echo "Please start ClickHouse 25.11 first:"
+    # Try both 25.11 and 25.10
+    if docker ps | grep -q clickhouse-25-11; then
+        CLICKHOUSE_CONTAINER="clickhouse-25-11"
+        echo -e "${BLUE}Checking ClickHouse 25.11...${NC}"
+    elif docker ps | grep -q clickhouse-25-10; then
+        CLICKHOUSE_CONTAINER="clickhouse-25-10"
+        echo -e "${BLUE}Checking ClickHouse 25.10...${NC}"
+    else
+        echo -e "${RED}ClickHouse 25.10 or 25.11 container not found${NC}"
+        echo "Please start ClickHouse first:"
+        echo "  cd ../oss-mac-setup && ./set.sh 25.10 && ./start.sh"
+        echo "  OR"
         echo "  cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh"
         exit 1
     fi
 
     # Check version
-    VERSION=$(docker exec clickhouse-25-11 clickhouse-client --query "SELECT version()" 2>/dev/null || echo "unknown")
+    VERSION=$(docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "SELECT version()" 2>/dev/null || echo "unknown")
     echo -e "${GREEN}ClickHouse version: $VERSION${NC}"
 
     # Try to connect
-    if ! docker exec clickhouse-25-11 clickhouse-client --query "SELECT 1" &> /dev/null; then
+    if ! docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "SELECT 1" &> /dev/null; then
         echo -e "${RED}Cannot connect to ClickHouse${NC}"
         echo "Please check ClickHouse status"
         exit 1
     fi
 
-    echo -e "${GREEN}ClickHouse 25.11 is ready!${NC}"
+    echo -e "${GREEN}ClickHouse is ready!${NC}"
     echo ""
 }
 
@@ -71,7 +77,7 @@ test_minio() {
     fi
 
     # Test with ClickHouse
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     SET s3_truncate_on_insert = 1;
 
     DROP TABLE IF EXISTS test_minio;
@@ -96,7 +102,7 @@ test_minio() {
         echo -e "${GREEN}✓ Write to MinIO succeeded${NC}"
 
         # Test read
-        RESULT=$(docker exec clickhouse-25-11 clickhouse-client --query "
+        RESULT=$(docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
         SELECT count() FROM s3(
             'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/test/data.parquet',
             '${MINIO_ROOT_USER:-admin}',
@@ -120,7 +126,7 @@ test_minio() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_minio" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_minio" 2>/dev/null
 
     echo ""
 }
@@ -172,7 +178,7 @@ test_nessie() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_nessie" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_nessie" 2>/dev/null
 
     echo ""
 }
@@ -224,7 +230,7 @@ test_hive() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_hive" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_hive" 2>/dev/null
 
     echo ""
 }
@@ -276,7 +282,7 @@ test_iceberg_rest() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_iceberg_rest" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_iceberg_rest" 2>/dev/null
 
     echo ""
 }
@@ -328,7 +334,7 @@ test_polaris() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_polaris" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_polaris" 2>/dev/null
 
     echo ""
 }
@@ -355,7 +361,7 @@ test_unity() {
     echo -e "${GREEN}✓ Unity Catalog is healthy${NC}"
 
     # Test basic connectivity
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DROP TABLE IF EXISTS test_unity;
     CREATE TABLE test_unity (
         user_id UInt32,
@@ -380,7 +386,7 @@ test_unity() {
     fi
 
     # Cleanup
-    docker exec clickhouse-25-11 clickhouse-client --query "DROP TABLE IF EXISTS test_unity" 2>/dev/null
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "DROP TABLE IF EXISTS test_unity" 2>/dev/null
 
     echo ""
 }
