@@ -38,6 +38,14 @@ services:
       ALLOW_UNVERIFIED_EMAIL: "true"
       DEBUG_CONSOLE: "true"
       DEBUG_LOGGING: "true"
+      # MCP Server Authentication (선택사항)
+      # MCP 서버에 인증이 필요한 경우 .env 파일에 토큰을 추가하고 아래 주석을 해제하세요
+      # MCP_API_TOKEN: ${MCP_API_TOKEN}
+      # MCP_CUSTOM_API_KEY: ${MCP_CUSTOM_API_KEY}
+      # MCP_CUSTOM_API_SECRET: ${MCP_CUSTOM_API_SECRET}
+      # MCP_BASIC_AUTH_TOKEN: ${MCP_BASIC_AUTH_TOKEN}
+      # POSTGRES_MCP_TOKEN: ${POSTGRES_MCP_TOKEN}
+      # EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
     volumes:
       - ./librechat-data:/app/data
       - ./librechat.yaml:/app/librechat.yaml:ro
