@@ -397,96 +397,38 @@ configure_models() {
     print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # Check if Ollama is installed to show appropriate menu
-    OLLAMA_INSTALLED=false
+    # Check if Ollama is installed
     if command -v ollama &> /dev/null; then
-        OLLAMA_INSTALLED=true
         print_success "Ollama is already installed"
-        echo ""
-    fi
-
-    print_info "Recommended lightweight models for Mac:"
-    echo "  1. Install/Reinstall Ollama"
-    echo "  2. qwen2.5-coder:3b (3B) - Best for coding tasks"
-    echo "  3. phi-3.5:3.8b (3.8B) - Microsoft's efficient model"
-    echo "  4. gemma2:2b (2B) - Lightweight Google model"
-    echo "  5. tinyllama:1.1b (1.1B) - Ultra lightweight"
-    echo "  6. Custom model name"
-    echo ""
-
-    # Primary model selection (default is always 1)
-    prompt_input "Select primary model (1-6)" "1" MODEL_CHOICE
-
-    case $MODEL_CHOICE in
-        1)
+    else
+        print_warning "Ollama is not installed"
+        prompt_input "Do you want to install Ollama now? (yes/no)" "yes" INSTALL_NOW
+        if [ "$INSTALL_NOW" = "yes" ] || [ "$INSTALL_NOW" = "y" ]; then
             install_ollama
-            echo ""
-            print_success "Ollama installation completed"
-            print_info "You can manually pull models later using: ollama pull <model-name>"
+        else
+            print_info "Skipping Ollama installation"
             PRIMARY_MODEL=""
             SECONDARY_MODEL=""
             return 0
-            ;;
-        2) PRIMARY_MODEL="qwen2.5-coder:3b" ;;
-        3) PRIMARY_MODEL="phi-3.5:3.8b" ;;
-        4) PRIMARY_MODEL="gemma2:2b" ;;
-        5) PRIMARY_MODEL="tinyllama:1.1b" ;;
-        6)
-            prompt_input "Enter custom model name" "" PRIMARY_MODEL
-            ;;
-        *)
-            print_warning "Invalid selection, using qwen2.5-coder:3b as default"
-            PRIMARY_MODEL="qwen2.5-coder:3b"
-            ;;
-    esac
-
-    print_success "Primary model: ${PRIMARY_MODEL}"
-    echo ""
-
-    # Optional secondary model
-    prompt_input "Add a secondary model? (yes/no)" "no" ADD_SECONDARY
-    if [ "$ADD_SECONDARY" = "yes" ] || [ "$ADD_SECONDARY" = "y" ]; then
-        echo ""
-        print_info "Select secondary model:"
-        echo "  2. qwen2.5-coder:3b (3B) - Best for coding tasks"
-        echo "  3. phi-3.5:3.8b (3.8B) - Microsoft's efficient model"
-        echo "  4. gemma2:2b (2B) - Lightweight Google model"
-        echo "  5. tinyllama:1.1b (1.1B) - Ultra lightweight"
-        echo "  6. Custom model name"
-        echo ""
-        prompt_input "Select secondary model (2-6)" "3" SECONDARY_CHOICE
-
-        case $SECONDARY_CHOICE in
-            2) SECONDARY_MODEL="qwen2.5-coder:3b" ;;
-            3) SECONDARY_MODEL="phi-3.5:3.8b" ;;
-            4) SECONDARY_MODEL="gemma2:2b" ;;
-            5) SECONDARY_MODEL="tinyllama:1.1b" ;;
-            6)
-                prompt_input "Enter custom model name" "" SECONDARY_MODEL
-                ;;
-            *)
-                SECONDARY_MODEL="phi-3.5:3.8b"
-                ;;
-        esac
-        print_success "Secondary model: ${SECONDARY_MODEL}"
-    else
-        SECONDARY_MODEL=""
+        fi
     fi
 
     echo ""
 
-    # Pull models if Ollama is available and models are configured
-    if command -v ollama &> /dev/null && [ -n "$PRIMARY_MODEL" ]; then
-        prompt_input "Pull models now? (yes/no)" "yes" PULL_MODELS
-        if [ "$PULL_MODELS" = "yes" ] || [ "$PULL_MODELS" = "y" ]; then
-            echo ""
-            print_info "Pulling ${PRIMARY_MODEL}..."
-            ollama pull "$PRIMARY_MODEL" || print_warning "Failed to pull ${PRIMARY_MODEL}"
+    # Use llama3.1:8b as the default model
+    PRIMARY_MODEL="llama3.1:8b"
+    SECONDARY_MODEL=""
 
-            if [ -n "$SECONDARY_MODEL" ]; then
-                print_info "Pulling ${SECONDARY_MODEL}..."
-                ollama pull "$SECONDARY_MODEL" || print_warning "Failed to pull ${SECONDARY_MODEL}"
-            fi
+    print_info "Using llama3.1:8b (Best for MCP tool calling - 91% success rate)"
+    echo ""
+
+    # Pull model if Ollama is available
+    if command -v ollama &> /dev/null; then
+        prompt_input "Pull llama3.1:8b now? (yes/no)" "yes" PULL_MODEL
+        if [ "$PULL_MODEL" = "yes" ] || [ "$PULL_MODEL" = "y" ]; then
+            echo ""
+            print_info "Pulling llama3.1:8b..."
+            ollama pull "$PRIMARY_MODEL" || print_warning "Failed to pull ${PRIMARY_MODEL}"
             print_success "Model pulling completed"
         fi
     fi

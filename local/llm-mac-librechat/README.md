@@ -15,10 +15,21 @@
 
 Mac에서 원활하게 작동하는 경량 모델들:
 
-1. **qwen2.5-coder:3b** (3B) - 코딩 작업에 최적화, 우수한 성능
-2. **phi-3.5:3.8b** (3.8B) - Microsoft의 효율적인 모델
-3. **gemma2:2b** (2B) - Google의 경량 모델
-4. **tinyllama:1.1b** (1.1B) - 초경량 모델, 기본 작업용
+### MCP Tool Calling 지원 모델 (필수)
+MCP 서버와 함께 사용하려면 **반드시 tool calling을 지원하는 모델**을 사용해야 합니다:
+
+1. **llama3.1:8b** (8B) ✅ - **최고의 function calling 성능 (91% 성공률, 권장)**
+2. **mistral-nemo** (12B) ✅ - Mistral 7B보다 우수한 대안
+3. **qwen2.5:7b-instruct** (7B) ✅ - 빠르고 안정적
+
+### Tool Calling 지원 제한적/불안정 모델
+다음 모델들은 MCP와 함께 사용 시 문제가 있을 수 있습니다:
+
+1. **mistral:7b-instruct** (7B) ⚠️ - v0.3 필요, 불안정 (86% 성공률)
+2. **qwen2.5-coder:3b** (3B) ⚠️ - JSON 문자열 반환 문제
+3. **phi-3.5:3.8b** (3.8B) ❌ - Tool calling 미지원
+4. **gemma2:2b** (2B) ❌ - Tool calling 미지원
+5. **tinyllama:1.1b** (1.1B) ❌ - Tool calling 미지원
 
 ## 사전 요구사항
 
@@ -195,15 +206,10 @@ curl -X POST http://localhost:3001/api/tools/execute \
 ### 모델 다운로드
 
 ```bash
-# 추천 모델들
-ollama pull qwen2.5-coder:3b
-ollama pull phi-3.5:3.8b
-ollama pull gemma2:2b
-ollama pull tinyllama:1.1b
-
-# 다른 모델들
-ollama pull llama3.2:3b
-ollama pull mistral:7b-instruct-q4_0
+# MCP Tool Calling 권장 모델
+ollama pull llama3.1:8b              # 최고 성능 (91% 성공률)
+ollama pull mistral-nemo             # 대안 (12B)
+ollama pull qwen2.5:7b-instruct      # 대안 (7B)
 ```
 
 ### 설치된 모델 확인
@@ -219,6 +225,62 @@ ollama rm <model-name>
 ```
 
 ## 문제 해결
+
+### 🔧 LibreChat v0.8.x "Ollama" 이름 버그 (해결됨)
+
+**문제**: LibreChat v0.8.x에서 custom endpoint 이름을 "Ollama" (대소문자 무관)로 설정하면 agents controller로 잘못 라우팅되어 "fetch failed" 오류가 발생합니다.
+
+**원인**: LibreChat의 알려진 버그 ([Issue #10327](https://github.com/danny-avila/LibreChat/issues/10327))
+
+**해결책**: `librechat.yaml`에서 엔드포인트 이름을 "Ollama"가 아닌 다른 이름으로 변경:
+
+```yaml
+endpoints:
+  custom:
+    - name: "LocalLLM"  # "Ollama" 대신 다른 이름 사용
+      apiKey: "ollama"
+      baseURL: "http://host.docker.internal:11434/v1/"
+      modelDisplayLabel: "Ollama"  # UI에는 "Ollama"로 표시됨
+```
+
+이 설정으로 Ollama가 정상적으로 작동합니다.
+
+### ⚠️ MCP Tool Calling 제한사항 (중요)
+
+**문제**: LibreChat v0.8.x에서 일부 Ollama 모델을 사용한 MCP tool calling이 제대로 작동하지 않습니다.
+
+**원인**:
+- 일부 모델(qwen2.5-coder:3b, mistral:7b-instruct v0.2)은 tool call을 `message.content`에 JSON 문자열로 반환
+- LibreChat은 `tool_calls` 필드의 구조화된 객체를 기대함
+- 이로 인해 tool이 호출되지 않고 JSON만 텍스트로 표시됨
+- LiteLLM 프록시 사용 시 응답 변환 문제 발생
+
+**검증된 해결책**:
+1. **llama3.1:8b 사용 (✅ 권장)**:
+   - 가장 우수한 tool calling 지원 (91% 성공률)
+   - 가장 빠른 응답 속도 (4.04초 평균)
+   - 현재 설정에서 완벽히 작동 확인됨
+   ```bash
+   ollama pull llama3.1:8b
+   ```
+
+2. **대안 모델**:
+   - `mistral-nemo` (12B) - Mistral 7B보다 우수
+   - `qwen2.5:7b-instruct` - 빠르고 안정적
+
+3. **capabilities 설정 필수**:
+   ```yaml
+   capabilities:
+     tools: true
+     agents: true
+   ```
+
+4. **OpenAI/Claude API 사용**: 완벽한 MCP 통합 보장
+
+**참고 자료**:
+- [LibreChat Discussion #7639](https://github.com/danny-avila/LibreChat/discussions/7639) - MCP Tools 호출 문제
+- [Ollama Tool Support Blog](https://ollama.com/blog/tool-support) - 공식 지원 모델
+- [Best Ollama Models 2025 for Function Calling](https://collabnix.com/best-ollama-models-for-function-calling-tools-complete-guide-2025/) - 성능 벤치마크
 
 ### Ollama 연결 오류
 
