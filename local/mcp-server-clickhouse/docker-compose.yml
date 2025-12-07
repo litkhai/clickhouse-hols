@@ -1,0 +1,40 @@
+services:
+  mcp-clickhouse:
+    build: .
+    container_name: mcp-clickhouse-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # MCP Server transport settings
+      CLICKHOUSE_MCP_SERVER_TRANSPORT: http
+      CLICKHOUSE_MCP_BIND_HOST: 0.0.0.0
+      CLICKHOUSE_MCP_BIND_PORT: 3001
+
+      # ClickHouse connection settings (using local Docker container)
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse-latest}
+      CLICKHOUSE_PORT: ${CLICKHOUSE_PORT:-8123}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-default}
+      CLICKHOUSE_SECURE: ${CLICKHOUSE_SECURE:-false}
+
+      # Connection timeouts
+      CLICKHOUSE_CONNECT_TIMEOUT: 10
+      CLICKHOUSE_SEND_RECEIVE_TIMEOUT: 300
+
+      # Enable both ClickHouse and chDB tools
+      ENABLE_CLICKHOUSE_TOOLS: true
+      ENABLE_CHDB_TOOLS: false
+    networks:
+      - clickhouse-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost', 3001); conn.request('GET', '/health'); r = conn.getresponse(); exit(0 if r.status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  clickhouse-network:
+    external: true
