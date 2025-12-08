@@ -18,7 +18,7 @@
 ```bash
 # Docker 설치 확인
 docker --version
-docker-compose --version
+docker compose --version
 
 # Docker가 없다면:
 # https://docs.docker.com/get-docker/
@@ -137,7 +137,7 @@ mcpServers:
 
 ```
 llm-linux-librechat-sole/
-├── docker-compose.yml      # Docker 구성
+├── docker compose.yml      # Docker 구성
 ├── librechat.yaml          # LibreChat 설정 (MCP 포함)
 ├── .env                    # 환경 변수 (자동 생성)
 ├── .env.example            # 환경 변수 템플릿
@@ -153,7 +153,7 @@ llm-linux-librechat-sole/
 
 ## 설정 파일
 
-### docker-compose.yml
+### docker compose.yml
 
 LibreChat과 MongoDB 서비스 정의:
 - **LibreChat**: 포트 3080, Ollama 연결
@@ -245,13 +245,13 @@ lsof -i :3080
 
 ```bash
 # MongoDB 상태 확인
-docker-compose ps mongodb
+docker compose ps mongodb
 
 # MongoDB 로그 확인
 ./logs.sh mongodb
 
 # MongoDB 재시작
-docker-compose restart mongodb
+docker compose restart mongodb
 ```
 
 ### Ollama 연결 오류
@@ -319,7 +319,7 @@ LIBRECHAT_PORT=8080
 
 ### 외부 접근 허용
 
-`docker-compose.yml` 수정:
+`docker compose.yml` 수정:
 ```yaml
 ports:
   - "0.0.0.0:3080:3080"  # 모든 인터페이스에서 접근 가능
@@ -341,7 +341,7 @@ docker exec librechat-mongodb mongorestore /tmp/backup
 
 ### 리소스 제한
 
-`docker-compose.yml`에 추가:
+`docker compose.yml`에 추가:
 ```yaml
 services:
   librechat:
@@ -366,7 +366,7 @@ export OLLAMA_NUM_THREAD=8
 
 ### 2. MongoDB 성능 향상
 
-`docker-compose.yml`에 추가:
+`docker compose.yml`에 추가:
 ```yaml
 mongodb:
   command: --wiredTigerCacheSizeGB 2
@@ -406,7 +406,7 @@ cache: true  # 이미 활성화됨
 
 ### LibreChat 업데이트
 ```bash
-docker-compose pull
+docker compose pull
 ./restart.sh
 ```
 

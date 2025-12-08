@@ -7,7 +7,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${YELLOW}Stopping LibreChat services...${NC}"
-docker-compose down
+docker compose down
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Services stopped successfully${NC}"
