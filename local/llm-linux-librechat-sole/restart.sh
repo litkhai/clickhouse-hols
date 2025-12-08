@@ -7,7 +7,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}Restarting LibreChat services...${NC}"
-docker-compose restart
+docker compose restart
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Services restarted successfully${NC}"

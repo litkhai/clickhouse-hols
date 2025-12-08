@@ -16,26 +16,23 @@ endpoints:
       summaryModel: "current_model"
       forcePrompt: false
       modelDisplayLabel: "Ollama"
-      # Enable MCP tool support (필수)
       capabilities:
         tools: true
         agents: true
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MCP 서버 설정 (선택사항)
-# 아래 섹션의 주석을 해제하고 사용자의 MCP 서버 정보를 입력하세요
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 아래 mcpServers 섹션의 주석을 해제하고 사용자의 MCP 서버 정보를 입력하세요
+#
 # 예시 1: 인증 없는 MCP 서버
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # mcpServers:
-#   mysql:
+#   clickhouse:
 #     type: streamable-http
-#     url: http://mcp-mysql-server:3001/mcp
+#     url: http://mcp-clickhouse-server:3001/mcp
 #     timeout: 30000
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 예시 2: API 토큰 인증이 필요한 MCP 서버 (Bearer Token)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 예시 2: Bearer Token 인증
 # mcpServers:
 #   secure-api:
 #     type: streamable-http
@@ -43,39 +40,13 @@ endpoints:
 #     timeout: 30000
 #     headers:
 #       Authorization: "Bearer ${MCP_API_TOKEN}"
-#       # 또는 환경변수 사용:
-#       # Authorization: "Bearer your-api-token-here"
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 예시 3: API Key 헤더 인증
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# mcpServers:
-#   custom-api:
-#     type: streamable-http
-#     url: http://custom-mcp-server:3002/mcp
-#     timeout: 30000
-#     headers:
-#       X-API-Key: "${MCP_CUSTOM_API_KEY}"
-#       X-API-Secret: "${MCP_CUSTOM_API_SECRET}"
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 예시 4: Basic Auth 인증
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# mcpServers:
-#   basic-auth-api:
-#     type: streamable-http
-#     url: http://basic-auth-server:3003/mcp
-#     timeout: 30000
-#     headers:
-#       Authorization: "Basic ${MCP_BASIC_AUTH_TOKEN}"
-#       # Base64로 인코딩된 username:password 형식
-#       # echo -n "username:password" | base64
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 예시 5: 여러 MCP 서버 동시 사용
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# mcpServers:
 #
+# 예시 3: 여러 MCP 서버 동시 사용
+# mcpServers:
+#   clickhouse:
+#     type: streamable-http
+#     url: http://mcp-clickhouse-server:3001/mcp
+#     timeout: 30000
 #   postgres:
 #     type: streamable-http
 #     url: http://mcp-postgres-server:3002/mcp
@@ -83,22 +54,6 @@ endpoints:
 #     headers:
 #       Authorization: "Bearer ${POSTGRES_MCP_TOKEN}"
 #
-#   external-api:
-#     type: streamable-http
-#     url: https://external-mcp-api.com/mcp
-#     timeout: 30000
-#     headers:
-#       X-API-Key: "${EXTERNAL_API_KEY}"
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 환경변수 설정 방법:
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 1. .env 파일에 추가:
-#    MCP_API_TOKEN=your-token-here
-#    MCP_CUSTOM_API_KEY=your-key-here
-#    MCP_CUSTOM_API_SECRET=your-secret-here
-#
-# 2. docker-compose.yml에 환경변수 추가:
-#    environment:
-#      MCP_API_TOKEN: ${MCP_API_TOKEN}
-#      MCP_CUSTOM_API_KEY: ${MCP_CUSTOM_API_KEY}
+# 환경변수 설정: .env 파일에 추가 후 docker-compose.yml에서 전달
+# MCP_API_TOKEN=your-token-here
+# POSTGRES_MCP_TOKEN=postgres-token-here

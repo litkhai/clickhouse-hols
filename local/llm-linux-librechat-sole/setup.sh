@@ -166,7 +166,7 @@ start_services() {
     echo ""
 
     print_info "Starting containers..."
-    docker-compose up -d
+    docker compose up -d
 
     if [ $? -eq 0 ]; then
         print_success "Services started successfully"

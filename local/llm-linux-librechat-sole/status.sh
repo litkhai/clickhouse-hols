@@ -20,7 +20,7 @@ fi
 
 # Check containers
 echo -e "${CYAN}Container Status:${NC}"
-docker-compose ps
+docker compose ps
 
 echo ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
