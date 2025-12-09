@@ -1,5 +1,11 @@
 # ClickHouse Hands-On Labs (HOLs)
 
+[English](#english) | [한국어](#한국어)
+
+---
+
+## English
+
 A collection of practical, hands-on laboratory exercises for learning and exploring ClickHouse - the fast open-source column-oriented database management system.
 
 ## 🎯 Purpose
@@ -412,14 +418,6 @@ cd workload/sql-lab-gnome-variants
 1. **[chc/kafka](chc/kafka/)** - Real-time data streaming
 2. **[workload](workload/)** - Performance testing and optimization
 
-## 🇰🇷 한국어 문서 (Korean Documentation)
-
-한국어 사용자를 위한 상세한 문서는 [README.ko.md](README.ko.md)를 참조하세요.
-
-For detailed Korean documentation, please refer to [README.ko.md](README.ko.md).
-
-ClickHouse에 대한 더 많은 정보와 한국어 리소스는 [clickhouse.kr](https://clickhouse.kr)에서 확인하실 수 있습니다.
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
@@ -427,4 +425,185 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## 📝 License
 
 MIT License - See individual lab directories for specific license information.
+
+---
+
+## 한국어
+
+ClickHouse 학습 및 탐구를 위한 실무적이고 실용적인 실습 환경 모음입니다.
+
+### 🎯 목적
+
+이 실습은 다음을 통한 실무 경험을 제공합니다:
+- **ClickHouse OSS** (오픈소스 소프트웨어)
+- **ClickHouse Cloud** (관리형 서비스)
+
+초보자가 ClickHouse 기본을 배우거나 고급 기능을 탐구하는 숙련된 사용자 모두를 위해, 이 실습은 실제 시나리오와 함께 단계별 구조화된 연습을 제공합니다.
+
+### 📁 저장소 구조
+
+```
+clickhouse-hols/
+├── local/          # 로컬 환경 설정
+│   ├── oss-mac-setup/           # macOS용 ClickHouse OSS
+│   └── datalake-minio-catalog/  # MinIO를 사용한 로컬 데이터 레이크
+├── chc/            # ClickHouse Cloud 통합
+│   ├── api/        # API 테스트 및 통합
+│   ├── kafka/      # Kafka/Confluent 통합
+│   ├── lake/       # 데이터 레이크 통합 (Glue, MinIO)
+│   ├── tool/       # 도구 (costkeeper, ch2otel)
+│   └── s3/         # S3 통합 예제
+├── tpcds/          # TPC-DS 벤치마크
+├── usecase/        # 사용 사례 (customer360)
+└── workload/       # 성능 테스트 워크로드
+    ├── delete-benchmark/  # DELETE 작업 벤치마크
+    └── projection/        # Projection 성능 테스트
+```
+
+### 📚 사용 가능한 실습
+
+#### 🏠 로컬 환경 (`local/`)
+
+##### 1. [local/oss-mac-setup](local/oss-mac-setup/)
+**목적:** macOS에서 ClickHouse OSS (오픈소스) 실행을 위한 빠른 설정
+
+macOS용으로 최적화된 Docker를 사용한 개발 환경:
+- macOS에서 `get_mempolicy` 오류를 해결하기 위한 사용자 정의 seccomp 보안 프로필
+- 특정 ClickHouse 버전 또는 최신 버전 지원을 통한 버전 관리
+- 지속적인 데이터 저장을 위한 Docker 명명된 볼륨
+- 시작/중지/정리 작업을 위한 간편한 관리 스크립트
+- 다중 액세스 인터페이스 (Web UI, HTTP API, TCP)
+
+##### 2. [local/25.6](local/25.6/) - ClickHouse 25.6 신기능
+**목적:** ClickHouse 25.6 신기능 학습 및 테스트
+
+##### 3. [local/25.7](local/25.7/) - ClickHouse 25.7 신기능
+**목적:** ClickHouse 25.7 신기능 학습 및 테스트
+
+##### 4. [local/25.8](local/25.8/) - ClickHouse 25.8 신기능
+**목적:** MinIO 데이터 레이크 통합을 통한 ClickHouse 25.8 신기능 학습 및 테스트
+
+##### 5. [local/25.9](local/25.9/) - ClickHouse 25.9 신기능
+**목적:** ClickHouse 25.9 신기능 학습 및 테스트
+
+##### 6. [local/datalake-minio-catalog](local/datalake-minio-catalog/)
+**목적:** MinIO 및 다중 카탈로그 옵션을 사용한 로컬 데이터 레이크 환경
+
+Docker를 사용하여 로컬에서 실행되는 완전한 데이터 레이크 스택:
+- **MinIO**: 데이터 레이크 저장소를 위한 S3 호환 객체 스토리지
+- **다중 카탈로그 옵션**: Nessie (Git-like), Hive Metastore, 또는 Iceberg REST
+- **Apache Iceberg**: ACID 보장을 제공하는 최신 테이블 형식
+- **Jupyter Notebooks**: 사전 구성된 예제를 통한 대화형 데이터 탐색
+- **샘플 데이터**: 사전 로드된 JSON 및 Parquet 데이터셋
+
+#### ☁️ ClickHouse Cloud 통합 (`chc/`)
+
+##### 도구 (`chc/tool/`)
+
+###### [chc/tool/costkeeper](chc/tool/costkeeper/)
+**목적:** ClickHouse Cloud 비용 모니터링 및 알림 시스템
+
+ClickHouse Cloud의 비용과 리소스 사용량을 실시간으로 모니터링하고 이상 징후 발생 시 자동으로 Alert를 생성하는 시스템:
+- 100% ClickHouse Cloud 네이티브 (Refreshable Materialized View 기반)
+- 15분 단위 메트릭 수집 (데이터 손실 방지)
+- 실시간 비용 모니터링 및 효율성 분석
+- 자동 Alert 시스템 (INFO, WARNING, CRITICAL 3단계)
+
+###### [chc/tool/ch2otel](chc/tool/ch2otel/)
+**목적:** ClickHouse 시스템 메트릭을 OpenTelemetry로 자동 변환
+
+ClickHouse Cloud 시스템 메트릭과 로그를 OpenTelemetry 표준 형식으로 자동 변환:
+- 자동 변환 - 시스템 메트릭을 OTEL 형식으로 변환
+- 표준 준수 - OpenTelemetry Logs, Traces, Metrics 완전 지원
+- 자기 서비스 - Collector 불필요, CHC 내부에서 완전 동작
+
+##### API 테스트
+
+###### [chc/api/chc-api-test](chc/api/chc-api-test/)
+**목적:** ClickHouse Cloud API 테스트 및 통합 예제
+
+#### Kafka/Confluent 통합
+
+###### [chc/kafka/](chc/kafka/)
+ClickHouse Cloud와 Kafka 통합을 위한 다양한 시나리오
+
+##### 데이터 레이크 통합
+
+###### [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)
+**목적:** Apache Iceberg를 사용한 ClickHouse Cloud와 AWS Glue Catalog 통합
+
+##### S3 통합
+
+###### [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/)
+**목적:** IAM 역할 기반 인증을 사용한 안전한 ClickHouse Cloud S3 통합
+
+### 📊 벤치마크 및 워크로드
+
+#### [tpcds/](tpcds/)
+**목적:** ClickHouse 성능 테스트를 위한 TPC-DS 벤치마크
+
+#### [workload/delete-benchmark](workload/delete-benchmark/)
+**목적:** DELETE 작업 성능 벤치마크
+
+#### [workload/projection](workload/projection/)
+**목적:** Projection 성능 테스트 및 학습
+
+#### [usecase/customer360](usecase/customer360/)
+**목적:** 대규모 고객 360도 분석 종합 실습
+
+### 🛠 사전 요구사항
+
+#### 일반 요구사항
+- macOS, Linux, 또는 WSL2를 사용하는 Windows
+- Docker 및 Docker Compose
+- 기본 명령줄 지식
+
+#### 특정 요구사항
+- **로컬 실습**: Docker Desktop, Python 3.8+
+- **클라우드 실습**: Terraform, AWS CLI, AWS 계정
+- **ClickHouse Cloud 실습**: ClickHouse Cloud 계정
+- **벤치마크**: ClickHouse client, 충분한 디스크 공간
+
+### 🚀 시작하기
+
+1. **이 저장소 복제:**
+   ```bash
+   git clone https://github.com/yourusername/clickhouse-hols.git
+   cd clickhouse-hols
+   ```
+
+2. **학습 목표에 따라 실습 선택**
+
+3. **각 실습 디렉토리의 빠른 시작 지침 따르기**
+
+4. **종합 문서를 위한 각 실습의 상세한 README 읽기**
+
+### 📖 학습 경로
+
+#### 초보자를 위한 경로
+1. **[local/oss-mac-setup](local/oss-mac-setup/)** - 로컬에서 ClickHouse 기본 학습
+2. **[local/datalake-minio-catalog](local/datalake-minio-catalog/)** - 데이터 레이크 개념 탐색
+3. **[tpcds](tpcds/)** - 성능 및 벤치마킹 이해
+
+#### 클라우드 사용자를 위한 경로
+1. **[chc/api/chc-api-test](chc/api/chc-api-test/)** - ClickHouse Cloud API 학습
+2. **[chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/)** - 안전한 S3 통합
+3. **[chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)** - AWS Glue 통합
+
+#### 고급 사용자를 위한 경로
+1. **[chc/kafka](chc/kafka/)** - 실시간 데이터 스트리밍
+2. **[workload](workload/)** - 성능 테스트 및 최적화
+3. **[chc/tool/costkeeper](chc/tool/costkeeper/)** - 비용 모니터링 및 최적화
+
+### 🤝 기여
+
+기여를 환영합니다! 문제를 제출하거나 풀 리퀘스트를 자유롭게 제출해 주세요.
+
+### 📝 라이선스
+
+MIT License - 특정 라이선스 정보는 각 실습 디렉토리를 참조하세요.
+
+### 📚 추가 리소스
+
+ClickHouse에 대한 더 많은 정보와 한국어 리소스는 [clickhouse.kr](https://clickhouse.kr)에서 확인하실 수 있습니다.
 
