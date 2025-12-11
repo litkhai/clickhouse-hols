@@ -1,4 +1,32 @@
 services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.11
+    container_name: librechat-clickhouse
+    hostname: clickhouse
+    ports:
+      - "8123:8123"  # HTTP Interface
+      - "9000:9000"  # TCP Interface
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    restart: unless-stopped
+    networks:
+      - clickhouse-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
   mongodb:
     image: mongo:7.0
     container_name: librechat-mongodb
@@ -16,6 +44,37 @@ services:
       timeout: 5s
       retries: 5
 
+  mcp-clickhouse:
+    build: ../mcp-server-clickhouse
+    container_name: mcp-clickhouse-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    env_file:
+      - .env.clickhouse
+    environment:
+      CLICKHOUSE_MCP_SERVER_TRANSPORT: http
+      CLICKHOUSE_MCP_BIND_HOST: 0.0.0.0
+      CLICKHOUSE_MCP_BIND_PORT: 3001
+      CLICKHOUSE_CONNECT_TIMEOUT: 10
+      CLICKHOUSE_SEND_RECEIVE_TIMEOUT: 300
+      ENABLE_CLICKHOUSE_TOOLS: "true"
+      ENABLE_CHDB_TOOLS: "false"
+    networks:
+      - mcp-network
+      - clickhouse-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost', 3001); conn.request('GET', '/health'); r = conn.getresponse(); exit(0 if r.status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   librechat:
     image: ghcr.io/danny-avila/librechat:latest
     container_name: librechat
@@ -24,6 +83,8 @@ services:
       - "3080:3080"
     depends_on:
       mongodb:
+        condition: service_healthy
+      mcp-clickhouse:
         condition: service_healthy
     environment:
       MONGO_URI: mongodb://admin:admin123@mongodb:27017/LibreChat?authSource=admin
@@ -50,10 +111,15 @@ services:
 volumes:
   mongodb-data:
     driver: local
+  clickhouse-data:
+    driver: local
+  clickhouse-logs:
+    driver: local
 
 networks:
   librechat-network:
     driver: bridge
   mcp-network:
-    external: true
-    name: mcp-server-clickhouse_mcp-network
+    driver: bridge
+  clickhouse-network:
+    driver: bridge
