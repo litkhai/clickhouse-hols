@@ -56,7 +56,7 @@ try:
         user=os.environ['CHC_USER'],
         password=os.environ['CHC_PASSWORD'],
         database='default',
-        ssl=True
+        ssl={'ca': None}  # SSL 설정을 딕셔너리로 전달
     )
     cursor = connection.cursor()
     cursor.execute("SELECT 1")
@@ -73,6 +73,7 @@ try:
     pool = pooling.MySQLConnectionPool(
         pool_name="test_pool",
         pool_size=3,
+        pool_reset_session=False,  # 세션 리셋 비활성화
         host=os.environ['CHC_HOST'],
         port=int(os.environ['CHC_MYSQL_PORT']),
         user=os.environ['CHC_USER'],
