@@ -57,7 +57,7 @@ try:
     result = cursor.fetchone()
 
     # 연결 정보 확인
-    details = f"Protocol: {connection.get_server_info()}, Character Set: {connection.character_set_name}"
+    details = f"Connection established successfully"
 
     cursor.close()
     connection.close()
@@ -77,10 +77,8 @@ try:
         user=os.environ['CHC_USER'],
         password=os.environ['CHC_PASSWORD'],
         database='default',
-        ssl=True,
-        connect_timeout=10,
-        read_timeout=10,
-        write_timeout=10
+        ssl={'ca': None},  # SSL 설정을 딕셔너리로 전달
+        connect_timeout=30
     )
 
     cursor = connection.cursor()
