@@ -1,0 +1,150 @@
+
+==========================================================================
+  ClickHouse Cloud MySQL Interface 호환성 자동 테스트
+==========================================================================
+
+실행 시간: Sat Dec 13 15:33:47 KST 2025
+결과 저장: /Users/kenlee/Documents/GitHub/clickhouse-hols/chc/mysql-interface/test-results
+
+[0;34m[INFO][0m 1단계: 환경 설정 시작...
+환경 설정 중...
+✓ Python3: Python 3.9.6
+✓ pip3: pip 25.3 from /Users/kenlee/Library/Python/3.9/lib/python/site-packages/pip (python 3.9)
+
+Python 패키지 설치 중...
+✓ mysql-connector-python 설치 완료
+✓ pymysql 설치 완료
+
+✓ 환경 설정 완료
+[0;32m[SUCCESS][0m 환경 설정 완료
+
+[0;34m[INFO][0m 2단계: MySQL 클라이언트 설치 확인...
+MySQL 클라이언트 확인 중...
+
+운영체제: Darwin
+
+MySQL 클라이언트가 설치되어 있지 않습니다.
+
+macOS에서 MySQL 클라이언트 설치 확인...
+✓ Homebrew가 설치되어 있습니다.
+✓ MySQL 클라이언트가 Homebrew에 설치되어 있습니다.
+
+설치된 MySQL 클라이언트 버전: 9.5.0
+Major 버전: 9
+✓ MySQL 클라이언트 버전 확인 완료 (버전 5 이상)
+
+✓ MySQL 클라이언트 확인 완료
+[0;32m[SUCCESS][0m MySQL 클라이언트 확인 완료
+
+[0;34m[INFO][0m 3단계: ClickHouse Cloud 접속 정보 확인...
+ClickHouse Cloud 접속 정보 확인 중...
+
+설정 정보:
+  호스트: <your-service>.<region>.aws.clickhouse.cloud
+  포트: 3306
+  사용자: mysql4<your-service>
+  데이터베이스: mysql_interface
+  SSL 모드: REQUIRED
+
+연결 테스트 중...
+✓ 연결 성공!
+  ClickHouse 버전: 25.8.1.8909
+  현재 데이터베이스: default
+  MySQL 관련 설정:
+    function_locate_has_mysql_compatible_argument_order: 1
+    mysql_max_rows_to_insert: 65536
+    mysql_map_string_to_text_in_show_columns: 1
+    mysql_map_fixed_string_to_text_in_show_columns: 1
+    mysql_datatypes_support_level: 
+
+✓ 접속 정보 확인 완료
+[0;32m[SUCCESS][0m 접속 정보 확인 완료
+
+[0;34m[INFO][0m 4단계: 기본 호환성 테스트 실행...
+기본 호환성 테스트 실행 중...
+
+✓ Basic SELECT: SELECT 1 returned 1
+✓ Version Query: Version: 25.8.1.8909
+✓ Create Database: Database created successfully
+✓ Use Database: Database switched successfully
+✓ Create Table: Table created successfully
+✓ Insert Data: Data inserted successfully
+✓ Select Data: Retrieved: (1, 'test1', 100.5, datetime.datetime(2025, 12, 13, 6, 33, 50))
+✓ Aggregate COUNT: Count: 2
+✓ Prepared Statement: Retrieved: (2, 'test2', 200.75, datetime.datetime(2025, 12, 13, 6, 33, 50))
+✓ Cleanup: Table dropped successfully
+
+통계: 10/10 테스트 통과
+
+[0;34m[INFO][0m 5단계: SQL 구문 호환성 테스트 실행...
+SQL 구문 호환성 테스트 실행 중...
+
+✓ Single INSERT: Single row inserted
+✓ Multiple INSERT: Multiple rows inserted
+✓ SELECT WHERE: Found: John
+✓ SELECT ORDER BY: Ordered 3 rows
+✓ SELECT LIMIT: Limited to 2 rows
+✓ GROUP BY: Grouped into 3 groups
+✓ HAVING: Filtered to 2 groups
+✓ DISTINCT: Found 3 distinct values
+✓ IN Clause: Found 2 rows
+✓ BETWEEN: Found 3 rows
+✓ LIKE Pattern: Found 2 matches
+✓ CASE WHEN: Processed 3 rows
+
+통계: 12/12 테스트 통과 (100%)
+
+[0;34m[INFO][0m 6단계: 데이터 타입 호환성 테스트 실행...
+데이터 타입 호환성 테스트 실행 중...
+
+✓ Data Type INSERT: All data types inserted
+✓ Integer Types: TINYINT=127, INT=2147483647
+✓ Float Types: FLOAT=3.14
+✓ Decimal Type: DECIMAL=123.45
+✓ String Types: CHAR='test', VARCHAR='varchar test'
+✓ Date Types: DATE=2025-01-01
+
+통계: 6/6 테스트 통과
+
+[0;34m[INFO][0m 7단계: 함수 호환성 테스트 실행...
+함수 호환성 테스트 실행 중...
+
+✓ CONCAT: Result: Hello World
+✓ UPPER: Result: TEST
+✓ LOWER: Result: test
+✓ LENGTH: Result: 5
+✓ SUBSTRING: Result: Hello
+✓ NOW: Result: 2025-12-13 06:33:53
+✓ CURDATE: Result: 2025-12-13
+✓ YEAR: Result: 2025
+✓ MONTH: Result: 12
+✓ COUNT: Result: 921
+✗ SUM: 2013 (HY000): Lost connection to MySQL server during query
+✗ AVG: 2013 (HY000): Lost connection to MySQL server during query
+
+통계: 10/12 테스트 통과 (83%)
+
+[0;34m[INFO][0m 8단계: TPC-DS 벤치마크 테스트 실행...
+TPC-DS 벤치마크 테스트 실행 중...
+
+✓ Q1: Simple Aggregation: Rows: 1 (32.69ms)
+✓ Q2: GROUP BY: Groups: 10 (35.59ms)
+✓ Q3: HAVING: Groups: 10 (34.31ms)
+✓ Q4: Subquery: Rows: 10 (54.59ms)
+✓ Q5: CASE WHEN: Rows: 20 (31.97ms)
+✓ Q6: JOIN: Rows: 20 (24.57ms)
+✓ Q7: IN Clause: Rows: 50 (33.17ms)
+
+통계: 7/7 테스트 통과 (100%)
+평균 실행 시간: 35.27ms
+
+[0;34m[INFO][0m 9단계: Python 드라이버 테스트 실행...
+Python 드라이버 호환성 테스트 실행 중...
+
+✓ mysql-connector-python: Connection successful
+✗ PyMySQL: 'bool' object has no attribute 'get'
+✗ Connection Pooling: 48 (HY000): Code: 48. DB::Exception: Command  is not implemented. (NOT_IMPLEMENTED) (version 25.8.1.8909 (official build))
+✓ Prepared Statements: Result: 30
+✓ Batch Operations: Inserted 5 rows
+
+통계: 3/5 테스트 통과 (60%)
