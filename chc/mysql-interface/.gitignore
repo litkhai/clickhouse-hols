@@ -1,0 +1,28 @@
+# 접속 정보 (민감한 정보 포함)
+config/chc-config.sh
+
+# 테스트 결과
+test-results/*.json
+test-results/*.md
+
+# 로그 파일
+logs/*.log
+
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 임시 파일
+*.tmp
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.iml

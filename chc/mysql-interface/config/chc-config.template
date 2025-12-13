@@ -1,0 +1,21 @@
+# ClickHouse Cloud MySQL Interface 접속 정보
+# 이 파일을 복사하여 chc-config.sh로 저장하고 실제 값을 입력하세요.
+# cp chc-config.template chc-config.sh
+
+# ClickHouse Cloud 호스트 (예: abc123.us-east-1.aws.clickhouse.cloud)
+export CHC_HOST="your-instance.clickhouse.cloud"
+
+# MySQL Interface 포트 (기본값: 9004)
+export CHC_MYSQL_PORT="9004"
+
+# 사용자명 (기본값: default)
+export CHC_USER="default"
+
+# 비밀번호
+export CHC_PASSWORD="your-password"
+
+# 데이터베이스 (기본값: default)
+export CHC_DATABASE="mysql_interface"
+
+# SSL 설정 (REQUIRED, DISABLED)
+export CHC_SSL_MODE="REQUIRED"
