@@ -1,664 +1,419 @@
 # Data Lake with MinIO and Multiple Catalogs
 
-A complete setup for running a local data lake environment with MinIO object storage and choice of **5 data catalogs**: Nessie, Hive Metastore, Iceberg REST, **Polaris**, and **Unity Catalog**.
+**English** | [한국어](README.ko.md)
 
-**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../25.8/) - Fully tested with ClickHouse 25.10 and 25.11 for data lake analytics and catalog integration.
+A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.
 
-## Features
+**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../25.8/) - Fully tested with ClickHouse 25.10 and 25.11
 
-- **MinIO Object Storage**: S3-compatible object storage (ports 19000 API, 19001 Console)
+---
+
+## 🚀 Quick Start
+
+### Method 1: Single Catalog (setup.sh)
+
+Recommended for focused work with one catalog
+
+```bash
+# 1. Configure (select 1 catalog)
+./setup.sh --configure
+
+# 2. Start
+./setup.sh --start
+
+# 3. Try example
+./examples/basic-s3-read-write.sh
+```
+
+### Method 2: Multiple Catalogs (setup-multi-catalog.sh)
+
+Recommended for comparing/testing multiple catalogs simultaneously
+
+```bash
+# 1. Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Or start specific catalogs
+./setup-multi-catalog.sh --start nessie unity hive
+
+# 2. Try example
+./examples/basic-s3-read-write.sh
+```
+
+---
+
+## 📖 Features
+
+- **MinIO Object Storage**: S3-compatible storage (ports 19000 API, 19001 Console)
 - **5 Data Catalog Options**:
-  - **Nessie** (Default): Git-like catalog with branching and versioning (port 19120)
-  - **Hive Metastore**: Traditional, widely-supported catalog (port 9083)
-  - **Iceberg REST**: Standard REST API catalog (port 8181)
-  - **Polaris**: Apache Polaris - Open source catalog for Apache Iceberg (ports 8182, 8183)
-  - **Unity Catalog**: Databricks Unity Catalog (port 8080)
+  - **Nessie** (Default): Git-like versioning (port 19120)
+  - **Hive Metastore**: Traditional, widely supported (port 9083)
+  - **Iceberg REST**: Standard REST API (port 8181)
+  - **Polaris**: Apache Polaris (ports 8182, 8183)
+  - **Unity Catalog**: Databricks-compatible (port 8080)
 - **Apache Iceberg**: Table format for huge analytic datasets
 - **Jupyter Notebooks**: Interactive data exploration (port 8888)
-- **ClickHouse Integration**: Fully tested with ClickHouse 25.10 and 25.11
+- **ClickHouse Integration**: Fully tested with 25.10 and 25.11
 
-## Prerequisites
+---
 
-- Docker and Docker Compose
-- Python 3.8+ (for data generation scripts)
-- 20GB+ disk space (configurable)
-- ClickHouse 25.10+ (for catalog integration testing)
+## 🎯 Usage Recommendations by Scenario
 
-## Quick Start
-
-### 1. Configure the Setup
+### Scenario 1: Focus on One Catalog
+**Recommended**: Use `setup.sh`
 
 ```bash
-./setup.sh --configure
-```
-
-This will prompt you to:
-- Set MinIO storage size (default: 20GB)
-- Configure MinIO ports (default: 19000 API, 19001 Console)
-- Choose data catalog: Nessie (1), Hive (2), Iceberg REST (3), Polaris (4), or Unity (5)
-- Configure catalog-specific ports
-
-**Default Port Configuration:**
-- **MinIO API**: 19000
-- **MinIO Console**: 19001
-- **Nessie**: 19120
-- **Hive Metastore**: 9083
-- **PostgreSQL** (for Hive): 5432
-- **Iceberg REST**: 8181
-- **Polaris API**: 8182
-- **Polaris Management**: 8183
-- **Unity Catalog**: 8080
-- **Jupyter**: 8888
-
-### 2. Start Services
-
-```bash
+./setup.sh --configure  # Select Unity Catalog
 ./setup.sh --start
 ```
 
-This will:
-- Build the custom Jupyter image with Iceberg support (first time only)
-- Create necessary directories
-- Start Docker containers
-- Wait for services to be ready
-- Display connection endpoints
+**Benefits**:
+- Resource efficient
+- Focused on one catalog
+- Simple configuration
 
-**Note**: First-time startup takes 5-10 minutes to build the Jupyter image with all dependencies.
-
-### 3. Test Integration with ClickHouse 25.11
-
-#### Setup ClickHouse 25.11
+### Scenario 2: Compare and Test Catalogs
+**Recommended**: Use `setup-multi-catalog.sh`
 
 ```bash
-cd ../oss-mac-setup
-./set.sh 25.11
-./start.sh
+./setup-multi-catalog.sh --start nessie unity hive
 ```
 
-#### Run Integration Tests
+**Benefits**:
+- Run multiple catalogs simultaneously
+- Easy feature comparison
+- Comprehensive testing
+
+### Scenario 3: Development and Experimentation
+**Recommended**: Use both tools as needed
 
 ```bash
-cd ../datalake-minio-catalog
-./test-catalogs.sh
+# Main work: Use setup.sh for Unity Catalog
+./setup.sh --start  # Unity only
+
+# Comparison tests: Use setup-multi-catalog.sh
+./setup-multi-catalog.sh --start nessie unity
 ```
 
-This will test:
-- ✅ MinIO read/write operations via ClickHouse S3 functions
-- ✅ Active catalog connectivity and basic operations
-- ✅ Full read/write integration with ClickHouse 25.11
+---
 
-**Test Results Summary (All 5 Catalogs Tested)**
-
-| Catalog | MinIO Read/Write | Catalog Connectivity | ClickHouse 25.11 Integration | Status |
-|---------|------------------|----------------------|------------------------------|--------|
-| **Nessie** | ✅ PASSED | ✅ PASSED | ✅ PASSED | ✅ |
-| **Hive Metastore** | ✅ PASSED | ✅ PASSED | ✅ PASSED | ✅ |
-| **Iceberg REST** | ✅ PASSED | ✅ PASSED | ✅ PASSED | ✅ |
-| **Polaris** | ✅ PASSED | ✅ PASSED | ✅ PASSED | ✅ |
-| **Unity Catalog** | ✅ PASSED | ✅ PASSED | ✅ PASSED | ✅ |
-
-**Test Details:**
-- **Test Date**: December 2025
-- **ClickHouse Version**: 25.11.2.24
-- **Test Script**: [test-catalogs.sh](test-catalogs.sh)
-- **All catalogs** successfully tested with read/write operations
-- **MinIO S3 functions** working correctly from ClickHouse
-- **Catalog connectivity** verified via health checks
-
-**Expected Output:**
-```
-========================================
-  ClickHouse 25.11 Catalog Integration Test
-========================================
-
-Checking ClickHouse 25.11...
-ClickHouse version: 25.11.2.24
-ClickHouse 25.11 is ready!
-
-Running integration tests...
-
-Testing MinIO connection...
-✓ MinIO is healthy
-✓ Write to MinIO succeeded
-✓ Read from MinIO succeeded (count: 2)
-
-Testing Nessie Catalog...
-✓ Nessie is healthy
-✓ Nessie catalog test passed
-
-========================================
-  Test Summary
-========================================
-
-Active Catalog: nessie
-
-  ✓ minio: PASSED
-  ✓ nessie: PASSED
-
-Total: 2 passed, 0 failed
-
-All tests passed!
-```
-
-## Service Endpoints
-
-After starting the services, you'll have access to:
-
-### MinIO Object Storage
-- **Console UI**: http://localhost:19001
-- **API Endpoint**: http://localhost:19000
-- **Credentials**:
-  - Access Key: `admin`
-  - Secret Key: `password123`
-- **Default Bucket**: `warehouse`
-
-### Data Catalogs
-
-#### Nessie (Default)
-- **API**: http://localhost:19120/api/v2
-- **UI**: http://localhost:19120
-- **Features**: Git-like versioning, branching, time-travel
-
-#### Hive Metastore
-- **Thrift URI**: `thrift://localhost:9083`
-- **PostgreSQL**: `localhost:5432`
-  - Database: `metastore`
-  - User: `hive`
-  - Password: `hive`
-
-#### Iceberg REST Catalog
-- **API**: http://localhost:8181
-- **Spec**: Standard Iceberg REST API
-
-#### Polaris (NEW)
-- **API Endpoint**: http://localhost:8182
-- **Management API**: http://localhost:8183
-- **Admin Credentials**:
-  - Realm: `default-realm`
-  - Client ID: `admin`
-  - Client Secret: `polaris`
-
-#### Unity Catalog (NEW)
-- **API Endpoint**: http://localhost:8080
-- **API Version**: 2.1
-- **Features**: Open-source Databricks Unity Catalog
-
-### Jupyter Notebook
-- **URL**: http://localhost:8888
-- **No password required**
-- Pre-configured with sample notebooks
-
-## Usage Commands
-
-```bash
-# Configure setup
-./setup.sh --configure
-
-# Start all services
-./setup.sh --start
-
-# Stop all services
-./setup.sh --stop
-
-# Restart all services
-./setup.sh --restart
-
-# Show service status
-./setup.sh --status
-
-# Show endpoints
-./setup.sh --endpoints
-
-# Clean up (remove all data)
-./setup.sh --clean
-
-# Test catalog integration with ClickHouse
-./test-catalogs.sh
-```
-
-## ClickHouse Integration
-
-### Using ClickHouse 25.11 with MinIO
-
-**For ClickHouse running in Docker** (recommended):
-```sql
--- From inside ClickHouse container
--- Use host.docker.internal to access MinIO from ClickHouse container
-CREATE TABLE orders_from_s3
-ENGINE = S3(
-    'http://host.docker.internal:19000/warehouse/test/data.parquet',
-    'admin',
-    'password123',
-    'Parquet'
-);
-
--- Query data
-SELECT * FROM orders_from_s3 LIMIT 10;
-```
-
-**For external ClickHouse** (running on host):
-```sql
--- Create table with S3 engine
-CREATE TABLE orders_from_s3
-ENGINE = S3(
-    'http://localhost:19000/warehouse/test/data.parquet',
-    'admin',
-    'password123',
-    'Parquet'
-);
-
--- Query data
-SELECT * FROM orders_from_s3 LIMIT 10;
-```
-
-### Using ClickHouse with Iceberg Catalogs
-
-```sql
--- Enable Iceberg integration (ClickHouse 23.3+)
-SET allow_experimental_object_type = 1;
-
--- Create Iceberg table with Nessie catalog
-CREATE TABLE orders_iceberg
-ENGINE = Iceberg(
-    'http://localhost:19120/api/v2',  -- Nessie catalog endpoint
-    'warehouse',
-    'demo.orders'
-)
-SETTINGS
-    s3_endpoint = 'http://localhost:19000',  -- MinIO endpoint
-    s3_access_key_id = 'admin',
-    s3_secret_access_key = 'password123';
-
--- Note: Use host.docker.internal if ClickHouse runs in Docker
-```
-
-### Tested ClickHouse Versions
-
-This setup has been fully tested with:
-- ✅ **ClickHouse 25.11.2.24** (Recommended)
-- ✅ **ClickHouse 25.10** (Fully supported)
-- ✅ **ClickHouse 25.8** (Compatible)
-
-## Testing Different Catalogs
-
-To test each catalog type:
-
-### 1. Test Nessie (Default)
-
-```bash
-# Already configured by default
-./setup.sh --start
-./test-catalogs.sh
-```
-
-### 2. Test Hive Metastore
-
-```bash
-# Stop current services
-./setup.sh --stop
-
-# Reconfigure for Hive
-./setup.sh --configure
-# Select option 2 (Hive Metastore)
-
-# Start Hive services
-./setup.sh --start
-
-# Run tests
-./test-catalogs.sh
-```
-
-### 3. Test Iceberg REST
-
-```bash
-# Stop current services
-./setup.sh --stop
-
-# Reconfigure for Iceberg REST
-./setup.sh --configure
-# Select option 3 (Iceberg REST)
-
-# Start services
-./setup.sh --start
-
-# Run tests
-./test-catalogs.sh
-```
-
-### 4. Test Polaris
-
-```bash
-# Stop current services
-./setup.sh --stop
-
-# Reconfigure for Polaris
-./setup.sh --configure
-# Select option 4 (Polaris)
-
-# Start services
-./setup.sh --start
-
-# Run tests
-./test-catalogs.sh
-```
-
-### 5. Test Unity Catalog
-
-```bash
-# Stop current services
-./setup.sh --stop
-
-# Reconfigure for Unity Catalog
-./setup.sh --configure
-# Select option 5 (Unity Catalog)
-
-# Start services
-./setup.sh --start
-
-# Run tests
-./test-catalogs.sh
-```
-
-## Directory Structure
+## 📁 Project Structure
 
 ```
 datalake-minio-catalog/
-├── config.env              # Configuration file
-├── docker-compose.yml      # Docker services definition
-├── setup.sh               # Main setup script
-├── test-catalogs.sh       # ClickHouse integration test script
-├── generate_parquet.py    # Generate sample Parquet data
-├── register_data.py       # Register data with catalog
-├── minio-storage/         # MinIO data (auto-created)
-├── sample-data/           # Sample data files
-│   ├── customers.json     # Sample JSON data
-│   └── orders.parquet     # Sample Parquet data
-└── notebooks/             # Jupyter notebooks
-    ├── 01_minio_connection.ipynb
-    ├── 02_iceberg_nessie.ipynb
-    ├── 03_clickhouse_integration.ipynb
-    └── 04_spark_iceberg_nessie.ipynb
+│
+├── 🔧 Core Setup Scripts
+│   ├── setup.sh                    # Single catalog setup
+│   ├── setup-multi-catalog.sh      # Multi-catalog setup
+│   ├── config.env                  # Single catalog config
+│   ├── config-multi-catalog.env    # Multi-catalog config
+│   └── docker-compose.yml          # Docker services
+│
+├── 📚 Documentation
+│   ├── README.md (this file)       # English docs
+│   ├── README.ko.md                # Korean docs
+│   └── docs/                       # Detailed docs
+│
+├── 🧪 Tests
+│   └── tests/
+│       ├── test-catalogs.sh        # All catalogs test
+│       └── test-unity-deltalake.sh # Unity + Delta Lake test
+│
+├── 💡 Examples
+│   └── examples/
+│       ├── basic-s3-read-write.sh  # Basic S3 operations
+│       └── delta-lake-simple.sh    # Delta Lake example
+│
+└── 📓 Jupyter Notebooks
+    └── notebooks/
 ```
-
-## Catalog Comparison
-
-| Feature | Nessie | Hive Metastore | Iceberg REST | Polaris | Unity Catalog |
-|---------|--------|----------------|--------------|---------|---------------|
-| **Type** | Git-like | Traditional | REST API | Iceberg-native | Multi-table format |
-| **Versioning** | ✅ Git-like branches | ❌ | Limited | ✅ | ✅ |
-| **Time Travel** | ✅ | ❌ | ✅ | ✅ | ✅ |
-| **ACID Support** | ✅ | Limited | ✅ | ✅ | ✅ |
-| **Branching** | ✅ | ❌ | ❌ | ✅ | ❌ |
-| **Open Source** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Maturity** | Modern | Very mature | Modern | New | Modern |
-| **Best For** | Modern data lake with version control | Legacy systems, Hive compatibility | Standard REST integration | Iceberg-focused workflows | Databricks-compatible workflows |
-
-## Troubleshooting
-
-### Services not starting
-```bash
-# Check Docker logs
-docker logs minio
-docker logs nessie  # or hive-metastore, iceberg-rest, polaris, unity-catalog
-
-# Verify Docker Compose
-docker compose ps
-
-# Check all running containers
-docker ps
-```
-
-### Cannot connect to MinIO
-```bash
-# Check if MinIO is healthy
-curl http://localhost:19000/minio/health/live
-
-# Check MinIO Console access
-curl http://localhost:19001
-
-# Check MinIO logs
-docker logs minio
-```
-
-### Catalog connection issues
-
-#### 1. Nessie Catalog
-
-**Health Check:**
-```bash
-curl http://localhost:19120/api/v2/config
-```
-
-**Connection Considerations:**
-- Nessie uses port **19120** by default
-- HTTP-based REST API - no authentication required in this setup
-- Starts quickly (5-10 seconds)
-- Check logs: `docker logs nessie`
-
-**Common Issues:**
-- Port conflict: Change `NESSIE_PORT` in [config.env](config.env)
-- Container not started: Verify with `docker ps | grep nessie`
 
 ---
 
-#### 2. Hive Metastore
+## 🎮 Command Guide
 
-**Health Check:**
+### setup.sh (Single Catalog)
+
 ```bash
-# Check if Thrift port is listening
-nc -zv localhost 9083
+# Configure (required)
+./setup.sh --configure
 
-# Or use netstat
-netstat -an | grep 9083
-```
-
-**Connection Considerations:**
-- Uses **Thrift protocol** on port 9083 (not HTTP)
-- Requires **PostgreSQL 11** (not 15+) for compatibility
-- Uses **Hive 3.1.3** (not 4.0.0) to avoid JDBC driver issues
-- Takes longer to initialize (30-45 seconds for schema setup)
-- Check logs: `docker logs hive-metastore` and `docker logs postgres-hive`
-
-**Common Issues:**
-- **Schema initialization failed**: PostgreSQL authentication issue
-  - Solution: Use PostgreSQL 11, not 15+
-  - Error: `The authentication type 10 is not supported`
-- **JDBC driver not found**: Hive 4.0.0 compatibility issue
-  - Solution: Use Hive 3.1.3 image
-  - Error: `ClassNotFoundException: org.postgresql.Driver`
-- **Connection refused**: Metastore still initializing
-  - Solution: Wait 30-45 seconds after startup
-  - Check: `docker logs hive-metastore | grep "Starting Hive Metastore Server"`
-
----
-
-#### 3. Iceberg REST Catalog
-
-**Health Check:**
-```bash
-curl http://localhost:8181/v1/config
-```
-
-**Connection Considerations:**
-- REST API on port **8181**
-- Lightweight, starts quickly (5-10 seconds)
-- No authentication required in this setup
-- Check logs: `docker logs iceberg-rest`
-
-**Common Issues:**
-- Port conflict: Change `ICEBERG_REST_PORT` in [config.env](config.env)
-
----
-
-#### 4. Polaris Catalog
-
-**Health Check:**
-```bash
-# Use management port for health check
-curl http://localhost:8183/q/health
-
-# API endpoint (for catalog operations)
-curl http://localhost:8182/api/management/v1/catalogs
-```
-
-**Connection Considerations:**
-- **Two ports required:**
-  - API Port: **8182** (for catalog operations)
-  - Management Port: **8183** (for health checks and admin)
-- Health check uses `/q/health` on **management port 8183** (not API port 8182)
-- Apache Polaris is Iceberg-native
-- Check logs: `docker logs polaris`
-
-**Common Issues:**
-- **Wrong health check endpoint**: Must use port 8183 with `/q/health`
-  - Incorrect: `http://localhost:8182/health` ❌
-  - Correct: `http://localhost:8183/q/health` ✅
-- Port conflicts: Configure both `POLARIS_PORT` and `POLARIS_MGMT_PORT`
-
----
-
-#### 5. Unity Catalog
-
-**Health Check:**
-```bash
-curl http://localhost:8080/api/2.1/unity-catalog/catalogs
-```
-
-**Connection Considerations:**
-- REST API on port **8080**
-- Uses API version **2.1**
-- Large Docker image (~2GB download on first start)
-- Takes 1-2 minutes to start (image download + initialization)
-- Check logs: `docker logs unity-catalog`
-
-**Common Issues:**
-- **Long first startup**: Large image download
-  - Solution: Be patient, first pull takes 5-10 minutes
-- Port conflict with other services (8080 is common)
-  - Solution: Change `UNITY_PORT` in [config.env](config.env)
-
----
-
-#### General Catalog Troubleshooting
-```bash
-# Check all catalog containers
-docker ps --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity"
-
-# Check specific catalog logs
-docker logs <catalog-container-name>
-
-# Restart specific catalog
-./setup.sh --stop
-# Edit config.env to change CATALOG_TYPE
+# Start
 ./setup.sh --start
+
+# Stop
+./setup.sh --stop
+
+# Status
+./setup.sh --status
+
+# Clean data
+./setup.sh --clean
 ```
 
-### ClickHouse connection issues
+### setup-multi-catalog.sh (Multiple Catalogs)
 
-**Problem**: ClickHouse cannot connect to MinIO
-```
-Code: 198. DB::NetException: Not found address of host: minio
-```
+```bash
+# Start all catalogs
+./setup-multi-catalog.sh --start
 
-**Solution**: Use `host.docker.internal` instead of `localhost` when ClickHouse runs in Docker:
-```sql
--- Change this:
-s3('http://localhost:19000/warehouse/data.parquet', ...)
+# Start specific catalogs
+./setup-multi-catalog.sh --start nessie unity
 
--- To this:
-s3('http://host.docker.internal:19000/warehouse/data.parquet', ...)
-```
+# Stop
+./setup-multi-catalog.sh --stop
 
-**Problem**: File already exists error
-```
-Code: 36. DB::Exception: Object in bucket already exists
+# Status
+./setup-multi-catalog.sh --status
+
+# Configure (optional - has defaults)
+./setup-multi-catalog.sh --configure
 ```
 
-**Solution**: Enable overwrite setting:
-```sql
-SET s3_truncate_on_insert = 1;
+---
+
+## 🔍 Service Endpoints
+
+After starting services, access via:
+
+### MinIO
+- **Console UI**: http://localhost:19001
+- **API Endpoint**: http://localhost:19000
+- **Credentials**: admin / password123
+
+### Data Catalogs
+
+| Catalog | Endpoint | Port |
+|---------|----------|------|
+| **Nessie** | http://localhost:19120 | 19120 |
+| **Hive** | thrift://localhost:9083 | 9083 |
+| **Iceberg REST** | http://localhost:8181 | 8181 |
+| **Polaris** | http://localhost:8182 | 8182, 8183 |
+| **Unity** | http://localhost:8080 | 8080 |
+
+### Jupyter Notebook
+- **URL**: http://localhost:8888 (no password)
+
+---
+
+## 💡 Usage Examples
+
+### Example 1: Basic S3 Read/Write
+
+```bash
+# Start MinIO + catalog
+./setup.sh --start
+
+# Run example
+./examples/basic-s3-read-write.sh
+```
+
+### Example 2: Delta Lake Operations
+
+```bash
+# Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Run Delta Lake example
+./examples/delta-lake-simple.sh
+```
+
+### Example 3: Catalog Comparison
+
+```bash
+# Start 3 catalogs simultaneously
+./setup-multi-catalog.sh --start nessie unity hive
+
+# Run comparison test
+./tests/test-catalogs.sh
+```
+
+---
+
+## 🧪 ClickHouse Integration Testing
+
+### Tested Versions
+
+| Version | Unity Catalog | Delta Lake | Status | Recommendation |
+|---------|--------------|------------|--------|----------------|
+| **25.11.2.24** | ✅ Full support | ✅ Full support | ✅ All tests passed | **Recommended** |
+| **25.10.3.100** | ✅ Basic support | ⚠️ Limited support | ⚠️ 80% tests passed | Use with caution |
+
+### Unity Catalog + Delta Lake Testing
+
+```bash
+# 1. Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# 2. Start ClickHouse
+cd ../oss-mac-setup
+./set.sh 25.11 && ./start.sh
+cd ../datalake-minio-catalog
+
+# 3. Run integration test
+./tests/test-unity-deltalake.sh
+
+# 4. View results
+cat docs/test-results/test-results-*.md
+```
+
+Detailed comparison: [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
+
+---
+
+## 📊 Catalog Comparison
+
+| Feature | Nessie | Hive | Iceberg REST | Polaris | Unity |
+|---------|--------|------|--------------|---------|-------|
+| **Versioning** | ✅ Git-like | ❌ | Limited | ✅ | ✅ |
+| **Time Travel** | ✅ | ❌ | ✅ | ✅ | ✅ |
+| **Branching** | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **ACID** | ✅ | Limited | ✅ | ✅ | ✅ |
+| **Maturity** | Modern | Very mature | Modern | New | Modern |
+| **Best For** | Version control | Legacy systems | Standard API | Iceberg-focused | Databricks-compatible |
+
+---
+
+## 🔄 Workflow Examples
+
+### Workflow 1: Quick Test
+
+```bash
+# Method A: Single catalog
+./setup.sh --configure && ./setup.sh --start
+./examples/basic-s3-read-write.sh
+
+# Method B: Multiple catalogs
+./setup-multi-catalog.sh --start
+./examples/basic-s3-read-write.sh
+```
+
+### Workflow 2: Unity Catalog Deep Dive
+
+```bash
+# Start Unity only
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Start ClickHouse and test
+cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../datalake-minio-catalog
+./tests/test-unity-deltalake.sh
+```
+
+### Workflow 3: Catalog Comparison Analysis
+
+```bash
+# Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Start ClickHouse
+cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../datalake-minio-catalog
+
+# Run comprehensive test
+./tests/test-catalogs.sh
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Services won't start
+
+```bash
+# Check Docker
+docker ps
+
+# Check logs
+docker logs minio
+docker logs unity-catalog
+
+# Check status
+./setup.sh --status
+./setup-multi-catalog.sh --status
 ```
 
 ### Port conflicts
 
-If you get port binding errors:
-
-1. **Check what's using the port:**
 ```bash
-lsof -i :19000  # Check MinIO API port
-lsof -i :19001  # Check MinIO Console port
-lsof -i :19120  # Check Nessie port
-lsof -i :8182   # Check Polaris port
-lsof -i :8080   # Check Unity port
-```
+# Check port usage
+lsof -i :19000
 
-2. **Change ports during configuration:**
-```bash
+# Reconfigure ports
 ./setup.sh --configure
-# Then enter your preferred ports
+# or
+./setup-multi-catalog.sh --configure
 ```
 
-3. **Or manually edit** [config.env](config.env):
-```bash
-MINIO_PORT=19000
-MINIO_CONSOLE_PORT=19001
-NESSIE_PORT=19120
-POLARIS_PORT=8182
-UNITY_PORT=8080
-# ... etc
+### ClickHouse connection issues
+
+```sql
+-- From Docker container: use host.docker.internal
+SELECT * FROM s3(
+    'http://host.docker.internal:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
+
+-- From host: use localhost
+SELECT * FROM s3(
+    'http://localhost:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
 ```
 
-4. **Restart services** after port changes:
-```bash
-./setup.sh --stop
-./setup.sh --start
-```
+---
 
-## Data Persistence
+## 📚 Documentation
 
-- MinIO data is persisted in [minio-storage/](minio-storage/)
-- PostgreSQL data (for Hive) is in Docker volume `postgres-data`
-- Unity Catalog data is in Docker volume `unity-data`
-- To clean all data: `./setup.sh --clean`
+### English Documentation
+- **[README.md](README.md)** (this file) - Main documentation
+- **[docs/QUICKSTART_GUIDE.md](docs/QUICKSTART_GUIDE.md)** - Quick start
+- **[docs/SPARK_SETUP.md](docs/SPARK_SETUP.md)** - Spark integration
+- **[docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity testing
+- **[docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)** - Version comparison
 
-## Python Dependencies
+### Korean Documentation (한글 문서)
+- **[README.ko.md](README.ko.md)** - 한글 메인 문서
+- **[docs/NAVIGATION_GUIDE.md](docs/NAVIGATION_GUIDE.md)** - 프로젝트 탐색 가이드
 
-For local development:
+---
 
-```bash
-pip install minio boto3 pandas pyarrow pyiceberg pynessie
-```
+## 🎯 Recommendations Summary
 
-For Jupyter notebooks (already included in container):
-- All above packages plus PySpark
+| Use Case | Recommended Tool | Reason |
+|----------|-----------------|--------|
+| **Single catalog work** | `setup.sh` | Resource efficient, focused |
+| **Catalog comparison** | `setup-multi-catalog.sh` | Simultaneous execution, easy comparison |
+| **Unity deep testing** | `setup.sh` + Unity | Focused testing environment |
+| **Comprehensive testing** | `setup-multi-catalog.sh` | All catalogs at once |
+| **Development/Experimentation** | Use both | Flexible environment switching |
 
-## Architecture
+---
 
-```
-┌─────────────────────────────────────────────┐
-│        Data Lake Architecture (5 Catalogs)  │
-├─────────────────────────────────────────────┤
-│                                             │
-│  ┌──────────┐      ┌────────────────────┐  │
-│  │  MinIO   │◄────►│  Data Catalogs:    │  │
-│  │ (Storage)│      │  - Nessie          │  │
-│  └──────────┘      │  - Hive Metastore  │  │
-│       ▲            │  - Iceberg REST    │  │
-│       │            │  - Polaris         │  │
-│       │            │  - Unity Catalog   │  │
-│       │            └────────────────────┘  │
-│  ┌────┴─────┐              ▲               │
-│  │ Jupyter  │              │               │
-│  │ Notebook │              │               │
-│  └──────────┘      ┌───────┴──────┐       │
-│                    │  ClickHouse  │       │
-│                    │    25.11     │       │
-│                    └──────────────┘       │
-│                                             │
-└─────────────────────────────────────────────┘
-```
+## ✨ Version History
 
-## Resources
+### v3.1 (2025-12-13) - Multi-Catalog Support
+- ✨ Added `setup-multi-catalog.sh` - Run multiple catalogs simultaneously
+- 📚 Bilingual documentation (Korean/English)
+- 🎯 Purpose-specific usage guides
+
+### v3.0 (2025-12-13) - Reorganization
+- 📁 Separated tests, examples, docs
+- 🧹 Cleaned up project structure
+
+### v2.0 (2025-12)
+- Added Polaris and Unity Catalog
+- ClickHouse 25.10/25.11 testing
+
+### v1.0
+- Initial release with 3 catalogs
+
+---
+
+## 📖 Resources
 
 - [MinIO Documentation](https://min.io/docs/minio/linux/index.html)
 - [Apache Iceberg](https://iceberg.apache.org/)
@@ -666,35 +421,18 @@ For Jupyter notebooks (already included in container):
 - [Apache Polaris](https://polaris.apache.org/)
 - [Unity Catalog](https://github.com/unitycatalog/unitycatalog)
 - [ClickHouse S3 Integration](https://clickhouse.com/docs/en/engines/table-engines/integrations/s3)
-- [ClickHouse Iceberg Integration](https://clickhouse.com/docs/en/engines/table-engines/integrations/iceberg)
 
-## License
+---
 
-This is a demonstration project for educational purposes.
+## 📝 License
 
-## Support
+Educational purposes demonstration project
 
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review Docker logs
-3. Verify configuration in [config.env](config.env)
-4. Run `./test-catalogs.sh` to diagnose integration issues
+---
 
-## What's New
+## 🆘 Support
 
-### Version 2.0 (December 2025)
-- ✨ Added **Polaris** catalog support (Apache Polaris)
-- ✨ Added **Unity Catalog** support (Databricks Unity Catalog)
-- ✨ Added comprehensive integration test script (`test-catalogs.sh`)
-- ✅ Fully tested with **ClickHouse 25.11.2.24**
-- ✅ Fully tested with **ClickHouse 25.10**
-- ✅ **All 5 catalogs** successfully tested with read/write operations
-- 📝 Updated documentation with 5-catalog comparison
-- 🚀 Improved setup process and error handling
-- 🔧 Fixed Hive Metastore compatibility (PostgreSQL 11, Hive 3.1.3)
-
-### Version 1.0 (Previous)
-- Initial release with 3 catalogs (Nessie, Hive, Iceberg REST)
-- MinIO object storage
-- Jupyter notebooks
-- ClickHouse 25.8 integration
+- **Quick help**: `./setup.sh --help` or `./setup-multi-catalog.sh --help`
+- **Documentation**: [docs/](docs/) directory
+- **Testing**: Run `./tests/test-catalogs.sh`
+- **Logs**: `docker logs <service-name>`
