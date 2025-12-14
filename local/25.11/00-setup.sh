@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# ClickHouse 25.11 Setup Script
+# Purpose: Deploy ClickHouse 25.11 using oss-mac-setup and verify installation
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-mac-setup"
+
+echo "🚀 ClickHouse 25.11 Setup"
+echo "=========================="
+echo ""
+
+# Check if oss-mac-setup exists
+if [ ! -d "$OSS_MAC_SETUP_DIR" ]; then
+    echo "❌ Error: oss-mac-setup directory not found at $OSS_MAC_SETUP_DIR"
+    exit 1
+fi
+
+# Navigate to oss-mac-setup directory
+cd "$OSS_MAC_SETUP_DIR"
+
+echo "📍 Using oss-mac-setup at: $OSS_MAC_SETUP_DIR"
+echo ""
+
+# Run setup with version 25.11 and a dummy version to trigger custom port mapping
+# Note: set.sh uses custom ports only when multiple versions are configured
+# Since we want 25.11 on port 2511, we need to configure it alongside other versions
+echo "📦 Setting up ClickHouse version 25.11..."
+./set.sh 25.6 25.10 25.11
+
+echo ""
+echo "▶️  Starting ClickHouse 25.11..."
+./start.sh
+
+echo ""
+echo "⏳ Waiting for ClickHouse to be ready..."
+sleep 5
+
+# Verify installation (25.11 maps to port 2511)
+echo ""
+echo "✅ Verifying ClickHouse 25.11 installation..."
+VERSION_CHECK=$(curl -s http://localhost:2511/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+if [ -n "$VERSION_CHECK" ]; then
+    echo "   ✅ $VERSION_CHECK"
+else
+    echo "   ⚠️  Could not verify version"
+fi
+
+echo ""
+echo "📍 Connection Information:"
+echo "   🌐 Web UI: http://localhost:2511/play"
+echo "   📡 HTTP API: http://localhost:2511"
+echo "   🔌 TCP: localhost:25111"
+echo "   👤 User: default (no password)"
+echo ""
+echo "🔧 Management Commands:"
+echo "   cd $OSS_MAC_SETUP_DIR"
+echo "   ./status.sh          - Check status"
+echo "   ./client.sh 2511     - Connect to CLI"
+echo "   ./stop.sh            - Stop ClickHouse"
+echo ""
+echo "✅ ClickHouse 25.11 setup complete!"
+echo ""
+echo "🎯 Next Steps:"
+echo "   Run feature test scripts in order:"
+echo "   cd $SCRIPT_DIR"
+echo "   ./01-having-without-groupby.sh"
+echo "   ./02-fractional-limit.sh
+   ./03-map-aggregation.sh
+   ./04-geometry-functions.sh"
