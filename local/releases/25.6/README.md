@@ -48,7 +48,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./client.sh 2506
 
 # Execute SQL file
@@ -232,7 +232,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ```bash
 # Check ClickHouse status
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
@@ -411,7 +411,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./client.sh 2506
 
 # SQL 파일 실행
@@ -595,7 +595,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ```bash
 # ClickHouse 상태 확인
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./status.sh
 
 # CLI 접속

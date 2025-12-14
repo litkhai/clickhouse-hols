@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../oss-mac-setup"
 
 echo "🚀 ClickHouse 25.10 Setup"
 echo "=========================="
@@ -36,10 +36,10 @@ echo ""
 echo "⏳ Waiting for ClickHouse to be ready..."
 sleep 5
 
-# Verify installation
+# Verify installation (uses default port 8123)
 echo ""
 echo "✅ Verifying ClickHouse 25.10 installation..."
-VERSION_CHECK=$(curl -s http://localhost:2510/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+VERSION_CHECK=$(curl -s http://localhost:8123/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
 if [ -n "$VERSION_CHECK" ]; then
     echo "   ✅ $VERSION_CHECK"
 else
@@ -48,15 +48,15 @@ fi
 
 echo ""
 echo "📍 Connection Information:"
-echo "   🌐 Web UI: http://localhost:2510/play"
-echo "   📡 HTTP API: http://localhost:2510"
-echo "   🔌 TCP: localhost:25101"
+echo "   🌐 Web UI: http://localhost:8123/play"
+echo "   📡 HTTP API: http://localhost:8123"
+echo "   🔌 TCP: localhost:9000"
 echo "   👤 User: default (no password)"
 echo ""
 echo "🔧 Management Commands:"
 echo "   cd $OSS_MAC_SETUP_DIR"
 echo "   ./status.sh          - Check status"
-echo "   ./client.sh 2510     - Connect to CLI"
+echo "   ./client.sh 8123     - Connect to CLI"
 echo "   ./stop.sh            - Stop ClickHouse"
 echo ""
 echo "✅ ClickHouse 25.10 setup complete!"

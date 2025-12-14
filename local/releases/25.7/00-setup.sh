@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# ClickHouse 25.6 Setup Script
-# Purpose: Deploy ClickHouse 25.6 using oss-mac-setup and verify installation
+# ClickHouse 25.7 Setup Script
+# Purpose: Deploy ClickHouse 25.7 using oss-mac-setup and verify installation
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../oss-mac-setup"
 
-echo "🚀 ClickHouse 25.6 Setup"
+echo "🚀 ClickHouse 25.7 Setup"
 echo "=========================="
 echo ""
 
@@ -24,22 +24,22 @@ cd "$OSS_MAC_SETUP_DIR"
 echo "📍 Using oss-mac-setup at: $OSS_MAC_SETUP_DIR"
 echo ""
 
-# Run setup with version 25.6
-echo "📦 Setting up ClickHouse version 25.6..."
-./set.sh 25.6
+# Run setup with version 25.7
+echo "📦 Setting up ClickHouse version 25.7..."
+./set.sh 25.7
 
 echo ""
-echo "▶️  Starting ClickHouse 25.6..."
+echo "▶️  Starting ClickHouse 25.7..."
 ./start.sh
 
 echo ""
 echo "⏳ Waiting for ClickHouse to be ready..."
 sleep 5
 
-# Verify installation
+# Verify installation (uses default port 8123)
 echo ""
-echo "✅ Verifying ClickHouse 25.6 installation..."
-VERSION_CHECK=$(curl -s http://localhost:2506/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+echo "✅ Verifying ClickHouse 25.7 installation..."
+VERSION_CHECK=$(curl -s http://localhost:8123/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
 if [ -n "$VERSION_CHECK" ]; then
     echo "   ✅ $VERSION_CHECK"
 else
@@ -48,24 +48,23 @@ fi
 
 echo ""
 echo "📍 Connection Information:"
-echo "   🌐 Web UI: http://localhost:2506/play"
-echo "   📡 HTTP API: http://localhost:2506"
-echo "   🔌 TCP: localhost:25061"
+echo "   🌐 Web UI: http://localhost:8123/play"
+echo "   📡 HTTP API: http://localhost:8123"
+echo "   🔌 TCP: localhost:9000"
 echo "   👤 User: default (no password)"
 echo ""
 echo "🔧 Management Commands:"
 echo "   cd $OSS_MAC_SETUP_DIR"
 echo "   ./status.sh          - Check status"
-echo "   ./client.sh 2506     - Connect to CLI"
+echo "   ./client.sh 8123     - Connect to CLI"
 echo "   ./stop.sh            - Stop ClickHouse"
 echo ""
-echo "✅ ClickHouse 25.6 setup complete!"
+echo "✅ ClickHouse 25.7 setup complete!"
 echo ""
 echo "🎯 Next Steps:"
 echo "   Run feature test scripts in order:"
 echo "   cd $SCRIPT_DIR"
-echo "   ./01-coalescingmergetree.sh"
-echo "   ./02-time-datatypes.sh"
-echo "   ./03-bech32-encoding.sh"
-echo "   ./04-lag-lead-functions.sh"
-echo "   ./05-consistent-snapshot.sh"
+echo "   ./01-sql-update-delete.sh"
+echo "   ./02-count-optimization.sh"
+echo "   ./03-join-performance.sh"
+echo "   ./04-bulk-update.sh"
