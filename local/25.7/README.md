@@ -1,27 +1,497 @@
 # ClickHouse 25.7 New Features Lab
 
-ClickHouse 25.7 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.7에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+[English](#english) | [한국어](#한국어)
 
-## 📋 Overview
+---
 
-ClickHouse 25.7은 혁신적인 SQL UPDATE/DELETE 최적화, AI 기반 SQL 생성, count() 집계 최적화, JOIN 성능 개선, 그리고 대규모 bulk UPDATE 성능 향상을 포함합니다.
+## English
+
+A hands-on laboratory for learning and testing ClickHouse 25.7 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.7.
+
+### 📋 Overview
+
+ClickHouse 25.7 includes revolutionary SQL UPDATE/DELETE optimization, AI-powered SQL generation, count() aggregation optimization, JOIN performance improvements, and massive bulk UPDATE performance enhancements.
 
 ### 🎯 Key Features
 
+1. **SQL UPDATE and DELETE Operations** - Up to 1000x faster updates/deletes with lightweight patch-part mechanism
+2. **AI-Powered SQL Generation** - Natural language SQL generation using OpenAI/Anthropic API (?? prefix)
+3. **count() Aggregation Optimization** - 20-30% faster aggregation performance and reduced memory usage
+4. **JOIN Performance Improvements** - Up to 1.8x faster JOIN operations
+5. **Bulk UPDATE Performance** - Up to 4000x faster bulk updates compared to PostgreSQL
+
+### 🚀 Quick Start
+
+#### Prerequisites
+
+- macOS (with Docker Desktop)
+- [oss-mac-setup](../oss-mac-setup/) environment setup
+
+#### Setup and Run
+
+```bash
+# 1. Install and start ClickHouse 25.7
+cd local/25.7
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-sql-update-delete.sh
+./02-count-optimization.sh
+./03-join-performance.sh
+./04-bulk-update.sh
+```
+
+#### Manual Execution (SQL only)
+
+To execute SQL files directly:
+
+```bash
+# Connect to ClickHouse client
+cd ../oss-mac-setup
+./client.sh 2507
+
+# Execute SQL file
+cd ../25.7
+source 01-sql-update-delete.sql
+```
+
+### 📚 Feature Details
+
+#### 1. SQL UPDATE and DELETE Operations (01-sql-update-delete)
+
+**New Feature:** UPDATE/DELETE using lightweight patch-part mechanism (up to 1000x faster)
+
+**Test Content:**
+- Single record UPDATE performance
+- Conditional bulk UPDATE (WHERE clause)
+- UPDATE with complex expressions
+- Lightweight DELETE operations (up to 1000x faster)
+- Inventory management system practice
+- Large-scale table updates with 10 million rows
+
+**Execute:**
+```bash
+./01-sql-update-delete.sh
+# Or
+cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client --multiline --multiquery
+```
+
+**Key Learning Points:**
+- Patch-part mechanism: Stores only changes without rewriting entire parts
+- Optimized updates with ALTER TABLE UPDATE syntax
+- Selective updates with WHERE conditions
+- Conditional value setting with CASE statements
+- Complex update logic using subqueries
+- System resource efficiency with asynchronous execution
+
+**Real-World Use Cases:**
+- Real-time inventory management and pricing adjustments
+- E-commerce promotions and discount application
+- Data quality improvement and correction tasks
+- User profile and settings updates
+- Batch data processing and ETL pipelines
+- GDPR-compliant data deletion
+
+**Performance Comparison:**
+- Traditional approach: Requires full part rewrite (slow)
+- ClickHouse 25.7: Patch-part applies only changes (up to 1000x faster)
+
+---
+
+#### 2. count() Aggregation Optimization (02-count-optimization)
+
+**New Feature:** Optimized count() aggregation function (20-30% faster with reduced memory usage)
+
+**Test Content:**
+- Basic count() performance measurement
+- count() optimization with GROUP BY
+- count(DISTINCT) performance improvements
+- Large dataset aggregation (10 million rows)
+- Multi-dimensional aggregation scenarios
+- Memory efficiency testing
+
+**Execute:**
+```bash
+./02-count-optimization.sh
+```
+
+**Key Learning Points:**
+- count() is the fastest aggregation function (utilizes metadata)
+- count() is more efficient than count(column)
+- 20-30% performance improvement with GROUP BY
+- Memory optimization for count(DISTINCT)
+- Conditional aggregation with countIf()
+- count() used with window functions
+
+**Real-World Use Cases:**
+- Real-time analytics dashboards
+- Large-scale event tracking and user behavior analysis
+- Multi-dimensional business intelligence reporting
+- Log aggregation and monitoring systems
+- E-commerce conversion rate analysis
+- IoT data processing and device telemetry
+
+**Optimization Tips:**
+- Use count() when possible (instead of count(column))
+- Set appropriate indexes and ORDER BY keys
+- Limit query scope using partitions
+- Pre-aggregate with Materialized Views
+
+---
+
+#### 3. JOIN Performance Improvements (03-join-performance)
+
+**New Feature:** Up to 1.8x faster JOIN operation performance
+
+**Test Content:**
+- INNER JOIN performance (up to 1.8x faster)
+- LEFT JOIN optimization
+- Multi-table JOIN (3 or more tables)
+- JOIN and GROUP BY combination
+- Complex analytical queries (subqueries, CTEs)
+- Large dataset JOIN (millions to tens of millions of rows)
+
+**Execute:**
+```bash
+./03-join-performance.sh
+```
+
+**Key Learning Points:**
+- Hash table build and probing optimization
+- Improved memory efficiency for large JOINs
+- Enhanced multi-table JOIN query planning
+- Optimal ordering of JOIN conditions
+- RIGHT vs LEFT table selection strategy
+- CTE (Common Table Expression) utilization
+
+**Real-World Use Cases:**
+- E-commerce customer and order analysis
+- Multi-dimensional business intelligence dashboards
+- Customer segmentation and cohort analysis
+- Supply chain and inventory management reporting
+- Financial reporting and transaction reconciliation
+- Marketing attribution and campaign performance analysis
+
+**Performance Optimization:**
+- Place smaller table as RIGHT table
+- Use appropriate data types for JOIN keys
+- Don't SELECT unnecessary columns
+- Filter data before JOIN with WHERE conditions
+
+---
+
+#### 4. Bulk UPDATE Performance (04-bulk-update)
+
+**New Feature:** Up to 4000x faster bulk updates compared to PostgreSQL
+
+**Test Content:**
+- Large-scale bulk UPDATE (10 million rows)
+- UPDATE with complex WHERE conditions
+- Multiple column simultaneous UPDATE
+- Conditional UPDATE using CASE statements
+- UPDATE using aggregation results
+- Performance comparison and benchmarking
+
+**Execute:**
+```bash
+./04-bulk-update.sh
+```
+
+**Key Learning Points:**
+- Patch-part mechanism eliminates need for full table rewrite
+- Can update millions of rows in seconds
+- Efficient processing of complex conditional updates
+- JOIN-like UPDATE using subqueries
+- System load minimization with asynchronous mutations
+- ALTER TABLE UPDATE syntax utilization
+
+**Real-World Use Cases:**
+- Real-time inventory synchronization and pricing adjustments
+- Retail: Daily closing price updates and promotions
+- Finance: Bulk account balance adjustments
+- Gaming: Player statistics and leaderboard updates
+- IoT: Device configuration and status bulk updates
+- Data migration: Legacy system modernization
+- Data quality: Bulk correction and normalization
+
+**Performance Comparison:**
+| Database | Million Row Update Time | Technology | Performance |
+|----------|------------------------|----------|------------|
+| ClickHouse 25.7 | Seconds | Patch-part mechanism | 4000x faster |
+| PostgreSQL | Hours | Full row rewrite | Baseline |
+
+---
+
+#### 5. AI-Powered SQL Generation (Feature Description)
+
+**New Feature:** Natural language to SQL conversion using OpenAI or Anthropic API
+
+**Description:**
+ClickHouse 25.7 provides AI-powered SQL generation that converts natural language to SQL using the `??` prefix.
+
+**Usage:**
+```sql
+-- Using OpenAI API
+SET openai_api_key = 'your-api-key';
+?? show me top 10 customers by revenue
+
+-- Using Anthropic API
+SET anthropic_api_key = 'your-api-key';
+?? calculate monthly growth rate for each product category
+```
+
+**Key Features:**
+- Automatic conversion of natural language to SQL queries
+- Automatic table schema analysis
+- Generation of complex aggregation and JOIN queries
+- Shortened learning curve and improved productivity
+- Non-developers can perform data analysis
+
+**Limitations:**
+- Requires OpenAI or Anthropic API key
+- API call costs incur
+- Network connection required
+- Generated query validation recommended
+
+**Real-World Use Cases:**
+- Self-service analytics for business analysts
+- Rapid prototyping and exploratory analysis
+- Education and SQL learning assistance
+- Draft generation for complex queries
+
+**Note:** This feature requires an API key, so this lab does not provide executable tests. Please refer to the examples above to test on your own.
+
+### 🔧 Management
+
+#### ClickHouse Connection Info
+
+- **Web UI**: http://localhost:2507/play
+- **HTTP API**: http://localhost:2507
+- **TCP**: localhost:25071
+- **User**: default (no password)
+
+#### Useful Commands
+
+```bash
+# Check ClickHouse status
+cd ../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 2507
+
+# View logs
+docker logs clickhouse-25-7
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+```
+
+### 📂 File Structure
+
+```
+25.7/
+├── README.md                      # This document
+├── 00-setup.sh                    # ClickHouse 25.7 installation script
+├── 01-sql-update-delete.sh        # SQL UPDATE/DELETE test execution
+├── 01-sql-update-delete.sql       # SQL UPDATE/DELETE SQL
+├── 02-count-optimization.sh       # count() optimization test execution
+├── 02-count-optimization.sql      # count() optimization SQL
+├── 03-join-performance.sh         # JOIN performance test execution
+├── 03-join-performance.sql        # JOIN performance SQL
+├── 04-bulk-update.sh              # Bulk UPDATE test execution
+└── 04-bulk-update.sql             # Bulk UPDATE SQL
+```
+
+### 🎓 Learning Path
+
+#### For Beginners
+1. **00-setup.sh** - Understand environment setup
+2. **02-count-optimization** - Start with basic aggregation functions
+3. **01-sql-update-delete** - Learn UPDATE/DELETE basics
+
+#### For Intermediate Users
+1. **03-join-performance** - Understand JOIN optimization
+2. **04-bulk-update** - Learn bulk data processing
+3. Explore AI-Powered SQL features (API key required)
+
+#### For Advanced Users
+- Combine all features for real production scenarios
+- Analyze query execution plans with EXPLAIN
+- Performance benchmarking and optimization
+- Design real-time data pipelines
+
+### 💡 Feature Comparison
+
+#### ClickHouse 25.7 vs Previous Versions
+
+| Feature | Before 25.7 | ClickHouse 25.7 | Improvement |
+|---------|-------------|-----------------|-------------|
+| UPDATE/DELETE | Slow (full rewrites) | Patch-part mechanism | Up to 1000x faster |
+| count() aggregation | Standard performance | Optimized | 20-30% faster |
+| JOIN operations | Good performance | Enhanced | Up to 1.8x faster |
+| Bulk UPDATE | Slow for large datasets | Highly optimized | Up to 4000x vs PostgreSQL |
+| SQL Generation | Manual only | AI-powered (optional) | Natural language to SQL |
+
+#### UPDATE Performance Comparison
+
+| Operation | Traditional RDBMS | ClickHouse 25.7 | Performance Gain |
+|-----------|------------------|-----------------|-----------------|
+| Single row UPDATE | Milliseconds | Microseconds | 100-1000x |
+| Bulk UPDATE (1M rows) | Hours | Seconds | 4000x |
+| Complex conditional UPDATE | Very slow | Fast | 1000x |
+
+### 🔍 Additional Resources
+
+- **Official Release Blog**: [ClickHouse 25.7 Release](https://clickhouse.com/blog/clickhouse-release-25-07)
+- **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
+- **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
+- **GitHub Repository**: [ClickHouse GitHub](https://github.com/ClickHouse/ClickHouse)
+
+### 📝 Notes
+
+- Each script can be executed independently
+- Read and modify SQL files directly to experiment
+- Test data is generated within each SQL file
+- Cleanup is commented out by default
+- Thorough testing recommended before production use
+- AI-Powered SQL feature requires an API key
+
+### 🔒 Security Considerations
+
+**When using UPDATE/DELETE operations:**
+- Test carefully in production environment
+- UPDATE without WHERE clause affects entire table
+- Perform bulk updates after backup
+- Monitor mutation queue
+
+**When using AI-Powered SQL:**
+- Manage API keys securely as environment variables
+- Validate generated SQL before execution
+- Access control for sensitive data
+- Monitor API usage and costs
+
+### ⚡ Performance Tips
+
+**UPDATE/DELETE optimization:**
+- Limit scope with appropriate WHERE conditions
+- Efficient filtering using partition keys
+- Utilize index keys in WHERE conditions
+- Monitor mutation status (system.mutations table)
+
+**count() optimization:**
+- Use count() when possible (instead of count(column))
+- Leverage indexes with appropriate ORDER BY keys
+- Limit query scope using partitions
+- Pre-aggregate with Materialized Views
+
+**JOIN optimization:**
+- Place smaller table as RIGHT table
+- Use appropriate data types for JOIN keys
+- Filter data before JOIN with WHERE
+- Remove unnecessary columns
+
+**Bulk UPDATE optimization:**
+- Adjust batch size for memory efficiency
+- Perform bulk updates during off-peak hours
+- Distribute updates by partition
+- Monitor progress
+
+### 🚀 Production Deployment
+
+#### Migration Strategy
+
+1. **Validate in test environment**
+   - Test all UPDATE/DELETE queries
+   - Performance benchmarking
+   - Establish rollback plan
+
+2. **Gradual rollout**
+   - Start with small tables
+   - Monitor and measure performance
+   - Immediate rollback on issues
+
+3. **Monitoring**
+   - Check mutation queue status
+   - Monitor resource usage
+   - Track query performance
+
+#### Best Practices
+
+```sql
+-- Check mutation status
+SELECT *
+FROM system.mutations
+WHERE is_done = 0
+ORDER BY create_time DESC;
+
+-- Monitor running queries
+SELECT
+    query_id,
+    user,
+    query,
+    elapsed,
+    memory_usage
+FROM system.processes
+WHERE query NOT LIKE '%system.processes%';
+
+-- Table part status
+SELECT
+    partition,
+    name,
+    rows,
+    bytes_on_disk
+FROM system.parts
+WHERE table = 'your_table'
+  AND active = 1;
+```
+
+### 🤝 Contributing
+
+If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback
+
+### 📄 License
+
+MIT License - Free to learn and modify
+
+---
+
+**Happy Learning! 🚀**
+
+For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+
+---
+
+## 한국어
+
+ClickHouse 25.7 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 ClickHouse 25.7에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+
+### 📋 개요
+
+ClickHouse 25.7은 혁신적인 SQL UPDATE/DELETE 최적화, AI 기반 SQL 생성, count() 집계 최적화, JOIN 성능 개선, 그리고 대규모 bulk UPDATE 성능 향상을 포함합니다.
+
+### 🎯 주요 기능
+
 1. **SQL UPDATE and DELETE Operations** - 경량 patch-part 메커니즘으로 최대 1000배 빠른 업데이트/삭제
-2. **AI-Powered SQL Generation** - OpenAI/Anthropic API를 이용한 자연어 SQL 생성 (??  prefix)
+2. **AI-Powered SQL Generation** - OpenAI/Anthropic API를 이용한 자연어 SQL 생성 (?? prefix)
 3. **count() Aggregation Optimization** - 20-30% 빠른 집계 성능과 메모리 사용량 감소
 4. **JOIN Performance Improvements** - 최대 1.8배 빠른 JOIN 연산
 5. **Bulk UPDATE Performance** - PostgreSQL 대비 최대 4000배 빠른 대량 업데이트
 
-## 🚀 Quick Start
+### 🚀 빠른 시작
 
-### Prerequisites
+#### 사전 요구사항
 
 - macOS (with Docker Desktop)
 - [oss-mac-setup](../oss-mac-setup/) 환경 구성
 
-### Setup and Run
+#### 설정 및 실행
 
 ```bash
 # 1. ClickHouse 25.7 설치 및 시작
@@ -35,7 +505,7 @@ cd local/25.7
 ./04-bulk-update.sh
 ```
 
-### Manual Execution (SQL only)
+#### 수동 실행 (SQL만)
 
 SQL 파일을 직접 실행하려면:
 
@@ -49,9 +519,9 @@ cd ../25.7
 source 01-sql-update-delete.sql
 ```
 
-## 📚 Feature Details
+### 📚 기능 상세
 
-### 1. SQL UPDATE and DELETE Operations (01-sql-update-delete)
+#### 1. SQL UPDATE and DELETE Operations (01-sql-update-delete)
 
 **새로운 기능:** 경량 patch-part 메커니즘을 사용한 UPDATE/DELETE (최대 1000배 빠름)
 
@@ -92,7 +562,7 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 
 ---
 
-### 2. count() Aggregation Optimization (02-count-optimization)
+#### 2. count() Aggregation Optimization (02-count-optimization)
 
 **새로운 기능:** 최적화된 count() 집계 함수 (20-30% 빠르고 메모리 사용량 감소)
 
@@ -133,7 +603,7 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 
 ---
 
-### 3. JOIN Performance Improvements (03-join-performance)
+#### 3. JOIN Performance Improvements (03-join-performance)
 
 **새로운 기능:** 최대 1.8배 빠른 JOIN 연산 성능
 
@@ -174,7 +644,7 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 
 ---
 
-### 4. Bulk UPDATE Performance (04-bulk-update)
+#### 4. Bulk UPDATE Performance (04-bulk-update)
 
 **새로운 기능:** PostgreSQL 대비 최대 4000배 빠른 대량 업데이트
 
@@ -216,7 +686,7 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 
 ---
 
-### 5. AI-Powered SQL Generation (Feature Description)
+#### 5. AI-Powered SQL Generation (기능 설명)
 
 **새로운 기능:** OpenAI 또는 Anthropic API를 이용한 자연어 SQL 생성
 
@@ -255,16 +725,16 @@ SET anthropic_api_key = 'your-api-key';
 
 **참고:** 이 기능은 API 키가 필요하므로 이 lab에서는 실행 가능한 테스트를 제공하지 않습니다. 위의 예제를 참고하여 직접 테스트해보세요.
 
-## 🔧 Management
+### 🔧 관리
 
-### ClickHouse Connection Info
+#### ClickHouse 접속 정보
 
 - **Web UI**: http://localhost:2507/play
 - **HTTP API**: http://localhost:2507
 - **TCP**: localhost:25071
 - **User**: default (no password)
 
-### Useful Commands
+#### 유용한 명령어
 
 ```bash
 # ClickHouse 상태 확인
@@ -284,7 +754,7 @@ docker logs clickhouse-25-7
 ./stop.sh --cleanup
 ```
 
-## 📂 File Structure
+### 📂 파일 구조
 
 ```
 25.7/
@@ -300,27 +770,27 @@ docker logs clickhouse-25-7
 └── 04-bulk-update.sql             # Bulk UPDATE SQL
 ```
 
-## 🎓 Learning Path
+### 🎓 학습 경로
 
-### 초급 사용자
+#### 초급 사용자
 1. **00-setup.sh** - 환경 구성 이해
 2. **02-count-optimization** - 기본 집계 함수부터 시작
 3. **01-sql-update-delete** - UPDATE/DELETE 기초 학습
 
-### 중급 사용자
+#### 중급 사용자
 1. **03-join-performance** - JOIN 최적화 이해
 2. **04-bulk-update** - 대량 데이터 처리 학습
 3. AI-Powered SQL 기능 탐색 (API 키 필요)
 
-### 고급 사용자
+#### 고급 사용자
 - 모든 기능을 조합하여 실제 프로덕션 시나리오 구현
 - EXPLAIN 명령으로 쿼리 실행 계획 분석
 - 성능 벤치마킹 및 최적화
 - 실시간 데이터 파이프라인 설계
 
-## 💡 Feature Comparison
+### 💡 기능 비교
 
-### ClickHouse 25.7 vs Previous Versions
+#### ClickHouse 25.7 vs Previous Versions
 
 | Feature | Before 25.7 | ClickHouse 25.7 | Improvement |
 |---------|-------------|-----------------|-------------|
@@ -330,7 +800,7 @@ docker logs clickhouse-25-7
 | Bulk UPDATE | Slow for large datasets | Highly optimized | Up to 4000x vs PostgreSQL |
 | SQL Generation | Manual only | AI-powered (optional) | Natural language to SQL |
 
-### UPDATE Performance Comparison
+#### UPDATE Performance Comparison
 
 | Operation | Traditional RDBMS | ClickHouse 25.7 | Performance Gain |
 |-----------|------------------|-----------------|-----------------|
@@ -338,14 +808,14 @@ docker logs clickhouse-25-7
 | Bulk UPDATE (1M rows) | Hours | Seconds | 4000x |
 | Complex conditional UPDATE | Very slow | Fast | 1000x |
 
-## 🔍 Additional Resources
+### 🔍 추가 자료
 
 - **Official Release Blog**: [ClickHouse 25.7 Release](https://clickhouse.com/blog/clickhouse-release-25-07)
 - **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
 - **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
 - **GitHub Repository**: [ClickHouse GitHub](https://github.com/ClickHouse/ClickHouse)
 
-## 📝 Notes
+### 📝 참고사항
 
 - 각 스크립트는 독립적으로 실행 가능합니다
 - SQL 파일을 직접 읽고 수정하여 실험해보세요
@@ -354,7 +824,7 @@ docker logs clickhouse-25-7
 - 프로덕션 환경 적용 전 충분한 테스트를 권장합니다
 - AI-Powered SQL 기능은 API 키가 필요합니다
 
-## 🔒 Security Considerations
+### 🔒 보안 고려사항
 
 **UPDATE/DELETE 연산 사용 시:**
 - 프로덕션 환경에서는 신중하게 테스트
@@ -368,7 +838,7 @@ docker logs clickhouse-25-7
 - 민감한 데이터에 대한 접근 제어
 - API 사용량 및 비용 모니터링
 
-## ⚡ Performance Tips
+### ⚡ 성능 팁
 
 **UPDATE/DELETE 최적화:**
 - 적절한 WHERE 조건으로 범위 제한
@@ -394,9 +864,9 @@ docker logs clickhouse-25-7
 - 파티션별로 업데이트 분산
 - 진행 상황 모니터링
 
-## 🚀 Production Deployment
+### 🚀 프로덕션 배포
 
-### Migration Strategy
+#### 마이그레이션 전략
 
 1. **테스트 환경에서 검증**
    - 모든 UPDATE/DELETE 쿼리 테스트
@@ -413,7 +883,7 @@ docker logs clickhouse-25-7
    - 리소스 사용량 모니터링
    - 쿼리 성능 추적
 
-### Best Practices
+#### Best Practices
 
 ```sql
 -- Mutation 상태 확인
@@ -443,14 +913,14 @@ WHERE table = 'your_table'
   AND active = 1;
 ```
 
-## 🤝 Contributing
+### 🤝 기여
 
 이 랩에 대한 개선 사항이나 추가 예제가 있다면:
 1. 이슈 등록
 2. Pull Request 제출
 3. 피드백 공유
 
-## 📄 License
+### 📄 라이선스
 
 MIT License - 자유롭게 학습 및 수정 가능
 
@@ -458,4 +928,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
