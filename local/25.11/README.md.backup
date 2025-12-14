@@ -1,0 +1,653 @@
+# ClickHouse 25.11 New Features Lab
+
+[English](#english) | [한국어](#한국어)
+
+---
+
+## English
+
+A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.11.
+
+### 📋 Overview
+
+ClickHouse 25.11 includes the new Geometry data type for spatial data, ANSI SQL compatibility improvements, enhanced Map type aggregation, fractional LIMIT for sampling, and machine learning text classification capabilities.
+
+### 🎯 Key Features
+
+1. **Geometry Type** - New Geometry data type with WKB/WKT format support
+2. **HAVING without GROUP BY** - ANSI SQL compatibility, HAVING clause without GROUP BY
+3. **Map Aggregation** - Direct sum, min, max, avg aggregation on Map types
+4. **Fractional LIMIT** - Fractional limits for dataset sampling (e.g., LIMIT 0.1 for 10%)
+5. **Naive Bayes Classifier** - Text classification using naiveBayesClassifier function with n-grams
+
+### 🚀 Quick Start
+
+#### Prerequisites
+
+- macOS (with Docker Desktop)
+- [oss-mac-setup](../oss-mac-setup/) environment setup
+
+#### Setup and Run
+
+```bash
+# 1. Install and start ClickHouse 25.11
+cd local/25.11
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-geometry-type.sh
+./02-having-without-groupby.sh
+./03-map-aggregation.sh
+./04-fractional-limit.sh
+./05-naive-bayes-classifier.sh
+```
+
+#### Manual Execution (SQL only)
+
+To execute SQL files directly:
+
+```bash
+# Connect to ClickHouse client
+cd ../oss-mac-setup
+./client.sh 2511
+
+# Execute SQL file
+cd ../25.11
+source 01-geometry-type.sql
+```
+
+### 📚 Feature Details
+
+#### 1. Geometry Type (01-geometry-type)
+
+**New Feature:** Native Geometry data type for spatial data processing with WKB/WKT format support
+
+**Test Content:**
+- Geometry data type creation and usage
+- WKT (Well-Known Text) format input
+- WKB (Well-Known Binary) format conversion
+- Point, LineString, and Polygon geometries
+- Spatial operations: area, distance, contains
+- GeoJSON integration
+- Real-world GIS applications
+
+**Execute:**
+```bash
+./01-geometry-type.sh
+# Or
+cat 01-geometry-type.sql | docker exec -i clickhouse-25-11 clickhouse-client --multiline --multiquery
+```
+
+**Key Learning Points:**
+- Store and query spatial data efficiently
+- Convert between WKT and WKB formats
+- Calculate geometric properties (area, perimeter)
+- Perform spatial analysis operations
+- Integrate with mapping applications
+
+**Real-World Use Cases:**
+- Location-based services and mapping
+- Real estate property boundaries
+- Delivery route optimization
+- Urban planning and analysis
+- Asset tracking and geofencing
+
+---
+
+#### 2. HAVING without GROUP BY (02-having-without-groupby)
+
+**New Feature:** ANSI SQL compatibility - use HAVING clause without GROUP BY for aggregate filtering
+
+**Test Content:**
+- HAVING clause on aggregate results without GROUP BY
+- Filter aggregate functions directly
+- Compare traditional WHERE vs HAVING
+- Multiple aggregate conditions
+- Subquery elimination
+- Performance monitoring queries
+
+**Execute:**
+```bash
+./02-having-without-groupby.sh
+```
+
+**Key Learning Points:**
+- `HAVING count() > 100` without GROUP BY
+- Filter on aggregated values directly
+- Cleaner syntax for global aggregation filters
+- ANSI SQL standard compliance
+- Simplified query writing
+
+**Real-World Use Cases:**
+- Data quality checks (total count validation)
+- System monitoring thresholds
+- Business metrics validation
+- ETL pipeline validation
+- Anomaly detection on aggregates
+
+---
+
+#### 3. Map Aggregation (03-map-aggregation)
+
+**New Feature:** Direct aggregation functions on Map data types (sum, min, max, avg)
+
+**Test Content:**
+- mapSum, mapMin, mapMax, mapAvg functions
+- Per-key aggregation in Map columns
+- Multi-region revenue analysis
+- Product metrics aggregation
+- Combining multiple map aggregations
+- JSON-like nested data processing
+
+**Execute:**
+```bash
+./03-map-aggregation.sh
+```
+
+**Key Learning Points:**
+- Aggregate Map values by keys automatically
+- `mapSum(map_column)` for all keys
+- Process nested JSON-like structures
+- Eliminate manual key iteration
+- Efficient multi-dimensional aggregation
+
+**Real-World Use Cases:**
+- Multi-region sales analysis
+- Feature usage statistics
+- Resource utilization by category
+- Tag-based metrics aggregation
+- Dynamic dimension analysis
+
+---
+
+#### 4. Fractional LIMIT (04-fractional-limit)
+
+**New Feature:** Use fractional values in LIMIT clause for percentage-based sampling
+
+**Test Content:**
+- LIMIT with decimal values (0.1 = 10%)
+- Representative data sampling
+- A/B testing dataset creation
+- Training/testing data split
+- Quality assurance sampling
+- Statistical analysis sampling
+
+**Execute:**
+```bash
+./04-fractional-limit.sh
+```
+
+**Key Learning Points:**
+- `LIMIT 0.1` returns 10% of rows
+- `LIMIT 0.01` returns 1% of rows
+- Percentage-based data sampling
+- Combine with ORDER BY for controlled sampling
+- Reproducible with fixed seed
+
+**Real-World Use Cases:**
+- Machine learning train/test splits
+- Data quality spot checks
+- Report preview generation
+- A/B testing cohort creation
+- Performance testing with sampled data
+- Statistical analysis on large datasets
+
+---
+
+#### 5. Naive Bayes Classifier (05-naive-bayes-classifier)
+
+**New Feature:** Text classification using Naive Bayes algorithm with n-gram tokenization
+
+**Test Content:**
+- naiveBayesClassifier aggregate function
+- Email spam classification
+- Sentiment analysis (positive/negative/neutral)
+- Product review categorization
+- N-gram text feature extraction
+- Training and prediction workflow
+- Multi-class classification
+
+**Execute:**
+```bash
+./05-naive-bayes-classifier.sh
+```
+
+**Key Learning Points:**
+- Train classifier with aggregate function
+- Use n-grams for text features
+- `naiveBayesClassifier(category, text_field)`
+- Apply model for predictions
+- Handle multi-class classification
+- Real-time text classification in queries
+
+**Real-World Use Cases:**
+- Email spam filtering
+- Customer review sentiment analysis
+- Support ticket categorization
+- Content moderation
+- Product category prediction
+- User intent classification
+- News article topic classification
+
+### 🔧 Management
+
+#### ClickHouse Connection Info
+
+- **Web UI**: http://localhost:2511/play
+- **HTTP API**: http://localhost:2511
+- **TCP**: localhost:25111
+- **User**: default (no password)
+
+#### Useful Commands
+
+```bash
+# Check ClickHouse status
+cd ../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 2511
+
+# View logs
+docker logs clickhouse-25-11
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+```
+
+### 📂 File Structure
+
+```
+25.11/
+├── README.md                          # This document
+├── 00-setup.sh                        # ClickHouse 25.11 installation script
+├── 01-geometry-type.sh                # Geometry type test execution
+├── 01-geometry-type.sql               # Geometry type SQL
+├── 02-having-without-groupby.sh       # HAVING without GROUP BY test execution
+├── 02-having-without-groupby.sql      # HAVING without GROUP BY SQL
+├── 03-map-aggregation.sh              # Map aggregation test execution
+├── 03-map-aggregation.sql             # Map aggregation SQL
+├── 04-fractional-limit.sh             # Fractional LIMIT test execution
+├── 04-fractional-limit.sql            # Fractional LIMIT SQL
+├── 05-naive-bayes-classifier.sh       # Naive Bayes classifier test execution
+└── 05-naive-bayes-classifier.sql      # Naive Bayes classifier SQL
+```
+
+### 🎓 Learning Path
+
+#### For Beginners
+1. **00-setup.sh** - Understand environment setup
+2. **04-fractional-limit** - Start with simple sampling
+3. **02-having-without-groupby** - Learn ANSI SQL compatibility
+
+#### For Intermediate Users
+1. **01-geometry-type** - Explore spatial data handling
+2. **03-map-aggregation** - Work with complex data structures
+3. **05-naive-bayes-classifier** - Introduction to ML in SQL
+
+#### For Advanced Users
+- Combine all features for real production scenarios
+- Integrate Geometry with location-based analytics
+- Build end-to-end ML pipelines with classifiers
+- Performance benchmarking and comparison
+
+### 🔍 Additional Resources
+
+- **Official Release Blog**: [ClickHouse 25.11 Release](https://clickhouse.com/blog/clickhouse-release-25-11)
+- **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
+- **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
+- **Geometry Functions**: [ClickHouse Geo Functions](https://clickhouse.com/docs/en/sql-reference/functions/geo)
+
+### 📝 Notes
+
+- Each script can be executed independently
+- Read and modify SQL files directly to experiment
+- Test data is generated within each SQL file
+- Cleanup is commented out by default
+- Geometry type requires proper WKT/WKB format
+- Naive Bayes classifier works best with sufficient training data
+
+### 🤝 Contributing
+
+If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback
+
+### 📄 License
+
+MIT License - Free to learn and modify
+
+---
+
+**Happy Learning! 🚀**
+
+For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+
+---
+
+## 한국어
+
+ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.11에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+
+### 📋 개요
+
+ClickHouse 25.11은 공간 데이터를 위한 새로운 Geometry 데이터 타입, ANSI SQL 호환성 개선, 향상된 Map 타입 집계, 샘플링을 위한 분수 LIMIT, 그리고 머신러닝 텍스트 분류 기능을 포함합니다.
+
+### 🎯 주요 기능
+
+1. **Geometry Type** - WKB/WKT 포맷을 지원하는 새로운 Geometry 데이터 타입
+2. **HAVING without GROUP BY** - ANSI SQL 호환성, GROUP BY 없이 HAVING 절 사용
+3. **Map Aggregation** - Map 타입에 대한 직접적인 sum, min, max, avg 집계
+4. **Fractional LIMIT** - 데이터셋 샘플링을 위한 분수 제한 (예: LIMIT 0.1은 10%)
+5. **Naive Bayes Classifier** - n-gram을 사용한 naiveBayesClassifier 함수로 텍스트 분류
+
+### 🚀 빠른 시작
+
+#### 사전 요구사항
+
+- macOS (with Docker Desktop)
+- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+
+#### 설정 및 실행
+
+```bash
+# 1. ClickHouse 25.11 설치 및 시작
+cd local/25.11
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-geometry-type.sh
+./02-having-without-groupby.sh
+./03-map-aggregation.sh
+./04-fractional-limit.sh
+./05-naive-bayes-classifier.sh
+```
+
+#### 수동 실행 (SQL만)
+
+SQL 파일을 직접 실행하려면:
+
+```bash
+# ClickHouse 클라이언트 접속
+cd ../oss-mac-setup
+./client.sh 2511
+
+# SQL 파일 실행
+cd ../25.11
+source 01-geometry-type.sql
+```
+
+### 📚 기능 상세
+
+#### 1. Geometry Type (01-geometry-type)
+
+**새로운 기능:** WKB/WKT 포맷을 지원하는 공간 데이터 처리를 위한 네이티브 Geometry 데이터 타입
+
+**테스트 내용:**
+- Geometry 데이터 타입 생성 및 사용
+- WKT (Well-Known Text) 포맷 입력
+- WKB (Well-Known Binary) 포맷 변환
+- Point, LineString, Polygon 기하학 도형
+- 공간 연산: area, distance, contains
+- GeoJSON 통합
+- 실제 GIS 응용 프로그램
+
+**실행:**
+```bash
+./01-geometry-type.sh
+# 또는
+cat 01-geometry-type.sql | docker exec -i clickhouse-25-11 clickhouse-client --multiline --multiquery
+```
+
+**주요 학습 포인트:**
+- 공간 데이터를 효율적으로 저장하고 조회
+- WKT와 WKB 포맷 간 변환
+- 기하학적 속성 계산 (면적, 둘레)
+- 공간 분석 작업 수행
+- 지도 애플리케이션과 통합
+
+**실제 사용 사례:**
+- 위치 기반 서비스 및 지도
+- 부동산 경계 정보
+- 배송 경로 최적화
+- 도시 계획 및 분석
+- 자산 추적 및 지오펜싱
+
+---
+
+#### 2. HAVING without GROUP BY (02-having-without-groupby)
+
+**새로운 기능:** ANSI SQL 호환성 - 집계 필터링을 위해 GROUP BY 없이 HAVING 절 사용
+
+**테스트 내용:**
+- GROUP BY 없이 집계 결과에 HAVING 절 사용
+- 집계 함수를 직접 필터링
+- 기존 WHERE vs HAVING 비교
+- 여러 집계 조건
+- 서브쿼리 제거
+- 성능 모니터링 쿼리
+
+**실행:**
+```bash
+./02-having-without-groupby.sh
+```
+
+**주요 학습 포인트:**
+- GROUP BY 없이 `HAVING count() > 100`
+- 집계된 값을 직접 필터링
+- 전역 집계 필터를 위한 깔끔한 문법
+- ANSI SQL 표준 준수
+- 간소화된 쿼리 작성
+
+**실제 사용 사례:**
+- 데이터 품질 검사 (총 개수 검증)
+- 시스템 모니터링 임계값
+- 비즈니스 메트릭 검증
+- ETL 파이프라인 검증
+- 집계에 대한 이상 탐지
+
+---
+
+#### 3. Map Aggregation (03-map-aggregation)
+
+**새로운 기능:** Map 데이터 타입에 대한 직접 집계 함수 (sum, min, max, avg)
+
+**테스트 내용:**
+- mapSum, mapMin, mapMax, mapAvg 함수
+- Map 컬럼의 키별 집계
+- 다중 지역 매출 분석
+- 제품 메트릭 집계
+- 여러 map 집계 결합
+- JSON과 유사한 중첩 데이터 처리
+
+**실행:**
+```bash
+./03-map-aggregation.sh
+```
+
+**주요 학습 포인트:**
+- 키별로 Map 값을 자동으로 집계
+- 모든 키에 대해 `mapSum(map_column)` 사용
+- JSON과 유사한 중첩 구조 처리
+- 수동 키 반복 제거
+- 효율적인 다차원 집계
+
+**실제 사용 사례:**
+- 다중 지역 매출 분석
+- 기능 사용 통계
+- 카테고리별 리소스 사용률
+- 태그 기반 메트릭 집계
+- 동적 차원 분석
+
+---
+
+#### 4. Fractional LIMIT (04-fractional-limit)
+
+**새로운 기능:** 백분율 기반 샘플링을 위해 LIMIT 절에 분수 값 사용
+
+**테스트 내용:**
+- 소수 값을 사용한 LIMIT (0.1 = 10%)
+- 대표 데이터 샘플링
+- A/B 테스트 데이터셋 생성
+- 학습/테스트 데이터 분할
+- 품질 보증 샘플링
+- 통계 분석 샘플링
+
+**실행:**
+```bash
+./04-fractional-limit.sh
+```
+
+**주요 학습 포인트:**
+- `LIMIT 0.1`은 10%의 행을 반환
+- `LIMIT 0.01`은 1%의 행을 반환
+- 백분율 기반 데이터 샘플링
+- 제어된 샘플링을 위해 ORDER BY와 결합
+- 고정 시드로 재현 가능
+
+**실제 사용 사례:**
+- 머신러닝 학습/테스트 분할
+- 데이터 품질 스팟 체크
+- 보고서 미리보기 생성
+- A/B 테스트 코호트 생성
+- 샘플링된 데이터로 성능 테스트
+- 대규모 데이터셋에 대한 통계 분석
+
+---
+
+#### 5. Naive Bayes Classifier (05-naive-bayes-classifier)
+
+**새로운 기능:** n-gram 토큰화를 사용한 Naive Bayes 알고리즘으로 텍스트 분류
+
+**테스트 내용:**
+- naiveBayesClassifier 집계 함수
+- 이메일 스팸 분류
+- 감정 분석 (긍정/부정/중립)
+- 제품 리뷰 분류
+- N-gram 텍스트 특징 추출
+- 학습 및 예측 워크플로우
+- 다중 클래스 분류
+
+**실행:**
+```bash
+./05-naive-bayes-classifier.sh
+```
+
+**주요 학습 포인트:**
+- 집계 함수로 분류기 학습
+- 텍스트 특징에 n-gram 사용
+- `naiveBayesClassifier(category, text_field)`
+- 예측을 위한 모델 적용
+- 다중 클래스 분류 처리
+- 쿼리에서 실시간 텍스트 분류
+
+**실제 사용 사례:**
+- 이메일 스팸 필터링
+- 고객 리뷰 감정 분석
+- 지원 티켓 분류
+- 콘텐츠 조정
+- 제품 카테고리 예측
+- 사용자 의도 분류
+- 뉴스 기사 주제 분류
+
+### 🔧 관리
+
+#### ClickHouse 접속 정보
+
+- **Web UI**: http://localhost:2511/play
+- **HTTP API**: http://localhost:2511
+- **TCP**: localhost:25111
+- **User**: default (no password)
+
+#### 유용한 명령어
+
+```bash
+# ClickHouse 상태 확인
+cd ../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 2511
+
+# 로그 확인
+docker logs clickhouse-25-11
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+```
+
+### 📂 파일 구조
+
+```
+25.11/
+├── README.md                          # 이 문서
+├── 00-setup.sh                        # ClickHouse 25.11 설치 스크립트
+├── 01-geometry-type.sh                # Geometry 타입 테스트 실행
+├── 01-geometry-type.sql               # Geometry 타입 SQL
+├── 02-having-without-groupby.sh       # HAVING without GROUP BY 테스트 실행
+├── 02-having-without-groupby.sql      # HAVING without GROUP BY SQL
+├── 03-map-aggregation.sh              # Map 집계 테스트 실행
+├── 03-map-aggregation.sql             # Map 집계 SQL
+├── 04-fractional-limit.sh             # Fractional LIMIT 테스트 실행
+├── 04-fractional-limit.sql            # Fractional LIMIT SQL
+├── 05-naive-bayes-classifier.sh       # Naive Bayes 분류기 테스트 실행
+└── 05-naive-bayes-classifier.sql      # Naive Bayes 분류기 SQL
+```
+
+### 🎓 학습 경로
+
+#### 초급 사용자
+1. **00-setup.sh** - 환경 구성 이해
+2. **04-fractional-limit** - 간단한 샘플링부터 시작
+3. **02-having-without-groupby** - ANSI SQL 호환성 학습
+
+#### 중급 사용자
+1. **01-geometry-type** - 공간 데이터 처리 탐색
+2. **03-map-aggregation** - 복잡한 데이터 구조 작업
+3. **05-naive-bayes-classifier** - SQL에서 ML 입문
+
+#### 고급 사용자
+- 모든 기능을 조합하여 실제 프로덕션 시나리오 구현
+- 위치 기반 분석과 Geometry 통합
+- 분류기를 사용한 종단간 ML 파이프라인 구축
+- 성능 벤치마킹 및 비교
+
+### 🔍 추가 자료
+
+- **Official Release Blog**: [ClickHouse 25.11 Release](https://clickhouse.com/blog/clickhouse-release-25-11)
+- **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
+- **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
+- **Geometry Functions**: [ClickHouse Geo Functions](https://clickhouse.com/docs/en/sql-reference/functions/geo)
+
+### 📝 참고사항
+
+- 각 스크립트는 독립적으로 실행 가능합니다
+- SQL 파일을 직접 읽고 수정하여 실험해보세요
+- 테스트 데이터는 각 SQL 파일 내에서 생성됩니다
+- 정리(cleanup)는 기본적으로 주석 처리되어 있습니다
+- Geometry 타입은 적절한 WKT/WKB 포맷이 필요합니다
+- Naive Bayes 분류기는 충분한 학습 데이터가 있을 때 가장 잘 작동합니다
+
+### 🤝 기여
+
+이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유
+
+### 📄 라이선스
+
+MIT License - 자유롭게 학습 및 수정 가능
+
+---
+
+**Happy Learning! 🚀**
+
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
