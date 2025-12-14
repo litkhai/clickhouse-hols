@@ -1,12 +1,381 @@
 # ClickHouse 25.6 New Features Lab
 
-ClickHouse 25.6 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.6에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+[English](#english) | [한국어](#한국어)
 
-## 📋 Overview
+---
+
+## English
+
+A hands-on laboratory for learning and testing ClickHouse 25.6 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.6.
+
+### 🎯 Overview
+
+ClickHouse 25.6 includes CoalescingMergeTree table engine, new Time data types, Bech32 encoding functions, lag/lead window functions, and consistent snapshot capabilities.
+
+### 🌟 Key Features
+
+1. **CoalescingMergeTree** - New table engine optimized for sparse updates
+2. **Time and Time64 Data Types** - New data types for time-of-day representation
+3. **Bech32 Encoding Functions** - Bech32 encoding/decoding for cryptocurrency addresses
+4. **lag/lead Window Functions** - Window functions for SQL compatibility
+5. **Consistent Snapshot** - Consistent data snapshots across multiple queries
+
+### 🚀 Quick Start
+
+#### Prerequisites
+
+- macOS (with Docker Desktop)
+- [oss-mac-setup](../oss-mac-setup/) environment setup
+
+#### Setup and Run
+
+```bash
+# 1. Install and start ClickHouse 25.6
+cd local/25.6
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-coalescingmergetree.sh
+./02-time-datatypes.sh
+./03-bech32-encoding.sh
+./04-lag-lead-functions.sh
+./05-consistent-snapshot.sh
+```
+
+#### Manual Execution (SQL only)
+
+To execute SQL files directly:
+
+```bash
+# Connect to ClickHouse client
+cd ../oss-mac-setup
+./client.sh 2506
+
+# Execute SQL file
+cd ../25.6
+source 01-coalescingmergetree.sql
+```
+
+### 📚 Feature Details
+
+#### 1. CoalescingMergeTree (01-coalescingmergetree)
+
+**New Feature:** CoalescingMergeTree table engine optimized for sparse updates
+
+**Test Content:**
+- Create tables using CoalescingMergeTree engine
+- Handle updates/deletes using Sign column
+- Verify automatic merge behavior
+- Sensor data and metrics tracking use cases
+- Real-time data modification scenarios
+
+**Execute:**
+```bash
+./01-coalescingmergetree.sh
+# Or
+cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-client --multiline --multiquery
+```
+
+**Key Learning Points:**
+- Sign column: 1 for insert, -1 for delete/update (previous value)
+- Automatic merge based on Sign value during merge
+- More efficient than ReplacingMergeTree for frequent updates
+- Suitable for CDC (Change Data Capture) scenarios
+
+**Real-World Use Cases:**
+- Metrics and monitoring systems
+- Sensor data correction and calibration
+- User state tracking
+- Real-time dashboard updates
+
+---
+
+#### 2. Time and Time64 Data Types (02-time-datatypes)
+
+**New Feature:** Time and Time64 data types for time-of-day representation
+
+**Test Content:**
+- Time data type (second precision)
+- Time64 data type (microsecond precision)
+- Time arithmetic and calculations
+- Business hours scheduling
+- API performance monitoring
+
+**Execute:**
+```bash
+./02-time-datatypes.sh
+```
+
+**Key Learning Points:**
+- `Time`: Stored as seconds since midnight
+- `Time64(precision)`: Supports microsecond precision
+- Time arithmetic: add, subtract, difference calculations
+- Efficient storage by storing time only, without date
+- Business operating hours and work time management
+
+**Real-World Use Cases:**
+- Business hours and operating schedules
+- Employee shift management
+- API response time monitoring (microsecond precision)
+- Service availability and SLA tracking
+- Time-based access control
+
+---
+
+#### 3. Bech32 Encoding Functions (03-bech32-encoding)
+
+**New Feature:** Bech32 encoding/decoding functions (`bech32Encode`, `bech32Decode`)
+
+**Test Content:**
+- Encode data using bech32Encode() function
+- Decode using bech32Decode() function
+- HRP (Human Readable Prefix) handling
+- Cryptocurrency address encoding
+- Checksum validation and error detection
+
+**Execute:**
+```bash
+./03-bech32-encoding.sh
+```
+
+**Key Learning Points:**
+- Bech32 is a Base32 variant with checksum
+- HRP identifies the purpose of encoded data
+- Case insensitive (reduces input errors)
+- Excludes confusable characters (0, O, I, l)
+- Used in Bitcoin Segwit addresses
+
+**Real-World Use Cases:**
+- Cryptocurrency address encoding
+- Public API key generation
+- URL shortening and obfuscation
+- Invoice and payment identifiers
+- External ID mapping for security
+- QR code data encoding
+
+---
+
+#### 4. lag/lead Window Functions (04-lag-lead-functions)
+
+**New Feature:** `lag()` and `lead()` window functions for accessing previous/next rows
+
+**Test Content:**
+- Access previous row data with lag() function
+- Access next row data with lead() function
+- Window partitioning and ordering
+- Time series analysis and trend detection
+- Customer behavior and conversion tracking
+
+**Execute:**
+```bash
+./04-lag-lead-functions.sh
+```
+
+**Key Learning Points:**
+- `lag(column, offset, default)`: Previous offset-th row
+- `lead(column, offset, default)`: Next offset-th row
+- PARTITION BY for independent windows per group
+- Compare adjacent rows without self-join
+- Calculate change rates in time series data
+
+**Real-World Use Cases:**
+- Stock price analysis and daily return calculation
+- User behavior analysis and conversion funnel
+- Revenue trend detection and forecasting
+- Moving averages and time series smoothing
+- Session analysis and user journey mapping
+- Anomaly detection compared to previous period
+
+---
+
+#### 5. Consistent Snapshot (05-consistent-snapshot)
+
+**New Feature:** Consistent snapshot guarantee across multiple queries
+
+**Test Content:**
+- Snapshot isolation for read consistency
+- Multi-query transactions using snapshot_id
+- Prevent phantom reads during long-running operations
+- Generate reports with consistent data
+- Audit and compliance scenarios
+
+**Execute:**
+```bash
+./05-consistent-snapshot.sh
+```
+
+**Key Learning Points:**
+- Ensure multiple queries see the same data state
+- Maintain data consistency during report generation
+- Point-in-time analysis through snapshot tables
+- Generate checksums for audit trails
+- Historical snapshots for regulatory reporting
+
+**Real-World Use Cases:**
+- Financial end-of-day reports and reconciliation
+- Regulatory compliance and audit trails
+- Consistent multi-table dashboard generation
+- Export data to external systems
+- Historical point-in-time analysis
+- Backup validation and data integrity checks
+
+### 🔧 Management
+
+#### ClickHouse Connection Info
+
+- **Web UI**: http://localhost:2506/play
+- **HTTP API**: http://localhost:2506
+- **TCP**: localhost:25061
+- **User**: default (no password)
+
+#### Useful Commands
+
+```bash
+# Check ClickHouse status
+cd ../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 2506
+
+# View logs
+docker logs clickhouse-25-6
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+```
+
+### 📂 File Structure
+
+```
+25.6/
+├── README.md                      # This document
+├── 00-setup.sh                    # ClickHouse 25.6 installation script
+├── 01-coalescingmergetree.sh      # CoalescingMergeTree test execution
+├── 01-coalescingmergetree.sql     # CoalescingMergeTree SQL
+├── 02-time-datatypes.sh           # Time data type test execution
+├── 02-time-datatypes.sql          # Time data type SQL
+├── 03-bech32-encoding.sh          # Bech32 encoding test execution
+├── 03-bech32-encoding.sql         # Bech32 encoding SQL
+├── 04-lag-lead-functions.sh       # lag/lead function test execution
+├── 04-lag-lead-functions.sql      # lag/lead function SQL
+├── 05-consistent-snapshot.sh      # Consistent Snapshot test execution
+└── 05-consistent-snapshot.sql     # Consistent Snapshot SQL
+```
+
+### 🎓 Learning Path
+
+#### For Beginners
+1. **00-setup.sh** - Understand environment setup
+2. **02-time-datatypes** - Start with simple data types
+3. **04-lag-lead-functions** - Learn window function basics
+
+#### For Intermediate Users
+1. **01-coalescingmergetree** - Understand table engine optimization
+2. **03-bech32-encoding** - Encoding and security concepts
+3. **05-consistent-snapshot** - Transaction and consistency
+
+#### For Advanced Users
+- Combine all features for real production scenarios
+- Analyze query execution plans with EXPLAIN
+- Performance benchmarking and comparison
+- Design real-time data pipelines
+
+### 💡 Feature Comparison
+
+#### CoalescingMergeTree vs ReplacingMergeTree
+
+| Feature | CoalescingMergeTree | ReplacingMergeTree |
+|---------|---------------------|-------------------|
+| Update method | Sign column (-1, +1) | Version column |
+| Merge timing | Automatic merge | FINAL query required |
+| Performance | Good for frequent updates | Good for rare updates |
+| Use case | Metrics, CDC | Master data, dimension tables |
+
+#### Time vs DateTime
+
+| Feature | Time/Time64 | DateTime |
+|---------|-------------|----------|
+| Storage content | Time only (since midnight) | Date + Time |
+| Precision | Seconds or microseconds | Seconds |
+| Use case | Business hours, schedules | Timestamps, events |
+| Storage size | Smaller | Larger |
+
+### 🔍 Additional Resources
+
+- **Official Release Blog**: [ClickHouse 25.6 Release](https://clickhouse.com/blog/clickhouse-release-25-06)
+- **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
+- **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
+- **GitHub Repository**: [ClickHouse GitHub](https://github.com/ClickHouse/ClickHouse)
+
+### 📝 Notes
+
+- Each script can be executed independently
+- Read and modify SQL files directly to experiment
+- Test data is generated within each SQL file
+- Cleanup is commented out by default
+- Thorough testing recommended before production use
+
+### 🔒 Security Considerations
+
+**When using Bech32 encoding:**
+- Includes checksum but is not encryption
+- Additional encryption needed for sensitive data
+- Use only as public identifier
+
+**When using CoalescingMergeTree:**
+- Be careful with Sign column management
+- Ensure consistency at application level
+- Consider concurrency control mechanisms
+
+### ⚡ Performance Tips
+
+**CoalescingMergeTree:**
+- Improve merge efficiency with appropriate ORDER BY keys
+- Manage historical data with partition strategy
+- Optimize read performance with Sign filtering
+
+**Time64 data type:**
+- Use Time64 only when high precision is needed
+- Time is sufficient for most cases
+- Can be used as index and partition key
+
+**lag/lead functions:**
+- Limit window size with appropriate PARTITION BY
+- Reduce sort cost with ORDER BY optimization
+- Large offset values affect performance
+
+### 🤝 Contributing
+
+If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback
+
+### 📄 License
+
+MIT License - Free to learn and modify
+
+---
+
+**Happy Learning! 🚀**
+
+For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+
+---
+
+## 한국어
+
+ClickHouse 25.6 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 ClickHouse 25.6에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+
+### 🎯 개요
 
 ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이터 타입, Bech32 인코딩 함수, lag/lead 윈도우 함수, 그리고 일관된 스냅샷 기능을 포함합니다.
 
-### 🎯 Key Features
+### 🌟 주요 기능
 
 1. **CoalescingMergeTree** - 희소 업데이트에 최적화된 새로운 테이블 엔진
 2. **Time and Time64 Data Types** - 시간 표현을 위한 새로운 데이터 타입
@@ -14,14 +383,14 @@ ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이�
 4. **lag/lead Window Functions** - SQL 호환성을 위한 윈도우 함수
 5. **Consistent Snapshot** - 여러 쿼리에 걸친 일관된 데이터 스냅샷
 
-## 🚀 Quick Start
+### 🚀 빠른 시작
 
-### Prerequisites
+#### 사전 요구사항
 
 - macOS (with Docker Desktop)
 - [oss-mac-setup](../oss-mac-setup/) 환경 구성
 
-### Setup and Run
+#### 설정 및 실행
 
 ```bash
 # 1. ClickHouse 25.6 설치 및 시작
@@ -36,7 +405,7 @@ cd local/25.6
 ./05-consistent-snapshot.sh
 ```
 
-### Manual Execution (SQL only)
+#### 수동 실행 (SQL만)
 
 SQL 파일을 직접 실행하려면:
 
@@ -50,9 +419,9 @@ cd ../25.6
 source 01-coalescingmergetree.sql
 ```
 
-## 📚 Feature Details
+### 📚 기능 상세
 
-### 1. CoalescingMergeTree (01-coalescingmergetree)
+#### 1. CoalescingMergeTree (01-coalescingmergetree)
 
 **새로운 기능:** 희소 업데이트에 최적화된 CoalescingMergeTree 테이블 엔진
 
@@ -84,7 +453,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ---
 
-### 2. Time and Time64 Data Types (02-time-datatypes)
+#### 2. Time and Time64 Data Types (02-time-datatypes)
 
 **새로운 기능:** 시간(time-of-day) 표현을 위한 Time 및 Time64 데이터 타입
 
@@ -116,7 +485,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ---
 
-### 3. Bech32 Encoding Functions (03-bech32-encoding)
+#### 3. Bech32 Encoding Functions (03-bech32-encoding)
 
 **새로운 기능:** Bech32 인코딩/디코딩 함수 (`bech32Encode`, `bech32Decode`)
 
@@ -149,7 +518,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ---
 
-### 4. lag/lead Window Functions (04-lag-lead-functions)
+#### 4. lag/lead Window Functions (04-lag-lead-functions)
 
 **새로운 기능:** 이전/다음 행 접근을 위한 `lag()` 및 `lead()` 윈도우 함수
 
@@ -182,7 +551,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ---
 
-### 5. Consistent Snapshot (05-consistent-snapshot)
+#### 5. Consistent Snapshot (05-consistent-snapshot)
 
 **새로운 기능:** 여러 쿼리에 걸친 일관된 스냅샷 보장
 
@@ -213,16 +582,16 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 - 히스토리컬 특정 시점 분석
 - 백업 검증 및 데이터 무결성 검사
 
-## 🔧 Management
+### 🔧 관리
 
-### ClickHouse Connection Info
+#### ClickHouse 접속 정보
 
 - **Web UI**: http://localhost:2506/play
 - **HTTP API**: http://localhost:2506
 - **TCP**: localhost:25061
 - **User**: default (no password)
 
-### Useful Commands
+#### 유용한 명령어
 
 ```bash
 # ClickHouse 상태 확인
@@ -242,7 +611,7 @@ docker logs clickhouse-25-6
 ./stop.sh --cleanup
 ```
 
-## 📂 File Structure
+### 📂 파일 구조
 
 ```
 25.6/
@@ -260,52 +629,52 @@ docker logs clickhouse-25-6
 └── 05-consistent-snapshot.sql     # Consistent Snapshot SQL
 ```
 
-## 🎓 Learning Path
+### 🎓 학습 경로
 
-### 초급 사용자
+#### 초급 사용자
 1. **00-setup.sh** - 환경 구성 이해
 2. **02-time-datatypes** - 간단한 데이터 타입부터 시작
 3. **04-lag-lead-functions** - 윈도우 함수 기초 학습
 
-### 중급 사용자
+#### 중급 사용자
 1. **01-coalescingmergetree** - 테이블 엔진 최적화 이해
 2. **03-bech32-encoding** - 인코딩 및 보안 개념
 3. **05-consistent-snapshot** - 트랜잭션 및 일관성
 
-### 고급 사용자
+#### 고급 사용자
 - 모든 기능을 조합하여 실제 프로덕션 시나리오 구현
 - EXPLAIN 명령으로 쿼리 실행 계획 분석
 - 성능 벤치마킹 및 비교
 - 실시간 데이터 파이프라인 설계
 
-## 💡 Feature Comparison
+### 💡 기능 비교
 
-### CoalescingMergeTree vs ReplacingMergeTree
+#### CoalescingMergeTree vs ReplacingMergeTree
 
-| Feature | CoalescingMergeTree | ReplacingMergeTree |
+| 기능 | CoalescingMergeTree | ReplacingMergeTree |
 |---------|---------------------|-------------------|
 | 업데이트 방식 | Sign 컬럼 (-1, +1) | 버전 컬럼 |
 | 병합 시점 | 자동 병합 | FINAL 쿼리 필요 |
 | 성능 | 빈번한 업데이트에 적합 | 드문 업데이트에 적합 |
 | 용도 | 메트릭, CDC | 마스터 데이터, 차원 테이블 |
 
-### Time vs DateTime
+#### Time vs DateTime
 
-| Feature | Time/Time64 | DateTime |
+| 기능 | Time/Time64 | DateTime |
 |---------|-------------|----------|
 | 저장 내용 | 시간만 (자정 기준) | 날짜 + 시간 |
 | 정밀도 | 초 or 마이크로초 | 초 |
 | 용도 | 업무 시간, 일정 | 타임스탬프, 이벤트 |
-| 저장 크기 | 작음 | 큰 |
+| 저장 크기 | 작음 | 큼 |
 
-## 🔍 Additional Resources
+### 🔍 추가 자료
 
 - **Official Release Blog**: [ClickHouse 25.6 Release](https://clickhouse.com/blog/clickhouse-release-25-06)
 - **ClickHouse Documentation**: [docs.clickhouse.com](https://clickhouse.com/docs)
 - **Release Notes**: [Changelog 2025](https://clickhouse.com/docs/whats-new/changelog)
 - **GitHub Repository**: [ClickHouse GitHub](https://github.com/ClickHouse/ClickHouse)
 
-## 📝 Notes
+### 📝 참고사항
 
 - 각 스크립트는 독립적으로 실행 가능합니다
 - SQL 파일을 직접 읽고 수정하여 실험해보세요
@@ -313,7 +682,7 @@ docker logs clickhouse-25-6
 - 정리(cleanup)는 기본적으로 주석 처리되어 있습니다
 - 프로덕션 환경 적용 전 충분한 테스트를 권장합니다
 
-## 🔒 Security Considerations
+### 🔒 보안 고려사항
 
 **Bech32 인코딩 사용 시:**
 - 체크섬이 포함되어 있지만 암호화는 아님
@@ -325,7 +694,7 @@ docker logs clickhouse-25-6
 - 애플리케이션 레벨에서 일관성 보장 필요
 - 동시성 제어 메커니즘 고려
 
-## ⚡ Performance Tips
+### ⚡ 성능 팁
 
 **CoalescingMergeTree:**
 - 적절한 ORDER BY 키 설정으로 머지 효율 향상
@@ -342,14 +711,14 @@ docker logs clickhouse-25-6
 - ORDER BY 최적화로 정렬 비용 감소
 - 큰 offset 값은 성능에 영향
 
-## 🤝 Contributing
+### 🤝 기여
 
 이 랩에 대한 개선 사항이나 추가 예제가 있다면:
 1. 이슈 등록
 2. Pull Request 제출
 3. 피드백 공유
 
-## 📄 License
+### 📄 라이선스
 
 MIT License - 자유롭게 학습 및 수정 가능
 
@@ -357,4 +726,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
