@@ -1,67 +1,11 @@
 services:
-  clickhouse-25-6:
-    image: clickhouse/clickhouse-server:25.6
-    container_name: clickhouse-25-6
-    hostname: clickhouse-25-6
-    ports:
-      - "2506:8123"  # HTTP Interface
-      - "25061:9000"   # TCP Interface
-    volumes:
-      - clickhouse_data_25_6:/var/lib/clickhouse
-      - clickhouse_logs_25_6:/var/log/clickhouse-server
-    environment:
-      CLICKHOUSE_DB: default
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ""
-    restart: unless-stopped
-    security_opt:
-      - seccomp=/Users/kenlee/Documents/GitHub/clickhouse-hols/local/oss-mac-setup/seccomp-profile.json
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-
-  clickhouse-25-10:
-    image: clickhouse/clickhouse-server:25.10
-    container_name: clickhouse-25-10
-    hostname: clickhouse-25-10
-    ports:
-      - "2510:8123"  # HTTP Interface
-      - "25101:9000"   # TCP Interface
-    volumes:
-      - clickhouse_data_25_10:/var/lib/clickhouse
-      - clickhouse_logs_25_10:/var/log/clickhouse-server
-    environment:
-      CLICKHOUSE_DB: default
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ""
-    restart: unless-stopped
-    security_opt:
-      - seccomp=/Users/kenlee/Documents/GitHub/clickhouse-hols/local/oss-mac-setup/seccomp-profile.json
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-
   clickhouse-25-11:
     image: clickhouse/clickhouse-server:25.11
     container_name: clickhouse-25-11
     hostname: clickhouse-25-11
     ports:
-      - "2511:8123"  # HTTP Interface
-      - "25111:9000"   # TCP Interface
+      - "8123:8123"  # HTTP Interface
+      - "9000:9000"   # TCP Interface
     volumes:
       - clickhouse_data_25_11:/var/lib/clickhouse
       - clickhouse_logs_25_11:/var/log/clickhouse-server
@@ -84,14 +28,6 @@ services:
         hard: 262144
 
 volumes:
-  clickhouse_data_25_6:
-    driver: local
-  clickhouse_logs_25_6:
-    driver: local
-  clickhouse_data_25_10:
-    driver: local
-  clickhouse_logs_25_10:
-    driver: local
   clickhouse_data_25_11:
     driver: local
   clickhouse_logs_25_11:

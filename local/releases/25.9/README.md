@@ -63,7 +63,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./client.sh 2509
 
 # Execute SQL file
@@ -249,7 +249,7 @@ After running `./00-setup.sh`:
 #### ClickHouse Management
 
 ```bash
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 
 # Check status
 ./status.sh
@@ -328,7 +328,7 @@ curl http://localhost:2509/
 To stop and remove ClickHouse 25.9:
 
 ```bash
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./stop.sh
 
 # Optional: Delete data
@@ -411,7 +411,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./client.sh 2509
 
 # SQL 파일 실행
@@ -597,7 +597,7 @@ FROM user_permissions;
 #### ClickHouse 관리
 
 ```bash
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 
 # Check status
 ./status.sh
@@ -676,7 +676,7 @@ curl http://localhost:2509/
 ClickHouse 25.9를 중지하고 제거하려면:
 
 ```bash
-cd ../oss-mac-setup
+cd ../../oss-mac-setup
 ./stop.sh
 
 # Optional: 데이터 삭제

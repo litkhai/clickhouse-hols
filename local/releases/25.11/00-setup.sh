@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../oss-mac-setup"
 
 echo "🚀 ClickHouse 25.11 Setup"
 echo "=========================="
@@ -24,11 +24,9 @@ cd "$OSS_MAC_SETUP_DIR"
 echo "📍 Using oss-mac-setup at: $OSS_MAC_SETUP_DIR"
 echo ""
 
-# Run setup with version 25.11 and a dummy version to trigger custom port mapping
-# Note: set.sh uses custom ports only when multiple versions are configured
-# Since we want 25.11 on port 2511, we need to configure it alongside other versions
+# Run setup with version 25.11 (single version uses default ports)
 echo "📦 Setting up ClickHouse version 25.11..."
-./set.sh 25.6 25.10 25.11
+./set.sh 25.11
 
 echo ""
 echo "▶️  Starting ClickHouse 25.11..."
@@ -38,10 +36,10 @@ echo ""
 echo "⏳ Waiting for ClickHouse to be ready..."
 sleep 5
 
-# Verify installation (25.11 maps to port 2511)
+# Verify installation (uses default port 8123)
 echo ""
 echo "✅ Verifying ClickHouse 25.11 installation..."
-VERSION_CHECK=$(curl -s http://localhost:2511/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
+VERSION_CHECK=$(curl -s http://localhost:8123/ 2>/dev/null | grep -o 'ClickHouse server version [0-9.]*' | head -1)
 if [ -n "$VERSION_CHECK" ]; then
     echo "   ✅ $VERSION_CHECK"
 else
@@ -50,15 +48,15 @@ fi
 
 echo ""
 echo "📍 Connection Information:"
-echo "   🌐 Web UI: http://localhost:2511/play"
-echo "   📡 HTTP API: http://localhost:2511"
-echo "   🔌 TCP: localhost:25111"
+echo "   🌐 Web UI: http://localhost:8123/play"
+echo "   📡 HTTP API: http://localhost:8123"
+echo "   🔌 TCP: localhost:9000"
 echo "   👤 User: default (no password)"
 echo ""
 echo "🔧 Management Commands:"
 echo "   cd $OSS_MAC_SETUP_DIR"
 echo "   ./status.sh          - Check status"
-echo "   ./client.sh 2511     - Connect to CLI"
+echo "   ./client.sh 8123     - Connect to CLI"
 echo "   ./stop.sh            - Stop ClickHouse"
 echo ""
 echo "✅ ClickHouse 25.11 setup complete!"
