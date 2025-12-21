@@ -54,7 +54,7 @@ CLICKHOUSE_SECURE=true        # TLS/SSL 필수
 ### CLI로 테스트
 
 ```bash
-clickhouse-client \
+clickhouse client \
     --host=your-instance.clickhouse.cloud \
     --port=8443 \
     --user=default \
@@ -133,7 +133,7 @@ CLICKHOUSE_PORT=8443
 **해결**:
 ```bash
 # CLI에서 --secure 플래그 추가
-clickhouse-client --secure ...
+clickhouse client --secure ...
 
 # 환경 변수
 CLICKHOUSE_SECURE=true

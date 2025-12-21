@@ -20,13 +20,7 @@
 - 포트 9000 (TCP)는 사용하지 않습니다
 - 모든 연결은 암호화됩니다
 
-### 2. OpenAI API 키 발급
-
-1. [OpenAI Platform](https://platform.openai.com/)에 로그인
-2. API Keys 메뉴에서 새 키 생성
-3. 키를 안전한 곳에 저장
-
-### 3. AWS 설정 (EC2 배포 시)
+### 2. AWS 설정 (EC2 배포 시)
 
 #### VPC 및 Subnet 확인
 
@@ -69,9 +63,7 @@ CLICKHOUSE_PORT=8443
 CLICKHOUSE_USER=default
 CLICKHOUSE_PASSWORD=your-secure-password
 CLICKHOUSE_DB=o11y
-
-# OpenAI API 키 입력
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxx
+CLICKHOUSE_SECURE=true
 ```
 
 #### Terraform 배포
@@ -122,7 +114,7 @@ chmod +x *.sh
 
 스키마가 정상 생성되었는지 확인:
 ```bash
-clickhouse-client \
+clickhouse client \
     --host="your-instance.clickhouse.cloud" \
     --port=8443 \
     --user=default \
@@ -185,14 +177,6 @@ cd /home/ubuntu/o11y-vector-ai
 ./scripts/setup-ec2.sh
 ```
 
-### 8. AI Agent 연동 (선택사항)
-
-AI Agent에게 ClickHouse 데이터베이스 접근 권한을 부여하여 자동 분석을 활용할 수 있습니다.
-
-MCP (Model Context Protocol) 설정 예시는 `mcp/claude_desktop_config.json.example` 파일을 참조하세요.
-
-자세한 AI Agent 활용법은 README.md의 "AI Agent 프롬프트 예시" 섹션을 참조하세요.
-
 ## 검증
 
 ### ClickHouse Cloud 연결 테스트
@@ -201,7 +185,7 @@ MCP (Model Context Protocol) 설정 예시는 `mcp/claude_desktop_config.json.ex
 
 ```bash
 # ClickHouse CLI로 연결 테스트 (포트 8443, --secure 필수)
-clickhouse-client \
+clickhouse client \
     --host="your-instance.clickhouse.cloud" \
     --port=8443 \
     --user=default \
@@ -283,7 +267,7 @@ curl http://localhost:8000/health
 2. **연결 테스트**:
    ```bash
    # --secure 플래그 필수!
-   clickhouse-client \
+   clickhouse client \
        --host=your-instance.clickhouse.cloud \
        --port=8443 \
        --user=default \

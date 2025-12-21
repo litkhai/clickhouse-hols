@@ -18,10 +18,7 @@ CREATE TABLE IF NOT EXISTS o11y.logs_with_embeddings
     -- Embedding fields
     embedding Array(Float32) CODEC(ZSTD),
     embedding_model LowCardinality(String) DEFAULT 'text-embedding-ada-002',
-    embedding_created_at DateTime64(3) DEFAULT now64(3),
-
-    -- Vector Index using usearch
-    INDEX vec_idx embedding TYPE usearch('metric=cosine') GRANULARITY 1
+    embedding_created_at DateTime64(3) DEFAULT now64(3)
 )
 ENGINE = MergeTree()
 PARTITION BY toDate(Timestamp)
@@ -31,6 +28,9 @@ SETTINGS index_granularity = 8192;
 -- Additional indexes
 ALTER TABLE o11y.logs_with_embeddings ADD INDEX idx_trace_id TraceId TYPE bloom_filter(0.01) GRANULARITY 1;
 ALTER TABLE o11y.logs_with_embeddings ADD INDEX idx_body Body TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 1;
+-- Vector similarity index
+-- Vector similarity index (dimension, metric, quantization)
+ALTER TABLE o11y.logs_with_embeddings ADD INDEX vec_idx embedding TYPE vector_similarity(1536, 'cosine') GRANULARITY 1;
 
 -- ===================================================================
 -- TRACES WITH EMBEDDINGS
@@ -57,10 +57,7 @@ CREATE TABLE IF NOT EXISTS o11y.traces_with_embeddings
     -- Classification labels (for supervised learning)
     is_anomaly UInt8 DEFAULT 0,
     anomaly_type LowCardinality(String) DEFAULT '',
-    anomaly_confidence Float32 DEFAULT 0.0,
-
-    -- Vector Index
-    INDEX vec_idx embedding TYPE usearch('metric=cosine') GRANULARITY 1
+    anomaly_confidence Float32 DEFAULT 0.0
 )
 ENGINE = MergeTree()
 PARTITION BY toDate(Timestamp)
@@ -70,6 +67,8 @@ SETTINGS index_granularity = 8192;
 -- Indexes
 ALTER TABLE o11y.traces_with_embeddings ADD INDEX idx_trace_id TraceId TYPE bloom_filter(0.01) GRANULARITY 1;
 ALTER TABLE o11y.traces_with_embeddings ADD INDEX idx_is_anomaly is_anomaly TYPE set(0) GRANULARITY 1;
+-- Vector similarity index
+ALTER TABLE o11y.traces_with_embeddings ADD INDEX vec_idx embedding TYPE vector_similarity(1536, 'cosine') GRANULARITY 1;
 
 -- ===================================================================
 -- ERROR PATTERNS
@@ -101,10 +100,7 @@ CREATE TABLE IF NOT EXISTS o11y.error_patterns
 
     -- Embedding for semantic search
     embedding Array(Float32) CODEC(ZSTD),
-    embedding_model LowCardinality(String) DEFAULT 'text-embedding-ada-002',
-
-    -- Vector Index
-    INDEX vec_idx embedding TYPE usearch('metric=cosine') GRANULARITY 1
+    embedding_model LowCardinality(String) DEFAULT 'text-embedding-ada-002'
 )
 ENGINE = MergeTree()
 ORDER BY (service_name, created_at)
@@ -114,6 +110,8 @@ SETTINGS index_granularity = 8192;
 ALTER TABLE o11y.error_patterns ADD INDEX idx_pattern_id pattern_id TYPE bloom_filter(0.01) GRANULARITY 1;
 ALTER TABLE o11y.error_patterns ADD INDEX idx_error_sig error_signature TYPE bloom_filter(0.01) GRANULARITY 1;
 ALTER TABLE o11y.error_patterns ADD INDEX idx_error_msg error_message TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 1;
+-- Vector similarity index
+ALTER TABLE o11y.error_patterns ADD INDEX vec_idx embedding TYPE vector_similarity(1536, 'cosine') GRANULARITY 1;
 
 -- ===================================================================
 -- MATERIALIZED VIEWS FOR AUTO-POPULATION

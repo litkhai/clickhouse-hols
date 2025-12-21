@@ -19,7 +19,7 @@ fi
 
 # Execute schema files
 echo "Creating OTEL tables..."
-clickhouse-client \
+clickhouse client \
     --host="$CLICKHOUSE_HOST" \
     --port="${CLICKHOUSE_PORT:-8443}" \
     --user="${CLICKHOUSE_USER:-default}" \
@@ -28,7 +28,7 @@ clickhouse-client \
     --multiquery < ../clickhouse/schemas/01_otel_tables.sql
 
 echo "Creating Vector tables..."
-clickhouse-client \
+clickhouse client \
     --host="$CLICKHOUSE_HOST" \
     --port="${CLICKHOUSE_PORT:-8443}" \
     --user="${CLICKHOUSE_USER:-default}" \
