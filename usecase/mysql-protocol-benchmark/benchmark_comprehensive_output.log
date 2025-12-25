@@ -1,0 +1,471 @@
+MySQL vs ClickHouse Comprehensive Optimization Benchmark
+============================================================
+Testing configurations:
+  1. MySQL (InnoDB)
+  2. ClickHouse Original (index_granularity=8192, WHERE)
+  3. ClickHouse Original (index_granularity=8192, PREWHERE)
+  4. ClickHouse Optimized (index_granularity=256, WHERE)
+  5. ClickHouse Optimized (index_granularity=256, PREWHERE)
+  6. ClickHouse Memory (WHERE)
+  7. ClickHouse Memory (PREWHERE)
+============================================================
+
+======================================================================
+MySQL | Engine: InnoDB | Optimization: Baseline
+Concurrency: 8 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 0.85s
+QPS: 4,697.53
+Latency: avg=0.92ms, p50=0.70ms, p95=1.81ms, p99=2.62ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-WHERE
+Concurrency: 8 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 1.26s
+QPS: 3,182.65
+Latency: avg=2.27ms, p50=2.11ms, p95=3.54ms, p99=4.37ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-PREWHERE
+Concurrency: 8 | Table: player_last_login | PREWHERE: True
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 1.30s
+QPS: 3,082.54
+Latency: avg=2.31ms, p50=2.09ms, p95=3.80ms, p99=5.03ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-WHERE
+Concurrency: 8 | Table: player_last_login_optimized | PREWHERE: False
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 1.19s
+QPS: 3,356.52
+Latency: avg=2.12ms, p50=1.97ms, p95=3.37ms, p99=4.33ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-PREWHERE
+Concurrency: 8 | Table: player_last_login_optimized | PREWHERE: True
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 1.17s
+QPS: 3,417.54
+Latency: avg=2.06ms, p50=1.89ms, p95=3.23ms, p99=4.06ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-WHERE
+Concurrency: 8 | Table: player_last_login_memory | PREWHERE: False
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 4,000 / 4,000
+Duration: 1.79s
+QPS: 2,234.49
+Latency: avg=2.83ms, p50=2.69ms, p95=4.25ms, p99=5.39ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-PREWHERE
+Concurrency: 8 | Table: player_last_login_memory | PREWHERE: True
+======================================================================
+Warming up...
+Executing 4000 queries...
+
+--- Results ---
+Queries: 0 / 4,000
+Duration: 0.98s
+QPS: 0.00
+Latency: avg=0.00ms, p50=0.00ms, p95=0.00ms, p99=0.00ms
+
+======================================================================
+MySQL | Engine: InnoDB | Optimization: Baseline
+Concurrency: 16 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 1.76s
+QPS: 4,546.53
+Latency: avg=1.56ms, p50=0.81ms, p95=3.76ms, p99=6.12ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-WHERE
+Concurrency: 16 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 2.69s
+QPS: 2,972.28
+Latency: avg=3.32ms, p50=2.91ms, p95=6.08ms, p99=8.72ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-PREWHERE
+Concurrency: 16 | Table: player_last_login | PREWHERE: True
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 2.53s
+QPS: 3,159.85
+Latency: avg=3.10ms, p50=2.74ms, p95=5.55ms, p99=7.61ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-WHERE
+Concurrency: 16 | Table: player_last_login_optimized | PREWHERE: False
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 2.58s
+QPS: 3,105.90
+Latency: avg=3.19ms, p50=2.88ms, p95=5.70ms, p99=7.43ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-PREWHERE
+Concurrency: 16 | Table: player_last_login_optimized | PREWHERE: True
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 2.44s
+QPS: 3,280.75
+Latency: avg=2.97ms, p50=2.58ms, p95=5.25ms, p99=6.95ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-WHERE
+Concurrency: 16 | Table: player_last_login_memory | PREWHERE: False
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 8,000 / 8,000
+Duration: 3.62s
+QPS: 2,212.13
+Latency: avg=4.40ms, p50=4.06ms, p95=7.88ms, p99=11.25ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-PREWHERE
+Concurrency: 16 | Table: player_last_login_memory | PREWHERE: True
+======================================================================
+Warming up...
+Executing 8000 queries...
+
+--- Results ---
+Queries: 0 / 8,000
+Duration: 1.75s
+QPS: 0.00
+Latency: avg=0.00ms, p50=0.00ms, p95=0.00ms, p99=0.00ms
+
+======================================================================
+MySQL | Engine: InnoDB | Optimization: Baseline
+Concurrency: 24 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 2.58s
+QPS: 4,645.88
+Latency: avg=2.10ms, p50=0.91ms, p95=5.45ms, p99=9.04ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-WHERE
+Concurrency: 24 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 3.87s
+QPS: 3,104.28
+Latency: avg=4.10ms, p50=3.86ms, p95=8.09ms, p99=11.41ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-PREWHERE
+Concurrency: 24 | Table: player_last_login | PREWHERE: True
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 3.82s
+QPS: 3,142.55
+Latency: avg=4.01ms, p50=3.83ms, p95=8.06ms, p99=11.75ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-WHERE
+Concurrency: 24 | Table: player_last_login_optimized | PREWHERE: False
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 3.79s
+QPS: 3,163.95
+Latency: avg=3.91ms, p50=3.29ms, p95=7.94ms, p99=11.29ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-PREWHERE
+Concurrency: 24 | Table: player_last_login_optimized | PREWHERE: True
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 3.80s
+QPS: 3,158.59
+Latency: avg=3.93ms, p50=3.53ms, p95=8.30ms, p99=11.95ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-WHERE
+Concurrency: 24 | Table: player_last_login_memory | PREWHERE: False
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 12,000 / 12,000
+Duration: 5.17s
+QPS: 2,319.75
+Latency: avg=5.47ms, p50=5.48ms, p95=10.46ms, p99=14.18ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-PREWHERE
+Concurrency: 24 | Table: player_last_login_memory | PREWHERE: True
+======================================================================
+Warming up...
+Executing 12000 queries...
+
+--- Results ---
+Queries: 0 / 12,000
+Duration: 2.71s
+QPS: 0.00
+Latency: avg=0.00ms, p50=0.00ms, p95=0.00ms, p99=0.00ms
+
+======================================================================
+MySQL | Engine: InnoDB | Optimization: Baseline
+Concurrency: 32 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 3.29s
+QPS: 4,860.45
+Latency: avg=2.58ms, p50=1.08ms, p95=6.82ms, p99=11.19ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-WHERE
+Concurrency: 32 | Table: player_last_login | PREWHERE: False
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 5.29s
+QPS: 3,022.02
+Latency: avg=5.12ms, p50=5.15ms, p95=10.82ms, p99=15.43ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Original-PREWHERE
+Concurrency: 32 | Table: player_last_login | PREWHERE: True
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 5.38s
+QPS: 2,974.80
+Latency: avg=5.22ms, p50=5.29ms, p95=11.09ms, p99=15.85ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-WHERE
+Concurrency: 32 | Table: player_last_login_optimized | PREWHERE: False
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 5.51s
+QPS: 2,904.04
+Latency: avg=5.33ms, p50=4.92ms, p95=11.12ms, p99=18.80ms
+
+======================================================================
+ClickHouse | Engine: MergeTree | Optimization: Optimized-PREWHERE
+Concurrency: 32 | Table: player_last_login_optimized | PREWHERE: True
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 5.09s
+QPS: 3,141.73
+Latency: avg=4.80ms, p50=4.47ms, p95=10.60ms, p99=16.58ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-WHERE
+Concurrency: 32 | Table: player_last_login_memory | PREWHERE: False
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 16,000 / 16,000
+Duration: 6.98s
+QPS: 2,293.26
+Latency: avg=6.90ms, p50=7.27ms, p95=13.90ms, p99=19.39ms
+
+======================================================================
+ClickHouse | Engine: Memory | Optimization: Memory-PREWHERE
+Concurrency: 32 | Table: player_last_login_memory | PREWHERE: True
+======================================================================
+Warming up...
+Executing 16000 queries...
+
+--- Results ---
+Queries: 0 / 16,000
+Duration: 3.50s
+QPS: 0.00
+Latency: avg=0.00ms, p50=0.00ms, p95=0.00ms, p99=0.00ms
+
+====================================================================================================
+MySQL vs ClickHouse Comprehensive Optimization Report
+Generated: 2025-12-25T18:15:34.724066
+====================================================================================================
+
+## Summary by Concurrency
+
+### Concurrency: 8
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,697.53       0.92       0.70       1.81       2.62
+ClickHouse      MergeTree    Original-WHERE           3,182.65       2.27       2.11       3.54       4.37
+ClickHouse      MergeTree    Original-PREWHERE        3,082.54       2.31       2.09       3.80       5.03
+ClickHouse      MergeTree    Optimized-WHERE          3,356.52       2.12       1.97       3.37       4.33
+ClickHouse      MergeTree    Optimized-PREWHERE       3,417.54       2.06       1.89       3.23       4.06
+ClickHouse      Memory       Memory-WHERE             2,234.49       2.83       2.69       4.25       5.39
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 16
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,546.53       1.56       0.81       3.76       6.12
+ClickHouse      MergeTree    Original-WHERE           2,972.28       3.32       2.91       6.08       8.72
+ClickHouse      MergeTree    Original-PREWHERE        3,159.85       3.10       2.74       5.55       7.61
+ClickHouse      MergeTree    Optimized-WHERE          3,105.90       3.19       2.88       5.70       7.43
+ClickHouse      MergeTree    Optimized-PREWHERE       3,280.75       2.97       2.58       5.25       6.95
+ClickHouse      Memory       Memory-WHERE             2,212.13       4.40       4.06       7.88      11.25
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 24
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,645.88       2.10       0.91       5.45       9.04
+ClickHouse      MergeTree    Original-WHERE           3,104.28       4.10       3.86       8.09      11.41
+ClickHouse      MergeTree    Original-PREWHERE        3,142.55       4.01       3.83       8.06      11.75
+ClickHouse      MergeTree    Optimized-WHERE          3,163.95       3.91       3.29       7.94      11.29
+ClickHouse      MergeTree    Optimized-PREWHERE       3,158.59       3.93       3.53       8.30      11.95
+ClickHouse      Memory       Memory-WHERE             2,319.75       5.47       5.48      10.46      14.18
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 32
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,860.45       2.58       1.08       6.82      11.19
+ClickHouse      MergeTree    Original-WHERE           3,022.02       5.12       5.15      10.82      15.43
+ClickHouse      MergeTree    Original-PREWHERE        2,974.80       5.22       5.29      11.09      15.85
+ClickHouse      MergeTree    Optimized-WHERE          2,904.04       5.33       4.92      11.12      18.80
+ClickHouse      MergeTree    Optimized-PREWHERE       3,141.73       4.80       4.47      10.60      16.58
+ClickHouse      Memory       Memory-WHERE             2,293.26       6.90       7.27      13.90      19.39
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+
+## Performance Comparison (vs MySQL)
+
+### Concurrency 8 (MySQL QPS: 4,697.53)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,182.65  Ratio:   0.68x  Change:   -32.2%
+Original-PREWHERE              QPS:   3,082.54  Ratio:   0.66x  Change:   -34.4%
+Optimized-WHERE                QPS:   3,356.52  Ratio:   0.71x  Change:   -28.5%
+Optimized-PREWHERE             QPS:   3,417.54  Ratio:   0.73x  Change:   -27.2%
+Memory-WHERE                   QPS:   2,234.49  Ratio:   0.48x  Change:   -52.4%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 16 (MySQL QPS: 4,546.53)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   2,972.28  Ratio:   0.65x  Change:   -34.6%
+Original-PREWHERE              QPS:   3,159.85  Ratio:   0.70x  Change:   -30.5%
+Optimized-WHERE                QPS:   3,105.90  Ratio:   0.68x  Change:   -31.7%
+Optimized-PREWHERE             QPS:   3,280.75  Ratio:   0.72x  Change:   -27.8%
+Memory-WHERE                   QPS:   2,212.13  Ratio:   0.49x  Change:   -51.3%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 24 (MySQL QPS: 4,645.88)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,104.28  Ratio:   0.67x  Change:   -33.2%
+Original-PREWHERE              QPS:   3,142.55  Ratio:   0.68x  Change:   -32.4%
+Optimized-WHERE                QPS:   3,163.95  Ratio:   0.68x  Change:   -31.9%
+Optimized-PREWHERE             QPS:   3,158.59  Ratio:   0.68x  Change:   -32.0%
+Memory-WHERE                   QPS:   2,319.75  Ratio:   0.50x  Change:   -50.1%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 32 (MySQL QPS: 4,860.45)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,022.02  Ratio:   0.62x  Change:   -37.8%
+Original-PREWHERE              QPS:   2,974.80  Ratio:   0.61x  Change:   -38.8%
+Optimized-WHERE                QPS:   2,904.04  Ratio:   0.60x  Change:   -40.3%
+Optimized-PREWHERE             QPS:   3,141.73  Ratio:   0.65x  Change:   -35.4%
+Memory-WHERE                   QPS:   2,293.26  Ratio:   0.47x  Change:   -52.8%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+Saved: benchmark_comprehensive_report.txt, benchmark_comprehensive_results.json

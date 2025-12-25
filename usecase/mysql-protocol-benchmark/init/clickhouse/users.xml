@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <users>
+        <testuser>
+            <password>testpass</password>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </testuser>
+        <default>
+            <password></password>
+            <networks>
+                <ip>::1</ip>
+                <ip>127.0.0.1</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+        </default>
+    </users>
+
+    <profiles>
+        <default>
+            <max_threads>4</max_threads>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <!-- MySQL 호환성 -->
+            <mysql_map_string_to_text_in_show_columns>1</mysql_map_string_to_text_in_show_columns>
+            <mysql_map_fixed_string_to_text_in_show_columns>1</mysql_map_fixed_string_to_text_in_show_columns>
+        </default>
+    </profiles>
+</clickhouse>
