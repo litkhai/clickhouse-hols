@@ -1,0 +1,94 @@
+
+====================================================================================================
+MySQL vs ClickHouse Comprehensive Optimization Report
+Generated: 2025-12-25T18:15:34.724066
+====================================================================================================
+
+## Summary by Concurrency
+
+### Concurrency: 8
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,697.53       0.92       0.70       1.81       2.62
+ClickHouse      MergeTree    Original-WHERE           3,182.65       2.27       2.11       3.54       4.37
+ClickHouse      MergeTree    Original-PREWHERE        3,082.54       2.31       2.09       3.80       5.03
+ClickHouse      MergeTree    Optimized-WHERE          3,356.52       2.12       1.97       3.37       4.33
+ClickHouse      MergeTree    Optimized-PREWHERE       3,417.54       2.06       1.89       3.23       4.06
+ClickHouse      Memory       Memory-WHERE             2,234.49       2.83       2.69       4.25       5.39
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 16
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,546.53       1.56       0.81       3.76       6.12
+ClickHouse      MergeTree    Original-WHERE           2,972.28       3.32       2.91       6.08       8.72
+ClickHouse      MergeTree    Original-PREWHERE        3,159.85       3.10       2.74       5.55       7.61
+ClickHouse      MergeTree    Optimized-WHERE          3,105.90       3.19       2.88       5.70       7.43
+ClickHouse      MergeTree    Optimized-PREWHERE       3,280.75       2.97       2.58       5.25       6.95
+ClickHouse      Memory       Memory-WHERE             2,212.13       4.40       4.06       7.88      11.25
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 24
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,645.88       2.10       0.91       5.45       9.04
+ClickHouse      MergeTree    Original-WHERE           3,104.28       4.10       3.86       8.09      11.41
+ClickHouse      MergeTree    Original-PREWHERE        3,142.55       4.01       3.83       8.06      11.75
+ClickHouse      MergeTree    Optimized-WHERE          3,163.95       3.91       3.29       7.94      11.29
+ClickHouse      MergeTree    Optimized-PREWHERE       3,158.59       3.93       3.53       8.30      11.95
+ClickHouse      Memory       Memory-WHERE             2,319.75       5.47       5.48      10.46      14.18
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+### Concurrency: 32
+------------------------------------------------------------------------------------------------------------------------
+Target          Engine       Optimization                  QPS    Avg(ms)    P50(ms)    P95(ms)    P99(ms)
+------------------------------------------------------------------------------------------------------------------------
+MySQL           InnoDB       Baseline                 4,860.45       2.58       1.08       6.82      11.19
+ClickHouse      MergeTree    Original-WHERE           3,022.02       5.12       5.15      10.82      15.43
+ClickHouse      MergeTree    Original-PREWHERE        2,974.80       5.22       5.29      11.09      15.85
+ClickHouse      MergeTree    Optimized-WHERE          2,904.04       5.33       4.92      11.12      18.80
+ClickHouse      MergeTree    Optimized-PREWHERE       3,141.73       4.80       4.47      10.60      16.58
+ClickHouse      Memory       Memory-WHERE             2,293.26       6.90       7.27      13.90      19.39
+ClickHouse      Memory       Memory-PREWHERE              0.00       0.00       0.00       0.00       0.00
+
+
+## Performance Comparison (vs MySQL)
+
+### Concurrency 8 (MySQL QPS: 4,697.53)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,182.65  Ratio:   0.68x  Change:   -32.2%
+Original-PREWHERE              QPS:   3,082.54  Ratio:   0.66x  Change:   -34.4%
+Optimized-WHERE                QPS:   3,356.52  Ratio:   0.71x  Change:   -28.5%
+Optimized-PREWHERE             QPS:   3,417.54  Ratio:   0.73x  Change:   -27.2%
+Memory-WHERE                   QPS:   2,234.49  Ratio:   0.48x  Change:   -52.4%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 16 (MySQL QPS: 4,546.53)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   2,972.28  Ratio:   0.65x  Change:   -34.6%
+Original-PREWHERE              QPS:   3,159.85  Ratio:   0.70x  Change:   -30.5%
+Optimized-WHERE                QPS:   3,105.90  Ratio:   0.68x  Change:   -31.7%
+Optimized-PREWHERE             QPS:   3,280.75  Ratio:   0.72x  Change:   -27.8%
+Memory-WHERE                   QPS:   2,212.13  Ratio:   0.49x  Change:   -51.3%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 24 (MySQL QPS: 4,645.88)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,104.28  Ratio:   0.67x  Change:   -33.2%
+Original-PREWHERE              QPS:   3,142.55  Ratio:   0.68x  Change:   -32.4%
+Optimized-WHERE                QPS:   3,163.95  Ratio:   0.68x  Change:   -31.9%
+Optimized-PREWHERE             QPS:   3,158.59  Ratio:   0.68x  Change:   -32.0%
+Memory-WHERE                   QPS:   2,319.75  Ratio:   0.50x  Change:   -50.1%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%
+
+### Concurrency 32 (MySQL QPS: 4,860.45)
+--------------------------------------------------------------------------------
+Original-WHERE                 QPS:   3,022.02  Ratio:   0.62x  Change:   -37.8%
+Original-PREWHERE              QPS:   2,974.80  Ratio:   0.61x  Change:   -38.8%
+Optimized-WHERE                QPS:   2,904.04  Ratio:   0.60x  Change:   -40.3%
+Optimized-PREWHERE             QPS:   3,141.73  Ratio:   0.65x  Change:   -35.4%
+Memory-WHERE                   QPS:   2,293.26  Ratio:   0.47x  Change:   -52.8%
+Memory-PREWHERE                QPS:       0.00  Ratio:   0.00x  Change:  -100.0%

@@ -1,0 +1,74 @@
+[
+  {
+    "target": "MySQL",
+    "concurrency": 8,
+    "qps": 4840.760414819186,
+    "avg_latency_ms": 0.8693320084999997,
+    "p50_latency_ms": 0.6503754999999944,
+    "p95_latency_ms": 1.7460000000000253,
+    "p99_latency_ms": 2.5334579999999884
+  },
+  {
+    "target": "ClickHouse",
+    "concurrency": 8,
+    "qps": 2763.4259538720303,
+    "avg_latency_ms": 2.6154690502499998,
+    "p50_latency_ms": 2.4841874999999014,
+    "p95_latency_ms": 3.8518330000001377,
+    "p99_latency_ms": 4.611583999999835
+  },
+  {
+    "target": "MySQL",
+    "concurrency": 16,
+    "qps": 4937.391813529235,
+    "avg_latency_ms": 1.3309778896249933,
+    "p50_latency_ms": 0.6458540000000568,
+    "p95_latency_ms": 3.4135830000003864,
+    "p99_latency_ms": 5.776625000000202
+  },
+  {
+    "target": "ClickHouse",
+    "concurrency": 16,
+    "qps": 2643.74346502967,
+    "avg_latency_ms": 3.7342137526249988,
+    "p50_latency_ms": 3.251333499999731,
+    "p95_latency_ms": 6.686750000000075,
+    "p99_latency_ms": 9.21304199999895
+  },
+  {
+    "target": "MySQL",
+    "concurrency": 24,
+    "qps": 4940.252705230818,
+    "avg_latency_ms": 1.8474688899999998,
+    "p50_latency_ms": 0.6532080000010154,
+    "p95_latency_ms": 5.1432499999997106,
+    "p99_latency_ms": 8.82266700000045
+  },
+  {
+    "target": "ClickHouse",
+    "concurrency": 24,
+    "qps": 2677.7245533534533,
+    "avg_latency_ms": 4.674840417666664,
+    "p50_latency_ms": 4.225437499999707,
+    "p95_latency_ms": 9.348416999999998,
+    "p99_latency_ms": 12.91295800000114
+  },
+  {
+    "target": "MySQL",
+    "concurrency": 32,
+    "qps": 4966.069523964602,
+    "avg_latency_ms": 2.2943184615625167,
+    "p50_latency_ms": 0.6504999999989991,
+    "p95_latency_ms": 6.740166000000158,
+    "p99_latency_ms": 11.620749999998736
+  },
+  {
+    "target": "ClickHouse",
+    "concurrency": 32,
+    "qps": 2674.6335642315235,
+    "avg_latency_ms": 5.737929764499998,
+    "p50_latency_ms": 5.692625000000007,
+    "p95_latency_ms": 12.149374999999907,
+    "p99_latency_ms": 17.05300000000065
+  }
+]

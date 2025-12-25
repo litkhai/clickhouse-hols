@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <logger>
+        <level>information</level>
+    </logger>
+
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+
+    <!-- MySQL Protocol -->
+    <mysql_port>9004</mysql_port>
+
+    <!-- ===== 캐시 최적화 ===== -->
+
+    <!-- Mark Cache: 5GB -->
+    <mark_cache_size>5368709120</mark_cache_size>
+
+    <!-- Uncompressed Cache: 5GB -->
+    <uncompressed_cache_size>5368709120</uncompressed_cache_size>
+
+    <!-- Primary Index Cache: 2GB -->
+    <index_mark_cache_size>2147483648</index_mark_cache_size>
+
+    <!-- ===== 성능 튜닝 ===== -->
+
+    <!-- 최대 메모리 사용량: 10GB -->
+    <max_server_memory_usage>10737418240</max_server_memory_usage>
+
+    <!-- Thread Pool -->
+    <max_thread_pool_size>32</max_thread_pool_size>
+    <max_thread_pool_free_size>16</max_thread_pool_free_size>
+
+    <listen_host>::</listen_host>
+
+    <profiles>
+        <default>
+            <!-- Uncompressed Cache 활성화 -->
+            <use_uncompressed_cache>1</use_uncompressed_cache>
+
+            <!-- Cache 임계값 -->
+            <merge_tree_max_rows_to_use_cache>1000000</merge_tree_max_rows_to_use_cache>
+            <merge_tree_max_bytes_to_use_cache>10485760</merge_tree_max_bytes_to_use_cache>
+
+            <!-- PREWHERE 최적화 자동 활성화 -->
+            <optimize_move_to_prewhere>1</optimize_move_to_prewhere>
+
+            <!-- 기타 최적화 -->
+            <max_threads>16</max_threads>
+            <max_memory_usage>8589934592</max_memory_usage>
+        </default>
+    </profiles>
+
+    <users>
+        <testuser>
+            <password>testpass</password>
+            <profile>default</profile>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <quota>default</quota>
+        </testuser>
+    </users>
+</clickhouse>
