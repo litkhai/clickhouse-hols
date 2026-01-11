@@ -1,0 +1,19 @@
+# Environment files
+.env
+.credentials
+
+# Test data
+/tmp/*.json
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store
