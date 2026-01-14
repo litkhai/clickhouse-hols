@@ -17,6 +17,7 @@ S3 Object Storage ClickPipe를 중지(Pause) 후 재시작(Resume)했을 때:
 - ClickHouse CLI 설치 (`clickhouse-client`)
 - `jq` 설치 (JSON 파싱용)
 - ClickHouse Cloud 서비스 (실행 중)
+- (선택) Terraform 설치 (Terraform으로 ClickPipe를 생성하려는 경우)
 
 ### 2. 필요한 정보
 
@@ -67,7 +68,21 @@ CHC_USER=default
 CHC_PASSWORD=your_password_here
 ```
 
-### 3. 스크립트 실행 권한 부여
+### 3. 요구사항 확인
+
+```bash
+./00-check-requirements.sh
+```
+
+이 스크립트는 다음을 확인합니다:
+- 필수 도구 설치 여부 (AWS CLI, ClickHouse Client, jq)
+- .env 파일 존재 및 필수 변수 설정
+- AWS 자격증명 유효성
+- S3 버킷 접근 권한
+- ClickHouse 연결
+- ClickPipes API 접근
+
+### 4. 스크립트 실행 권한 부여
 
 ```bash
 chmod +x *.sh
@@ -100,11 +115,21 @@ chmod +x *.sh
 - `_file`, `_path`, `_time` 컬럼 포함 (추적용)
 
 #### Step 3: ClickPipe 생성
+
+**방법 A: ClickPipes API 사용 (기본)**
 ```bash
 ./03-create-clickpipe.sh
 ```
-- ClickPipes API를 통해 S3 → ClickHouse 파이프 생성
+
+**방법 B: Terraform 사용 (선택)**
+```bash
+./03-create-clickpipe-terraform.sh
+```
+
+두 방법 모두:
+- S3 → ClickHouse 파이프 생성
 - 자동으로 데이터 인입 시작
+- `.pipe_id` 파일에 Pipe ID 저장
 
 #### Step 4: 상태 확인
 ```bash
@@ -166,21 +191,29 @@ chmod +x *.sh
 
 ```
 clickpipes-s3/
-├── .env.template              # 환경 변수 템플릿
-├── .env                        # 실제 환경 변수 (생성 필요, git ignore됨)
-├── .gitignore                  # Git ignore 설정
-├── clickpipe-test-plan.md      # 원본 테스트 계획서
-├── README.md                   # 이 파일
-├── 01-setup-s3-data.sh         # S3 테스트 데이터 생성
-├── 02-setup-clickhouse-table.sh # ClickHouse 테이블 생성
-├── 03-create-clickpipe.sh      # ClickPipe 생성
-├── 04-check-pipe-status.sh     # 파이프 상태 확인
-├── 05-query-data.sh            # 데이터 조회 (여러 쿼리 타입 지원)
-├── 06-pause-pipe.sh            # 파이프 일시정지
-├── 07-resume-pipe.sh           # 파이프 재시작
-├── 08-validate-checkpoint.sh   # 체크포인트 동작 검증
-├── 09-cleanup.sh               # 리소스 정리
-└── run-full-test.sh            # 전체 자동화 테스트
+├── .env.template                    # 환경 변수 템플릿
+├── .env                              # 실제 환경 변수 (생성 필요, git ignore됨)
+├── .gitignore                        # Git ignore 설정
+├── README.md                         # 이 파일
+├── QUICKSTART.md                     # 빠른 시작 가이드
+├── clickpipe-test-plan.md            # 원본 테스트 계획서
+├── 00-check-requirements.sh          # 요구사항 확인
+├── 01-setup-s3-data.sh               # S3 테스트 데이터 생성
+├── 02-setup-clickhouse-table.sh      # ClickHouse 테이블 생성
+├── 03-create-clickpipe.sh            # ClickPipe 생성 (API)
+├── 03-create-clickpipe-terraform.sh  # ClickPipe 생성 (Terraform)
+├── 04-check-pipe-status.sh           # 파이프 상태 확인
+├── 05-query-data.sh                  # 데이터 조회 (여러 쿼리 타입 지원)
+├── 06-pause-pipe.sh                  # 파이프 일시정지
+├── 07-resume-pipe.sh                 # 파이프 재시작
+├── 08-validate-checkpoint.sh         # 체크포인트 동작 검증
+├── 09-cleanup.sh                     # 리소스 정리
+├── run-full-test.sh                  # 전체 자동화 테스트
+└── terraform/                        # Terraform 설정 파일들
+    ├── main.tf
+    ├── variables.tf
+    ├── terraform.tfvars.example
+    └── README.md
 ```
 
 ## 생성되는 임시 파일
