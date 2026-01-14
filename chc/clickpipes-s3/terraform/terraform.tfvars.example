@@ -1,0 +1,18 @@
+# Copy this file to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+# ClickHouse Cloud Configuration
+organization_id = "your-organization-id"
+service_id      = "your-service-id"
+api_key         = "your-api-key"
+
+# S3 Configuration
+s3_bucket             = "your-test-bucket"
+aws_region            = "us-east-1"
+aws_access_key_id     = "your-aws-access-key"
+aws_secret_access_key = "your-aws-secret-key"
+
+# Test Configuration (optional - defaults provided)
+# pipe_name   = "test_s3_checkpoint_pipe"
+# table_name  = "test_clickpipe_checkpoint"
+# test_prefix = "clickpipe-test"
