@@ -1,11 +1,14 @@
 -- ============================================================
 -- ClickHouse Async Insert - 결과 확인 쿼리
+-- ClickHouse Async Insert - Result Verification Queries
 -- ============================================================
 
 -- flush 대기 (3초)
+-- Wait for flush (3 seconds)
 SELECT sleep(3);
 
 -- 테스트 케이스별 결과 요약
+-- Summary of results by test case
 SELECT
     test_case,
     count() as actual_rows,
@@ -25,6 +28,7 @@ GROUP BY test_case
 ORDER BY test_case;
 
 -- 전체 데이터 건수 확인
+-- Check total record count
 SELECT
     count() as total_rows,
     countDistinct(id) as distinct_ids,
