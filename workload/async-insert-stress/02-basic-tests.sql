@@ -1,8 +1,10 @@
 -- ============================================================
 -- ClickHouse Async Insert - 기본 파라미터 테스트 (각 1,000건)
+-- ClickHouse Async Insert - Basic Parameter Tests (1,000 records each)
 -- ============================================================
 
 -- 케이스 1: 동기 INSERT (baseline)
+-- Case 1: Synchronous INSERT (baseline)
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number as id,
@@ -14,6 +16,7 @@ FROM numbers(1000)
 SETTINGS async_insert = 0;
 
 -- 케이스 2: async_insert=1, wait=1 (flush 대기)
+-- Case 2: async_insert=1, wait=1 (wait for flush)
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 100000 as id,
@@ -25,6 +28,7 @@ FROM numbers(1000)
 SETTINGS async_insert = 1, wait_for_async_insert = 1;
 
 -- 케이스 3: async_insert=1, wait=0 (즉시 응답)
+-- Case 3: async_insert=1, wait=0 (immediate response)
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 200000 as id,
@@ -36,6 +40,7 @@ FROM numbers(1000)
 SETTINGS async_insert = 1, wait_for_async_insert = 0;
 
 -- 케이스 4: async_insert=1, wait=0, busy_timeout=200ms
+-- Case 4: async_insert=1, wait=0, busy_timeout=200ms
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 300000 as id,
@@ -47,6 +52,7 @@ FROM numbers(1000)
 SETTINGS async_insert = 1, wait_for_async_insert = 0, async_insert_busy_timeout_ms = 200;
 
 -- 케이스 5: async_insert=1, wait=0, max_data_size=1MB
+-- Case 5: async_insert=1, wait=0, max_data_size=1MB
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 400000 as id,
@@ -58,6 +64,7 @@ FROM numbers(1000)
 SETTINGS async_insert = 1, wait_for_async_insert = 0, async_insert_max_data_size = 1048576;
 
 -- 케이스 6: async_insert=1, wait=1, busy_timeout=200ms (빠른 대기)
+-- Case 6: async_insert=1, wait=1, busy_timeout=200ms (fast wait)
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 500000 as id,

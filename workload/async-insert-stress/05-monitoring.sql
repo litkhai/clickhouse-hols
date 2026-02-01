@@ -1,8 +1,10 @@
 -- ============================================================
 -- ClickHouse Async Insert - 모니터링 쿼리
+-- ClickHouse Async Insert - Monitoring Queries
 -- ============================================================
 
 -- 현재 Async Insert 버퍼 상태 확인
+-- Check current Async Insert buffer status
 SELECT
     database,
     table,
@@ -13,6 +15,7 @@ FROM system.asynchronous_inserts
 WHERE database = 'async_insert_test';
 
 -- INSERT 성공/실패 통계
+-- INSERT success/failure statistics
 SELECT
     toStartOfHour(event_time) as hour,
     count() as total_queries,
@@ -28,6 +31,7 @@ GROUP BY hour
 ORDER BY hour DESC;
 
 -- Async Insert Log 확인 (실패 건만)
+-- Check Async Insert log (failures only)
 SELECT
     event_time,
     database,
@@ -42,6 +46,7 @@ WHERE status != 'Ok'
 ORDER BY event_time DESC;
 
 -- 파트 생성 현황 확인
+-- Check part creation status
 SELECT
     table,
     count() as part_count,
@@ -55,6 +60,7 @@ GROUP BY table
 ORDER BY table;
 
 -- 파트별 상세 정보
+-- Detailed information by part
 SELECT
     table,
     name as part_name,
@@ -69,6 +75,7 @@ WHERE database = 'async_insert_test'
 ORDER BY table, name;
 
 -- Async Insert 관련 설정 확인
+-- Check Async Insert related settings
 SELECT
     name,
     value,

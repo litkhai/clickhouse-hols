@@ -1,12 +1,15 @@
 -- ============================================================
 -- ClickHouse Async Insert - 고강도 스트레스 테스트
+-- ClickHouse Async Insert - High-Intensity Stress Tests
 -- ============================================================
 
 -- ============================================================
 -- 대용량 테스트 (각 100,000건)
+-- Large Volume Tests (100,000 records each)
 -- ============================================================
 
 -- 대용량 테스트: 10만 건, async_insert=1, wait=0
+-- Large volume test: 100K records, async_insert=1, wait=0
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 1000000 as id,
@@ -18,6 +21,7 @@ FROM numbers(100000)
 SETTINGS async_insert = 1, wait_for_async_insert = 0;
 
 -- 대용량 테스트: 10만 건, async_insert=1, wait=1
+-- Large volume test: 100K records, async_insert=1, wait=1
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)
 SELECT
     number + 2000000 as id,
@@ -30,6 +34,7 @@ SETTINGS async_insert = 1, wait_for_async_insert = 1;
 
 -- ============================================================
 -- 연속 INSERT 테스트 (빠른 연속 실행)
+-- Continuous INSERT Tests (rapid consecutive execution)
 -- ============================================================
 
 INSERT INTO async_insert_test.test_logs (id, user_id, event_type, payload, test_case)

@@ -1,11 +1,14 @@
 -- ============================================================
 -- ClickHouse Async Insert 스트레스 테스트 - 환경 설정
+-- ClickHouse Async Insert Stress Test - Environment Setup
 -- ============================================================
 
 -- 테스트 데이터베이스 생성
+-- Create test database
 CREATE DATABASE IF NOT EXISTS async_insert_test;
 
 -- 메인 테스트 테이블
+-- Main test table
 CREATE TABLE IF NOT EXISTS async_insert_test.test_logs
 (
     id UInt64,
@@ -20,6 +23,7 @@ ENGINE = MergeTree()
 ORDER BY (event_time, id);
 
 -- 테스트 결과 저장 테이블
+-- Test results storage table
 CREATE TABLE IF NOT EXISTS async_insert_test.test_results
 (
     test_case String,
@@ -37,4 +41,5 @@ ENGINE = MergeTree()
 ORDER BY (test_case, test_time);
 
 -- 테이블 초기화
+-- Initialize table
 TRUNCATE TABLE async_insert_test.test_logs;
