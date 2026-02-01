@@ -40,29 +40,50 @@ bug-bounty/
 ├── 05-generate-demo-data.sql                   # Demo data generation
 ├── 06-demo-queries.sql                         # Demo analysis queries
 ├── 07-utility-functions.sql                    # Utility functions and views
+├── 08-vector-search-setup.sql                  # Vector Search setup (attack signatures)
+├── 09-vector-embeddings-tables.sql             # Embeddings tables (requests, reports)
+├── 10-vector-demo-data.sql                     # Vector demo data generation
+├── 11-vector-search-queries.sql                # Vector Search query practice
+├── 12-vector-integration.sql                   # Python/API integration guide
 └── 99-cleanup.sql                              # Cleanup script
 ```
 
 ### 🚀 Quick Start
 
-Execute all scripts in sequence:
+Execute core labs in sequence:
 
 ```bash
 cd usecase/bug-bounty
 
-# Sequential execution
+# Core Lab (Required)
 clickhouse-client --queries-file 01-create-database.sql
 clickhouse-client --queries-file 02-create-tables.sql
 clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
 clickhouse-client --queries-file 04-create-refreshable-mvs.sql
 clickhouse-client --queries-file 05-generate-demo-data.sql
 clickhouse-client --queries-file 07-utility-functions.sql
+
+# Advanced Lab: Vector Search (Optional, requires ClickHouse 24.8+)
+clickhouse-client --queries-file 08-vector-search-setup.sql
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+clickhouse-client --queries-file 10-vector-demo-data.sql
+clickhouse-client --queries-file 11-vector-search-queries.sql
 ```
 
-Or in a loop:
+Or execute core labs in a loop:
 
 ```bash
 for file in 01-create-database.sql 02-create-tables.sql 03-create-materialized-views-realtime.sql 04-create-refreshable-mvs.sql 05-generate-demo-data.sql 07-utility-functions.sql; do
+    echo "Executing $file..."
+    clickhouse-client --queries-file "$file"
+    echo ""
+done
+```
+
+For Vector Search labs:
+
+```bash
+for file in 08-vector-search-setup.sql 09-vector-embeddings-tables.sql 10-vector-demo-data.sql 11-vector-search-queries.sql; do
     echo "Executing $file..."
     clickhouse-client --queries-file "$file"
     echo ""
@@ -206,6 +227,134 @@ clickhouse-client --queries-file 07-utility-functions.sql
 - Creates convenience views for common queries
 
 **Expected time**: ~2-3 seconds
+
+---
+
+### 🔍 Advanced Lab: Vector Search (Optional)
+
+**Prerequisites**: ClickHouse 24.8+ (Vector Search GA)
+
+This advanced section demonstrates AI-powered threat detection using vector embeddings and semantic similarity search.
+
+#### 8. Vector Search Setup
+
+```bash
+clickhouse-client --queries-file 08-vector-search-setup.sql
+```
+
+**What it does**:
+- Introduces Vector Search concepts and use cases
+- Creates `attack_signatures` table with vector embeddings
+- Stores known attack patterns with metadata (CWE, CVSS, severity)
+- Sets up HNSW index for fast similarity search
+- Inserts sample attack patterns (SQLi, XSS, SSRF, etc.)
+
+**Key concepts**:
+- Vector embeddings represent attack patterns in high-dimensional space
+- cosineDistance measures semantic similarity between patterns
+- HNSW (Hierarchical Navigable Small World) enables fast approximate search
+
+**Expected time**: ~2-3 seconds
+
+---
+
+#### 9. Embeddings Tables
+
+```bash
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+```
+
+**What it does**:
+- Creates `request_embeddings` table for HTTP request vectors
+- Creates `report_knowledge_base` table for bug report semantic search
+- Creates `duplicate_report_links` table for tracking duplicates
+- Sets up vector similarity indexes
+- Creates utility views and functions
+
+**Use cases**:
+- Similar attack pattern detection
+- Duplicate report identification
+- Semantic search for bug reports
+- Automated triage prioritization
+
+**Expected time**: ~2-3 seconds
+
+---
+
+#### 10. Vector Demo Data
+
+```bash
+clickhouse-client --queries-file 10-vector-demo-data.sql
+```
+
+**What it does**:
+- Creates mock embedding functions (SQLi, XSS, SSRF patterns)
+- Updates attack signatures with vector embeddings
+- Generates embeddings for sample HTTP requests
+- Creates sample bug reports with embeddings
+- Validates embedding dimensions and quality
+
+**Note**: Uses mock embeddings for demo. Production requires OpenAI API or Sentence Transformers.
+
+**Expected time**: ~3-5 seconds
+
+---
+
+#### 11. Vector Search Queries
+
+```bash
+clickhouse-client --queries-file 11-vector-search-queries.sql
+```
+
+**Query scenarios**:
+- **PART 1: Attack Pattern Detection**
+  - Find similar attack patterns for suspicious requests
+  - Match requests to known attack categories
+  - Filter by severity and CVSS score
+- **PART 2: Duplicate Report Detection**
+  - Find similar bug reports
+  - Calculate duplicate probability
+  - Analyze duplicate rates by vulnerability type
+- **PART 3: Semantic Search**
+  - Natural language queries for bug reports
+  - Hybrid keyword + vector search
+  - Prioritize based on past high-bounty reports
+- **PART 4: Clustering & Analytics**
+  - Group similar attack patterns
+  - Outlier detection (anomaly detection)
+  - Attack trend analysis over time
+- **PART 5: Production Queries**
+  - Real-time threat scoring system
+  - Automated triage recommendations
+  - Combined heuristic + vector scoring
+
+**Expected time**: ~5-30 seconds per query
+
+---
+
+#### 12. Python Integration
+
+```bash
+# View the integration guide
+cat 12-vector-integration.sql
+```
+
+**What it covers**:
+- **OpenAI API Integration**: Generate real embeddings using OpenAI
+- **Batch Processing**: Efficient embedding generation pipelines
+- **REST API Examples**: Flask-based search API endpoints
+- **Sentence Transformers**: Free, local embedding generation
+- **Performance Optimization**: Caching, batching, query optimization
+- **Production Checklist**: Security, monitoring, cost optimization
+
+**Key components**:
+- Python scripts for embedding generation
+- API endpoints for similarity search
+- Duplicate detection service
+- Semantic search implementation
+- Best practices and deployment guide
+
+**Expected time**: Study material (no execution required)
 
 ---
 
@@ -403,6 +552,12 @@ clickhouse-client --queries-file 99-cleanup.sql
 5. **Query Performance**: Partitioning, indexing, and aggregation optimization
 6. **Automation**: Refreshable MVs for periodic analysis updates
 7. **Audit Trail**: Comprehensive logging of security events
+8. **Vector Search (Advanced)**: AI-powered threat detection using semantic similarity
+   - Attack pattern recognition with embeddings
+   - Duplicate report detection using cosine distance
+   - Semantic search for bug reports
+   - Hybrid traditional + AI-based threat scoring
+   - Production-ready integration patterns
 
 ---
 
@@ -415,7 +570,7 @@ MIT License - See repository root for details
 ### 👤 Author
 
 Created: 2026-01-31
-Updated: 2026-01-31
+Updated: 2026-02-01
 
 ---
 
@@ -457,29 +612,50 @@ bug-bounty/
 ├── 05-generate-demo-data.sql                   # 데모 데이터 생성
 ├── 06-demo-queries.sql                         # 데모 분석 쿼리
 ├── 07-utility-functions.sql                    # 유틸리티 함수 및 뷰
+├── 08-vector-search-setup.sql                  # Vector Search 설정 (공격 시그니처)
+├── 09-vector-embeddings-tables.sql             # 임베딩 테이블 (요청, 리포트)
+├── 10-vector-demo-data.sql                     # Vector 데모 데이터 생성
+├── 11-vector-search-queries.sql                # Vector Search 쿼리 실습
+├── 12-vector-integration.sql                   # Python/API 통합 가이드
 └── 99-cleanup.sql                              # 정리 스크립트
 ```
 
 ### 🚀 빠른 시작
 
-모든 스크립트를 순서대로 실행:
+핵심 실습을 순서대로 실행:
 
 ```bash
 cd usecase/bug-bounty
 
-# 순차 실행
+# 핵심 실습 (필수)
 clickhouse-client --queries-file 01-create-database.sql
 clickhouse-client --queries-file 02-create-tables.sql
 clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
 clickhouse-client --queries-file 04-create-refreshable-mvs.sql
 clickhouse-client --queries-file 05-generate-demo-data.sql
 clickhouse-client --queries-file 07-utility-functions.sql
+
+# 고급 실습: Vector Search (선택, ClickHouse 24.8+ 필요)
+clickhouse-client --queries-file 08-vector-search-setup.sql
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+clickhouse-client --queries-file 10-vector-demo-data.sql
+clickhouse-client --queries-file 11-vector-search-queries.sql
 ```
 
-또는 루프로 실행:
+또는 핵심 실습을 루프로 실행:
 
 ```bash
 for file in 01-create-database.sql 02-create-tables.sql 03-create-materialized-views-realtime.sql 04-create-refreshable-mvs.sql 05-generate-demo-data.sql 07-utility-functions.sql; do
+    echo "Executing $file..."
+    clickhouse-client --queries-file "$file"
+    echo ""
+done
+```
+
+Vector Search 실습용:
+
+```bash
+for file in 08-vector-search-setup.sql 09-vector-embeddings-tables.sql 10-vector-demo-data.sql 11-vector-search-queries.sql; do
     echo "Executing $file..."
     clickhouse-client --queries-file "$file"
     echo ""
@@ -623,6 +799,134 @@ clickhouse-client --queries-file 07-utility-functions.sql
 - 자주 사용하는 쿼리용 편의 뷰 생성
 
 **예상 시간**: ~2-3초
+
+---
+
+### 🔍 고급 실습: Vector Search (선택 사항)
+
+**사전 요구사항**: ClickHouse 24.8+ (Vector Search GA)
+
+이 고급 섹션에서는 벡터 임베딩과 시맨틱 유사도 검색을 활용한 AI 기반 위협 탐지를 실습합니다.
+
+#### 8. Vector Search 설정
+
+```bash
+clickhouse-client --queries-file 08-vector-search-setup.sql
+```
+
+**수행 내용**:
+- Vector Search 개념 및 활용 사례 소개
+- 벡터 임베딩이 포함된 `attack_signatures` 테이블 생성
+- 알려진 공격 패턴을 메타데이터와 함께 저장 (CWE, CVSS, 심각도)
+- 빠른 유사도 검색을 위한 HNSW 인덱스 설정
+- 샘플 공격 패턴 삽입 (SQLi, XSS, SSRF 등)
+
+**핵심 개념**:
+- 벡터 임베딩은 고차원 공간에서 공격 패턴을 표현
+- cosineDistance로 패턴 간 시맨틱 유사도 측정
+- HNSW (Hierarchical Navigable Small World)로 빠른 근사 검색 가능
+
+**예상 시간**: ~2-3초
+
+---
+
+#### 9. 임베딩 테이블 생성
+
+```bash
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+```
+
+**수행 내용**:
+- HTTP 요청 벡터용 `request_embeddings` 테이블 생성
+- 버그 리포트 시맨틱 검색용 `report_knowledge_base` 테이블 생성
+- 중복 추적용 `duplicate_report_links` 테이블 생성
+- 벡터 유사도 인덱스 설정
+- 유틸리티 뷰 및 함수 생성
+
+**활용 사례**:
+- 유사 공격 패턴 탐지
+- 중복 리포트 식별
+- 버그 리포트 시맨틱 검색
+- 자동 트리아지 우선순위 지정
+
+**예상 시간**: ~2-3초
+
+---
+
+#### 10. Vector 데모 데이터 생성
+
+```bash
+clickhouse-client --queries-file 10-vector-demo-data.sql
+```
+
+**수행 내용**:
+- Mock 임베딩 함수 생성 (SQLi, XSS, SSRF 패턴)
+- 공격 시그니처에 벡터 임베딩 업데이트
+- 샘플 HTTP 요청에 대한 임베딩 생성
+- 임베딩이 포함된 샘플 버그 리포트 생성
+- 임베딩 차원 및 품질 검증
+
+**참고**: 데모용 Mock 임베딩 사용. 프로덕션에서는 OpenAI API 또는 Sentence Transformers 필요.
+
+**예상 시간**: ~3-5초
+
+---
+
+#### 11. Vector Search 쿼리 실습
+
+```bash
+clickhouse-client --queries-file 11-vector-search-queries.sql
+```
+
+**쿼리 시나리오**:
+- **PART 1: 공격 패턴 탐지**
+  - 의심스러운 요청과 유사한 공격 패턴 찾기
+  - 요청을 알려진 공격 카테고리에 매칭
+  - 심각도 및 CVSS 점수로 필터링
+- **PART 2: 중복 리포트 탐지**
+  - 유사한 버그 리포트 찾기
+  - 중복 확률 계산
+  - 취약점 유형별 중복 비율 분석
+- **PART 3: 시맨틱 검색**
+  - 자연어 쿼리로 버그 리포트 검색
+  - 하이브리드 키워드 + 벡터 검색
+  - 과거 고액 바운티 리포트 기반 우선순위 지정
+- **PART 4: 클러스터링 및 분석**
+  - 유사 공격 패턴 그룹화
+  - 이상치 탐지 (anomaly detection)
+  - 시간별 공격 트렌드 분석
+- **PART 5: 프로덕션 쿼리**
+  - 실시간 위협 스코어링 시스템
+  - 자동 트리아지 추천
+  - 휴리스틱 + 벡터 결합 점수
+
+**예상 시간**: 쿼리당 ~5-30초
+
+---
+
+#### 12. Python 통합
+
+```bash
+# 통합 가이드 확인
+cat 12-vector-integration.sql
+```
+
+**포함 내용**:
+- **OpenAI API 통합**: OpenAI로 실제 임베딩 생성
+- **배치 처리**: 효율적인 임베딩 생성 파이프라인
+- **REST API 예시**: Flask 기반 검색 API 엔드포인트
+- **Sentence Transformers**: 무료 로컬 임베딩 생성
+- **성능 최적화**: 캐싱, 배칭, 쿼리 최적화
+- **프로덕션 체크리스트**: 보안, 모니터링, 비용 최적화
+
+**주요 구성요소**:
+- 임베딩 생성용 Python 스크립트
+- 유사도 검색 API 엔드포인트
+- 중복 탐지 서비스
+- 시맨틱 검색 구현
+- 베스트 프랙티스 및 배포 가이드
+
+**예상 시간**: 학습 자료 (실행 불필요)
 
 ---
 
@@ -820,6 +1124,12 @@ clickhouse-client --queries-file 99-cleanup.sql
 5. **쿼리 성능**: 파티셔닝, 인덱싱, 집계 최적화
 6. **자동화**: 주기적 분석 업데이트를 위한 Refreshable MV
 7. **감사 추적**: 보안 이벤트의 포괄적 로깅
+8. **Vector Search (고급)**: 시맨틱 유사도를 활용한 AI 기반 위협 탐지
+   - 임베딩을 사용한 공격 패턴 인식
+   - 코사인 거리를 이용한 중복 리포트 탐지
+   - 버그 리포트 시맨틱 검색
+   - 전통적 방법 + AI 기반 하이브리드 위협 스코어링
+   - 프로덕션 준비 통합 패턴
 
 ---
 
@@ -832,4 +1142,4 @@ MIT License - 자세한 내용은 저장소 루트 참조
 ### 👤 작성자
 
 작성일: 2026-01-31
-업데이트: 2026-01-31
+업데이트: 2026-02-01
