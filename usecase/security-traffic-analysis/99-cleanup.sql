@@ -1,6 +1,6 @@
 -- ============================================================================
--- Bug Bounty Packet Analysis Platform - Cleanup Script
--- 버그바운티 패킷 분석 플랫폼 - 정리 스크립트
+-- Security Traffic Analysis Platform - Cleanup Script
+-- 보안 트래픽 분석 플랫폼 - 정리 스크립트
 -- ============================================================================
 -- Created: 2026-01-31
 -- 작성일: 2026-01-31
@@ -12,7 +12,7 @@
 -- 예상 시간: ~2-3초
 -- ============================================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================================
 -- 1. Drop Materialized Views (Required before dropping tables)
@@ -77,7 +77,7 @@ DROP TABLE IF EXISTS hourly_stats;
 -- ⚠️ WARNING: The command below will delete the entire database!
 -- ⚠️ 주의: 아래 명령은 전체 데이터베이스를 삭제합니다!
 -- Uncomment to execute / 실행하려면 주석 해제
--- DROP DATABASE IF EXISTS bug_bounty;
+-- DROP DATABASE IF EXISTS security_traffic_analysis;
 
 
 -- ============================================================================

@@ -1,16 +1,16 @@
 -- ============================================================
--- Bug Bounty Vector Search - Step 2: Embeddings Tables
+-- Security Traffic Analysis Vector Search - Step 2: Embeddings Tables
 -- HTTP 요청 임베딩 및 리포트 지식베이스
 -- ============================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================
 -- 1. HTTP 요청 임베딩 테이블
 -- 기존 http_packets 테이블과 JOIN하여 사용
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS bug_bounty.request_embeddings (
+CREATE TABLE IF NOT EXISTS security_traffic_analysis.request_embeddings (
     packet_id UUID,
 
     -- 임베딩 대상 텍스트 (정규화됨)
@@ -42,7 +42,7 @@ COMMENT 'HTTP 요청의 벡터 임베딩 저장소 - 유사 공격 패턴 탐지
 -- 시맨틱 검색 및 중복 리포트 탐지용
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS bug_bounty.report_knowledge_base (
+CREATE TABLE IF NOT EXISTS security_traffic_analysis.report_knowledge_base (
     report_id String,
 
     -- 리포트 내용
@@ -95,7 +95,7 @@ COMMENT '버그 리포트 지식베이스 - 시맨틱 검색 및 중복 탐지�
 -- 중복으로 판단된 리포트 간의 관계 추적
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS bug_bounty.duplicate_report_links (
+CREATE TABLE IF NOT EXISTS security_traffic_analysis.duplicate_report_links (
     link_id UUID DEFAULT generateUUIDv4(),
 
     original_report_id String,    -- 원본 리포트
@@ -121,7 +121,7 @@ COMMENT '중복 리포트 관계 추적';
 -- 4. 유틸리티 뷰: 요청 임베딩 통계
 -- ============================================================
 
-CREATE OR REPLACE VIEW bug_bounty.v_embedding_stats AS
+CREATE OR REPLACE VIEW security_traffic_analysis.v_embedding_stats AS
 SELECT
     'request_embeddings' as table_name,
     count() as total_embeddings,
@@ -130,7 +130,7 @@ SELECT
     min(created_at) as first_embedded,
     max(created_at) as last_embedded,
     formatReadableSize(sum(length(request_embedding) * 4)) as approx_storage_size
-FROM bug_bounty.request_embeddings
+FROM security_traffic_analysis.request_embeddings
 
 UNION ALL
 
@@ -142,14 +142,14 @@ SELECT
     min(created_at) as first_embedded,
     max(created_at) as last_embedded,
     formatReadableSize(sum(length(content_embedding) * 4)) as approx_storage_size
-FROM bug_bounty.report_knowledge_base;
+FROM security_traffic_analysis.report_knowledge_base;
 
 
 -- ============================================================
 -- 5. 유틸리티 뷰: 리포트 대시보드
 -- ============================================================
 
-CREATE OR REPLACE VIEW bug_bounty.v_report_dashboard AS
+CREATE OR REPLACE VIEW security_traffic_analysis.v_report_dashboard AS
 SELECT
     status,
     vulnerability_type,
@@ -161,7 +161,7 @@ SELECT
     max(reported_date) as latest_report,
     countIf(resolved_at IS NOT NULL) as resolved_count,
     countIf(bounty_amount > 0) as paid_reports
-FROM bug_bounty.report_knowledge_base
+FROM security_traffic_analysis.report_knowledge_base
 GROUP BY status, vulnerability_type, priority
 ORDER BY total_bounty DESC;
 
@@ -171,12 +171,12 @@ ORDER BY total_bounty DESC;
 -- 새 리포트가 기존 리포트와 중복인지 확인
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION bug_bounty.isDuplicateReport AS (
+CREATE OR REPLACE FUNCTION security_traffic_analysis.isDuplicateReport AS (
     new_embedding,
     similarity_threshold
 ) -> (
     SELECT count() > 0
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE status IN ('ACCEPTED', 'FIXED', 'TRIAGED')
       AND cosineDistance(content_embedding, new_embedding) < similarity_threshold
 );
@@ -194,7 +194,7 @@ SELECT
     formatReadableSize(total_bytes) as size,
     comment
 FROM system.tables
-WHERE database = 'bug_bounty'
+WHERE database = 'security_traffic_analysis'
   AND name IN ('request_embeddings', 'report_knowledge_base', 'duplicate_report_links')
 ORDER BY name
 FORMAT PrettyCompactMonoBlock;
@@ -206,7 +206,7 @@ SELECT
     type as index_type,
     expr as index_expression
 FROM system.data_skipping_indices
-WHERE database = 'bug_bounty'
+WHERE database = 'security_traffic_analysis'
   AND table IN ('request_embeddings', 'report_knowledge_base')
 ORDER BY table, name
 FORMAT PrettyCompactMonoBlock;

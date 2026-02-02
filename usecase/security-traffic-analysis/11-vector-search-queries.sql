@@ -1,9 +1,9 @@
 -- ============================================================
--- Bug Bounty Vector Search - Step 4: Query Practice
+-- Security Traffic Analysis Vector Search - Step 4: Query Practice
 -- 다양한 Vector Search 쿼리 실습
 -- ============================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================
 -- PART 1: 유사 공격 패턴 탐지
@@ -20,10 +20,10 @@ SELECT
     s.cwe_id,
     round(cosineDistance(r.request_embedding, s.payload_embedding), 4) as distance,
     round(1 - cosineDistance(r.request_embedding, s.payload_embedding), 4) as similarity_score
-FROM bug_bounty.request_embeddings r
-CROSS JOIN bug_bounty.attack_signatures s
+FROM security_traffic_analysis.request_embeddings r
+CROSS JOIN security_traffic_analysis.attack_signatures s
 WHERE r.packet_id IN (
-    SELECT packet_id FROM bug_bounty.request_embeddings LIMIT 1
+    SELECT packet_id FROM security_traffic_analysis.request_embeddings LIMIT 1
 )
 ORDER BY distance ASC
 LIMIT 5
@@ -38,8 +38,8 @@ SELECT
     argMin(s.pattern_name, cosineDistance(r.request_embedding, s.payload_embedding)) as closest_pattern,
     argMin(s.category, cosineDistance(r.request_embedding, s.payload_embedding)) as attack_category,
     round(min(cosineDistance(r.request_embedding, s.payload_embedding)), 4) as min_distance
-FROM bug_bounty.request_embeddings r
-CROSS JOIN bug_bounty.attack_signatures s
+FROM security_traffic_analysis.request_embeddings r
+CROSS JOIN security_traffic_analysis.attack_signatures s
 GROUP BY r.packet_id, r.normalized_request
 HAVING min_distance < 0.5  -- 유사도 임계값 (거리가 0.5 미만인 것만)
 ORDER BY min_distance ASC
@@ -54,8 +54,8 @@ WITH matched_attacks AS (
         r.packet_id,
         argMin(s.category, cosineDistance(r.request_embedding, s.payload_embedding)) as attack_category,
         min(cosineDistance(r.request_embedding, s.payload_embedding)) as min_distance
-    FROM bug_bounty.request_embeddings r
-    CROSS JOIN bug_bounty.attack_signatures s
+    FROM security_traffic_analysis.request_embeddings r
+    CROSS JOIN security_traffic_analysis.attack_signatures s
     GROUP BY r.packet_id
     HAVING min_distance < 0.6
 )
@@ -79,8 +79,8 @@ SELECT
     s.severity,
     s.cvss_score,
     round(cosineDistance(r.request_embedding, s.payload_embedding), 4) as distance
-FROM bug_bounty.request_embeddings r
-CROSS JOIN bug_bounty.attack_signatures s
+FROM security_traffic_analysis.request_embeddings r
+CROSS JOIN security_traffic_analysis.attack_signatures s
 WHERE s.severity IN ('CRITICAL', 'HIGH')
   AND cosineDistance(r.request_embedding, s.payload_embedding) < 0.4  -- 높은 유사도만
 ORDER BY s.cvss_score DESC, distance ASC
@@ -96,7 +96,7 @@ FORMAT PrettyCompactMonoBlock;
 -- 새로운 리포트가 제출되었을 때 중복 여부 확인
 WITH target_report AS (
     SELECT report_id, content_embedding
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE report_id = 'RPT-2024-007'  -- 새로 제출된 리포트
 )
 SELECT
@@ -107,7 +107,7 @@ SELECT
     r.bounty_amount,
     round(cosineDistance(r.content_embedding, t.content_embedding), 4) as distance,
     round(1 - cosineDistance(r.content_embedding, t.content_embedding), 4) as similarity
-FROM bug_bounty.report_knowledge_base r
+FROM security_traffic_analysis.report_knowledge_base r
 CROSS JOIN target_report t
 WHERE r.report_id != t.report_id
   AND r.status IN ('ACCEPTED', 'FIXED', 'TRIAGED')  -- 유효한 리포트만
@@ -126,8 +126,8 @@ SELECT
     r2.title as title_2,
     r2.status as status_2,
     round(cosineDistance(r1.content_embedding, r2.content_embedding), 4) as distance
-FROM bug_bounty.report_knowledge_base r1
-CROSS JOIN bug_bounty.report_knowledge_base r2
+FROM security_traffic_analysis.report_knowledge_base r1
+CROSS JOIN security_traffic_analysis.report_knowledge_base r2
 WHERE r1.report_id < r2.report_id  -- 중복 조합 제거
   AND r1.vulnerability_type = r2.vulnerability_type  -- 같은 취약점 유형만
   AND cosineDistance(r1.content_embedding, r2.content_embedding) < 0.3  -- 높은 유사도
@@ -145,7 +145,7 @@ SELECT
     countIf(status = 'DUPLICATE') as duplicate_count,
     round(countIf(status = 'DUPLICATE') * 100.0 / count(), 2) as duplicate_percentage,
     sum(bounty_amount) as total_paid
-FROM bug_bounty.report_knowledge_base
+FROM security_traffic_analysis.report_knowledge_base
 GROUP BY vulnerability_type
 ORDER BY duplicate_percentage DESC
 FORMAT PrettyCompactMonoBlock;
@@ -160,7 +160,7 @@ FORMAT PrettyCompactMonoBlock;
 WITH query_embedding AS (
     -- 실제로는 쿼리 텍스트를 임베딩 API로 변환해야 함
     -- 여기서는 데모용으로 기존 SQLi 패턴 사용
-    SELECT bug_bounty.generateSQLiVector(999) as embedding
+    SELECT security_traffic_analysis.generateSQLiVector(999) as embedding
 )
 SELECT
     r.report_id,
@@ -169,7 +169,7 @@ SELECT
     r.status,
     r.bounty_amount,
     round(cosineDistance(r.content_embedding, q.embedding), 4) as relevance_score
-FROM bug_bounty.report_knowledge_base r
+FROM security_traffic_analysis.report_knowledge_base r
 CROSS JOIN query_embedding q
 WHERE cosineDistance(r.content_embedding, q.embedding) < 0.8  -- 관련성 임계값
 ORDER BY relevance_score ASC
@@ -180,7 +180,7 @@ FORMAT PrettyCompactMonoBlock;
 -- 3-2. 키워드와 벡터 검색 결합
 -- 전통적인 텍스트 검색과 시맨틱 검색 결합하여 정확도 향상
 WITH query_embedding AS (
-    SELECT bug_bounty.generateXSSVector(888) as embedding
+    SELECT security_traffic_analysis.generateXSSVector(888) as embedding
 )
 SELECT
     r.report_id,
@@ -199,7 +199,7 @@ SELECT
     round(1 - cosineDistance(r.content_embedding, q.embedding), 4) as semantic_score,
     -- 최종 점수 (가중 평균)
     round(keyword_score * 0.3 + (1 - cosineDistance(r.content_embedding, q.embedding)) * 0.7, 4) as final_score
-FROM bug_bounty.report_knowledge_base r
+FROM security_traffic_analysis.report_knowledge_base r
 CROSS JOIN query_embedding q
 WHERE final_score > 0.5
 ORDER BY final_score DESC
@@ -211,7 +211,7 @@ FORMAT PrettyCompactMonoBlock;
 -- 과거 고액 바운티를 받은 리포트와 유사한 새 리포트 우선순위화
 WITH high_bounty_reports AS (
     SELECT content_embedding
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE bounty_amount >= 3000
 )
 SELECT
@@ -221,7 +221,7 @@ SELECT
     r.status,
     r.bounty_amount,
     round(avg(cosineDistance(r.content_embedding, h.content_embedding)), 4) as avg_distance_to_high_bounty
-FROM bug_bounty.report_knowledge_base r
+FROM security_traffic_analysis.report_knowledge_base r
 CROSS JOIN high_bounty_reports h
 WHERE r.status IN ('SUBMITTED', 'TRIAGED')  -- 아직 처리 중인 리포트
   AND r.bounty_amount = 0  -- 아직 바운티 결정 안됨
@@ -243,8 +243,8 @@ SELECT
     s1.category,
     groupArray((s2.pattern_name, round(cosineDistance(s1.payload_embedding, s2.payload_embedding), 3)))
         as similar_patterns
-FROM bug_bounty.attack_signatures s1
-LEFT JOIN bug_bounty.attack_signatures s2
+FROM security_traffic_analysis.attack_signatures s1
+LEFT JOIN security_traffic_analysis.attack_signatures s2
     ON s1.signature_id != s2.signature_id
     AND cosineDistance(s1.payload_embedding, s2.payload_embedding) < 0.5
 GROUP BY s1.signature_id, s1.pattern_name, s1.category
@@ -262,7 +262,7 @@ SELECT
     -- 평균 벡터 계산 (centroid)
     arrayReduce('avg', groupArray(content_embedding)) as centroid_embedding,
     length(arrayReduce('avg', groupArray(content_embedding))) as centroid_dim
-FROM bug_bounty.report_knowledge_base
+FROM security_traffic_analysis.report_knowledge_base
 WHERE status IN ('ACCEPTED', 'FIXED')
 GROUP BY vulnerability_type
 ORDER BY report_count DESC
@@ -273,14 +273,14 @@ FORMAT PrettyCompactMonoBlock;
 -- 정상 패턴에서 크게 벗어난 요청 찾기
 WITH normal_centroid AS (
     SELECT arrayReduce('avg', groupArray(request_embedding)) as centroid
-    FROM bug_bounty.request_embeddings
+    FROM security_traffic_analysis.request_embeddings
     LIMIT 100  -- 정상 트래픽 샘플
 )
 SELECT
     r.packet_id,
     substring(r.normalized_request, 1, 80) as request,
     round(cosineDistance(r.request_embedding, c.centroid), 4) as distance_from_normal
-FROM bug_bounty.request_embeddings r
+FROM security_traffic_analysis.request_embeddings r
 CROSS JOIN normal_centroid c
 ORDER BY distance_from_normal DESC
 LIMIT 10
@@ -299,8 +299,8 @@ WITH vector_threat_scores AS (
         min(cosineDistance(r.request_embedding, s.payload_embedding)) as min_distance,
         argMin(s.category, cosineDistance(r.request_embedding, s.payload_embedding)) as matched_category,
         argMin(s.cvss_score, cosineDistance(r.request_embedding, s.payload_embedding)) as matched_cvss
-    FROM bug_bounty.request_embeddings r
-    CROSS JOIN bug_bounty.attack_signatures s
+    FROM security_traffic_analysis.request_embeddings r
+    CROSS JOIN security_traffic_analysis.attack_signatures s
     GROUP BY r.packet_id
 )
 SELECT
@@ -321,9 +321,9 @@ SELECT
         COALESCE(a.bruteforce_score, 0) * 0.3 +
         COALESCE(a.scanner_score, 0) * 0.2,
     4) as final_threat_score
-FROM bug_bounty.http_packets p
+FROM security_traffic_analysis.http_packets p
 JOIN vector_threat_scores v ON p.packet_id = v.packet_id
-LEFT JOIN bug_bounty.attack_detection_agg a ON a.source_ip_hash = cityHash64(p.source_ip)
+LEFT JOIN security_traffic_analysis.attack_detection_agg a ON a.source_ip_hash = cityHash64(p.source_ip)
 WHERE v.min_distance < 0.5  -- 유사도 필터
 ORDER BY final_threat_score DESC
 LIMIT 20
@@ -333,7 +333,7 @@ FORMAT PrettyCompactMonoBlock;
 -- 5-2. 자동 트리아지 우선순위 추천
 -- 새 리포트에 우선순위를 자동으로 부여
 WITH new_reports AS (
-    SELECT * FROM bug_bounty.report_knowledge_base
+    SELECT * FROM security_traffic_analysis.report_knowledge_base
     WHERE status = 'SUBMITTED'
 ),
 historical_patterns AS (
@@ -341,7 +341,7 @@ historical_patterns AS (
         vulnerability_type,
         avg(bounty_amount) as avg_bounty,
         count() as historical_count
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE status IN ('ACCEPTED', 'FIXED')
     GROUP BY vulnerability_type
 )
@@ -353,11 +353,11 @@ SELECT
     COALESCE(hp.avg_bounty, 0) as expected_bounty,
     -- 과거 고액 리포트와의 유사도
     (SELECT round(min(cosineDistance(nr.content_embedding, hr.content_embedding)), 4)
-     FROM bug_bounty.report_knowledge_base hr
+     FROM security_traffic_analysis.report_knowledge_base hr
      WHERE hr.bounty_amount >= 3000) as similarity_to_high_bounty,
     -- 최근 중복 가능성
     (SELECT count()
-     FROM bug_bounty.report_knowledge_base dr
+     FROM security_traffic_analysis.report_knowledge_base dr
      WHERE dr.status != 'DUPLICATE'
        AND dr.vulnerability_type = nr.vulnerability_type
        AND cosineDistance(nr.content_embedding, dr.content_embedding) < 0.3) as potential_duplicates,
@@ -380,8 +380,8 @@ SELECT
     argMin(s.category, cosineDistance(r.request_embedding, s.payload_embedding)) as attack_type,
     count() as detection_count,
     round(avg(1 - cosineDistance(r.request_embedding, s.payload_embedding)), 4) as avg_confidence
-FROM bug_bounty.request_embeddings r
-CROSS JOIN bug_bounty.attack_signatures s
+FROM security_traffic_analysis.request_embeddings r
+CROSS JOIN security_traffic_analysis.attack_signatures s
 WHERE cosineDistance(r.request_embedding, s.payload_embedding) < 0.6
 GROUP BY week, attack_type
 ORDER BY week DESC, detection_count DESC
@@ -398,8 +398,8 @@ SELECT
     'Vector Search' as method,
     count(DISTINCT r.packet_id) as suspicious_requests,
     round(avg(1 - cosineDistance(r.request_embedding, s.payload_embedding)), 4) as avg_confidence
-FROM bug_bounty.request_embeddings r
-CROSS JOIN bug_bounty.attack_signatures s
+FROM security_traffic_analysis.request_embeddings r
+CROSS JOIN security_traffic_analysis.attack_signatures s
 WHERE cosineDistance(r.request_embedding, s.payload_embedding) < 0.5
 
 UNION ALL
@@ -408,7 +408,7 @@ SELECT
     'Traditional Pattern' as method,
     count(DISTINCT packet_id) as suspicious_requests,
     0.0 as avg_confidence  -- 전통적 방법은 신뢰도 점수 없음
-FROM bug_bounty.http_packets
+FROM security_traffic_analysis.http_packets
 WHERE request_uri LIKE '%OR%'
    OR request_uri LIKE '%<script%'
    OR request_uri LIKE '%../../%'
@@ -421,8 +421,8 @@ WITH intra_category_distance AS (
     SELECT
         'Same Category' as comparison,
         round(avg(cosineDistance(s1.payload_embedding, s2.payload_embedding)), 4) as avg_distance
-    FROM bug_bounty.attack_signatures s1
-    JOIN bug_bounty.attack_signatures s2
+    FROM security_traffic_analysis.attack_signatures s1
+    JOIN security_traffic_analysis.attack_signatures s2
         ON s1.category = s2.category
         AND s1.signature_id < s2.signature_id
 ),
@@ -430,8 +430,8 @@ inter_category_distance AS (
     SELECT
         'Different Category' as comparison,
         round(avg(cosineDistance(s1.payload_embedding, s2.payload_embedding)), 4) as avg_distance
-    FROM bug_bounty.attack_signatures s1
-    JOIN bug_bounty.attack_signatures s2
+    FROM security_traffic_analysis.attack_signatures s1
+    JOIN security_traffic_analysis.attack_signatures s2
         ON s1.category != s2.category
         AND s1.signature_id < s2.signature_id
 )

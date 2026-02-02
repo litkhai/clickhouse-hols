@@ -1,4 +1,4 @@
-# Bug Bounty Packet Analysis Platform with ClickHouse
+# Security Traffic Analysis Platform with ClickHouse
 
 [English](#english) | [한국어](#한국어)
 
@@ -6,11 +6,11 @@
 
 ## English
 
-A comprehensive platform for analyzing bug bounty packet data using ClickHouse, featuring real-time PII anonymization, automated attack detection, and vulnerability reproduction validation.
+A comprehensive platform for security traffic analysis using ClickHouse, featuring real-time PII anonymization, automated attack detection, and vulnerability reproduction validation.
 
 ### 🎯 Purpose
 
-This lab provides practical experience with ClickHouse for security operations and bug bounty management:
+This lab provides practical experience with ClickHouse for security operations and traffic analysis:
 - HTTP packet data capture and analysis
 - Real-time PII (Personally Identifiable Information) detection and anonymization
 - Automated attack pattern detection (Bruteforce, Scanner, Enumeration, EDoS)
@@ -18,7 +18,7 @@ This lab provides practical experience with ClickHouse for security operations a
 - Automated triage and severity classification
 - AI-ready anonymized dataset generation
 
-Whether you're building a security operations platform or managing bug bounty programs, this lab demonstrates production-ready patterns for handling sensitive packet data at scale.
+Whether you're building a security operations platform or analyzing traffic patterns, this lab demonstrates production-ready patterns for handling sensitive packet data at scale.
 
 ### 📊 Dataset Scale
 
@@ -26,12 +26,12 @@ Whether you're building a security operations platform or managing bug bounty pr
 - **Attack Scenarios**: SQL Injection, JWT exposure, API key leaks
 - **PII Types Detected**: JWT tokens, API keys, emails, phone numbers, credit cards
 - **Time Window**: Real-time + historical (configurable TTL)
-- **Demo Data**: Realistic bug bounty scenarios with before/after patch validation
+- **Demo Data**: Realistic security traffic analysis scenarios with before/after patch validation
 
 ### 📁 File Structure
 
 ```
-bug-bounty/
+security-traffic-analysis/
 ├── README.md                                   # This file
 ├── 01-create-database.sql                      # Database setup
 ├── 02-create-tables.sql                        # Core tables (packets, anonymized, detection)
@@ -53,7 +53,7 @@ bug-bounty/
 Execute core labs in sequence:
 
 ```bash
-cd usecase/bug-bounty
+cd usecase/security-traffic-analysis
 
 # Core Lab (Required)
 clickhouse-client --queries-file 01-create-database.sql
@@ -99,7 +99,7 @@ clickhouse-client --queries-file 01-create-database.sql
 ```
 
 **What it does**:
-- Creates `bug_bounty` database
+- Creates `security_traffic_analysis` database
 - Sets up USE context
 
 **Expected time**: ~1 second
@@ -389,7 +389,7 @@ GROUP BY report_id;
 
 #### 2️⃣ Automated Attack Detection
 
-**Goal**: Detect abuse and malicious activity in bug bounty traffic
+**Goal**: Detect abuse and malicious activity in security traffic analysis traffic
 
 | Attack Type | Detection Criteria |
 |-------------|-------------------|
@@ -578,11 +578,11 @@ Updated: 2026-02-01
 
 ## 한국어
 
-ClickHouse를 활용한 버그바운티 패킷 분석 플랫폼입니다. 실시간 PII 비식별화, 자동화된 공격 탐지, 취약점 재현 검증 기능을 제공합니다.
+ClickHouse를 활용한 보안 트래픽 분석 패킷 분석 플랫폼입니다. 실시간 PII 비식별화, 자동화된 공격 탐지, 취약점 재현 검증 기능을 제공합니다.
 
 ### 🎯 목적
 
-이 랩은 보안 운영 및 버그바운티 관리를 위한 ClickHouse 실무 경험을 제공합니다:
+이 랩은 보안 운영 및 보안 트래픽 분석 관리를 위한 ClickHouse 실무 경험을 제공합니다:
 - HTTP 패킷 데이터 캡처 및 분석
 - 실시간 PII(개인식별정보) 탐지 및 비식별화
 - 자동화된 공격 패턴 탐지 (Bruteforce, Scanner, Enumeration, EDoS)
@@ -590,7 +590,7 @@ ClickHouse를 활용한 버그바운티 패킷 분석 플랫폼입니다. 실시
 - 자동 트리아지 및 심각도 분류
 - AI 학습용 비식별화 데이터셋 생성
 
-보안 운영 플랫폼을 구축하거나 버그바운티 프로그램을 관리하는 경우, 이 랩은 대규모 민감한 패킷 데이터 처리를 위한 프로덕션 수준의 패턴을 제시합니다.
+보안 운영 플랫폼을 구축하거나 보안 트래픽 분석 프로그램을 관리하는 경우, 이 랩은 대규모 민감한 패킷 데이터 처리를 위한 프로덕션 수준의 패턴을 제시합니다.
 
 ### 📊 데이터셋 규모
 
@@ -598,12 +598,12 @@ ClickHouse를 활용한 버그바운티 패킷 분석 플랫폼입니다. 실시
 - **공격 시나리오**: SQL Injection, JWT 노출, API 키 유출
 - **PII 탐지 유형**: JWT 토큰, API 키, 이메일, 전화번호, 신용카드
 - **시간 윈도우**: 실시간 + 히스토리컬 (TTL 설정 가능)
-- **데모 데이터**: 패치 전후 검증을 포함한 실제 버그바운티 시나리오
+- **데모 데이터**: 패치 전후 검증을 포함한 실제 보안 트래픽 분석 시나리오
 
 ### 📁 파일 구조
 
 ```
-bug-bounty/
+security-traffic-analysis/
 ├── README.md                                   # 이 파일
 ├── 01-create-database.sql                      # 데이터베이스 설정
 ├── 02-create-tables.sql                        # 핵심 테이블 (패킷, 비식별화, 탐지)
@@ -625,7 +625,7 @@ bug-bounty/
 핵심 실습을 순서대로 실행:
 
 ```bash
-cd usecase/bug-bounty
+cd usecase/security-traffic-analysis
 
 # 핵심 실습 (필수)
 clickhouse-client --queries-file 01-create-database.sql
@@ -671,7 +671,7 @@ clickhouse-client --queries-file 01-create-database.sql
 ```
 
 **수행 내용**:
-- `bug_bounty` 데이터베이스 생성
+- `security_traffic_analysis` 데이터베이스 생성
 - USE 컨텍스트 설정
 
 **예상 시간**: ~1초
@@ -961,7 +961,7 @@ GROUP BY report_id;
 
 #### 2️⃣ 자동화 공격 탐지
 
-**목표**: 버그바운티 트래픽에서 남용 및 악의적 활동 탐지
+**목표**: 보안 트래픽 분석 트래픽에서 남용 및 악의적 활동 탐지
 
 | 공격 유형 | 탐지 기준 |
 |-----------|-----------|
