@@ -1,5 +1,5 @@
 -- ============================================================
--- Bug Bounty Vector Search - Step 5: Integration Guide
+-- Security Traffic Analysis Vector Search - Step 5: Integration Guide
 -- Python/API 통합 및 프로덕션 배포 가이드
 -- ============================================================
 
@@ -30,7 +30,7 @@ OPENAI_API_KEY=sk-...
 CLICKHOUSE_HOST=your-host.clickhouse.cloud
 CLICKHOUSE_USER=default
 CLICKHOUSE_PASSWORD=your-password
-CLICKHOUSE_DATABASE=bug_bounty
+CLICKHOUSE_DATABASE=security_traffic_analysis
 ```
 */
 
@@ -170,8 +170,8 @@ def batch_embed_requests(batch_size: int = 100, max_workers: int = 5):
     # 임베딩이 없는 요청 조회
     query = """
     SELECT p.packet_id, p.request_method, p.request_uri, p.request_body
-    FROM bug_bounty.http_packets p
-    LEFT JOIN bug_bounty.request_embeddings e ON p.packet_id = e.packet_id
+    FROM security_traffic_analysis.http_packets p
+    LEFT JOIN security_traffic_analysis.request_embeddings e ON p.packet_id = e.packet_id
     WHERE e.packet_id IS NULL
     LIMIT {batch_size}
     """
@@ -265,8 +265,8 @@ def search_similar_attacks():
         s.cwe_id,
         round(cosineDistance(r.request_embedding, s.payload_embedding), 4) as distance,
         round(1 - cosineDistance(r.request_embedding, s.payload_embedding), 4) as similarity
-    FROM bug_bounty.request_embeddings r
-    CROSS JOIN bug_bounty.attack_signatures s
+    FROM security_traffic_analysis.request_embeddings r
+    CROSS JOIN security_traffic_analysis.attack_signatures s
     WHERE r.packet_id = {packet_id:UUID}
     ORDER BY distance ASC
     LIMIT {top_k:UInt8}
@@ -319,7 +319,7 @@ def check_duplicate_report():
         status,
         bounty_amount,
         round(cosineDistance(content_embedding, {embedding:Array(Float32)}), 4) as distance
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE status IN ('ACCEPTED', 'FIXED', 'TRIAGED')
       AND distance < 0.4
     ORDER BY distance ASC
@@ -369,7 +369,7 @@ def semantic_search():
         status,
         bounty_amount,
         round(1 - cosineDistance(content_embedding, {embedding:Array(Float32)}), 4) as relevance
-    FROM bug_bounty.report_knowledge_base
+    FROM security_traffic_analysis.report_knowledge_base
     WHERE relevance > 0.5
     ORDER BY relevance DESC
     LIMIT {top_k:UInt8}
@@ -623,7 +623,7 @@ ALTER TABLE request_embeddings DROP PARTITION '202401';
 -- ============================================================
 
 -- 임베딩 품질 테스트 쿼리
-CREATE OR REPLACE VIEW bug_bounty.v_embedding_quality_test AS
+CREATE OR REPLACE VIEW security_traffic_analysis.v_embedding_quality_test AS
 WITH test_pairs AS (
     -- 같은 카테고리 (유사해야 함)
     SELECT
@@ -632,8 +632,8 @@ WITH test_pairs AS (
         s2.pattern_name as pattern_2,
         cosineDistance(s1.payload_embedding, s2.payload_embedding) as distance,
         'PASS' as expected
-    FROM bug_bounty.attack_signatures s1
-    JOIN bug_bounty.attack_signatures s2
+    FROM security_traffic_analysis.attack_signatures s1
+    JOIN security_traffic_analysis.attack_signatures s2
         ON s1.category = s2.category
         AND s1.signature_id < s2.signature_id
 
@@ -646,8 +646,8 @@ WITH test_pairs AS (
         s2.pattern_name as pattern_2,
         cosineDistance(s1.payload_embedding, s2.payload_embedding) as distance,
         'PASS' as expected
-    FROM bug_bounty.attack_signatures s1
-    JOIN bug_bounty.attack_signatures s2
+    FROM security_traffic_analysis.attack_signatures s1
+    JOIN security_traffic_analysis.attack_signatures s2
         ON s1.category != s2.category
         AND s1.signature_id < s2.signature_id
 )
@@ -666,7 +666,7 @@ FROM test_pairs
 GROUP BY pair_type;
 
 -- 품질 테스트 실행
-SELECT * FROM bug_bounty.v_embedding_quality_test
+SELECT * FROM security_traffic_analysis.v_embedding_quality_test
 FORMAT PrettyCompactMonoBlock;
 
 

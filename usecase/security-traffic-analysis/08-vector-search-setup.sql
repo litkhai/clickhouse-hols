@@ -1,5 +1,5 @@
 -- ============================================================
--- Bug Bounty Vector Search - Step 1: Setup
+-- Security Traffic Analysis Vector Search - Step 1: Setup
 -- ClickHouse 24.8+ 필요 (Vector Search GA)
 -- ============================================================
 
@@ -22,7 +22,7 @@
 -- - SharedMergeTree 엔진에서 동작
 -- ============================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================
 -- 1. 공격 패턴 시그니처 테이블
@@ -30,7 +30,7 @@ USE bug_bounty;
 -- ============================================================
 
 -- 시그니처 테이블 생성
-CREATE TABLE IF NOT EXISTS bug_bounty.attack_signatures (
+CREATE TABLE IF NOT EXISTS security_traffic_analysis.attack_signatures (
     signature_id UUID DEFAULT generateUUIDv4(),
 
     -- 패턴 메타데이터
@@ -77,7 +77,7 @@ COMMENT '알려진 공격 패턴의 벡터 임베딩 저장소';
 -- ============================================================
 
 -- 샘플 데이터 삽입 (실제 임베딩은 10-vector-demo-data.sql에서)
-INSERT INTO bug_bounty.attack_signatures
+INSERT INTO security_traffic_analysis.attack_signatures
 (pattern_name, pattern_description, category, cwe_id, cvss_score, severity,
  sample_payload, attack_vector, common_targets, payload_embedding)
 VALUES
@@ -150,7 +150,7 @@ VALUES
 -- 3. 유틸리티 뷰: 시그니처 통계
 -- ============================================================
 
-CREATE OR REPLACE VIEW bug_bounty.v_signature_stats AS
+CREATE OR REPLACE VIEW security_traffic_analysis.v_signature_stats AS
 SELECT
     category,
     count() as pattern_count,
@@ -160,7 +160,7 @@ SELECT
     countIf(severity = 'MEDIUM') as medium_count,
     countIf(severity = 'LOW') as low_count,
     countIf(is_active) as active_count
-FROM bug_bounty.attack_signatures
+FROM security_traffic_analysis.attack_signatures
 GROUP BY category
 ORDER BY avg_cvss DESC;
 
@@ -176,7 +176,7 @@ SELECT
     total_rows,
     formatReadableSize(total_bytes) as size
 FROM system.tables
-WHERE database = 'bug_bounty'
+WHERE database = 'security_traffic_analysis'
   AND name = 'attack_signatures'
 FORMAT PrettyCompactMonoBlock;
 
@@ -187,12 +187,12 @@ SELECT
     severity,
     cvss_score,
     sample_payload
-FROM bug_bounty.attack_signatures
+FROM security_traffic_analysis.attack_signatures
 ORDER BY cvss_score DESC
 FORMAT PrettyCompactMonoBlock;
 
 -- 시그니처 통계 확인
-SELECT * FROM bug_bounty.v_signature_stats
+SELECT * FROM security_traffic_analysis.v_signature_stats
 FORMAT PrettyCompactMonoBlock;
 
 

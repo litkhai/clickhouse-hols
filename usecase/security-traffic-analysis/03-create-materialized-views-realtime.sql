@@ -1,6 +1,6 @@
 -- ============================================================================
--- Bug Bounty Packet Analysis Platform - Step 3: Real-time Materialized Views
--- 버그바운티 패킷 분석 플랫폼 - Step 3: 실시간 Materialized Views 생성
+-- Security Traffic Analysis Platform - Step 3: Real-time Materialized Views
+-- 보안 트래픽 분석 플랫폼 - Step 3: 실시간 Materialized Views 생성
 -- ============================================================================
 -- Created: 2026-01-31
 -- 작성일: 2026-01-31
@@ -10,7 +10,7 @@
 -- 예상 시간: ~2-3초
 -- ============================================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================================
 -- 3.1 Anonymization Pipeline MV (Real-time)
@@ -204,5 +204,5 @@ SELECT
     engine,
     total_rows
 FROM system.tables
-WHERE database = 'bug_bounty' AND name LIKE 'mv_%'
+WHERE database = 'security_traffic_analysis' AND name LIKE 'mv_%'
 ORDER BY name;

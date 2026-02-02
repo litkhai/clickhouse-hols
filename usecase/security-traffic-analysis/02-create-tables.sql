@@ -1,6 +1,6 @@
 -- ============================================================================
--- Bug Bounty Packet Analysis Platform - Step 2: Core Tables
--- 버그바운티 패킷 분석 플랫폼 - Step 2: 핵심 테이블 생성
+-- Security Traffic Analysis Platform - Step 2: Core Tables
+-- 보안 트래픽 분석 플랫폼 - Step 2: 핵심 테이블 생성
 -- ============================================================================
 -- Created: 2026-01-31
 -- 작성일: 2026-01-31
@@ -10,7 +10,7 @@
 -- 예상 시간: ~2-3초
 -- ============================================================================
 
-USE bug_bounty;
+USE security_traffic_analysis;
 
 -- ============================================================================
 -- 2.1 Raw HTTP Packets Table
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS http_packets
     -- Basic identification / 기본 식별 정보
     packet_id UUID DEFAULT generateUUIDv4(),           -- Packet identifier / 패킷 식별자
     session_id String,                                 -- Session identifier (group of consecutive requests) / 세션 식별자 (연속된 요청 그룹)
-    report_id String,                                  -- Bug bounty report ID (BUG-YYYY-NNNN) / 버그바운티 리포트 ID
+    report_id String,                                  -- Bug bounty report ID (BUG-YYYY-NNNN) / 리포트 ID
     participant_id String,                             -- Participant ID (before hashing) / 참여자 ID (해시 처리 전)
 
     -- Time information / 시간 정보
@@ -170,7 +170,7 @@ SETTINGS index_granularity = 8192;
 
 CREATE TABLE IF NOT EXISTS triage_results
 (
-    report_id String,                                  -- Bug bounty report ID / 버그바운티 리포트 ID
+    report_id String,                                  -- Bug bounty report ID / 리포트 ID
 
     first_seen DateTime64(3),                          -- First request time / 최초 요청 시각
     last_seen DateTime64(3),                           -- Last request time / 최종 요청 시각
@@ -277,5 +277,5 @@ SELECT
     total_rows,
     formatReadableSize(total_bytes) AS size
 FROM system.tables
-WHERE database = 'bug_bounty'
+WHERE database = 'security_traffic_analysis'
 ORDER BY name;
