@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  kafka-partitioning-ingestion — single-node lab stack
+#  카프카 파티셔닝 인제스천 — 단일 노드 실습 스택
+#
+#    kafka       Apache Kafka in KRaft mode (no ZooKeeper), broker + controller
+#    clickhouse  ClickHouse server with the Kafka table engine consuming both topics
+#
+#  Two listeners on the broker:
+#    PLAINTEXT  kafka:9092      ← in-network, used by the ClickHouse container
+#    EXTERNAL   localhost:9094  ← host machine, used by 04-produce.py
+#
+#  NOT highly available. One broker, RF=1. For demos/labs only.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: kpart-kafka
+    ports:
+      - "${KAFKA_EXTERNAL_PORT:-9094}:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # We create topics explicitly (02-create-topics.sh) so partition counts are controlled.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Hold messages long enough for a leisurely lab session.
+      KAFKA_LOG_RETENTION_HOURS: 168
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.6
+    container_name: kpart-clickhouse
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+
+  # Kafka Connect worker running the ClickHouse Sink connector. This is the
+  # SECOND ingestion path. Unlike the Kafka table engine (which multiplexes
+  # partitions into one INSERT block by default), Connect Sink groups records by
+  # topic-partition and writes one batch per partition — so partition locality
+  # survives into the ClickHouse part with no special tuning.
+  connect:
+    build:
+      context: .
+      dockerfile: connect.Dockerfile
+    image: kpart-connect:local
+    container_name: kpart-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "${CONNECT_REST_PORT:-8083}:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: kpart-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect_configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect_offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect_status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      # Schemaless JSON: key is the customer_id string, value is the event object.
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      # Let connectors override their consumer config (so we can read from earliest).
+      CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: All
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
