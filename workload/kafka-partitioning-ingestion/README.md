@@ -118,7 +118,7 @@ Prereqs: Docker (with Compose) and Python 3.9+. First `01-up.sh` builds the
 Connect image (installs the connector) — a few minutes; later runs are instant.
 
 ```bash
-cd usecase/kafka-partitioning-ingestion
+cd workload/kafka-partitioning-ingestion
 
 ./01-up.sh                                                            # start Kafka + ClickHouse + Connect
 ./02-create-topics.sh                                                 # 2 topics × 8 partitions
@@ -278,7 +278,7 @@ kafka-partitioning-ingestion/
 빌드(커넥터 설치)하므로 수 분 소요, 이후엔 즉시.
 
 ```bash
-cd usecase/kafka-partitioning-ingestion
+cd workload/kafka-partitioning-ingestion
 
 ./01-up.sh                                                            # Kafka + ClickHouse + Connect 기동
 ./02-create-topics.sh                                                 # 토픽 2 × 파티션 8
