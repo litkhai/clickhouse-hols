@@ -1,4 +1,4 @@
-# Claude Code 작업 지시서 — ClickHouse(OSS) + Superset 한국 행정구역 지도 PoC
+# Claude Code 작업 지시서 — ClickHouse(OSS) + Superset 한국 행정구역 지도 랩
 
 ## 0. 목표 (이 작업이 끝나면 되어 있어야 하는 상태)
 
@@ -15,7 +15,7 @@
 ## 1. 범위 / 비범위
 
 - **범위:** 시군구(약 250개) 단위. 합리적 vertex 수로 빠르게 동작.
-- **비범위(이번엔 제외):** 읍면동(수천 개, vertex 폭증 → 단순화 단계 필요). 1차 PoC 성공 후 별도로 확장.
+- **비범위(이번엔 제외):** 읍면동(수천 개, vertex 폭증 → 단순화 단계 필요). 1차 랩 성공 후 별도로 확장.
 - **인프라:** 전부 로컬 Docker. 클라우드/실데이터 연동 없음.
 
 ---
@@ -46,8 +46,8 @@ korea-geo/
 `docker-compose.yml`을 작성한다. ClickHouse OSS와 Superset를 **같은 compose / 같은 네트워크**에 둬서 Superset가 `clickhouse:8123`으로 접근 가능하게 한다.
 
 요구사항:
-- ClickHouse: `clickhouse/clickhouse-server` 최신 안정 태그. 포트 `8123`(HTTP), `9000`(native) 노출. `default` 유저, 패스워드 없음(로컬 PoC). `ulimits nofile` 설정.
-- Superset: `apache/superset` 이미지. 메타DB(SQLite도 PoC엔 충분하나 공식 compose는 postgres+redis 사용) — **간단함 우선**으로 가되, 드라이버 설치와 init이 누락되지 않게 한다.
+- ClickHouse: `clickhouse/clickhouse-server` 최신 안정 태그. 포트 `8123`(HTTP), `9000`(native) 노출. `default` 유저, 패스워드 없음(로컬 랩). `ulimits nofile` 설정.
+- Superset: `apache/superset` 이미지. 메타DB(SQLite도 로컬 랩엔 충분하나 공식 compose는 postgres+redis 사용) — **간단함 우선**으로 가되, 드라이버 설치와 init이 누락되지 않게 한다.
 - Superset에 **`clickhouse-connect`** 파이썬 패키지를 반드시 설치한다 (Superset 공식 ClickHouse 드라이버).
 
 > 구현 노트: 가장 안정적인 경로는 Apache Superset 공식 레포의 `docker-compose-non-dev.yml`을 받아서
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS geospatial.sig_map
 (
     code        String,
     name        String,
-    metric      Float64,      -- 색칠용 값 (PoC: 합성값 / 후엔 실데이터 조인)
+    metric      Float64,      -- 색칠용 값 (랩: 합성값 / 후엔 실데이터 조인)
     coordinates String        -- JSON: [[lon,lat],[lon,lat],...] (외곽 ring)
 )
 ENGINE = MergeTree ORDER BY code;
@@ -142,7 +142,7 @@ LIFETIME(0);
 3. geometry 처리:
    - **딕셔너리용(`sig_polygons`)**: GeoJSON `Polygon` → `[coords]`로 한 번 감싸고, `MultiPolygon` → coords 그대로. 각 점 `[lon,lat]`을 튜플로. (구조 = `[polygon][ring][point]`)
    - **시각화용(`sig_map`)**: 각 polygon part의 **외곽 ring(첫 ring)** 만 뽑아 `[[lon,lat],...]`를 JSON 문자열로. MultiPolygon이면 part마다 1행(code/name/metric 공유).
-4. `metric`: PoC 합성값 — 시군구별 `random.randint(1,100)` 같은 안정값(같은 시군구의 여러 ring은 동일 metric).
+4. `metric`: 합성값 — 시군구별 `random.randint(1,100)` 같은 안정값(같은 시군구의 여러 ring은 동일 metric).
 5. `clickhouse-connect`로 두 테이블에 insert. 좌표는 중첩 리스트/튜플 그대로 전달(드라이버가 nested 처리).
 
 검증 출력: 적재 행 수, 고유 시군구 수(약 250 기대) 로그.
