@@ -1,8 +1,8 @@
 import os
 
-# 로컬 PoC: 메타데이터는 superset_home 의 SQLite 로 충분(볼륨에 영속).
+# 로컬 랩: 메타데이터는 superset_home 의 SQLite 로 충분(볼륨에 영속).
 # 운영이라면 postgres 권장.
-SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY", "korea_geo_poc_secret_change_me")
+SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY", "korea_geo_lab_secret_change_me")
 SQLALCHEMY_DATABASE_URI = "sqlite:////app/superset_home/superset.db"
 
 # deck.gl 베이스맵 타일 토큰. 비어 있으면 폴리곤은 렌더되지만 지도 배경은 제한될 수 있음.
