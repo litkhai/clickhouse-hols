@@ -42,6 +42,16 @@ def req(method, path, token=None, csrf=None, body=None):
         return e.code, json.loads(e.read().decode() or "{}")
 
 
+def find_id(kind, col, val, token, csrf):
+    """rison eq 필터로 단건 조회 → id (없으면 None).
+    값에 괄호/공백/한글이 들어가도 깨지지 않게 작은따옴표로 감싸고 안전하게 인코딩."""
+    rison = "(filters:!((col:%s,opr:eq,value:'%s')))" % (col, val.replace("'", "\\'"))
+    q = urllib.parse.quote(rison, safe="():!,'")
+    st, j = req("GET", f"/api/v1/{kind}/?q={q}", token, csrf)
+    res = j.get("result") if st == 200 else None
+    return res[0]["id"] if res else None
+
+
 def login():
     _, j = req("POST", "/api/v1/security/login",
                body={"username": "admin", "password": "admin",
@@ -69,10 +79,7 @@ def ensure_dataset(token, csrf, db_id, table):
         print(f"[dash] dataset {table} created id={j['id']}")
         return j["id"]
     # 이미 있으면 조회
-    flt = ('(filters:!((col:table_name,opr:eq,value:%s),'
-           '(col:schema,opr:eq,value:geospatial)))' % table)
-    _, j = req("GET", "/api/v1/dataset/?q=" + urllib.parse.quote(flt), token, csrf)
-    ds_id = j["result"][0]["id"]
+    ds_id = find_id("dataset", "table_name", table, token, csrf)
     print(f"[dash] dataset {table} reuse id={ds_id}")
     return ds_id
 
@@ -83,11 +90,8 @@ def ensure_chart(token, csrf, name, viz_type, ds_id, params):
             "datasource_id": ds_id, "datasource_type": "table",
             "params": json.dumps(params)}
     # 동명 차트 있으면 갱신
-    flt = '(filters:!((col:slice_name,opr:eq,value:%s)))' % urllib.parse.quote(name)
-    _, j = req("GET", "/api/v1/chart/?q=" + urllib.parse.quote(
-        '(filters:!((col:slice_name,opr:eq,value:%s)))' % name), token, csrf)
-    if j.get("result"):
-        cid = j["result"][0]["id"]
+    cid = find_id("chart", "slice_name", name, token, csrf)
+    if cid:
         req("PUT", f"/api/v1/chart/{cid}", token, csrf, body)
         print(f"[dash] chart '{name}' updated id={cid}")
         return cid
@@ -184,13 +188,11 @@ def main():
     }
 
     title = "전국 관측소 현황 (Korea Weather Stations)"
-    flt = '(filters:!((col:dashboard_title,opr:eq,value:%s)))' % title
-    _, j = req("GET", "/api/v1/dashboard/?q=" + urllib.parse.quote(flt), token, csrf)
     body = {"dashboard_title": title, "published": True,
             "position_json": json.dumps(pos),
             "css": "", "json_metadata": json.dumps({"refresh_frequency": 0})}
-    if j.get("result"):
-        did = j["result"][0]["id"]
+    did = find_id("dashboard", "dashboard_title", title, token, csrf)
+    if did:
         req("PUT", f"/api/v1/dashboard/{did}", token, csrf, body)
         print(f"[dash] dashboard updated id={did}")
     else:
