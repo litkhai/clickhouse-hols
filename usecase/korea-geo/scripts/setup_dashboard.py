@@ -118,7 +118,7 @@ def main():
             "point_radius_fixed": {"type": "fix", "value": 2500},
             "point_unit": "radius_m", "min_radius": 2, "max_radius": 30,
             "multiplier": 1, "color_picker": {"r": 220, "g": 30, "b": 30, "a": 1},
-            "viewport": VIEWPORT, "autozoom": False, "mapbox_style": MAP_STYLE,
+            "viewport": VIEWPORT, "autozoom": True, "mapbox_style": MAP_STYLE,
             "js_columns": [],
         })
 
@@ -133,7 +133,7 @@ def main():
             "line_width": 1, "fill_color_picker": {"r": 3, "g": 65, "b": 73, "a": 1},
             "stroke_color_picker": {"r": 255, "g": 255, "b": 255, "a": 1},
             "linear_color_scheme": "blue_white_yellow", "opacity": 70,
-            "num_buckets": 10, "viewport": VIEWPORT, "autozoom": False,
+            "num_buckets": 10, "viewport": VIEWPORT, "autozoom": True,
             "mapbox_style": MAP_STYLE, "js_columns": [],
         })
 
@@ -197,6 +197,12 @@ def main():
         st, j = req("POST", "/api/v1/dashboard/", token, csrf, body)
         did = j["id"]
         print(f"[dash] dashboard created id={did}")
+
+    # position_json 의 차트들을 대시보드에 명시적으로 연관(이걸 안 하면
+    # "no chart definition associated with this component" 로 빈 화면이 뜬다).
+    for cid in (polygon, multi, table):
+        req("PUT", f"/api/v1/chart/{cid}", token, csrf, {"dashboards": [did]})
+    print(f"[dash] linked charts {polygon},{multi},{table} -> dashboard {did}")
 
     print(f"\n[dash] 완료 → http://localhost:8088/superset/dashboard/{did}/")
     print(f"[dash] 오버레이 지도 단독: http://localhost:8088/explore/?slice_id={multi}")
