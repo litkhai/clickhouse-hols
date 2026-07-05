@@ -24,6 +24,8 @@ header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
 .controls label{font-size:12px;color:var(--dim)}
 .controls input{width:56px;background:var(--panel2);border:1px solid var(--line);
   color:var(--txt);border-radius:6px;padding:5px;text-align:center}
+.controls select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+  border-radius:6px;padding:6px 8px;cursor:pointer}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:13px}
 .btn.start{background:var(--green);color:#04210f}
 .btn.stop{background:#3a3a44;color:var(--txt)}

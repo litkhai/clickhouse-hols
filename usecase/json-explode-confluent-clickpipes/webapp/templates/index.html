@@ -6,26 +6,32 @@
   <title>실시간 JSON explode 데모</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body data-db="{{ db }}" data-topic="{{ topic }}">
   <header>
     <div class="title">
-      ⚡ 실시간 JSON explode 데모
-      <span class="sub">Confluent → ClickPipes → ClickHouse · <b>{{ db }}</b> / topic <b>{{ topic }}</b></span>
+      <span data-i18n="title">⚡ 실시간 JSON explode 데모</span>
+      <span class="sub" id="sub"></span>
     </div>
 
     <div class="chips">
       <span class="chip" id="chip-pipe">ClickPipe: …</span>
       <span class="chip" id="chip-prod">Producer: …</span>
-      <span class="chip" id="chip-counts">raw – · staging – · fact –</span>
+      <span class="chip" id="chip-counts">…</span>
     </div>
 
     <div class="controls">
-      <label>interval
-        <input type="number" id="interval" min="0.2" step="0.5" value="3"> 초/건
+      <select id="lang" title="Language">
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+      </select>
+      <label>
+        <span data-i18n="interval">interval</span>
+        <input type="number" id="interval" min="0.2" step="0.5" value="3">
+        <span data-i18n="perMsg">초/건</span>
       </label>
-      <button id="btn-start" class="btn start">▶ Start</button>
-      <button id="btn-stop"  class="btn stop">⏸ Stop</button>
-      <button id="btn-clean" class="btn clean">🧹 Cleanup</button>
+      <button id="btn-start" class="btn start" data-i18n="start">▶ Start</button>
+      <button id="btn-stop"  class="btn stop"  data-i18n="stop">⏸ Stop</button>
+      <button id="btn-clean" class="btn clean" data-i18n="cleanup">🧹 Cleanup</button>
     </div>
   </header>
 
@@ -33,22 +39,22 @@
     <!-- 좌: 4단계 -->
     <section class="stages">
       <div class="panel" id="stage-client">
-        <h2><span class="step">1</span> Client — 메시지 생성 <span class="cnt" id="cnt-client"></span></h2>
+        <h2><span class="step">1</span> <span data-i18n="stage_client">Client — 메시지 생성</span> <span class="cnt" id="cnt-client"></span></h2>
         <div class="tablewrap"></div>
       </div>
-      <div class="arrow">▼ Kafka produce</div>
+      <div class="arrow" data-i18n="arrow_produce">▼ Kafka produce</div>
       <div class="panel" id="stage-kafka">
-        <h2><span class="step">2</span> Kafka — 토픽 랜딩 <span class="cnt" id="cnt-kafka"></span></h2>
+        <h2><span class="step">2</span> <span data-i18n="stage_kafka">Kafka — 토픽 랜딩</span> <span class="cnt" id="cnt-kafka"></span></h2>
         <div class="tablewrap"></div>
       </div>
-      <div class="arrow">▼ ClickPipes 적재 + transform MV</div>
+      <div class="arrow" data-i18n="arrow_ingest">▼ ClickPipes 적재 + transform MV</div>
       <div class="panel" id="stage-staging">
-        <h2><span class="step">3</span> Staging — 변환 후 <span class="cnt" id="cnt-staging"></span></h2>
+        <h2><span class="step">3</span> <span data-i18n="stage_staging">Staging — 변환 후</span> <span class="cnt" id="cnt-staging"></span></h2>
         <div class="tablewrap"></div>
       </div>
-      <div class="arrow">▼ explode MV (ARRAY JOIN)</div>
+      <div class="arrow" data-i18n="arrow_explode">▼ explode MV (ARRAY JOIN)</div>
       <div class="panel" id="stage-fact">
-        <h2><span class="step">4</span> Fact — 라인 단위 평탄화 <span class="cnt" id="cnt-fact"></span></h2>
+        <h2><span class="step">4</span> <span data-i18n="stage_fact">Fact — 라인 단위 평탄화</span> <span class="cnt" id="cnt-fact"></span></h2>
         <div class="tablewrap"></div>
       </div>
     </section>
@@ -56,11 +62,11 @@
     <!-- 우: 프리셋 쿼리 -->
     <section class="queries">
       <div class="panel presets">
-        <h2>프리셋 쿼리</h2>
+        <h2 data-i18n="presets">프리셋 쿼리</h2>
         <div class="preset-root" id="preset-grid"></div>
       </div>
       <div class="panel result">
-        <h2 id="result-title">결과 <span class="hint">버튼을 눌러보세요</span></h2>
+        <h2 id="result-title"></h2>
         <div class="rdesc" id="result-desc"></div>
         <div class="tablewrap" id="result-wrap"></div>
       </div>
@@ -73,10 +79,10 @@
   <div id="modal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-head">
-        <span id="modal-title">Kafka 메시지</span>
+        <span id="modal-title" data-i18n="modal_title">Kafka 메시지</span>
         <div>
-          <button id="modal-copy" class="btn stop" style="padding:4px 10px">복사</button>
-          <button id="modal-close" class="btn stop" style="padding:4px 10px">✕ 닫기</button>
+          <button id="modal-copy"  class="btn stop" style="padding:4px 10px" data-i18n="copy">복사</button>
+          <button id="modal-close" class="btn stop" style="padding:4px 10px" data-i18n="close">✕ 닫기</button>
         </div>
       </div>
       <pre id="modal-body"></pre>
