@@ -57,16 +57,32 @@
     <section class="queries">
       <div class="panel presets">
         <h2>프리셋 쿼리</h2>
-        <div class="preset-grid" id="preset-grid"></div>
+        <div class="preset-root" id="preset-grid"></div>
       </div>
       <div class="panel result">
         <h2 id="result-title">결과 <span class="hint">버튼을 눌러보세요</span></h2>
+        <div class="rdesc" id="result-desc"></div>
         <div class="tablewrap" id="result-wrap"></div>
       </div>
     </section>
   </main>
 
   <div id="toast"></div>
+
+  <!-- Kafka raw JSON 전체 보기 모달 -->
+  <div id="modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span id="modal-title">Kafka 메시지</span>
+        <div>
+          <button id="modal-copy" class="btn stop" style="padding:4px 10px">복사</button>
+          <button id="modal-close" class="btn stop" style="padding:4px 10px">✕ 닫기</button>
+        </div>
+      </div>
+      <pre id="modal-body"></pre>
+    </div>
+  </div>
+
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

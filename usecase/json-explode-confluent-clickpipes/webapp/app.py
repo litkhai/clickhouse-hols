@@ -20,7 +20,7 @@ from flask import Flask, jsonify, render_template, request
 
 from config import CFG
 from demo_state import STATE
-from presets import BY_ID, PRESETS
+from presets import BY_ID, grouped
 
 app = Flask(__name__)
 
@@ -84,7 +84,7 @@ def api_cleanup():
 
 @app.route("/api/presets")
 def api_presets():
-    return jsonify([{"id": p["id"], "label": p["label"], "sql": p["sql"]} for p in PRESETS])
+    return jsonify(grouped())
 
 
 @app.route("/api/query", methods=["POST"])

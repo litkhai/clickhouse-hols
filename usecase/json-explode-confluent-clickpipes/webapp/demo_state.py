@@ -120,7 +120,7 @@ class DemoState:
                             self.kafka_buf.appendleft({
                                 "partition": m.partition, "offset": m.offset,
                                 "order_id": oid, "order_status": st,
-                                "raw": (m.value[:120] + "…") if len(m.value) > 120 else m.value,
+                                "raw": m.value,   # 전체 JSON 보관 (UI 에서 클릭 시 전체 표시)
                             })
         except Exception as e:
             self.kafka_error = f"{type(e).__name__}: {str(e)[:120]}"

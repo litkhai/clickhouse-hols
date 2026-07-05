@@ -35,6 +35,40 @@ function renderDicts(wrap, list, cols){
   wrap.innerHTML = h + "</tbody></table>";
 }
 
+// ---------- Kafka 단계: raw JSON 클릭 → 전체 보기 모달 ----------
+let lastKafka = [];
+function renderKafka(list){
+  const wrap = $("#stage-kafka .tablewrap");
+  lastKafka = list || [];
+  if (!lastKafka.length){ wrap.innerHTML = `<div class="empty">— 아직 없음 —</div>`; return; }
+  let h = "<table><thead><tr><th>P</th><th>offset</th><th>order</th><th>status</th><th>raw (클릭=전체)</th></tr></thead><tbody>";
+  h += lastKafka.map((o,i) =>
+      `<tr><td>${esc(o.partition)}</td><td>${esc(o.offset)}</td>`+
+      `<td class="mono">${esc(o.order_id)}</td><td>${esc(o.order_status)}</td>`+
+      `<td class="mono raw-cell" data-idx="${i}" title="클릭하여 전체 JSON 보기">${esc(o.raw)}</td></tr>`
+    ).join("");
+  wrap.innerHTML = h + "</tbody></table>";
+}
+
+function showJson(raw){
+  let pretty = raw;
+  try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch(e){}
+  $("#modal-body").textContent = pretty;
+  $("#modal").classList.add("show");
+}
+function hideModal(){ $("#modal").classList.remove("show"); }
+
+document.addEventListener("click", (e) => {
+  const cell = e.target.closest(".raw-cell");
+  if (cell){ const o = lastKafka[+cell.dataset.idx]; if (o) showJson(o.raw); }
+});
+$("#modal-close").onclick = hideModal;
+$("#modal").onclick = (e) => { if (e.target.id === "modal") hideModal(); };
+$("#modal-copy").onclick = () => {
+  navigator.clipboard.writeText($("#modal-body").textContent).then(() => toast("복사됨"));
+};
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideModal(); });
+
 // ---------- 상태 폴링 ----------
 async function pollStatus(){
   try{
@@ -74,10 +108,7 @@ async function pollStages(){
     if (d.kafka_error)
       $("#stage-kafka .tablewrap").innerHTML = `<div class="err">Kafka tail: ${esc(d.kafka_error)}</div>`;
     else
-      renderDicts($("#stage-kafka .tablewrap"), d.kafka, [
-        {key:"partition",label:"P"},{key:"offset",label:"offset"},
-        {key:"order_id",label:"order",mono:true},{key:"order_status",label:"status"},
-        {key:"raw",label:"raw",mono:true}]);
+      renderKafka(d.kafka);
     $("#cnt-kafka").textContent = d.kafka.length ? d.kafka.length + " (최근)" : "";
 
     renderTable($("#stage-staging .tablewrap"), d.staging);
@@ -104,22 +135,33 @@ $("#interval").onchange = async () => {
   await api("/api/interval","POST",{interval}); toast(`interval ${interval}s/건`); pollStatus();
 };
 
-// ---------- 프리셋 ----------
+// ---------- 프리셋 (카테고리별) ----------
 async function loadPresets(){
-  const list = await api("/api/presets");
-  const grid = $("#preset-grid");
-  grid.innerHTML = "";
-  list.forEach(p => {
-    const b = document.createElement("button");
-    b.textContent = p.label; b.title = p.sql;
-    b.onclick = async () => {
-      document.querySelectorAll(".preset-grid button").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      $("#result-title").innerHTML = `결과 <span class="hint">${p.label}</span>`;
-      $("#result-wrap").innerHTML = `<div class="empty">실행 중…</div>`;
-      renderTable($("#result-wrap"), await api("/api/query","POST",{id:p.id}));
-    };
-    grid.appendChild(b);
+  const groups = await api("/api/presets");
+  const root = $("#preset-grid");
+  root.innerHTML = "";
+  groups.forEach(g => {
+    const cat = document.createElement("div");
+    cat.className = "preset-cat";
+    cat.innerHTML = `<h3>${esc(g.category)}</h3>`;
+    const grid = document.createElement("div");
+    grid.className = "preset-grid";
+    g.items.forEach(p => {
+      const b = document.createElement("button");
+      b.title = p.desc + "\n\n" + p.sql;
+      b.innerHTML = `<span class="plabel">${esc(p.label)}</span><span class="pdesc">${esc(p.desc)}</span>`;
+      b.onclick = async () => {
+        document.querySelectorAll(".preset-grid button").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        $("#result-title").innerHTML = `결과 <span class="hint">${esc(p.label)}</span>`;
+        $("#result-desc").textContent = p.desc;
+        $("#result-wrap").innerHTML = `<div class="empty">실행 중…</div>`;
+        renderTable($("#result-wrap"), await api("/api/query","POST",{id:p.id}));
+      };
+      grid.appendChild(b);
+    });
+    cat.appendChild(grid);
+    root.appendChild(cat);
   });
 }
 
