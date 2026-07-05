@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>실시간 JSON explode 데모</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="title">
+      ⚡ 실시간 JSON explode 데모
+      <span class="sub">Confluent → ClickPipes → ClickHouse · <b>{{ db }}</b> / topic <b>{{ topic }}</b></span>
+    </div>
+
+    <div class="chips">
+      <span class="chip" id="chip-pipe">ClickPipe: …</span>
+      <span class="chip" id="chip-prod">Producer: …</span>
+      <span class="chip" id="chip-counts">raw – · staging – · fact –</span>
+    </div>
+
+    <div class="controls">
+      <label>interval
+        <input type="number" id="interval" min="0.2" step="0.5" value="3"> 초/건
+      </label>
+      <button id="btn-start" class="btn start">▶ Start</button>
+      <button id="btn-stop"  class="btn stop">⏸ Stop</button>
+      <button id="btn-clean" class="btn clean">🧹 Cleanup</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 좌: 4단계 -->
+    <section class="stages">
+      <div class="panel" id="stage-client">
+        <h2><span class="step">1</span> Client — 메시지 생성 <span class="cnt" id="cnt-client"></span></h2>
+        <div class="tablewrap"></div>
+      </div>
+      <div class="arrow">▼ Kafka produce</div>
+      <div class="panel" id="stage-kafka">
+        <h2><span class="step">2</span> Kafka — 토픽 랜딩 <span class="cnt" id="cnt-kafka"></span></h2>
+        <div class="tablewrap"></div>
+      </div>
+      <div class="arrow">▼ ClickPipes 적재 + transform MV</div>
+      <div class="panel" id="stage-staging">
+        <h2><span class="step">3</span> Staging — 변환 후 <span class="cnt" id="cnt-staging"></span></h2>
+        <div class="tablewrap"></div>
+      </div>
+      <div class="arrow">▼ explode MV (ARRAY JOIN)</div>
+      <div class="panel" id="stage-fact">
+        <h2><span class="step">4</span> Fact — 라인 단위 평탄화 <span class="cnt" id="cnt-fact"></span></h2>
+        <div class="tablewrap"></div>
+      </div>
+    </section>
+
+    <!-- 우: 프리셋 쿼리 -->
+    <section class="queries">
+      <div class="panel presets">
+        <h2>프리셋 쿼리</h2>
+        <div class="preset-grid" id="preset-grid"></div>
+      </div>
+      <div class="panel result">
+        <h2 id="result-title">결과 <span class="hint">버튼을 눌러보세요</span></h2>
+        <div class="tablewrap" id="result-wrap"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -15,11 +15,15 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 ENV_PATH = ROOT / ".env"
 
-if not ENV_PATH.exists():
+# 로컬 실행: .env 파일을 읽습니다.
+# Docker 실행: env_file 로 주입된 프로세스 환경변수를 그대로 사용합니다(파일 없어도 OK).
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
+elif not os.getenv("CH_HOST"):
     sys.exit(
-        f"[config] {ENV_PATH} 가 없습니다. `cp .env.example .env` 후 값을 채우세요."
+        f"[config] {ENV_PATH} 도 없고 환경변수도 비어 있습니다. "
+        "`cp .env.example .env` 후 값을 채우거나, Docker 라면 env_file 을 확인하세요."
     )
-load_dotenv(ENV_PATH)
 
 
 def _req(key: str) -> str:

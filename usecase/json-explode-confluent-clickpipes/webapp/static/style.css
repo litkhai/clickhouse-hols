@@ -1,0 +1,78 @@
+:root{
+  --bg:#17171b; --panel:#212128; --panel2:#2a2a33; --line:#34343f;
+  --txt:#e7e7ea; --dim:#9a9aa6; --accent:#faff69; --accent2:#ffcc4d;
+  --green:#37d67a; --red:#ff5f6b; --blue:#5aa9ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+b{color:var(--accent2)}
+
+/* header */
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:12px 18px;background:#101014;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.title{font-size:17px;font-weight:700}
+.title .sub{display:block;font-size:11px;font-weight:400;color:var(--dim);margin-top:2px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:20px;
+  padding:5px 12px;font-size:12px;color:var(--dim)}
+.chip b{color:var(--txt)}
+.chip.on{border-color:var(--green);color:var(--green)}
+.chip.off{border-color:var(--dim)}
+.chip.warn{border-color:var(--red);color:var(--red)}
+.controls{display:flex;align-items:center;gap:8px}
+.controls label{font-size:12px;color:var(--dim)}
+.controls input{width:56px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);border-radius:6px;padding:5px;text-align:center}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:13px}
+.btn.start{background:var(--green);color:#04210f}
+.btn.stop{background:#3a3a44;color:var(--txt)}
+.btn.clean{background:#3a2a2e;color:var(--red);border:1px solid var(--red)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* layout */
+main{display:grid;grid-template-columns:minmax(420px,1fr) minmax(420px,1fr);
+  gap:16px;padding:16px;align-items:start}
+.stages{display:flex;flex-direction:column;gap:6px}
+.queries{display:flex;flex-direction:column;gap:16px}
+.arrow{text-align:center;color:var(--dim);font-size:11px;padding:2px}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.panel h2{margin:0 0 10px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.panel h2 .step{display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;background:var(--accent);color:#111;font-size:12px}
+.cnt{margin-left:auto;color:var(--dim);font-weight:400;font-size:12px}
+.hint{color:var(--dim);font-weight:400;font-size:11px;margin-left:6px}
+
+/* tables */
+.tablewrap{overflow:auto;max-height:230px;border-radius:8px}
+/* 각 단계 테이블: 헤더 + 5줄만 보이고 이후 스크롤 */
+.stages .tablewrap{max-height:calc(29px + 5 * 28px)}
+#result-wrap{max-height:440px}
+table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel2);color:var(--accent2);font-weight:600;z-index:1}
+td{color:var(--txt)}
+tr:hover td{background:#26262e}
+.null{color:var(--red);font-style:italic}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.empty{color:var(--dim);padding:14px;text-align:center}
+.err{color:var(--red);padding:10px;font-size:12px}
+.new{animation:flash 1s ease-out}
+@keyframes flash{from{background:rgba(250,255,105,.22)}to{background:transparent}}
+
+/* presets */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.preset-grid button{text-align:left;background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);border-radius:8px;padding:9px 11px;font-size:12px;cursor:pointer}
+.preset-grid button:hover{border-color:var(--accent);color:var(--accent)}
+.preset-grid button.active{border-color:var(--accent);background:#2f2f22;color:var(--accent)}
+.result{min-height:200px}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#000;border:1px solid var(--line);color:var(--txt);padding:10px 16px;
+  border-radius:10px;opacity:0;transition:opacity .3s;pointer-events:none;font-size:13px}
+#toast.show{opacity:1}
+@media(max-width:900px){main{grid-template-columns:1fr}}

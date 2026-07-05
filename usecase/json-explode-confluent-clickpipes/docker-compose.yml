@@ -1,0 +1,15 @@
+services:
+  demo:
+    build: .
+    image: json-explode-demo
+    container_name: json-explode-demo
+    # .env 의 값들을 컨테이너 환경변수로 주입 (이미지에 굽지 않음)
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    # UI(정적 파일/템플릿) 수정이 재빌드 없이 바로 반영되도록 마운트.
+    # (파이썬 로직 변경 시엔 `docker compose restart` 필요)
+    volumes:
+      - ./webapp:/app/webapp
+    restart: unless-stopped
