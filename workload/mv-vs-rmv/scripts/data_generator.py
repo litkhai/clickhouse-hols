@@ -7,16 +7,26 @@ Data Generator Script for MV vs RMV Test
 Insert 1,000 rows per second to ClickHouse for 30 minutes
 """
 
+import os
 import time
 import random
 import uuid
 from datetime import datetime
 import clickhouse_connect
 
-# 설정
-HOST = '<your-service>.<region>.aws.clickhouse.cloud'
-PASSWORD = '<YOUR_PASSWORD>'
-DATABASE = 'mv_vs_rmv'
+# 설정 — 접속 정보는 환경변수로 주입합니다 (scripts/.env.example 참고)
+# Connection settings are injected via environment variables (see scripts/.env.example)
+HOST = os.environ.get('CH_HOST', '')
+PASSWORD = os.environ.get('CH_PASSWORD', '')
+USER = os.environ.get('CH_USER', 'default')
+DATABASE = os.environ.get('CH_DATABASE', 'mv_vs_rmv')
+
+if not HOST or not PASSWORD:
+    raise SystemExit(
+        'CH_HOST / CH_PASSWORD 환경변수를 설정하세요. 예:\n'
+        "  export CH_HOST='<your-service>.<region>.aws.clickhouse.cloud'\n"
+        "  export CH_PASSWORD='...'"
+    )
 TABLE = 'events_source'
 
 # 테스트 설정
@@ -74,6 +84,7 @@ def main():
         client = clickhouse_connect.get_client(
             host=HOST,
             secure=True,
+            username=USER,
             password=PASSWORD,
             database=DATABASE
         )

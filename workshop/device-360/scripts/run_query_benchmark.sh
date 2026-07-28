@@ -34,8 +34,8 @@ run_query() {
 
     # Clear caches
     echo "Clearing caches..." >> $RESULTS_FILE
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure --query="SYSTEM DROP QUERY CACHE" 2>/dev/null || true
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure --query="SYSTEM DROP MARK CACHE" 2>/dev/null || true
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure --query="SYSTEM DROP QUERY CACHE" 2>/dev/null || true
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure --query="SYSTEM DROP MARK CACHE" 2>/dev/null || true
     sleep 2
 
     echo "| Run | Elapsed Time | Rows | Status |" >> $RESULTS_FILE
@@ -44,7 +44,7 @@ run_query() {
     for run in 1 2 3; do
         echo "Running $query_name - Run $run..."
 
-        RESULT=$(clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+        RESULT=$(clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
             --query="$query" --time 2>&1)
 
         ELAPSED=$(echo "$RESULT" | grep "Elapsed:" | awk '{print $2}' | sed 's/s\.//')

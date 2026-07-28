@@ -20,7 +20,7 @@ DEVICE_IDS=(
 
 # Get current vCPU scale
 get_vcpu_scale() {
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
         --query="SELECT value FROM system.settings WHERE name = 'max_threads'" 2>/dev/null
 }
 
@@ -42,7 +42,7 @@ run_query_timed() {
     local run_name="$2"
 
     START=$(date +%s.%N)
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
         --query="$query" > /dev/null 2>&1
     END=$(date +%s.%N)
 
@@ -52,9 +52,9 @@ run_query_timed() {
 
 # Clear caches
 clear_caches() {
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
         --query="SYSTEM DROP QUERY CACHE" 2>/dev/null || true
-    clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
         --query="SYSTEM DROP MARK CACHE" 2>/dev/null || true
     sleep 2
 }
@@ -166,7 +166,7 @@ run_concurrent_queries() {
         # Run queries in parallel
         for ((j=1; j<=$concurrency; j++)); do
             {
-                clickhouse client --host=${CH_HOST} --user=${CH_USER} --password=${CH_PASSWORD} --secure \
+                clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
                     --query="$query" > /dev/null 2>&1
             } &
         done

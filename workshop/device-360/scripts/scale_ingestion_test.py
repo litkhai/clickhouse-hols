@@ -5,19 +5,32 @@ Tests ingestion performance at different vCPU scales (8, 16, 24)
 Estimates 300GB ingestion time based on 30GB results
 """
 
+import os
 import subprocess
 import time
 import json
 from datetime import datetime
 
-# ClickHouse connection info
-CH_HOST = "<your-service>.<region>.aws.clickhouse.cloud"
-CH_USER = "default"
-CH_PASSWORD = "<YOUR_PASSWORD>"
-CH_ORG_ID = "<YOUR_ORG_ID>"
-CH_API_KEY_ID = "<YOUR_API_KEY_ID>"
-CH_API_KEY_SECRET = "<YOUR_API_KEY_SECRET>"
-CH_SERVICE_ID = "<YOUR_SERVICE_ID>"
+# ClickHouse connection info — injected via environment, same variables setup.sh validates
+# (see ../.env.example). Never hardcode a service password or a Cloud API key here:
+# this repository is public.
+CH_HOST = os.environ.get("CLICKHOUSE_HOST", "")
+CH_USER = os.environ.get("CLICKHOUSE_USER", "default")
+CH_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "")
+
+# Cloud API credentials, used only for the scaling calls
+CH_ORG_ID = os.environ.get("CLICKHOUSE_ORG_ID", "")
+CH_API_KEY_ID = os.environ.get("CLICKHOUSE_API_KEY_ID", "")
+CH_API_KEY_SECRET = os.environ.get("CLICKHOUSE_API_KEY_SECRET", "")
+CH_SERVICE_ID = os.environ.get("CLICKHOUSE_SERVICE_ID", "")
+
+if not CH_HOST or not CH_PASSWORD:
+    raise SystemExit(
+        "CLICKHOUSE_HOST / CLICKHOUSE_PASSWORD must be set. For example:\n"
+        "  export CLICKHOUSE_HOST='<your-service>.<region>.aws.clickhouse.cloud'\n"
+        "  export CLICKHOUSE_PASSWORD='...'\n"
+        "See ../.env.example for the full list."
+    )
 
 # Test configuration
 S3_URL = "https://device360-test-orangeaws.s3.ap-northeast-2.amazonaws.com/device360/*.json.gz"

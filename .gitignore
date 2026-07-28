@@ -2,3 +2,31 @@
 .DS_Store
 workshop/observability-waf/artifact.md
 S3_ClickPipes_Performance_Guide.md
+
+# Secrets — commit only the .example / .template counterparts
+.env
+.env.local
+*.tfvars
+!*.tfvars.example
+
+# Container runtime state (recreated by each setup script)
+local/oss-mac-setup/data/
+local/oss-mac-setup/logs/
+**/clickhouse-data/
+**/clickhouse-logs/
+
+# Terraform working state
+**/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Local artifacts
+*.bak
+**/test-results/
+**/backup-*/
+**/backup-metadata-*/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/

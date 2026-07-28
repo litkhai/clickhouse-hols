@@ -7,15 +7,25 @@ Monitoring Data Collection Script for MV vs RMV Test
 Collect resource metrics, part history, and merge activity every minute
 """
 
+import os
 import time
 import sys
 from datetime import datetime
 import clickhouse_connect
 
-# 설정
-HOST = '<your-service>.<region>.aws.clickhouse.cloud'
-PASSWORD = '<YOUR_PASSWORD>'
-DATABASE = 'mv_vs_rmv'
+# 설정 — 접속 정보는 환경변수로 주입합니다 (scripts/.env.example 참고)
+# Connection settings are injected via environment variables (see scripts/.env.example)
+HOST = os.environ.get('CH_HOST', '')
+PASSWORD = os.environ.get('CH_PASSWORD', '')
+USER = os.environ.get('CH_USER', 'default')
+DATABASE = os.environ.get('CH_DATABASE', 'mv_vs_rmv')
+
+if not HOST or not PASSWORD:
+    raise SystemExit(
+        'CH_HOST / CH_PASSWORD 환경변수를 설정하세요. 예:\n'
+        "  export CH_HOST='<your-service>.<region>.aws.clickhouse.cloud'\n"
+        "  export CH_PASSWORD='...'"
+    )
 
 # 모니터링 설정
 COLLECTION_INTERVAL = 60  # 초 (1분)
@@ -207,6 +217,7 @@ def main():
         client = clickhouse_connect.get_client(
             host=HOST,
             secure=True,
+            username=USER,
             password=PASSWORD,
             database=DATABASE
         )
