@@ -14,6 +14,8 @@ import sys
 from datetime import datetime
 import clickhouse_connect
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # 설정 — 접속 정보는 환경변수로 주입합니다 (scripts/.env.example 참고)
 # Connection settings are injected via environment variables (see scripts/.env.example)
 HOST = os.environ.get('CH_HOST', '')
@@ -214,7 +216,7 @@ def main():
     # 데이터 생성 프로세스 (백그라운드)
     data_gen_process = subprocess.Popen(
         ['python3', 'data_generator.py'],
-        cwd='/Users/kenlee/Documents/GitHub/clickhouse-hols/workload/mv-vs-rmv/scripts'
+        cwd=SCRIPT_DIR
     )
     print(f"✅ Data generator started (PID: {data_gen_process.pid})")
 
@@ -224,7 +226,7 @@ def main():
     # 모니터링 수집 프로세스 (백그라운드)
     monitoring_process = subprocess.Popen(
         ['python3', 'monitoring_collector.py', session_id],
-        cwd='/Users/kenlee/Documents/GitHub/clickhouse-hols/workload/mv-vs-rmv/scripts'
+        cwd=SCRIPT_DIR
     )
     print(f"✅ Monitoring collector started (PID: {monitoring_process.pid})")
     print()

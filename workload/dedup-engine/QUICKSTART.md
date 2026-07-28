@@ -6,7 +6,7 @@ ClickHouse Deduplication Test Suite를 5분 안에 실행하는 방법
 
 ```bash
 # 디렉토리 이동
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/workload/dedup-engine
+cd workload/dedup-engine
 
 # Python 패키지 설치 (이미 설치되어 있으면 스킵)
 pip3 install clickhouse-connect python-dotenv

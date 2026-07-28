@@ -6,7 +6,7 @@
 
 ```bash
 # 설정 템플릿 복사
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/chc/mysql-interface
+cd chc/mysql-interface
 cp config/chc-config.template config/chc-config.sh
 
 # 설정 파일 편집

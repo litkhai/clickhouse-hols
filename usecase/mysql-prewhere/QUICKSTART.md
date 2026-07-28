@@ -11,7 +11,7 @@ docker start clickhouse-test
 ### 2. 테스트 환경 구축
 
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/usecase/mysql-prewhere
+cd usecase/mysql-prewhere
 ./00-setup.sh
 ```
 

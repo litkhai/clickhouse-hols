@@ -84,7 +84,7 @@ This setup includes a custom seccomp profile that resolves the common `get_mempo
 ### Container Won't Start
 1. Check Docker is running: `docker info`
 2. Check logs: `docker logs clickhouse-oss`
-3. Verify seccomp profile exists: `ls -la /Users/kenlee/clickhouse/oss/seccomp-profile.json`
+3. Verify seccomp profile exists: `ls -la seccomp-profile.json`
 
 ### Permission Issues on macOS
 This setup uses Docker Named Volumes instead of bind mounts to avoid macOS permission issues with ClickHouse data directories.

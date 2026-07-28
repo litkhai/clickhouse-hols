@@ -55,7 +55,7 @@ MySQL 클라이언트로 ClickHouse에 연결해도 PREWHERE 구문을 사용할
 ### 빠른 데모 (추천)
 
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/usecase/mysql-prewhere
+cd usecase/mysql-prewhere
 
 # ClickHouse 시작 (Docker)
 docker start clickhouse-test

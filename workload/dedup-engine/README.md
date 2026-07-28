@@ -58,7 +58,7 @@ CH_SECURE=true
 
 #### 방법 1: 대화형 모드
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/workload/dedup-engine
+cd workload/dedup-engine
 python3 run_all_tests.py
 ```
 

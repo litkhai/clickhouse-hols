@@ -892,7 +892,7 @@ Application Layer에서 배칭 로직 구현 필요
 ### 10.1 테스트 코드 저장소
 
 ```
-Repository: /Users/kenlee/Documents/GitHub/clickhouse-hols/workload/dedup-engine/
+Repository: workload/dedup-engine/
 
 Files:
   - config.py                      (747 bytes)
@@ -913,7 +913,7 @@ Total: 2,671 lines of code
 
 ```bash
 # 1. 디렉토리 이동
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/workload/dedup-engine
+cd workload/dedup-engine
 
 # 2. 패키지 설치
 pip3 install clickhouse-connect python-dotenv

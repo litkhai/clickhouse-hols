@@ -472,7 +472,7 @@ Phase 4: 최적화
 
 재실행 방법:
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/chc/mysql-interface
+cd chc/mysql-interface
 ./run-mysql-test.sh
 ```
 

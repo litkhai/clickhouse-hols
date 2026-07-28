@@ -29,7 +29,7 @@ This guide provides instructions for testing Unity Catalog and Delta Lake read/w
 ### Step 1: Configure Unity Catalog
 
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/local/datalake-minio-catalog
+cd local/datalake-minio-catalog
 
 # Configure for Unity Catalog (option 5)
 ./setup.sh --configure
@@ -74,7 +74,7 @@ cd ../oss-mac-setup
 ### Step 4: Run Integration Tests
 
 ```bash
-cd /Users/kenlee/Documents/GitHub/clickhouse-hols/local/datalake-minio-catalog
+cd local/datalake-minio-catalog
 
 # Execute the test suite
 ./test-unity-deltalake.sh

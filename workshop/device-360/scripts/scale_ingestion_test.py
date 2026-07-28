@@ -300,7 +300,11 @@ def main():
             print(f"  {'AVG':<6} {avg_time:>13.2f}   {avg_throughput:>22.2f}   {avg_300gb:>18.2f}")
 
     # Save results
-    output_file = f"/Users/kenlee/Documents/GitHub/clickhouse-hols/workshop/device-360/results/scale_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    os.makedirs(results_dir, exist_ok=True)
+    output_file = os.path.join(
+        results_dir, f"scale_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     with open(output_file, 'w') as f:
         json.dump({
             "test_date": datetime.now().isoformat(),

@@ -3,10 +3,24 @@
 # Device360 Query Benchmark Script
 # Tests query performance with cold and warm cache
 
-source /Users/kenlee/Documents/GitHub/clickhouse-hols/chc/tool/costkeeper/.credentials
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-DEVICE_ID="37591b99-08a0-4bc1-9cc8-ceb6a7cbd693"
-RESULTS_FILE="/Users/kenlee/Documents/GitHub/clickhouse-hols/workshop/device-360/results/query_benchmark_$(date +%Y%m%d_%H%M%S).md"
+# Connection settings come from the environment (see ../.env.example).
+# A local .env is sourced when present.
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a && . "$PROJECT_DIR/.env" && set +a
+fi
+
+if [ -z "$CLICKHOUSE_HOST" ] || [ -z "$CLICKHOUSE_PASSWORD" ]; then
+    echo "CLICKHOUSE_HOST / CLICKHOUSE_PASSWORD must be set (see $PROJECT_DIR/.env.example)" >&2
+    exit 1
+fi
+
+DEVICE_ID="${DEVICE_ID:-37591b99-08a0-4bc1-9cc8-ceb6a7cbd693}"
+RESULTS_DIR="$PROJECT_DIR/results"
+mkdir -p "$RESULTS_DIR"
+RESULTS_FILE="$RESULTS_DIR/query_benchmark_$(date +%Y%m%d_%H%M%S).md"
 
 echo "# Device360 Query Benchmark Results" > $RESULTS_FILE
 echo "" >> $RESULTS_FILE

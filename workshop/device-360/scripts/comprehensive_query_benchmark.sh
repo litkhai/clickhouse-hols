@@ -3,9 +3,22 @@
 # Comprehensive Query Benchmark with Concurrency Testing
 # Tests query performance across different vCPU scales and concurrency levels
 
-source /Users/kenlee/Documents/GitHub/clickhouse-hols/chc/tool/costkeeper/.credentials
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-RESULTS_DIR="/Users/kenlee/Documents/GitHub/clickhouse-hols/workshop/device-360/results"
+# Connection settings come from the environment (see ../.env.example).
+# A local .env is sourced when present.
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a && . "$PROJECT_DIR/.env" && set +a
+fi
+
+if [ -z "$CLICKHOUSE_HOST" ] || [ -z "$CLICKHOUSE_PASSWORD" ]; then
+    echo "CLICKHOUSE_HOST / CLICKHOUSE_PASSWORD must be set (see $PROJECT_DIR/.env.example)" >&2
+    exit 1
+fi
+
+RESULTS_DIR="$PROJECT_DIR/results"
+mkdir -p "$RESULTS_DIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_FILE="${RESULTS_DIR}/comprehensive_benchmark_${TIMESTAMP}.md"
 
