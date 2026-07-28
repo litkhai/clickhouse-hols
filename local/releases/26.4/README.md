@@ -12,7 +12,7 @@ A hands-on laboratory for learning and testing ClickHouse 26.4 new features. Thi
 
 ClickHouse 26.4 is a SQL-ergonomics release: `NATURAL JOIN` and `VALUES` clauses cut JOIN boilerplate, two new array primitives (`arrayTranspose` and `arrayAutocorrelation`) bring matrix and time-series utilities to SQL, and a trio of text helpers (`obfuscateQuery`, `highlight`, non-constant `printf`) round out the string toolkit. The release also makes automatic JOIN spilling to grace hash join the default behavior.
 
-### 🎯 Key Features Covered
+### 🎯 Key Features
 
 1. **`NATURAL JOIN` + `VALUES` Table Expression** — SQL-standard join syntax and inline tables
 2. **`arrayTranspose` + `arrayAutocorrelation`** — matrix transpose and time-series autocorrelation
@@ -212,7 +212,7 @@ ClickHouse 26.4 신기능 테스트 및 학습 환경입니다. 이 디렉토리
 
 ClickHouse 26.4는 SQL 사용성 강화 릴리스입니다: `NATURAL JOIN`과 `VALUES` 절로 JOIN 보일러플레이트를 줄이고, 두 가지 새로운 배열 함수(`arrayTranspose`, `arrayAutocorrelation`)로 행렬·시계열 유틸리티를 SQL에 도입하며, 세 가지 텍스트 헬퍼(`obfuscateQuery`, `highlight`, 비상수 `printf`)로 문자열 도구를 보강합니다. 또한 메모리 한도 도달 시 grace hash join으로의 자동 스필이 기본 동작이 되었습니다.
 
-### 🎯 주요 다루는 기능
+### 🎯 주요 기능
 
 1. **`NATURAL JOIN` + `VALUES` 테이블 표현식** — SQL 표준 조인 구문과 인라인 테이블
 2. **`arrayTranspose` + `arrayAutocorrelation`** — 행렬 전치 및 시계열 자기상관

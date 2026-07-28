@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory focuses on verified and working features newly added in ClickHouse 25.11.
+A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory focuses on verified and working features newly added in ClickHouse 25.11 (released 2025-11-27).
 
 ### 📋 Overview
 
@@ -24,7 +24,7 @@ ClickHouse 25.11 includes important SQL compatibility improvements, Map type enh
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) environment setup
+- [oss-mac-setup](../../oss-mac-setup/) environment setup
 
 #### Setup and Run
 
@@ -47,7 +47,7 @@ To execute SQL files directly:
 ```bash
 # Connect to ClickHouse client
 cd ../../oss-mac-setup
-./client.sh 2511
+./client.sh 8123
 
 # Execute SQL file
 cd ../25.11
@@ -195,9 +195,9 @@ cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-c
 
 #### ClickHouse Connection Info
 
-- **Web UI**: http://localhost:2511/play
-- **HTTP API**: http://localhost:2511
-- **TCP**: localhost:25111
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### Useful Commands
@@ -208,7 +208,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
-./client.sh 2511
+./client.sh 8123
 
 # View logs
 docker logs clickhouse-25-11
@@ -285,13 +285,13 @@ MIT License - Free to learn and modify
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+For questions or issues, please refer to the main [clickhouse-hols README](../../../README.md).
 
 ---
 
 ## 한국어
 
-ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.11에서 검증된 작동하는 기능에 집중합니다.
+ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 11월 27일 출시된 ClickHouse 25.11에서 검증된 작동 기능에 집중합니다.
 
 ### 📋 개요
 
@@ -309,7 +309,7 @@ ClickHouse 25.11은 SQL 호환성 개선, Map 타입 향상, 공간 데이터 �
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
 
 #### 설정 및 실행
 
@@ -332,7 +332,7 @@ SQL 파일을 직접 실행하려면:
 ```bash
 # ClickHouse 클라이언트 접속
 cd ../../oss-mac-setup
-./client.sh 2511
+./client.sh 8123
 
 # SQL 파일 실행
 cd ../25.11
@@ -480,9 +480,9 @@ cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-c
 
 #### ClickHouse 접속 정보
 
-- **Web UI**: http://localhost:2511/play
-- **HTTP API**: http://localhost:2511
-- **TCP**: localhost:25111
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### 유용한 명령어
@@ -493,7 +493,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # CLI 접속
-./client.sh 2511
+./client.sh 8123
 
 # 로그 확인
 docker logs clickhouse-25-11
@@ -570,4 +570,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.

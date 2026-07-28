@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_FILE="$SCRIPT_DIR/01-join-reordering.sql"
-CLICKHOUSE_HTTP="http://localhost:2509"
+CLICKHOUSE_HTTP="http://localhost:8123"
 
 echo "🚀 ClickHouse 25.9 Feature: Automatic Join Reordering"
 echo "======================================================"
@@ -15,7 +15,7 @@ echo ""
 
 # Check if ClickHouse is running
 if ! curl -sf "$CLICKHOUSE_HTTP" > /dev/null 2>&1; then
-    echo "❌ ClickHouse is not running on port 2509"
+    echo "❌ ClickHouse is not running on port 8123"
     echo "   Please run: cd $SCRIPT_DIR && ./00-setup.sh"
     exit 1
 fi
@@ -27,7 +27,7 @@ echo "📝 Executing join reordering tests..."
 echo ""
 
 # Execute SQL file
-cat "$SQL_FILE" | docker exec -i clickhouse-25-9 clickhouse-client --multiquery
+cat "$SQL_FILE" | docker exec -i clickhouse-25-9 clickhouse-client --multiline --multiquery
 
 echo ""
 echo "✅ Join reordering test completed!"

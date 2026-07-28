@@ -6,13 +6,13 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.6 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.6.
+A hands-on laboratory for learning and testing ClickHouse 25.6 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.6 (released 2025-06-26).
 
-### 🎯 Overview
+### 📋 Overview
 
 ClickHouse 25.6 includes CoalescingMergeTree table engine, new Time data types, Bech32 encoding functions, lag/lead window functions, and consistent snapshot capabilities.
 
-### 🌟 Key Features
+### 🎯 Key Features
 
 1. **CoalescingMergeTree** - New table engine optimized for sparse updates
 2. **Time and Time64 Data Types** - New data types for time-of-day representation
@@ -25,7 +25,7 @@ ClickHouse 25.6 includes CoalescingMergeTree table engine, new Time data types, 
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) environment setup
+- [oss-mac-setup](../../oss-mac-setup/) environment setup
 
 #### Setup and Run
 
@@ -49,7 +49,7 @@ To execute SQL files directly:
 ```bash
 # Connect to ClickHouse client
 cd ../../oss-mac-setup
-./client.sh 2506
+./client.sh 8123
 
 # Execute SQL file
 cd ../25.6
@@ -223,9 +223,9 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 #### ClickHouse Connection Info
 
-- **Web UI**: http://localhost:2506/play
-- **HTTP API**: http://localhost:2506
-- **TCP**: localhost:25061
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### Useful Commands
@@ -236,7 +236,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
-./client.sh 2506
+./client.sh 8123
 
 # View logs
 docker logs clickhouse-25-6
@@ -363,19 +363,19 @@ MIT License - Free to learn and modify
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+For questions or issues, please refer to the main [clickhouse-hols README](../../../README.md).
 
 ---
 
 ## 한국어
 
-ClickHouse 25.6 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 ClickHouse 25.6에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+ClickHouse 25.6 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 6월 26일 출시된 ClickHouse 25.6에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 
-### 🎯 개요
+### 📋 개요
 
 ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이터 타입, Bech32 인코딩 함수, lag/lead 윈도우 함수, 그리고 일관된 스냅샷 기능을 포함합니다.
 
-### 🌟 주요 기능
+### 🎯 주요 기능
 
 1. **CoalescingMergeTree** - 희소 업데이트에 최적화된 새로운 테이블 엔진
 2. **Time and Time64 Data Types** - 시간 표현을 위한 새로운 데이터 타입
@@ -388,7 +388,7 @@ ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이�
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
 
 #### 설정 및 실행
 
@@ -412,7 +412,7 @@ SQL 파일을 직접 실행하려면:
 ```bash
 # ClickHouse 클라이언트 접속
 cd ../../oss-mac-setup
-./client.sh 2506
+./client.sh 8123
 
 # SQL 파일 실행
 cd ../25.6
@@ -586,9 +586,9 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 #### ClickHouse 접속 정보
 
-- **Web UI**: http://localhost:2506/play
-- **HTTP API**: http://localhost:2506
-- **TCP**: localhost:25061
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### 유용한 명령어
@@ -599,7 +599,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # CLI 접속
-./client.sh 2506
+./client.sh 8123
 
 # 로그 확인
 docker logs clickhouse-25-6
@@ -726,4 +726,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.

@@ -6,14 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.9.
-
-### 📅 Release Information
-
-- **Release Date**: September 2025
-- **Version**: 25.9
-- **Reference**: [ClickHouse Release 25.9](https://clickhouse.com/blog/clickhouse-release-25-09)
-- **Release Statistics**: 25 new features, 22 performance optimizations, 83 bug fixes
+A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.9 (released 2025-09-25; 25 new features, 22 performance optimizations, 83 bug fixes).
 
 ### 📋 Overview
 
@@ -31,7 +24,7 @@ ClickHouse 25.9 includes automatic join optimization, full-text search indexes, 
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) environment setup
+- [oss-mac-setup](../../oss-mac-setup/) environment setup
 - 8GB+ RAM recommended
 - 10GB+ disk space
 
@@ -46,14 +39,14 @@ cd local/25.9
 ./01-join-reordering.sh      # Automatic join reordering
 ./02-text-index.sh           # Text index (full-text search)
 ./03-streaming-indices.sh    # Streaming secondary indexes
-./05-array-except.sh         # arrayExcept function
+./04-array-except.sh         # arrayExcept function
 ```
 
 #### What `./00-setup.sh` Does
 
 The setup script performs the following:
 - Configure ClickHouse 25.9 using oss-mac-setup
-- Start ClickHouse on port 2509
+- Start ClickHouse on port 8123
 - Verify installation
 - Display connection information
 
@@ -64,14 +57,14 @@ To execute SQL files directly:
 ```bash
 # Connect to ClickHouse client
 cd ../../oss-mac-setup
-./client.sh 2509
+./client.sh 8123
 
 # Execute SQL file
 cd ../25.9
 source 01-join-reordering.sql
 ```
 
-### 📚 Feature Tests
+### 📚 Feature Details
 
 #### 1. Automatic Global Join Reordering (01-join-reordering)
 
@@ -200,7 +193,7 @@ LIMIT 100;
 
 ---
 
-#### 5. arrayExcept Function (05-array-except)
+#### 4. arrayExcept Function (04-array-except)
 
 **What it does:** New function to filter arrays by removing elements from another array
 
@@ -213,7 +206,7 @@ LIMIT 100;
 
 **Execute:**
 ```bash
-./05-array-except.sh
+./04-array-except.sh
 ```
 
 **Key Benefits:**
@@ -235,18 +228,18 @@ SELECT
 FROM user_permissions;
 ```
 
-### 🔧 Connection Information
+### 🔧 Management
+
+#### ClickHouse Connection Info
 
 After running `./00-setup.sh`:
 
-- **Web UI**: http://localhost:2509/play
-- **HTTP API**: http://localhost:2509
-- **TCP Port**: localhost:25091
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP Port**: localhost:9000
 - **User**: default (no password)
 
-### 🛠 Management Commands
-
-#### ClickHouse Management
+#### Useful Commands
 
 ```bash
 cd ../../oss-mac-setup
@@ -255,7 +248,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
-./client.sh 2509
+./client.sh 8123
 
 # Stop ClickHouse
 ./stop.sh
@@ -268,7 +261,23 @@ cd ../../oss-mac-setup
 docker exec -it clickhouse-25-9 clickhouse-client -q "SHOW TABLES"
 
 # Check version
-curl http://localhost:2509/
+curl http://localhost:8123/
+```
+
+### 📂 File Structure
+
+```
+25.9/
+├── README.md                       # This document
+├── 00-setup.sh                     # ClickHouse 25.9 installation script
+├── 01-join-reordering.sh           # Join reordering runner
+├── 01-join-reordering.sql          # Join reordering SQL
+├── 02-text-index.sh                # Text index runner
+├── 02-text-index.sql               # Text index SQL
+├── 03-streaming-indices.sh         # Streaming secondary indices runner
+├── 03-streaming-indices.sql        # Streaming secondary indices SQL
+├── 04-array-except.sh              # arrayExcept runner
+└── 04-array-except.sql             # arrayExcept SQL
 ```
 
 ### 📊 Test Data Summary
@@ -292,7 +301,7 @@ curl http://localhost:2509/
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
 
-### 📖 Additional Resources
+### 🔍 Additional Resources
 
 - [ClickHouse 25.9 Release Blog](https://clickhouse.com/blog/clickhouse-release-25-09)
 - [ClickHouse 25.9 Release Call](https://presentations.clickhouse.com/2025-release-25.9/)
@@ -335,7 +344,7 @@ cd ../../oss-mac-setup
 ./cleanup.sh
 ```
 
-### 📝 License
+### 📄 License
 
 MIT License - See root directory for details
 
@@ -354,14 +363,7 @@ For questions or issues:
 
 ## 한국어
 
-ClickHouse 25.9 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.9에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
-
-### 📅 릴리스 정보
-
-- **Release Date**: September 2025
-- **Version**: 25.9
-- **Reference**: [ClickHouse Release 25.9](https://clickhouse.com/blog/clickhouse-release-25-09)
-- **Release Statistics**: 25 new features, 22 performance optimizations, 83 bug fixes
+ClickHouse 25.9 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 9월 25일 출시된 ClickHouse 25.9(신기능 25건, 성능 최적화 22건, 버그 수정 83건)에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 
 ### 📋 개요
 
@@ -379,7 +381,7 @@ ClickHouse 25.9는 자동 조인 최적화, 전문 검색 인덱스, 스트리�
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
 - 8GB+ RAM recommended
 - 10GB+ disk space
 
@@ -394,14 +396,14 @@ cd local/25.9
 ./01-join-reordering.sh      # 자동 조인 재정렬
 ./02-text-index.sh           # 텍스트 인덱스 (전문 검색)
 ./03-streaming-indices.sh    # 스트리밍 보조 인덱스
-./05-array-except.sh         # arrayExcept 함수
+./04-array-except.sh         # arrayExcept 함수
 ```
 
 #### `./00-setup.sh` 수행 내용
 
 Setup 스크립트는 다음을 수행합니다:
 - Configure ClickHouse 25.9 using oss-mac-setup
-- Start ClickHouse on port 2509
+- Start ClickHouse on port 8123
 - Verify installation
 - Display connection information
 
@@ -412,14 +414,14 @@ SQL 파일을 직접 실행하려면:
 ```bash
 # ClickHouse 클라이언트 접속
 cd ../../oss-mac-setup
-./client.sh 2509
+./client.sh 8123
 
 # SQL 파일 실행
 cd ../25.9
 source 01-join-reordering.sql
 ```
 
-### 📚 기능 테스트
+### 📚 기능 상세
 
 #### 1. Automatic Global Join Reordering (01-join-reordering)
 
@@ -548,7 +550,7 @@ LIMIT 100;
 
 ---
 
-#### 5. arrayExcept Function (05-array-except)
+#### 4. arrayExcept Function (04-array-except)
 
 **기능:** 다른 배열의 요소를 제거하여 배열을 필터링하는 새로운 함수
 
@@ -561,7 +563,7 @@ LIMIT 100;
 
 **실행:**
 ```bash
-./05-array-except.sh
+./04-array-except.sh
 ```
 
 **주요 이점:**
@@ -583,18 +585,18 @@ SELECT
 FROM user_permissions;
 ```
 
-### 🔧 접속 정보
+### 🔧 관리
+
+#### ClickHouse 접속 정보
 
 `./00-setup.sh` 실행 후:
 
-- **Web UI**: http://localhost:2509/play
-- **HTTP API**: http://localhost:2509
-- **TCP Port**: localhost:25091
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP Port**: localhost:9000
 - **User**: default (no password)
 
-### 🛠 관리 명령어
-
-#### ClickHouse 관리
+#### 유용한 명령어
 
 ```bash
 cd ../../oss-mac-setup
@@ -603,7 +605,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
-./client.sh 2509
+./client.sh 8123
 
 # Stop ClickHouse
 ./stop.sh
@@ -616,7 +618,23 @@ cd ../../oss-mac-setup
 docker exec -it clickhouse-25-9 clickhouse-client -q "SHOW TABLES"
 
 # Check version
-curl http://localhost:2509/
+curl http://localhost:8123/
+```
+
+### 📂 파일 구조
+
+```
+25.9/
+├── README.md                       # 이 문서
+├── 00-setup.sh                     # ClickHouse 25.9 설치 스크립트
+├── 01-join-reordering.sh           # 조인 재정렬 실행 스크립트
+├── 01-join-reordering.sql          # 조인 재정렬 SQL
+├── 02-text-index.sh                # 텍스트 인덱스 실행 스크립트
+├── 02-text-index.sql               # 텍스트 인덱스 SQL
+├── 03-streaming-indices.sh         # 스트리밍 보조 인덱스 실행 스크립트
+├── 03-streaming-indices.sql        # 스트리밍 보조 인덱스 SQL
+├── 04-array-except.sh              # arrayExcept 실행 스크립트
+└── 04-array-except.sql             # arrayExcept SQL
 ```
 
 ### 📊 테스트 데이터 요약
@@ -640,7 +658,7 @@ curl http://localhost:2509/
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
 
-### 📖 추가 자료
+### 🔍 추가 자료
 
 - [ClickHouse 25.9 Release Blog](https://clickhouse.com/blog/clickhouse-release-25-09)
 - [ClickHouse 25.9 Release Call](https://presentations.clickhouse.com/2025-release-25.9/)
@@ -683,7 +701,7 @@ cd ../../oss-mac-setup
 ./cleanup.sh
 ```
 
-### 📝 라이선스
+### 📄 라이선스
 
 MIT License - 자세한 내용은 루트 디렉토리를 참조하세요.
 

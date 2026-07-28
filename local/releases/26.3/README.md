@@ -12,7 +12,7 @@ A hands-on laboratory for learning and testing ClickHouse 26.3 LTS new features.
 
 ClickHouse 26.3 is an **LTS release** that tightens SQL ergonomics: CTEs can now be materialized once and reused, a new `naturalSortKey` makes "file2 / file10" sort the way humans expect, and a family of Unicode normalization functions unlocks robust language-aware text matching.
 
-### 🎯 Key Features Covered
+### 🎯 Key Features
 
 1. **Materialized CTE** — `WITH cte AS MATERIALIZED (...)` and `enable_materialized_cte` setting
 2. **`naturalSortKey()` Function** — human-friendly mixed-letter/number sorting
@@ -189,7 +189,7 @@ docker logs clickhouse-26-3
 
 **Happy Learning! 🚀**
 
-For questions, see the main [clickhouse-hols README](../../README.md).
+For questions, see the main [clickhouse-hols README](../../../README.md).
 
 ---
 
@@ -201,7 +201,7 @@ ClickHouse 26.3 LTS 신기능 테스트 및 학습 환경입니다. 이 디렉�
 
 ClickHouse 26.3은 **LTS 릴리스**로, SQL 사용성을 강화합니다: CTE를 한 번 평가해 재사용할 수 있고, 새로운 `naturalSortKey`로 `file2 / file10`을 사람이 기대하는 순서로 정렬하며, 유니코드 정규화 함수군으로 다국어 텍스트 매칭이 견고해집니다.
 
-### 🎯 주요 다루는 기능
+### 🎯 주요 기능
 
 1. **Materialized CTE** — `WITH cte AS MATERIALIZED (...)` 및 `enable_materialized_cte` 설정
 2. **`naturalSortKey()` 함수** — 사람 친화적인 문자/숫자 혼합 정렬

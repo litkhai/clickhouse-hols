@@ -6,13 +6,13 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.5.
+A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.5 (released 2025-05-22).
 
-### 🎯 Overview
+### 📋 Overview
 
 ClickHouse 25.5 includes Vector Similarity Index (Beta), Hive Metastore Catalog support, Implicit Table feature, new functions, and enhanced Geo Types in Parquet.
 
-### 🌟 Key Features
+### 🎯 Key Features
 
 1. **Vector Similarity Index (Beta)** - Approximate nearest neighbor search with filtering strategies
 2. **Hive Metastore Catalog** - Lakehouse integration for Iceberg tables
@@ -25,7 +25,7 @@ ClickHouse 25.5 includes Vector Similarity Index (Beta), Hive Metastore Catalog 
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) environment setup
+- [oss-mac-setup](../../oss-mac-setup/) environment setup
 
 #### Setup and Run
 
@@ -376,19 +376,19 @@ MIT License - Free to learn and modify
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+For questions or issues, please refer to the main [clickhouse-hols README](../../../README.md).
 
 ---
 
 ## 한국어
 
-ClickHouse 25.5 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 ClickHouse 25.5에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+ClickHouse 25.5 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 5월 22일 출시된 ClickHouse 25.5에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 
-### 🎯 개요
+### 📋 개요
 
 ClickHouse 25.5는 Vector Similarity Index (Beta), Hive Metastore Catalog 지원, Implicit Table 기능, 새로운 함수들, 그리고 Parquet의 향상된 Geo Types 지원을 포함합니다.
 
-### 🌟 주요 기능
+### 🎯 주요 기능
 
 1. **Vector Similarity Index (Beta)** - 필터링 전략을 갖춘 근사 최근접 이웃 검색
 2. **Hive Metastore Catalog** - Iceberg 테이블을 위한 레이크하우스 통합
@@ -401,7 +401,7 @@ ClickHouse 25.5는 Vector Similarity Index (Beta), Hive Metastore Catalog 지원
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
 
 #### 설정 및 실행
 
@@ -752,4 +752,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.

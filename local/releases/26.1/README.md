@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 26.1 new features. This directory focuses on verified and working features newly added in ClickHouse 26.1, the first release of 2026.
+A hands-on laboratory for learning and testing ClickHouse 26.1 new features. This directory focuses on verified and working features newly added in ClickHouse 26.1 (released 2026-01-29, the first release of 2026).
 
 ### 📋 Overview
 
@@ -269,13 +269,13 @@ MIT License - Free to learn and modify
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+For questions or issues, please refer to the main [clickhouse-hols README](../../../README.md).
 
 ---
 
 ## 한국어
 
-ClickHouse 26.1 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 첫 번째 릴리스인 ClickHouse 26.1에서 검증된 작동하는 기능에 집중합니다.
+ClickHouse 26.1 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 1월 29일 출시된 2026년 첫 번째 릴리스 ClickHouse 26.1에서 검증된 작동 기능에 집중합니다.
 
 ### 📋 개요
 
@@ -538,4 +538,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.

@@ -12,7 +12,7 @@ A hands-on laboratory for learning and testing ClickHouse 26.5 new features. Thi
 
 ClickHouse 26.5 sharpens the SQL surface for introspection and ergonomics: the new `filesystem()` table function lets you query directory trees as tables, higher-order functions accept bare function names (cutting lambda boilerplate), and `tokenizeQuery` / `highlightQuery` expose the lexer and parser to SQL itself. Number-theory primitives (`isPrime`, `isProbablePrime`) round out a release packed with developer-experience improvements.
 
-### 🎯 Key Features Covered
+### 🎯 Key Features
 
 1. **`filesystem()` Table Function** — query directories, file metadata, and contents as a SQL table
 2. **Bare Function Names + `isPrime` / `isProbablePrime`** — `arrayMap(negate, [1,2,3])` and primality testing
@@ -209,7 +209,7 @@ docker logs clickhouse-26-5
 
 **Happy Learning! 🚀**
 
-For questions, see the main [clickhouse-hols README](../../README.md).
+For questions, see the main [clickhouse-hols README](../../../README.md).
 
 ---
 
@@ -221,7 +221,7 @@ ClickHouse 26.5 신기능 테스트 및 학습 환경입니다. 이 디렉토리
 
 ClickHouse 26.5는 인트로스펙션과 사용성을 위한 SQL 표면을 다듬습니다: 새로운 `filesystem()` 테이블 함수로 디렉토리 트리를 테이블처럼 조회하고, 고차 함수가 베어 함수 이름을 받아들여 람다 보일러플레이트를 줄이며, `tokenizeQuery` / `highlightQuery`가 렉서와 파서를 SQL에 노출합니다. 수론 함수 (`isPrime`, `isProbablePrime`)가 개발자 경험 개선에 추가됩니다.
 
-### 🎯 주요 다루는 기능
+### 🎯 주요 기능
 
 1. **`filesystem()` 테이블 함수** — 디렉토리, 파일 메타데이터, 내용을 SQL 테이블로 조회
 2. **베어 함수 이름 + `isPrime` / `isProbablePrime`** — `arrayMap(negate, [1,2,3])` 와 소수 판정

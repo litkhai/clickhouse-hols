@@ -12,7 +12,7 @@ A hands-on laboratory for learning and testing ClickHouse 26.2 new features. Thi
 
 ClickHouse 26.2 expands the SQL surface area with number-theory utilities, a new 128-bit hash function, and an introspectable text-index tokenizer catalog. The release also makes the text index GA, promotes the QBit vector type to GA, and adds distributed vector search.
 
-### 🎯 Key Features Covered
+### 🎯 Key Features
 
 1. **`primes()` Table Function + `system.primes`** — prime numbers as a first-class SQL source
 2. **`xxh3_128` Hash Function** — 128-bit non-cryptographic hash for deduplication, sharding, and joins
@@ -196,7 +196,7 @@ docker logs clickhouse-26-2
 
 **Happy Learning! 🚀**
 
-For questions or issues, see the main [clickhouse-hols README](../../README.md).
+For questions or issues, see the main [clickhouse-hols README](../../../README.md).
 
 ---
 
@@ -208,7 +208,7 @@ ClickHouse 26.2 신기능 테스트 및 학습 환경입니다. 이 디렉토리
 
 ClickHouse 26.2는 수론 유틸리티, 새로운 128비트 해시 함수, 그리고 검색 가능한 텍스트 인덱스 토크나이저 카탈로그로 SQL 표면을 확장합니다. 또한 텍스트 인덱스가 GA로 승격되고, QBit 벡터 타입이 GA가 되었으며, 분산 벡터 검색이 추가되었습니다.
 
-### 🎯 주요 다루는 기능
+### 🎯 주요 기능
 
 1. **`primes()` 테이블 함수 + `system.primes`** — 소수를 SQL 소스로 직접 활용
 2. **`xxh3_128` 해시 함수** — 중복 제거·샤딩·조인을 위한 128비트 비암호 해시
@@ -304,4 +304,4 @@ cd local/releases/26.2
 
 **Happy Learning! 🚀**
 
-질문이나 이슈는 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈는 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.

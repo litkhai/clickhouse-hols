@@ -14,8 +14,8 @@ echo "================================================"
 echo ""
 
 # Check if ClickHouse is running
-if ! curl -s http://localhost:2506/ping > /dev/null 2>&1; then
-    echo "❌ ClickHouse is not running on port 2506"
+if ! curl -s http://localhost:8123/ping > /dev/null 2>&1; then
+    echo "❌ ClickHouse is not running on port 8123"
     echo "   Please run: cd $SCRIPT_DIR && ./00-setup.sh"
     exit 1
 fi

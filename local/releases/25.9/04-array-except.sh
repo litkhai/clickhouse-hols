@@ -6,8 +6,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SQL_FILE="$SCRIPT_DIR/05-array-except.sh"
-CLICKHOUSE_HTTP="http://localhost:2509"
+SQL_FILE="$SCRIPT_DIR/04-array-except.sql"
+CLICKHOUSE_HTTP="http://localhost:8123"
 
 echo "🔧 ClickHouse 25.9 Feature: arrayExcept Function"
 echo "================================================="
@@ -15,7 +15,7 @@ echo ""
 
 # Check if ClickHouse is running
 if ! curl -sf "$CLICKHOUSE_HTTP" > /dev/null 2>&1; then
-    echo "❌ ClickHouse is not running on port 2509"
+    echo "❌ ClickHouse is not running on port 8123"
     echo "   Please run: cd $SCRIPT_DIR && ./00-setup.sh"
     exit 1
 fi
@@ -27,7 +27,7 @@ echo "📝 Executing arrayExcept tests..."
 echo ""
 
 # Execute SQL file
-cat "$SCRIPT_DIR/05-array-except.sql" | docker exec -i clickhouse-25-9 clickhouse-client --multiquery
+cat "$SCRIPT_DIR/04-array-except.sql" | docker exec -i clickhouse-25-9 clickhouse-client --multiline --multiquery
 
 echo ""
 echo "✅ arrayExcept function test completed!"

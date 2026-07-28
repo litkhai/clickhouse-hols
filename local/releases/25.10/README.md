@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.10.
+A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.10 (released 2025-10-30).
 
 ### 📋 Overview
 
@@ -25,7 +25,7 @@ ClickHouse 25.10 includes JOIN performance improvements, new data types for vect
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) environment setup
+- [oss-mac-setup](../../oss-mac-setup/) environment setup
 
 #### Setup and Run
 
@@ -49,7 +49,7 @@ To execute SQL files directly:
 ```bash
 # Connect to ClickHouse client
 cd ../../oss-mac-setup
-./client.sh 2510
+./client.sh 8123
 
 # Execute SQL file
 cd ../25.10
@@ -176,9 +176,9 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 
 #### ClickHouse Connection Info
 
-- **Web UI**: http://localhost:2510/play
-- **HTTP API**: http://localhost:2510
-- **TCP**: localhost:25101
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### Useful Commands
@@ -189,7 +189,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # Connect to CLI
-./client.sh 2510
+./client.sh 8123
 
 # View logs
 docker logs clickhouse-25-10
@@ -265,13 +265,13 @@ MIT License - Free to learn and modify
 
 **Happy Learning! 🚀**
 
-For questions or issues, please refer to the main [clickhouse-hols README](../../README.md).
+For questions or issues, please refer to the main [clickhouse-hols README](../../../README.md).
 
 ---
 
 ## 한국어
 
-ClickHouse 25.10 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 ClickHouse 25.10에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
+ClickHouse 25.10 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 10월 30일 출시된 ClickHouse 25.10에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 
 ### 📋 개요
 
@@ -290,7 +290,7 @@ ClickHouse 25.10은 JOIN 성능 개선, 벡터 검색을 위한 새로운 데이
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../oss-mac-setup/) 환경 구성
+- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
 
 #### 설정 및 실행
 
@@ -314,7 +314,7 @@ SQL 파일을 직접 실행하려면:
 ```bash
 # ClickHouse 클라이언트 접속
 cd ../../oss-mac-setup
-./client.sh 2510
+./client.sh 8123
 
 # SQL 파일 실행
 cd ../25.10
@@ -441,9 +441,9 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 
 #### ClickHouse 접속 정보
 
-- **Web UI**: http://localhost:2510/play
-- **HTTP API**: http://localhost:2510
-- **TCP**: localhost:25101
+- **Web UI**: http://localhost:8123/play
+- **HTTP API**: http://localhost:8123
+- **TCP**: localhost:9000
 - **User**: default (no password)
 
 #### 유용한 명령어
@@ -454,7 +454,7 @@ cd ../../oss-mac-setup
 ./status.sh
 
 # CLI 접속
-./client.sh 2510
+./client.sh 8123
 
 # 로그 확인
 docker logs clickhouse-25-10
@@ -530,4 +530,4 @@ MIT License - 자유롭게 학습 및 수정 가능
 
 **Happy Learning! 🚀**
 
-질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../README.md)를 참조하세요.
+질문이나 이슈가 있으면 메인 [clickhouse-hols README](../../../README.md)를 참조하세요.
