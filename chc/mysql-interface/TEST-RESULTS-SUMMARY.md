@@ -145,7 +145,7 @@ connection = mysql.connector.connect(
 
 ---
 
-**상세 리포트**: [test-results/report_20251213_155841.md](test-results/report_20251213_155841.md)
+**상세 리포트**: [test-results/report_20251213_155841.md](FINAL-TEST-REPORT.md)
 **자동화 도구**: [run-mysql-test.sh](run-mysql-test.sh)
 **작성자**: Ken (ClickHouse Inc.)
 **최종 업데이트**: 2025-12-13 15:58

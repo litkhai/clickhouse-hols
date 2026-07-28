@@ -45,15 +45,16 @@ workshop/device-360/
 - 🇺🇸 [English Full Report](REPORT_ENG.md) - Complete technical documentation
 - 🇨🇳 [中文完整报告](REPORT_CHN.md) - 完整的技术文档
 
-**Primary Results**: [results/300gb_final_benchmark.md](results/300gb_final_benchmark.md)
+**Primary Results**: [REPORT_KOR.md](REPORT_KOR.md) / [REPORT_ENG.md](REPORT_ENG.md)
 - Complete performance analysis of 4.48B row dataset
 - Ingestion metrics across 8, 16, 32 vCPU scales
 - Query performance with concurrency testing
 - Production recommendations and cost analysis
 
 **Supporting Documents**:
-- [results/scale_test_log.md](results/scale_test_log.md) - Detailed ingestion test logs
-- [results/query_performance_summary.md](results/query_performance_summary.md) - Initial query analysis
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - Scope, environment and outcome summary
+- [device360-test-plan.md](device360-test-plan.md) - Test plan and methodology
+- [USAGE_GUIDE.md](USAGE_GUIDE.md) - How to re-run the ingestion and query tests
 
 ### 2. Key Metrics at a Glance
 
@@ -417,12 +418,13 @@ cd scripts/
 ### SQL
 - [sql/01_create_database.sql](sql/01_create_database.sql) - Database setup
 - [sql/02_create_main_table.sql](sql/02_create_main_table.sql) - Table schema
-- [sql/03_add_bloom_filter.sql](sql/03_add_bloom_filter.sql) - Bloom filter index
+- [sql/03_create_materialized_views.sql](sql/03_create_materialized_views.sql) - Materialized views
 
 ### Results
-- [results/300gb_final_benchmark.md](results/300gb_final_benchmark.md) - **⭐ Main results document**
-- [results/scale_test_log.md](results/scale_test_log.md) - Ingestion test logs
-- [results/query_performance_summary.md](results/query_performance_summary.md) - Initial query analysis
+- [REPORT_KOR.md](REPORT_KOR.md) - **⭐ Main results document (Korean)**
+- [REPORT_ENG.md](REPORT_ENG.md) - Main results document (English)
+- [REPORT_CHN.md](REPORT_CHN.md) - Main results document (Chinese)
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - Summary of scope and outcome
 
 ---
 

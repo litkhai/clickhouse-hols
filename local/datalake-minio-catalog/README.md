@@ -4,7 +4,7 @@
 
 A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.
 
-**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../25.8/) - Fully tested with ClickHouse 25.10 and 25.11
+**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../releases/25.8/) - Fully tested with ClickHouse 25.10 and 25.11
 
 ---
 
@@ -374,6 +374,10 @@ SELECT * FROM s3(
 - **[docs/SPARK_SETUP.md](docs/SPARK_SETUP.md)** - Spark integration
 - **[docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity testing
 - **[docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)** - Version comparison
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - First-run walkthrough
+- **[README-SIMPLE.md](README-SIMPLE.md)** - Simplified setup path (fewer catalogs)
+- **[STRUCTURE_SUMMARY.md](STRUCTURE_SUMMARY.md)** - Directory and service layout
+- **[CHANGES_v3.1.md](CHANGES_v3.1.md)** - Changes in v3.1
 
 ### Korean Documentation (한글 문서)
 - **[README.ko.md](README.ko.md)** - 한글 메인 문서

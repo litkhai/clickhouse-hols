@@ -27,7 +27,7 @@ ClickHouse 25.8 includes a new Parquet Reader (1.81x faster), enhanced Data Lake
 
 - macOS (with Docker Desktop)
 - [oss-mac-setup](../../oss-mac-setup/) environment setup
-- [datalake-minio-catalog](../datalake-minio-catalog/) auto-deployment (handled by setup script)
+- [datalake-minio-catalog](../../datalake-minio-catalog/) auto-deployment (handled by setup script)
 
 #### Setup and Run
 
@@ -785,7 +785,7 @@ ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake �
 
 - macOS (with Docker Desktop)
 - [oss-mac-setup](../../oss-mac-setup/) 환경 구성
-- [datalake-minio-catalog](../datalake-minio-catalog/) 자동 배포 (setup 스크립트가 처리)
+- [datalake-minio-catalog](../../datalake-minio-catalog/) 자동 배포 (setup 스크립트가 처리)
 
 #### 설정 및 실행
 

@@ -135,14 +135,14 @@ lsof -i :9000
 ```
 
 ### Port conflicts
-Edit [config.env](config.env) and change the ports, then restart:
+Edit [config.env](../config.env) and change the ports, then restart:
 ```bash
 ./setup.sh --restart
 ```
 
 ## Next Steps
 
-1. Read the full [README.md](README.md) for detailed documentation
+1. Read the full [README.md](../README.md) for detailed documentation
 2. Explore the Jupyter notebooks
 3. Try connecting ClickHouse (see notebook 03)
 4. Experiment with different catalog types
@@ -168,8 +168,8 @@ Edit [config.env](config.env) and change the ports, then restart:
 
 ## Support
 
-- Check [README.md](README.md) for full documentation
-- Review [notebooks/](notebooks/) for examples
+- Check [README.md](../README.md) for full documentation
+- Review [notebooks/](../notebooks/) for examples
 - Check Docker logs for errors
 
 ## Clean Up

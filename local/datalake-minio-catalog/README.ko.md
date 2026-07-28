@@ -4,7 +4,7 @@
 
 MinIO 객체 스토리지와 5가지 데이터 카탈로그(Nessie, Hive Metastore, Iceberg REST, Polaris, Unity Catalog)를 사용한 로컬 데이터 레이크 환경 구축.
 
-**🔗 통합 지원:** [ClickHouse 25.8+ Labs](../25.8/) - ClickHouse 25.10 및 25.11과 완전 테스트 완료
+**🔗 통합 지원:** [ClickHouse 25.8+ Labs](../releases/25.8/) - ClickHouse 25.10 및 25.11과 완전 테스트 완료
 
 ---
 

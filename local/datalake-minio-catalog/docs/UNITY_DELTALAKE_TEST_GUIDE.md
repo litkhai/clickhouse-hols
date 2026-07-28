@@ -316,7 +316,7 @@ Expected performance on standard hardware (M1 Mac, 16GB RAM):
 
 For Spark integration with Delta Lake and Unity Catalog, see:
 - [SPARK_SETUP.md](SPARK_SETUP.md)
-- Jupyter notebook: [04_spark_iceberg_nessie.ipynb](notebooks/04_spark_iceberg_nessie.ipynb)
+- Jupyter notebook: [04_spark_iceberg_nessie.ipynb](../notebooks/04_spark_iceberg_nessie.ipynb)
 
 ## Next Steps
 
