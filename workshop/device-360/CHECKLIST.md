@@ -40,7 +40,7 @@
 ### 3. 프로젝트 설정
 - [ ] `.env` 파일 생성
   ```bash
-  cp .env.template .env
+  cp .env.example .env
   ```
 
 - [ ] `.env` 파일 편집 - AWS 섹션

@@ -17,7 +17,7 @@ device-360/
 │   └── PROJECT_SUMMARY.md          # 이 파일
 │
 ├── ⚙️ 환경 설정
-│   ├── .env.template               # 환경 변수 템플릿
+│   ├── .env.example                # 환경 변수 템플릿
 │   ├── requirements.txt            # Python 의존성
 │   └── .gitignore                  # Git ignore 설정
 │
@@ -236,7 +236,7 @@ Target Achievement:
 
 ```bash
 # 환경 설정
-cp .env.template .env
+cp .env.example .env
 vim .env  # 자격증명 입력
 
 # 의존성 설치

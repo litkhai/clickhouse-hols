@@ -12,7 +12,7 @@
 cd workshop/device-360
 
 # 환경 변수 템플릿 복사
-cp .env.template .env
+cp .env.example .env
 
 # .env 파일 편집 (필수 설정값 입력)
 vim .env

@@ -177,7 +177,7 @@ curl https://clickhouse.com/ | sh
 
 - 📖 상세 문서: [README.md](README.md)
 - 📝 원본 계획서: [clickpipe-test-plan.md](clickpipe-test-plan.md)
-- 🔍 API 문서: https://clickhouse.com/docs/en/cloud/manage/api/clickpipes
+- 🔍 API 문서: https://clickhouse.com/docs/integrations/clickpipes
 
 ---
 

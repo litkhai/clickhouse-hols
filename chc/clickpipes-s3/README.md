@@ -288,7 +288,7 @@ sudo yum install jq
 - **재시작**: `POST /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}/resume`
 - **삭제**: `DELETE /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}`
 
-API 문서: https://clickhouse.com/docs/en/cloud/manage/api/clickpipes
+API 문서: https://clickhouse.com/docs/integrations/clickpipes
 
 ## 주의사항
 

@@ -79,10 +79,15 @@ workload/mv-vs-rmv/
 # Python 패키지 설치
 pip3 install clickhouse-connect
 
-# ClickHouse Cloud 접속 정보 확인
-# - Host
-# - Password
+# 접속 정보는 환경변수로 주입합니다 (스크립트가 하드코딩하지 않습니다)
+# Connection settings are injected via environment variables
+cd scripts
+cp .env.example .env      # CH_HOST / CH_PASSWORD 등을 채워 넣으세요
+set -a && . ./.env && set +a
 ```
+
+`scripts/*.py`는 `CH_HOST`, `CH_USER`, `CH_PASSWORD`, `CH_DATABASE`를 읽고,
+`CH_HOST` 또는 `CH_PASSWORD`가 없으면 안내 메시지와 함께 종료합니다.
 
 ### 2. 스키마 설정 / Schema Setup
 
@@ -302,7 +307,7 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 ### ClickHouse 공식 문서
 - [Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views)
 - [Refreshable Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views)
-- [Part Management](https://clickhouse.com/docs/en/operations/optimizing-performance/partitions)
+- [Part Management](https://clickhouse.com/docs/partitions)
 
 ### 관련 문서
 - [원본 테스트 계획](./mv-rmv-test-plan.md)

@@ -164,4 +164,4 @@ terraform init -upgrade
 ## 참고
 
 - ClickHouse Terraform Provider: https://registry.terraform.io/providers/ClickHouse/clickhouse
-- ClickHouse Cloud API: https://clickhouse.com/docs/en/cloud/manage/api/clickpipes
+- ClickHouse Cloud API: https://clickhouse.com/docs/integrations/clickpipes

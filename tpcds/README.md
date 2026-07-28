@@ -60,8 +60,8 @@ tpcds/
 │   ├── clickhouse-tpcds-ddl.sql      # Schema definitions
 │   └── clickhouse-tpcds-load.sql     # Data loading from S3
 ├── queries/                           # TPC-DS query templates
-│   ├── query01.sql
-│   ├── query02.sql
+│   ├── query_01.sql
+│   ├── query_02.sql
 │   └── ...
 ├── results/                           # Query execution results
 │   ├── sequential/
@@ -207,7 +207,7 @@ Results are stored in the specified output directory with:
 
 Example result file format:
 ```
-Query: query01.sql
+Query: query_01.sql
 Execution Time: 1.234s
 Rows Returned: 100
 Peak Memory: 256MB

@@ -264,4 +264,4 @@ GROUP BY category;
 
 - [ClickHouse PREWHERE 공식 문서](https://clickhouse.com/docs/en/sql-reference/statements/select/prewhere)
 - [MySQL 프로토콜 지원](https://clickhouse.com/docs/en/interfaces/mysql)
-- [쿼리 최적화 가이드](https://clickhouse.com/docs/en/guides/improving-query-performance)
+- [쿼리 최적화 가이드](https://clickhouse.com/docs/optimize/query-optimization)

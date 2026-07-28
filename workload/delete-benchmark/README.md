@@ -22,11 +22,11 @@ Whether you're optimizing delete operations or choosing the right deletion strat
 ```
 delete-benchmark/
 ├── README.md                      # This file
-├── 01_setup_database.sql          # Database and table creation
-├── 02_insert_test_data.sql        # Generate 1M rows test data
-├── 03_execute_deletes.sql         # Execute 10% data deletion
-├── 04_query_performance.sql       # SELECT query performance test
-└── 05_generate_report.sql         # Comprehensive report generation
+├── 01-setup_database.sql          # Database and table creation
+├── 02-insert_test_data.sql        # Generate 1M rows test data
+├── 03-execute_deletes.sql         # Execute 10% data deletion
+├── 04-query_performance.sql       # SELECT query performance test
+└── 05-generate_report.sql         # Comprehensive report generation
 ```
 
 ### 🚀 Quick Start
@@ -37,21 +37,21 @@ Execute all scripts in sequence:
 cd workload/delete-benchmark
 
 # Sequential execution
-clickhouse-client --queries-file 01_setup_database.sql
-clickhouse-client --queries-file 02_insert_test_data.sql
-clickhouse-client --queries-file 03_execute_deletes.sql
+clickhouse-client --queries-file 01-setup_database.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
 
 # Wait for ALTER DELETE mutation to complete (optional)
 sleep 30
 
-clickhouse-client --queries-file 04_query_performance.sql
-clickhouse-client --queries-file 05_generate_report.sql
+clickhouse-client --queries-file 04-query_performance.sql
+clickhouse-client --queries-file 05-generate_report.sql
 ```
 
 Or execute all at once:
 
 ```bash
-for file in 01_setup_database.sql 02_insert_test_data.sql 03_execute_deletes.sql 04_query_performance.sql 05_generate_report.sql; do
+for file in 01-setup_database.sql 02-insert_test_data.sql 03-execute_deletes.sql 04-query_performance.sql 05-generate_report.sql; do
     echo "Executing $file..."
     clickhouse-client --queries-file "$file"
     echo ""
@@ -63,7 +63,7 @@ done
 #### 1. Database Setup
 
 ```bash
-clickhouse-client --queries-file 01_setup_database.sql
+clickhouse-client --queries-file 01-setup_database.sql
 ```
 
 **What it does**:
@@ -80,7 +80,7 @@ clickhouse-client --queries-file 01_setup_database.sql
 #### 2. Insert Test Data
 
 ```bash
-clickhouse-client --queries-file 02_insert_test_data.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
 ```
 
 **What it does**:
@@ -95,7 +95,7 @@ clickhouse-client --queries-file 02_insert_test_data.sql
 #### 3. Execute DELETE Operations
 
 ```bash
-clickhouse-client --queries-file 03_execute_deletes.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
 ```
 
 **What it does**:
@@ -111,7 +111,7 @@ clickhouse-client --queries-file 03_execute_deletes.sql
 #### 4. Query Performance Test
 
 ```bash
-clickhouse-client --queries-file 04_query_performance.sql
+clickhouse-client --queries-file 04-query_performance.sql
 ```
 
 **What it does**:
@@ -128,7 +128,7 @@ clickhouse-client --queries-file 04_query_performance.sql
 #### 5. Generate Comprehensive Report
 
 ```bash
-clickhouse-client --queries-file 05_generate_report.sql
+clickhouse-client --queries-file 05-generate_report.sql
 ```
 
 **What it does**:
@@ -216,7 +216,7 @@ GROUP BY table;
 
 #### Change Data Volume
 
-Edit `02_insert_test_data.sql` to change the `numbers()` function value:
+Edit `02-insert_test_data.sql` to change the `numbers()` function value:
 
 ```sql
 -- 10 million rows instead of 1 million
@@ -225,7 +225,7 @@ FROM numbers(10000000)
 
 #### Change Delete Ratio
 
-Edit `03_execute_deletes.sql` to change the condition:
+Edit `03-execute_deletes.sql` to change the condition:
 
 ```sql
 -- Delete 20% instead of 10%
@@ -234,7 +234,7 @@ WHERE user_id % 5 = 0  -- (originally user_id % 10 = 0)
 
 #### Add Query Patterns
 
-Add your custom queries to `04_query_performance.sql`
+Add your custom queries to `04-query_performance.sql`
 
 ### 💡 Performance Tips
 
@@ -337,11 +337,11 @@ ClickHouse의 데이터 삭제를 처리하는 세 가지 주요 메커니즘을
 ```
 delete-benchmark/
 ├── README.md                      # 이 파일
-├── 01_setup_database.sql          # 데이터베이스 및 테이블 생성
-├── 02_insert_test_data.sql        # 1백만 rows 테스트 데이터 생성
-├── 03_execute_deletes.sql         # 10% 데이터 삭제 실행
-├── 04_query_performance.sql       # SELECT 쿼리 성능 테스트
-└── 05_generate_report.sql         # 종합 리포트 생성
+├── 01-setup_database.sql          # 데이터베이스 및 테이블 생성
+├── 02-insert_test_data.sql        # 1백만 rows 테스트 데이터 생성
+├── 03-execute_deletes.sql         # 10% 데이터 삭제 실행
+├── 04-query_performance.sql       # SELECT 쿼리 성능 테스트
+└── 05-generate_report.sql         # 종합 리포트 생성
 ```
 
 ### 🚀 빠른 시작
@@ -352,21 +352,21 @@ delete-benchmark/
 cd workload/delete-benchmark
 
 # 순차 실행
-clickhouse-client --queries-file 01_setup_database.sql
-clickhouse-client --queries-file 02_insert_test_data.sql
-clickhouse-client --queries-file 03_execute_deletes.sql
+clickhouse-client --queries-file 01-setup_database.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
 
 # ALTER DELETE mutation 완료 대기 (옵션)
 sleep 30
 
-clickhouse-client --queries-file 04_query_performance.sql
-clickhouse-client --queries-file 05_generate_report.sql
+clickhouse-client --queries-file 04-query_performance.sql
+clickhouse-client --queries-file 05-generate_report.sql
 ```
 
 또는 한 번에 실행:
 
 ```bash
-for file in 01_setup_database.sql 02_insert_test_data.sql 03_execute_deletes.sql 04_query_performance.sql 05_generate_report.sql; do
+for file in 01-setup_database.sql 02-insert_test_data.sql 03-execute_deletes.sql 04-query_performance.sql 05-generate_report.sql; do
     echo "Executing $file..."
     clickhouse-client --queries-file "$file"
     echo ""
@@ -378,7 +378,7 @@ done
 #### 1. 데이터베이스 설정
 
 ```bash
-clickhouse-client --queries-file 01_setup_database.sql
+clickhouse-client --queries-file 01-setup_database.sql
 ```
 
 **수행 작업**:
@@ -395,7 +395,7 @@ clickhouse-client --queries-file 01_setup_database.sql
 #### 2. 테스트 데이터 삽입
 
 ```bash
-clickhouse-client --queries-file 02_insert_test_data.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
 ```
 
 **수행 작업**:
@@ -410,7 +410,7 @@ clickhouse-client --queries-file 02_insert_test_data.sql
 #### 3. DELETE 작업 실행
 
 ```bash
-clickhouse-client --queries-file 03_execute_deletes.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
 ```
 
 **수행 작업**:
@@ -426,7 +426,7 @@ clickhouse-client --queries-file 03_execute_deletes.sql
 #### 4. 쿼리 성능 테스트
 
 ```bash
-clickhouse-client --queries-file 04_query_performance.sql
+clickhouse-client --queries-file 04-query_performance.sql
 ```
 
 **수행 작업**:
@@ -443,7 +443,7 @@ clickhouse-client --queries-file 04_query_performance.sql
 #### 5. 종합 리포트 생성
 
 ```bash
-clickhouse-client --queries-file 05_generate_report.sql
+clickhouse-client --queries-file 05-generate_report.sql
 ```
 
 **수행 작업**:
@@ -531,7 +531,7 @@ GROUP BY table;
 
 #### 데이터 볼륨 변경
 
-`02_insert_test_data.sql`에서 `numbers()` 함수 값을 변경:
+`02-insert_test_data.sql`에서 `numbers()` 함수 값을 변경:
 
 ```sql
 -- 100만 대신 1000만 rows
@@ -540,7 +540,7 @@ FROM numbers(10000000)
 
 #### 삭제 비율 변경
 
-`03_execute_deletes.sql`에서 조건 변경:
+`03-execute_deletes.sql`에서 조건 변경:
 
 ```sql
 -- 10% 대신 20% 삭제
@@ -549,7 +549,7 @@ WHERE user_id % 5 = 0  -- (원래는 user_id % 10 = 0)
 
 #### 쿼리 패턴 추가
 
-`04_query_performance.sql`에 원하는 쿼리 추가
+`04-query_performance.sql`에 원하는 쿼리 추가
 
 ### 💡 성능 팁
 

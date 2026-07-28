@@ -226,7 +226,7 @@ Customer Guidance:
 - 📖 [README.md](README.md) - 상세 문서
 - 🚀 [QUICKSTART.md](QUICKSTART.md) - 빠른 시작
 - 🔧 [terraform/README.md](terraform/README.md) - Terraform 가이드
-- 🌐 [ClickPipes API 문서](https://clickhouse.com/docs/en/cloud/manage/api/clickpipes)
+- 🌐 [ClickPipes API 문서](https://clickhouse.com/docs/integrations/clickpipes)
 
 ## 📄 라이센스
 

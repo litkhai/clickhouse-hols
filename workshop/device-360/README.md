@@ -24,14 +24,16 @@ workshop/device-360/
 ├── sql/
 │   ├── 01_create_database.sql         # Database setup
 │   ├── 02_create_main_table.sql       # Main table schema
-│   └── 03_add_bloom_filter.sql        # Bloom filter index for device_id
+│   └── 03_create_materialized_views.sql # Materialized views
 ├── queries/
-│   └── 01_device_journey_queries.sql  # Sample Device360 queries
-└── results/
-    ├── scale_test_log.md              # Ingestion scale testing (8, 16, 32 vCPU)
-    ├── query_performance_summary.md   # Initial query results (448M rows)
-    ├── comprehensive_benchmark_*.md   # Detailed benchmark results
-    └── 300gb_final_benchmark.md       # ⭐ Final comprehensive results (4.48B rows)
+│   ├── 01_device_journey_queries.sql  # Sample Device360 queries
+│   ├── 02_aggregation_queries.sql     # Aggregation queries
+│   ├── 03_bot_detection_queries.sql   # Bot detection queries
+│   └── 04_materialized_view_queries.sql # Queries against the views
+├── REPORT_KOR.md                      # ⭐ Final results (Korean)
+├── REPORT_ENG.md                      # Final results (English)
+├── REPORT_CHN.md                      # Final results (Chinese)
+└── results/                           # Created by the benchmark scripts at run time
 ```
 
 ---
@@ -342,8 +344,8 @@ cd sql/
 clickhouse client < 01_create_database.sql
 clickhouse client < 02_create_main_table.sql
 
-# Add Bloom filter (after data load)
-clickhouse client < 03_add_bloom_filter.sql
+# Create the materialized views
+clickhouse client < 03_create_materialized_views.sql
 ```
 
 ### 3. Ingestion Benchmark

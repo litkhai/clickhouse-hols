@@ -13,7 +13,7 @@
 
 ```bash
 # Start everything with defaults
-./setup-simple.sh --start
+./setup.sh --start
 
 # Try an example
 ./examples/basic-s3-read-write.sh
@@ -36,7 +36,7 @@
 #### 1. Optional: Configure
 
 ```bash
-./setup-simple.sh --configure
+./setup.sh --configure
 ```
 
 Sets storage size and ports. **Skip this to use defaults.**
@@ -45,25 +45,25 @@ Sets storage size and ports. **Skip this to use defaults.**
 
 **Option A: Start everything (recommended for testing)**
 ```bash
-./setup-simple.sh --start
+./setup.sh --start
 ```
 
 **Option B: Start specific catalogs**
 ```bash
 # Just Unity and Nessie
-./setup-simple.sh --start unity nessie
+./setup.sh --start unity nessie
 
 # Just Hive
-./setup-simple.sh --start hive
+./setup.sh --start hive
 
 # Nessie, Iceberg, and Polaris
-./setup-simple.sh --start nessie iceberg polaris
+./setup.sh --start nessie iceberg polaris
 ```
 
 #### 3. Verify
 
 ```bash
-./setup-simple.sh --status
+./setup.sh --status
 ```
 
 #### 4. Try Examples
@@ -85,13 +85,13 @@ Sets storage size and ports. **Skip this to use defaults.**
 
 | Command | Description |
 |---------|-------------|
-| `./setup-simple.sh --start` | Start all catalogs |
-| `./setup-simple.sh --start nessie unity` | Start specific catalogs |
-| `./setup-simple.sh --stop` | Stop all services |
-| `./setup-simple.sh --status` | Check status |
-| `./setup-simple.sh --configure` | Interactive config |
-| `./setup-simple.sh --clean` | Remove all data |
-| `./setup-simple.sh --help` | Show help |
+| `./setup.sh --start` | Start all catalogs |
+| `./setup.sh --start nessie unity` | Start specific catalogs |
+| `./setup.sh --stop` | Stop all services |
+| `./setup.sh --status` | Check status |
+| `./setup.sh --configure` | Interactive config |
+| `./setup.sh --clean` | Remove all data |
+| `./setup.sh --help` | Show help |
 
 ---
 
@@ -111,16 +111,16 @@ Start **one or more** catalogs:
 
 ```bash
 # All catalogs (for comprehensive testing)
-./setup-simple.sh --start
+./setup.sh --start
 
 # Modern catalogs only
-./setup-simple.sh --start nessie unity polaris
+./setup.sh --start nessie unity polaris
 
 # Traditional catalog
-./setup-simple.sh --start hive
+./setup.sh --start hive
 
 # Mix and match
-./setup-simple.sh --start nessie hive unity
+./setup.sh --start nessie hive unity
 ```
 
 ---
@@ -152,7 +152,7 @@ After starting services:
 ```
 datalake-minio-catalog/
 │
-├── setup-simple.sh          # 🌟 NEW: Simplified setup (USE THIS)
+├── setup.sh          # 🌟 NEW: Simplified setup (USE THIS)
 ├── setup.sh                 # Legacy setup (one catalog at a time)
 ├── GETTING_STARTED.md       # 🌟 Quick start guide
 │
@@ -171,7 +171,8 @@ datalake-minio-catalog/
 │
 ├── notebooks/               # Jupyter notebooks
 ├── sample-data/             # Sample datasets
-└── scripts-legacy/          # Old scripts (moved here)
+├── examples/                # Example scripts
+└── tests/                   # Test scripts
 ```
 
 ---
@@ -182,10 +183,10 @@ datalake-minio-catalog/
 
 ```bash
 # 1. Start all services
-./setup-simple.sh --start
+./setup.sh --start
 
 # 2. Check status
-./setup-simple.sh --status
+./setup.sh --status
 
 # 3. Try examples
 ./examples/basic-s3-read-write.sh
@@ -199,7 +200,7 @@ datalake-minio-catalog/
 
 ```bash
 # 1. Start MinIO + Unity
-./setup-simple.sh --start unity
+./setup.sh --start unity
 
 # 2. Start ClickHouse 25.11
 cd ../oss-mac-setup
@@ -217,23 +218,23 @@ cat docs/test-results/test-results-unity-deltalake-*.md
 
 ```bash
 # Start only what you need
-./setup-simple.sh --start nessie iceberg
+./setup.sh --start nessie iceberg
 
 # Develop and test
 # ...
 
 # Add more catalogs without restarting
-./setup-simple.sh --start unity
+./setup.sh --start unity
 
 # Stop when done
-./setup-simple.sh --stop
+./setup.sh --stop
 ```
 
 ---
 
 ## 🆚 Old vs New Setup
 
-| Feature | setup.sh (Old) | setup-simple.sh (New) |
+| Feature | setup.sh (Old) | setup.sh (New) |
 |---------|----------------|----------------------|
 | **Multiple catalogs** | ❌ One at a time | ✅ Multiple simultaneously |
 | **Default config** | ❌ Must configure | ✅ Has sensible defaults |
@@ -259,10 +260,10 @@ cat docs/test-results/test-results-unity-deltalake-*.md
 **New way:**
 ```bash
 # Start both at once!
-./setup-simple.sh --start nessie unity
+./setup.sh --start nessie unity
 
 # Or start everything
-./setup-simple.sh --start
+./setup.sh --start
 ```
 
 ---
@@ -291,13 +292,13 @@ cat docs/test-results/test-results-unity-deltalake-*.md
 ### Automatic (Recommended)
 ```bash
 # Uses defaults, just start
-./setup-simple.sh --start
+./setup.sh --start
 ```
 
 ### Custom
 ```bash
 # Interactive configuration
-./setup-simple.sh --configure
+./setup.sh --configure
 
 # Or edit config-simple.env manually
 nano config-simple.env
@@ -331,7 +332,7 @@ docker logs minio
 docker logs unity-catalog
 
 # Check status
-./setup-simple.sh --status
+./setup.sh --status
 ```
 
 ### Port conflicts
@@ -341,14 +342,14 @@ docker logs unity-catalog
 lsof -i :19000
 
 # Reconfigure with different ports
-./setup-simple.sh --configure
+./setup.sh --configure
 ```
 
 ### Can't connect to catalog
 
 ```bash
 # Check if catalog is running
-./setup-simple.sh --status
+./setup.sh --status
 
 # Test connectivity
 curl http://localhost:19120/api/v2/config  # Nessie
@@ -359,10 +360,10 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 
 ```bash
 # Stop and remove all data
-./setup-simple.sh --clean
+./setup.sh --clean
 
 # Start fresh
-./setup-simple.sh --start
+./setup.sh --start
 ```
 
 ---
@@ -417,7 +418,7 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 **After:**
 ```bash
 # Test all 3 at once!
-./setup-simple.sh --start nessie unity hive
+./setup.sh --start nessie unity hive
 ./tests/test-catalogs.sh
 ```
 
@@ -446,10 +447,10 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 
 ```bash
 # Show help
-./setup-simple.sh --help
+./setup.sh --help
 
 # Check status
-./setup-simple.sh --status
+./setup.sh --status
 
 # Read guide
 cat GETTING_STARTED.md
@@ -472,7 +473,7 @@ See [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
 
 ```bash
 # 1. Start catalogs
-./setup-simple.sh --start unity nessie
+./setup.sh --start unity nessie
 
 # 2. Start ClickHouse
 cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
@@ -487,14 +488,14 @@ cd ../datalake-minio-catalog
 ## 🔄 What Changed from v2.0
 
 ### New Files
-- `setup-simple.sh` - New simplified setup script
+- `setup.sh` - New simplified setup script
 - `GETTING_STARTED.md` - Quick start guide
 - `config-simple.env` - New config format
 - `README-SIMPLE.md` - This file
 
-### Moved Files
-- `generate_parquet.py` → `scripts-legacy/`
-- `register_data.py` → `scripts-legacy/`
+### Helper Scripts
+- `generate_parquet.py` - Generates the sample Parquet datasets
+- `register_data.py` - Registers the generated data in a catalog
 - `quickstart.sh` → `scripts-legacy/`
 
 ### Still There
@@ -531,7 +532,7 @@ Educational purposes demonstration project.
 
 ---
 
-**Recommendation**: Use `setup-simple.sh` for new deployments. The old `setup.sh` remains for backward compatibility.
+**Recommendation**: Use `setup.sh` for new deployments. The old `setup.sh` remains for backward compatibility.
 
 **Quick Links**:
 - [Getting Started](GETTING_STARTED.md)

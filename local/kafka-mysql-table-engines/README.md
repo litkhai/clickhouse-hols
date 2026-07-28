@@ -264,6 +264,7 @@ SELECT * FROM aggregated_events;
 ### scripts/kafka_producer.py
 - Kafka에 테스트 이벤트를 전송하는 Python 스크립트
 - JSONEachRow 형식으로 데이터 전송
+- 사전 준비: `pip3 install kafka-python`
 - 사용 예시:
   ```bash
   python3 scripts/kafka_producer.py \

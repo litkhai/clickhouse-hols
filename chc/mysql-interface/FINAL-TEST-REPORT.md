@@ -461,7 +461,7 @@ Phase 4: 최적화
 - [ClickHouse MySQL Interface 문서](https://clickhouse.com/docs/en/interfaces/mysql/)
 - [ClickHouse SQL Reference](https://clickhouse.com/docs/en/sql-reference/)
 - [MySQL 호환성 가이드](https://clickhouse.com/docs/en/interfaces/mysql#mysql-compatibility)
-- [Best Practices](https://clickhouse.com/docs/en/guides/best-practices/)
+- [Best Practices](https://clickhouse.com/docs/best-practices)
 
 ### C. 자동화 도구
 

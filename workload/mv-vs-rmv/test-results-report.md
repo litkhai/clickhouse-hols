@@ -288,7 +288,7 @@ workload/mv-vs-rmv/
 
 1. [ClickHouse Materialized Views Documentation](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views)
 2. [ClickHouse Refreshable Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views)
-3. [ClickHouse Part Management](https://clickhouse.com/docs/en/operations/optimizing-performance/partitions)
+3. [ClickHouse Part Management](https://clickhouse.com/docs/partitions)
 
 ---
 

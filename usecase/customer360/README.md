@@ -269,7 +269,7 @@ DROP DATABASE IF EXISTS customer360;
 
 - [ClickHouse Official Documentation](https://clickhouse.com/docs)
 - [MergeTree Engine Guide](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/)
-- [Query Optimization Guide](https://clickhouse.com/docs/en/guides/improving-query-performance/)
+- [Query Optimization Guide](https://clickhouse.com/docs/optimize/query-optimization)
 
 ### 📝 License
 
@@ -547,7 +547,7 @@ DROP DATABASE IF EXISTS customer360;
 
 - [ClickHouse Official Documentation](https://clickhouse.com/docs)
 - [MergeTree Engine Guide](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/)
-- [Query Optimization Guide](https://clickhouse.com/docs/en/guides/improving-query-performance/)
+- [Query Optimization Guide](https://clickhouse.com/docs/optimize/query-optimization)
 
 ### 📝 라이선스
 
