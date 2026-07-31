@@ -6,6 +6,10 @@
 -- Test 1: Create Sample Data for Parquet Export
 -- ==========================================
 
+-- Parquet cannot be appended to, so allow re-running this lab over the
+-- files a previous run left in user_files.
+SET engine_file_truncate_on_insert = 1;
+
 SELECT '=== Test 1: Creating Sample E-commerce Dataset ===' AS title;
 
 DROP TABLE IF EXISTS ecommerce_events;
@@ -76,7 +80,7 @@ FROM ecommerce_events;
 SELECT '=== Test 2: Exporting Data to Parquet Format ===' AS title;
 
 -- Export to Parquet file
-INSERT INTO FUNCTION file('/tmp/ecommerce_events.parquet', 'Parquet')
+INSERT INTO FUNCTION file('ecommerce_events.parquet', 'Parquet')
 SELECT * FROM ecommerce_events;
 
 SELECT '✅ Data exported to /tmp/ecommerce_events.parquet' AS status;
@@ -93,7 +97,7 @@ SELECT
     countIf(is_purchase = 1) AS purchases,
     round(sum(revenue), 2) AS total_revenue,
     round(avg(product_price), 2) AS avg_price
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 FORMAT Vertical;
 
 -- ==========================================
@@ -108,7 +112,7 @@ SELECT
     product_category,
     count() AS events,
     sum(revenue) AS category_revenue
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 WHERE event_date >= today() - INTERVAL 7 DAY
 GROUP BY event_date, product_category
 ORDER BY event_date DESC, category_revenue DESC
@@ -125,7 +129,7 @@ SELECT '=== Test 5: Complex Analytics with Parquet Reader ===' AS title;
 -- Daily conversion funnel analysis
 WITH parquet_data AS (
     SELECT *
-    FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+    FROM file('ecommerce_events.parquet', 'Parquet')
     WHERE event_date >= today() - INTERVAL 14 DAY
 )
 SELECT
@@ -154,7 +158,7 @@ SELECT
     round(sum(revenue), 2) AS total_spent,
     round(avg(product_price), 2) AS avg_order_value,
     arrayStringConcat(groupArray(DISTINCT product_category), ', ') AS categories
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 WHERE is_purchase = 1
 GROUP BY user_id
 ORDER BY total_spent DESC
@@ -173,11 +177,11 @@ SELECT
     count() AS total_events,
     countIf(is_purchase = 1) AS purchases,
     round(countIf(is_purchase = 1) / count() * 100, 2) AS conversion_rate,
-    round(sum(revenue), 2) AS revenue,
+    round(sum(revenue), 2) AS total_revenue,
     round(avg(if(is_purchase = 1, revenue, NULL)), 2) AS avg_order_value
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 GROUP BY device_type, utm_source
-ORDER BY revenue DESC
+ORDER BY total_revenue DESC
 LIMIT 15;
 
 -- ==========================================
@@ -192,11 +196,11 @@ SELECT
     count(DISTINCT user_id) AS unique_users,
     count() AS total_events,
     countIf(is_purchase = 1) AS purchases,
-    round(sum(revenue), 2) AS revenue,
+    round(sum(revenue), 2) AS total_revenue,
     round(avg(if(is_purchase = 1, revenue, NULL)), 2) AS avg_order_value
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 GROUP BY user_country
-ORDER BY revenue DESC;
+ORDER BY total_revenue DESC;
 
 -- ==========================================
 -- Test 9: Product Category Performance
@@ -214,7 +218,7 @@ SELECT
     round(countIf(event_type = 'purchase') / countIf(event_type = 'view') * 100, 2) AS conversion_rate,
     round(sum(revenue), 2) AS total_revenue,
     round(avg(if(is_purchase = 1, revenue, NULL)), 2) AS avg_order_value
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 GROUP BY product_category
 ORDER BY total_revenue DESC;
 
@@ -231,7 +235,7 @@ SELECT
     countIf(is_purchase = 1) AS purchases,
     round(sum(revenue), 2) AS revenue,
     round(countIf(is_purchase = 1) / count() * 100, 2) AS conversion_rate
-FROM file('/tmp/ecommerce_events.parquet', 'Parquet')
+FROM file('ecommerce_events.parquet', 'Parquet')
 GROUP BY hour
 ORDER BY hour;
 

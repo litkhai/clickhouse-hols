@@ -7,6 +7,10 @@
 -- Test 1: Data Lake Overview
 -- ==========================================
 
+-- Parquet cannot be appended to, so allow re-running this lab over the
+-- files a previous run left in user_files.
+SET engine_file_truncate_on_insert = 1;
+
 SELECT '=== Test 1: ClickHouse 25.8 Data Lake Features ===' AS title;
 
 SELECT '
@@ -94,10 +98,10 @@ FROM product_catalog_lake;
 SELECT '=== Test 3: Export to Data Lake (Parquet Format) ===' AS title;
 
 -- Export to Parquet format (common data lake format)
-INSERT INTO FUNCTION file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+INSERT INTO FUNCTION file('data_lake/products/v1/data.parquet', 'Parquet')
 SELECT * FROM product_catalog_lake;
 
-SELECT '✅ Data exported to data lake: /tmp/data_lake/products/v1/' AS status;
+SELECT '✅ Data exported to data lake: data_lake/products/v1/' AS status;
 
 -- ==========================================
 -- Test 4: Read from Data Lake
@@ -112,7 +116,7 @@ SELECT
     round(avg(price), 2) AS avg_price,
     round(sum(price), 2) AS total_value,
     countIf(is_active = 1) AS active_products
-FROM file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+FROM file('data_lake/products/v1/*.parquet', 'Parquet')
 GROUP BY category
 ORDER BY products DESC;
 
@@ -123,14 +127,16 @@ ORDER BY products DESC;
 SELECT '=== Test 5: Create New Version with Updates ===' AS title;
 
 -- Update some products (price increase)
-CREATE OR REPLACE TABLE product_catalog_v2 AS
-SELECT
+CREATE OR REPLACE TABLE product_catalog_v2
+ENGINE = MergeTree
+ORDER BY product_id
+AS SELECT
     product_id,
     product_name,
     category,
     subcategory,
     brand,
-    if(category = 'Electronics', round(price * 1.15, 2), price) AS price,  -- 15% increase for Electronics
+    if(category = 'Electronics', toDecimal64(round(price * 1.15, 2), 2), price) AS price,  -- 15% increase for Electronics
     cost,
     created_date,
     created_timestamp,
@@ -140,7 +146,7 @@ SELECT
 FROM product_catalog_lake;
 
 -- Export version 2
-INSERT INTO FUNCTION file('/tmp/data_lake/products/v2/*.parquet', 'Parquet')
+INSERT INTO FUNCTION file('data_lake/products/v2/data.parquet', 'Parquet')
 SELECT * FROM product_catalog_v2;
 
 SELECT '✅ Version 2 created with price updates' AS status;
@@ -156,7 +162,7 @@ WITH v1 AS (
     SELECT
         category,
         round(avg(price), 2) AS avg_price_v1
-    FROM file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+    FROM file('data_lake/products/v1/*.parquet', 'Parquet')
     GROUP BY category
 ),
 -- Version 2 (updated)
@@ -164,7 +170,7 @@ v2 AS (
     SELECT
         category,
         round(avg(price), 2) AS avg_price_v2
-    FROM file('/tmp/data_lake/products/v2/*.parquet', 'Parquet')
+    FROM file('data_lake/products/v2/*.parquet', 'Parquet')
     GROUP BY category
 )
 SELECT
@@ -228,7 +234,8 @@ SELECT '✅ Change log tracks all modifications' AS delta_feature;
 SELECT '=== Test 8: Iceberg-Style Partition Evolution ===' AS title;
 
 -- Export with date partitioning (Iceberg pattern)
-INSERT INTO FUNCTION file('/tmp/data_lake/products_partitioned/year={year}/month={month}/*.parquet', 'Parquet')
+INSERT INTO FUNCTION file('data_lake/products_partitioned/year={_partition_id}/data.parquet', 'Parquet')
+PARTITION BY year
 SELECT
     *,
     toYear(created_date) AS year,
@@ -242,7 +249,7 @@ SELECT
     category,
     count() AS products,
     round(avg(price), 2) AS avg_price
-FROM file('/tmp/data_lake/products_partitioned/year=*/month=*/*.parquet', 'Parquet')
+FROM file('data_lake/products_partitioned/**/*.parquet', 'Parquet')
 WHERE year = toYear(today()) AND month = toMonth(today())
 GROUP BY category
 ORDER BY products DESC;
@@ -256,8 +263,10 @@ SELECT '✅ Partition pruning optimizes queries' AS optimization;
 SELECT '=== Test 9: Schema Evolution (Add Columns) ===' AS title;
 
 -- Create table with additional columns (schema evolution)
-CREATE OR REPLACE TABLE product_catalog_evolved AS
-SELECT
+CREATE OR REPLACE TABLE product_catalog_evolved
+ENGINE = MergeTree
+ORDER BY product_id
+AS SELECT
     *,
     round(price * 1.2, 2) AS suggested_retail_price,
     ['online', 'retail', 'wholesale'][1 + (product_id % 3)] AS sales_channel,
@@ -265,7 +274,7 @@ SELECT
 FROM product_catalog_lake;
 
 -- Export evolved schema
-INSERT INTO FUNCTION file('/tmp/data_lake/products/v3/*.parquet', 'Parquet')
+INSERT INTO FUNCTION file('data_lake/products/v3/data.parquet', 'Parquet')
 SELECT * FROM product_catalog_evolved;
 
 SELECT '✅ Schema evolved with new columns' AS status;
@@ -278,7 +287,7 @@ SELECT
     round(avg(price), 2) AS avg_cost,
     round(avg(suggested_retail_price), 2) AS avg_retail,
     round(avg(suggested_retail_price - price), 2) AS avg_margin
-FROM file('/tmp/data_lake/products/v3/*.parquet', 'Parquet')
+FROM file('data_lake/products/v3/*.parquet', 'Parquet')
 GROUP BY sales_channel
 ORDER BY products DESC;
 
@@ -290,13 +299,13 @@ SELECT '=== Test 10: Query Across Multiple Versions ===' AS title;
 
 -- Query all versions
 WITH all_versions AS (
-    SELECT *, 'v1' AS version FROM file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+    SELECT *, 'v1' AS version FROM file('data_lake/products/v1/*.parquet', 'Parquet')
     UNION ALL
     SELECT
         product_id, product_name, category, subcategory, brand,
         price, cost, created_date, created_timestamp, is_active,
         attributes, tags, 'v2' AS version
-    FROM file('/tmp/data_lake/products/v2/*.parquet', 'Parquet')
+    FROM file('data_lake/products/v2/*.parquet', 'Parquet')
 )
 SELECT
     version,
@@ -325,7 +334,7 @@ WITH partition_info AS (
         round(sum(price), 2) AS total_value,
         min(created_date) AS min_date,
         max(created_date) AS max_date
-    FROM file('/tmp/data_lake/products_partitioned/year=*/month=*/*.parquet', 'Parquet')
+    FROM file('data_lake/products_partitioned/**/*.parquet', 'Parquet')
     GROUP BY year, month
 )
 SELECT
@@ -351,7 +360,7 @@ SELECT
     round(avg(price), 2) AS avg_price,
     round(sum(price), 2) AS inventory_value,
     count(DISTINCT category) AS categories
-FROM file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+FROM file('data_lake/products/v1/*.parquet', 'Parquet')
 
 UNION ALL
 
@@ -361,7 +370,7 @@ SELECT
     round(avg(price), 2) AS avg_price,
     round(sum(price), 2) AS inventory_value,
     count(DISTINCT category) AS categories
-FROM file('/tmp/data_lake/products/v3/*.parquet', 'Parquet');
+FROM file('data_lake/products/v3/*.parquet', 'Parquet');
 
 -- ==========================================
 -- Test 13: Audit Trail with Versions
@@ -372,12 +381,12 @@ SELECT '=== Test 13: Audit Trail for Data Changes ===' AS title;
 -- Track changes across versions
 WITH v1_products AS (
     SELECT product_id, price AS v1_price
-    FROM file('/tmp/data_lake/products/v1/*.parquet', 'Parquet')
+    FROM file('data_lake/products/v1/*.parquet', 'Parquet')
     WHERE category = 'Electronics'
 ),
 v2_products AS (
     SELECT product_id, price AS v2_price
-    FROM file('/tmp/data_lake/products/v2/*.parquet', 'Parquet')
+    FROM file('data_lake/products/v2/*.parquet', 'Parquet')
     WHERE category = 'Electronics'
 )
 SELECT

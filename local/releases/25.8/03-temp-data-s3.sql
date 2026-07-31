@@ -197,8 +197,8 @@ SELECT '(This type of query benefits from S3 temporary data)' AS note;
 -- Large JOIN between events, users, and products
 -- This would use temporary storage for hash tables
 SELECT
-    up.subscription_tier,
-    up.country,
+    up.subscription_tier AS subscription_tier,
+    up.country AS country,
     count() AS events,
     count(DISTINCT ue.user_id) AS active_users,
     count(DISTINCT ue.session_id) AS sessions,
@@ -325,8 +325,8 @@ WITH session_events AS (
     SELECT
         ue.session_id,
         ue.user_id,
-        up.subscription_tier,
-        up.country,
+        up.subscription_tier AS subscription_tier,
+        up.country AS country,
         count() AS event_count,
         countIf(ue.event_type = 'page_view') AS page_views,
         countIf(ue.event_type = 'click') AS clicks,

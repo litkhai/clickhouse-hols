@@ -6,6 +6,10 @@
 -- Test 1: Create Sample Sales Data
 -- ==========================================
 
+-- Parquet cannot be appended to, so allow re-running this lab over the
+-- files a previous run left in user_files.
+SET engine_file_truncate_on_insert = 1;
+
 SELECT '=== Test 1: Creating Sales Transaction Dataset ===' AS title;
 
 DROP TABLE IF EXISTS sales_transactions;
@@ -68,7 +72,8 @@ FROM sales_transactions;
 SELECT '=== Test 2: Export Data with Hive-Style Partitioning ===' AS title;
 
 -- Export to Parquet files with Hive partitioning (year=YYYY/month=MM/)
-INSERT INTO FUNCTION file('/tmp/sales_hive/{year}/month={month}/*.parquet', 'Parquet')
+INSERT INTO FUNCTION file('sales_hive/year={_partition_id}/data.parquet', 'Parquet')
+PARTITION BY year
 SELECT
     transaction_id,
     transaction_date,
@@ -90,8 +95,8 @@ SELECT
     month
 FROM sales_transactions;
 
-SELECT '✅ Data exported with Hive-style partitioning to /tmp/sales_hive/' AS status;
-SELECT '   Directory structure: /tmp/sales_hive/{year}/month={month}/*.parquet' AS info;
+SELECT '✅ Data exported with Hive-style partitioning to sales_hive/' AS status;
+SELECT '   Directory structure: sales_hive/year=YYYY/data.parquet' AS info;
 
 -- ==========================================
 -- Test 3: Read Hive-Partitioned Data
@@ -106,7 +111,7 @@ SELECT
     count(DISTINCT month) AS months,
     round(sum(total_amount), 2) AS total_sales,
     round(avg(total_amount), 2) AS avg_transaction
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 FORMAT Vertical;
 
 -- ==========================================
@@ -122,7 +127,7 @@ SELECT
     count() AS transactions,
     round(sum(total_amount), 2) AS monthly_sales,
     round(avg(total_amount), 2) AS avg_transaction
-FROM file('/tmp/sales_hive/*/month=*/*.parquet', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today()) AND month >= toMonth(today()) - 2
 GROUP BY year, month
 ORDER BY year DESC, month DESC;
@@ -144,7 +149,7 @@ SELECT
     round(sum(total_amount), 2) AS region_sales,
     round(avg(total_amount), 2) AS avg_transaction,
     count(DISTINCT customer_id) AS unique_customers
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today())
 GROUP BY year, month, store_region
 ORDER BY year DESC, month DESC, region_sales DESC
@@ -165,7 +170,7 @@ SELECT
     sum(quantity) AS units_sold,
     round(sum(total_amount), 2) AS category_revenue,
     round(avg(unit_price), 2) AS avg_price
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 GROUP BY year, quarter, product_category
 ORDER BY year DESC, quarter DESC, category_revenue DESC
 LIMIT 20;
@@ -187,7 +192,7 @@ SELECT
     round(sum(total_amount), 2) AS store_revenue,
     count(DISTINCT customer_id) AS unique_customers,
     round(avg(total_amount), 2) AS avg_transaction
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today())
 GROUP BY year, month, store_id, store_name, store_region
 ORDER BY year DESC, month DESC, store_revenue DESC
@@ -207,7 +212,7 @@ SELECT
     count() AS transactions,
     round(sum(total_amount), 2) AS payment_revenue,
     round(count() / sum(count()) OVER (PARTITION BY year, month) * 100, 2) AS percentage
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today())
 GROUP BY year, month, payment_method
 ORDER BY year DESC, month DESC, payment_revenue DESC;
@@ -227,7 +232,7 @@ SELECT
     round(avg(total_amount), 2) AS avg_transaction,
     count(DISTINCT customer_id) AS unique_customers,
     count(DISTINCT store_id) AS active_stores
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE transaction_date >= today() - INTERVAL 30 DAY
 GROUP BY transaction_date
 ORDER BY transaction_date DESC;
@@ -247,7 +252,7 @@ SELECT
     round(avg(total_amount), 2) AS avg_purchase,
     count(DISTINCT product_category) AS categories_purchased,
     arrayStringConcat(groupArray(DISTINCT payment_method), ', ') AS payment_methods
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today())
 GROUP BY customer_id
 HAVING lifetime_value > 1000
@@ -265,7 +270,7 @@ SELECT '--- Efficient Query: Specific Month Partitions ---' AS query_type;
 SELECT
     count() AS transactions,
     round(sum(total_amount), 2) AS revenue
-FROM file('/tmp/sales_hive/*/month={01,02,03}/*.parquet', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today());
 
 -- Less efficient: Scan all partitions with filter
@@ -273,7 +278,7 @@ SELECT '--- Full Scan: All Partitions with WHERE filter ---' AS query_type;
 SELECT
     count() AS transactions,
     round(sum(total_amount), 2) AS revenue
-FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+FROM file('sales_hive/**/*.parquet', 'Parquet')
 WHERE year = toYear(today()) AND month IN (1, 2, 3);
 
 SELECT '✅ Hive partitioning allows directory-level partition pruning!' AS optimization;
@@ -292,7 +297,7 @@ WITH monthly_sales AS (
         round(sum(total_amount), 2) AS revenue,
         count() AS transactions,
         count(DISTINCT customer_id) AS customers
-    FROM file('/tmp/sales_hive/*/*/*', 'Parquet')
+    FROM file('sales_hive/**/*.parquet', 'Parquet')
     GROUP BY year, month
 )
 SELECT
