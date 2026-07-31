@@ -6,6 +6,9 @@ S3_ClickPipes_Performance_Guide.md
 # Secrets — commit only the .example / .template counterparts
 .env
 .env.local
+# ...except this one: it holds lab dimensions (ports, ROWS, partitions), no
+# credentials, and _env.sh silently falls back to defaults when it is absent.
+!workload/kafka-partitioning-ingestion/.env
 *.tfvars
 !*.tfvars.example
 

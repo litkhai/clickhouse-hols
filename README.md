@@ -152,6 +152,32 @@ This repository is **public**. Never commit real endpoints, passwords or API key
 - Scripts read connection details from the environment and fail with instructions when they are missing
 - ClickHouse Cloud **API keys are organization-wide** — scope them to the smallest role that works, and rotate them if they are ever exposed
 
+### ✅ Repository Checks
+
+CI runs on every push and pull request ([`.github/workflows/checks.yml`](.github/workflows/checks.yml)):
+
+| Job | What it enforces |
+|-----|------------------|
+| `links` | Every relative markdown link resolves |
+| `syntax` | All tracked `.sh`, `.py`, `.yml` files parse |
+| `shellcheck` | Shell lint (advisory, does not block) |
+| `secrets` | gitleaks with the ClickHouse rules in [`.gitleaks.toml`](.gitleaks.toml) |
+| `hygiene` | No tracked file is shadowed by an ignore rule; no `/Users/...` paths in code |
+
+Run the same checks locally, and enable the pre-commit guard once per clone:
+
+```bash
+python3 .github/scripts/check_links.py
+./.github/scripts/check_syntax.sh
+gitleaks detect --config .gitleaks.toml --no-banner --redact
+
+# blocks staged secrets, host absolute paths and syntax errors
+brew install gitleaks
+git config core.hooksPath .githooks
+```
+
+Also enable **Settings → Code security → Push protection** on the GitHub repository, so a secret is rejected at push time even when the hook is not installed.
+
 ### 🤝 Contributing
 
 Issues and pull requests are welcome.
@@ -315,6 +341,32 @@ cd clickhouse-hols
 - `*.env.example` / `*.tfvars.example`을 실제 파일명으로 복사해 로컬에서 수정하세요. `.env`와 `*.tfvars`는 gitignore 처리돼 있습니다
 - 스크립트는 접속 정보를 환경변수에서 읽고, 없으면 안내와 함께 종료합니다
 - ClickHouse Cloud **API 키는 조직 전체 범위**입니다 — 최소 권한으로 제한하고, 노출된 적이 있다면 반드시 교체하세요
+
+### ✅ 저장소 검사
+
+push와 pull request마다 CI가 실행됩니다 ([`.github/workflows/checks.yml`](.github/workflows/checks.yml)).
+
+| Job | 검사 내용 |
+|-----|-----------|
+| `links` | 모든 마크다운 상대 링크가 실제로 존재하는지 |
+| `syntax` | 추적 중인 `.sh`, `.py`, `.yml` 전체 구문 |
+| `shellcheck` | 셸 린트 (참고용, 차단하지 않음) |
+| `secrets` | [`.gitleaks.toml`](.gitleaks.toml)의 ClickHouse 규칙으로 gitleaks 스캔 |
+| `hygiene` | ignore 규칙에 가려진 추적 파일 없음, 코드에 `/Users/...` 경로 없음 |
+
+동일한 검사를 로컬에서 실행하고, 클론마다 한 번 pre-commit 가드를 활성화하세요.
+
+```bash
+python3 .github/scripts/check_links.py
+./.github/scripts/check_syntax.sh
+gitleaks detect --config .gitleaks.toml --no-banner --redact
+
+# 스테이징된 시크릿·호스트 절대경로·구문 오류를 차단
+brew install gitleaks
+git config core.hooksPath .githooks
+```
+
+GitHub 저장소의 **Settings → Code security → Push protection**도 켜두면, 훅이 설치되지 않은 환경에서도 push 시점에 시크릿이 차단됩니다.
 
 ### 🤝 기여
 

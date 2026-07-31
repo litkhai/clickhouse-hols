@@ -473,7 +473,7 @@ Next Steps:
 
 ### ✅ DO:
 - Use the interactive mode for initial setup
-- Set password via environment variable: `export CLICKHOUSE_PASSWORD='secret'`
+- Set password via environment variable: `export CLICKHOUSE_PASSWORD='your-password'`
 - Add `config.sh` to `.gitignore` (already done)
 - Review the final configuration before confirming
 
