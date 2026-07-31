@@ -33,7 +33,7 @@ ClickHouse 25.8 includes a new Parquet Reader (1.81x faster), enhanced Data Lake
 
 ```bash
 # 1. Install ClickHouse 25.8 + MinIO Data Lake and start
-cd local/25.8
+cd local/releases/25.8
 ./00-setup.sh   # Deploys ClickHouse 25.8, MinIO, and Nessie
 
 # 2. Run tests for each feature
@@ -72,7 +72,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.8
+cd ../releases/25.8
 source 01-new-parquet-reader.sql
 ```
 
@@ -570,6 +570,8 @@ docker logs clickhouse-25-8
 
 ### 📝 Notes
 
+- All features verified on ClickHouse 25.8.28.1
+- `06-minio-integration` needs the companion MinIO stack and is not covered by that run
 - Each script can be executed independently
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
@@ -709,7 +711,7 @@ cd ../datalake-minio-catalog
 docker-compose down -v
 
 # 2. Full restart
-cd ../25.8
+cd ../releases/25.8
 ./00-setup.sh
 ```
 
@@ -791,7 +793,7 @@ ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake �
 
 ```bash
 # 1. ClickHouse 25.8 + MinIO Data Lake 설치 및 시작
-cd local/25.8
+cd local/releases/25.8
 ./00-setup.sh   # ClickHouse 25.8, MinIO, Nessie를 모두 배포합니다
 
 # 2. 각 기능별 테스트 실행
@@ -830,7 +832,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.8
+cd ../releases/25.8
 source 01-new-parquet-reader.sql
 ```
 
@@ -1467,7 +1469,7 @@ cd ../datalake-minio-catalog
 docker-compose down -v
 
 # 2. 전체 재시작
-cd ../25.8
+cd ../releases/25.8
 ./00-setup.sh
 ```
 

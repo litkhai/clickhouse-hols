@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.7 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.7 (released 2025-07-24).
+A hands-on laboratory for learning and testing ClickHouse 25.7 new features. This directory focuses on verified and working features newly added in ClickHouse 25.7 (released 2025-07-24).
 
 ### 📋 Overview
 
@@ -31,7 +31,7 @@ ClickHouse 25.7 includes revolutionary SQL UPDATE/DELETE optimization, AI-powere
 
 ```bash
 # 1. Install and start ClickHouse 25.7
-cd local/25.7
+cd local/releases/25.7
 ./00-setup.sh
 
 # 2. Run tests for each feature
@@ -51,7 +51,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.7
+cd ../releases/25.7
 source 01-sql-update-delete.sql
 ```
 
@@ -353,6 +353,7 @@ docker logs clickhouse-25-7
 
 ### 📝 Notes
 
+- All features verified on ClickHouse 25.7.8.71
 - Each script can be executed independently
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
@@ -495,7 +496,7 @@ ClickHouse 25.7은 혁신적인 SQL UPDATE/DELETE 최적화, AI 기반 SQL 생�
 
 ```bash
 # 1. ClickHouse 25.7 설치 및 시작
-cd local/25.7
+cd local/releases/25.7
 ./00-setup.sh
 
 # 2. 각 기능별 테스트 실행
@@ -515,7 +516,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.7
+cd ../releases/25.7
 source 01-sql-update-delete.sql
 ```
 

@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.5 (released 2025-05-22).
+A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory focuses on verified and working features newly added in ClickHouse 25.5 (released 2025-05-22).
 
 ### 📋 Overview
 
@@ -166,11 +166,11 @@ cat 01-vector-similarity-index.sql | docker exec -i clickhouse-25-5 clickhouse-c
 
 **Test Content:**
 - `sparseGrams(string, n)` - substring extraction for text analysis
-- `mapContainsKey(map, key)` - check if map has key
-- `mapContainsValue(map, value)` - check if map has value
-- `mapContainsValueLike(map, pattern)` - pattern matching in map values
+- `mapContains(map, key)` - check if map has key
+- `has(mapValues(map), value)` - check if map has value
+- `arrayExists(x -> x LIKE pattern, mapValues(map))` - pattern matching in map values
 - `icebergHash(value)` - Iceberg-compatible hashing
-- `icebergBucketTransform(buckets, value)` - Iceberg bucketing
+- `icebergBucket(buckets, value)` - Iceberg bucketing
 
 **Execute:**
 ```bash
@@ -317,6 +317,7 @@ docker logs clickhouse-25-5
 
 ### 📝 Notes
 
+- All features verified on ClickHouse 25.5.11.15
 - Each script can be executed independently
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
@@ -542,11 +543,11 @@ cat 01-vector-similarity-index.sql | docker exec -i clickhouse-25-5 clickhouse-c
 
 **테스트 내용:**
 - `sparseGrams(string, n)` - 텍스트 분석을 위한 부분 문자열 추출
-- `mapContainsKey(map, key)` - 맵이 키를 가지고 있는지 확인
-- `mapContainsValue(map, value)` - 맵이 값을 가지고 있는지 확인
-- `mapContainsValueLike(map, pattern)` - 맵 값에서 패턴 매칭
+- `mapContains(map, key)` - 맵이 키를 가지고 있는지 확인
+- `has(mapValues(map), value)` - 맵이 값을 가지고 있는지 확인
+- `arrayExists(x -> x LIKE pattern, mapValues(map))` - 맵 값에서 패턴 매칭
 - `icebergHash(value)` - Iceberg 호환 해싱
-- `icebergBucketTransform(buckets, value)` - Iceberg 버킷팅
+- `icebergBucket(buckets, value)` - Iceberg 버킷팅
 
 **실행:**
 ```bash

@@ -30,7 +30,7 @@ ClickHouse 25.11 includes important SQL compatibility improvements, Map type enh
 
 ```bash
 # 1. Install and start ClickHouse 25.11
-cd local/25.11
+cd local/releases/25.11
 ./00-setup.sh
 
 # 2. Run tests for each feature
@@ -50,7 +50,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.11
+cd ../releases/25.11
 source 01-having-without-groupby.sql
 ```
 
@@ -315,7 +315,7 @@ ClickHouse 25.11은 SQL 호환성 개선, Map 타입 향상, 공간 데이터 �
 
 ```bash
 # 1. ClickHouse 25.11 설치 및 시작
-cd local/25.11
+cd local/releases/25.11
 ./00-setup.sh
 
 # 2. 각 기능별 테스트 실행
@@ -335,7 +335,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.11
+cd ../releases/25.11
 source 01-having-without-groupby.sql
 ```
 

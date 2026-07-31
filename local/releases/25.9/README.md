@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.9 (released 2025-09-25; 25 new features, 22 performance optimizations, 83 bug fixes).
+A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory focuses on verified and working features newly added in ClickHouse 25.9 (released 2025-09-25; 25 new features, 22 performance optimizations, 83 bug fixes).
 
 ### 📋 Overview
 
@@ -32,7 +32,7 @@ ClickHouse 25.9 includes automatic join optimization, full-text search indexes, 
 
 ```bash
 # 1. Install and start ClickHouse 25.9
-cd local/25.9
+cd local/releases/25.9
 ./00-setup.sh
 
 # 2. Run tests for each feature
@@ -60,7 +60,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.9
+cd ../releases/25.9
 source 01-join-reordering.sql
 ```
 
@@ -90,7 +90,7 @@ source 01-join-reordering.sql
 **Example:**
 ```sql
 -- Enable automatic join reordering
-SET allow_experimental_join_reordering = 1;
+SET query_plan_join_swap_table = 'auto';
 
 SELECT
     c.continent,
@@ -133,7 +133,7 @@ CREATE TABLE articles
     article_id UInt64,
     title String,
     content String,
-    INDEX content_idx content TYPE full_text GRANULARITY 1
+    INDEX content_idx content TYPE text(tokenizer = 'default') GRANULARITY 1
 )
 ENGINE = MergeTree()
 ORDER BY article_id;
@@ -296,7 +296,7 @@ curl http://localhost:8123/
 
 | Feature | Status | Setting |
 |---------|--------|---------|
-| Join Reordering | Experimental | `allow_experimental_join_reordering = 1` |
+| Join Reordering | Stable | `query_plan_join_swap_table = 'auto'` (default) |
 | Text Index | Experimental | Built into table definition |
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
@@ -323,13 +323,14 @@ curl http://localhost:8123/
 
 ### 🚨 Important Notes
 
+- All features verified on ClickHouse 25.9.7.56
 - **Experimental Features**: Join Reordering and Text Index are experimental in 25.9
 - **Settings Required**: Experimental features must be enabled with appropriate SET commands
 - **Performance Testing**: Perform performance tests with actual data scale
 - **Production Use**: Thorough testing required before production deployment
 
 **Key Settings:**
-- `SET allow_experimental_join_reordering = 1;` - Enable join reordering
+- `SET query_plan_join_swap_table = 'auto';` - Enable join reordering
 - `SET use_skip_indexes_on_data_read = 1;` - Enable streaming indices
 
 ### 🧹 Cleanup
@@ -389,7 +390,7 @@ ClickHouse 25.9는 자동 조인 최적화, 전문 검색 인덱스, 스트리�
 
 ```bash
 # 1. ClickHouse 25.9 설치 및 시작
-cd local/25.9
+cd local/releases/25.9
 ./00-setup.sh
 
 # 2. 각 기능별 테스트 실행
@@ -417,7 +418,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.9
+cd ../releases/25.9
 source 01-join-reordering.sql
 ```
 
@@ -447,7 +448,7 @@ source 01-join-reordering.sql
 **예시:**
 ```sql
 -- Enable automatic join reordering
-SET allow_experimental_join_reordering = 1;
+SET query_plan_join_swap_table = 'auto';
 
 SELECT
     c.continent,
@@ -490,7 +491,7 @@ CREATE TABLE articles
     article_id UInt64,
     title String,
     content String,
-    INDEX content_idx content TYPE full_text GRANULARITY 1
+    INDEX content_idx content TYPE text(tokenizer = 'default') GRANULARITY 1
 )
 ENGINE = MergeTree()
 ORDER BY article_id;
@@ -653,7 +654,7 @@ curl http://localhost:8123/
 
 | Feature | Status | Setting |
 |---------|--------|---------|
-| Join Reordering | Experimental | `allow_experimental_join_reordering = 1` |
+| Join Reordering | Stable | `query_plan_join_swap_table = 'auto'` (default) |
 | Text Index | Experimental | Built into table definition |
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
@@ -686,7 +687,7 @@ curl http://localhost:8123/
 - **Production Use**: 프로덕션 환경에서 사용하기 전에 충분한 테스트를 거쳐야 합니다
 
 **주요 설정:**
-- `SET allow_experimental_join_reordering = 1;` - 조인 재정렬 활성화
+- `SET query_plan_join_swap_table = 'auto';` - 조인 재정렬 활성화
 - `SET use_skip_indexes_on_data_read = 1;` - 스트리밍 인덱스 활성화
 
 ### 🧹 정리

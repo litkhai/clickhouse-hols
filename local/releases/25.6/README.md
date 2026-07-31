@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.6 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.6 (released 2025-06-26).
+A hands-on laboratory for learning and testing ClickHouse 25.6 new features. This directory focuses on verified and working features newly added in ClickHouse 25.6 (released 2025-06-26).
 
 ### 📋 Overview
 
@@ -31,7 +31,7 @@ ClickHouse 25.6 includes CoalescingMergeTree table engine, new Time data types, 
 
 ```bash
 # 1. Install and start ClickHouse 25.6
-cd local/25.6
+cd local/releases/25.6
 ./00-setup.sh
 
 # 2. Run tests for each feature
@@ -52,7 +52,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.6
+cd ../releases/25.6
 source 01-coalescingmergetree.sql
 ```
 
@@ -313,6 +313,7 @@ docker logs clickhouse-25-6
 
 ### 📝 Notes
 
+- All features verified on ClickHouse 25.6.13.41
 - Each script can be executed independently
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
@@ -394,7 +395,7 @@ ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이�
 
 ```bash
 # 1. ClickHouse 25.6 설치 및 시작
-cd local/25.6
+cd local/releases/25.6
 ./00-setup.sh
 
 # 2. 각 기능별 테스트 실행
@@ -415,7 +416,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.6
+cd ../releases/25.6
 source 01-coalescingmergetree.sql
 ```
 

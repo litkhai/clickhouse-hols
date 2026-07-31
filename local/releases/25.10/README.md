@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory is designed for practical exercises and iterative learning of features newly added in ClickHouse 25.10 (released 2025-10-30).
+A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory focuses on verified and working features newly added in ClickHouse 25.10 (released 2025-10-30).
 
 ### 📋 Overview
 
@@ -31,7 +31,7 @@ ClickHouse 25.10 includes JOIN performance improvements, new data types for vect
 
 ```bash
 # 1. Install and start ClickHouse 25.10
-cd local/25.10
+cd local/releases/25.10
 ./00-setup.sh
 
 # 2. Run tests for each feature
@@ -52,7 +52,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # Execute SQL file
-cd ../25.10
+cd ../releases/25.10
 source 01-qbit-vector-search.sql
 ```
 
@@ -144,7 +144,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 ```
 
 **Key Learning Points:**
-- `LIMIT 2 BY ALL user_id`: 2 records per user
+- `LIMIT 2 BY ALL`: 2 records per distinct combination of the selected columns
 - Simple syntax instead of window functions
 - Data quality checks and sampling
 - Retrieve first/last records per group
@@ -156,7 +156,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 **New Feature:** Table-level automatic statistics collection settings
 
 **Test Content:**
-- `auto_collect_statistics` configuration
+- `auto_statistics_types` configuration
 - minmax, uniq, countmin statistics types
 - Statistics-based automatic JOIN order optimization
 - Query system.statistics table
@@ -245,6 +245,7 @@ docker logs clickhouse-25-10
 
 ### 📝 Notes
 
+- All features verified on ClickHouse 25.10.7.6
 - Each script can be executed independently
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
@@ -296,7 +297,7 @@ ClickHouse 25.10은 JOIN 성능 개선, 벡터 검색을 위한 새로운 데이
 
 ```bash
 # 1. ClickHouse 25.10 설치 및 시작
-cd local/25.10
+cd local/releases/25.10
 ./00-setup.sh
 
 # 2. 각 기능별 테스트 실행
@@ -317,7 +318,7 @@ cd ../../oss-mac-setup
 ./client.sh 8123
 
 # SQL 파일 실행
-cd ../25.10
+cd ../releases/25.10
 source 01-qbit-vector-search.sql
 ```
 
@@ -409,7 +410,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 ```
 
 **주요 학습 포인트:**
-- `LIMIT 2 BY ALL user_id`: 각 사용자별 2개씩
+- `LIMIT 2 BY ALL`: SELECT 목록의 고유 조합마다 2개씩
 - 윈도우 함수 대신 간단한 문법 사용
 - 데이터 품질 체크 및 샘플링
 - 그룹별 첫/마지막 레코드 조회
@@ -421,7 +422,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 **새로운 기능:** 테이블 수준 자동 통계 수집 설정
 
 **테스트 내용:**
-- `auto_collect_statistics` 설정
+- `auto_statistics_types` 설정
 - minmax, uniq, countmin 통계 타입
 - 통계 기반 JOIN 순서 자동 최적화
 - system.statistics 테이블 조회
