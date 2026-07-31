@@ -27,9 +27,9 @@ CREATE TABLE fact_sales
 ENGINE = MergeTree()
 ORDER BY (sale_date, sale_id)
 SETTINGS
-    -- Enable auto statistics (new in 25.10)
-    auto_collect_statistics = 1,
-    statistics_accurate_sample_size = 100000;
+    -- Enable auto statistics (new in 25.10): a comma-separated list of the
+    -- statistics types to build automatically on every suitable column.
+    auto_statistics_types = 'countmin,minmax,uniq';
 
 -- Dimension table: Products
 CREATE TABLE dim_products
@@ -44,7 +44,7 @@ CREATE TABLE dim_products
 ENGINE = MergeTree()
 ORDER BY product_id
 SETTINGS
-    auto_collect_statistics = 1;
+    auto_statistics_types = 'countmin,minmax,uniq';
 
 -- Dimension table: Customers
 CREATE TABLE dim_customers
@@ -59,7 +59,7 @@ CREATE TABLE dim_customers
 ENGINE = MergeTree()
 ORDER BY customer_id
 SETTINGS
-    auto_collect_statistics = 1;
+    auto_statistics_types = 'countmin,minmax,uniq';
 
 -- Insert sample data into products
 INSERT INTO dim_products VALUES
@@ -104,12 +104,11 @@ INSERT INTO fact_sales VALUES
 -- Query 1: Check table statistics settings
 SELECT '=== Table Statistics Settings ===' AS title;
 SELECT
-    table,
     name AS setting_name,
-    value
-FROM system.settings
-WHERE name LIKE '%statistic%'
-LIMIT 10;
+    value,
+    description
+FROM system.merge_tree_settings
+WHERE name LIKE '%statistic%';
 
 -- Query 2: View collected statistics
 SELECT '=== System Statistics ===' AS title;
@@ -117,12 +116,12 @@ SELECT
     database,
     table,
     column,
-    type,
-    rows_count,
+    statistics,
+    rows,
     data_compressed_bytes,
     data_uncompressed_bytes
-FROM system.statistics
-WHERE database = currentDatabase()
+FROM system.parts_columns
+WHERE database = currentDatabase() AND active AND notEmpty(statistics)
 ORDER BY table, column;
 
 -- Query 3: Basic query with statistics
@@ -224,14 +223,15 @@ SELECT '=== Statistics Metadata ===' AS title;
 SELECT
     table,
     column,
-    type,
-    rows_count,
-    formatReadableSize(data_compressed_bytes) AS compressed_size,
-    formatReadableSize(data_uncompressed_bytes) AS uncompressed_size,
-    round(data_uncompressed_bytes / data_compressed_bytes, 2) AS compression_ratio
-FROM system.statistics
-WHERE database = currentDatabase()
+    statistics,
+    sum(rows) AS rows,
+    formatReadableSize(sum(data_compressed_bytes)) AS compressed_size,
+    formatReadableSize(sum(data_uncompressed_bytes)) AS uncompressed_size,
+    round(sum(data_uncompressed_bytes) / sum(data_compressed_bytes), 2) AS compression_ratio
+FROM system.parts_columns
+WHERE database = currentDatabase() AND active
   AND table IN ('fact_sales', 'dim_products', 'dim_customers')
+GROUP BY table, column, statistics
 ORDER BY table, column;
 
 -- Benefits of Auto Statistics

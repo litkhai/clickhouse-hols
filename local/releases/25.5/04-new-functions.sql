@@ -5,11 +5,11 @@
 SELECT '=== New Functions in ClickHouse 25.5 ===' AS title;
 SELECT
     'sparseGrams - finds all substrings of length >= n' AS function_1,
-    'mapContainsKey - checks if map contains a key' AS function_2,
-    'mapContainsValue - checks if map contains a value' AS function_3,
-    'mapContainsValueLike - checks if map contains value matching pattern' AS function_4,
+    'mapContains - checks if map contains a key' AS function_2,
+    'has(mapValues()) - checks if map contains a value' AS function_3,
+    'arrayExists over mapValues - checks if map contains value matching pattern' AS function_4,
     'icebergHash - Iceberg table hashing function' AS function_5,
-    'icebergBucketTransform - Iceberg bucketing transformation' AS function_6;
+    'icebergBucket - Iceberg bucketing transformation' AS function_6;
 
 -- =====================================
 -- 1. sparseGrams Function
@@ -59,14 +59,14 @@ FROM text_documents
 ORDER BY unique_4grams DESC;
 
 -- =====================================
--- 2. Map Functions: mapContainsKey, mapContainsValue, mapContainsValueLike
+-- 2. Map Functions: mapContains, has(mapValues()), arrayExists over mapValues
 -- =====================================
 
 SELECT '=== Map Functions ===' AS title;
 SELECT
-    'mapContainsKey - checks if map has a specific key' AS func_1,
-    'mapContainsValue - checks if map has a specific value' AS func_2,
-    'mapContainsValueLike - checks if map has value matching pattern' AS func_3;
+    'mapContains - checks if map has a specific key' AS func_1,
+    'has(mapValues()) - checks if map has a specific value' AS func_2,
+    'arrayExists over mapValues - checks if map has value matching pattern' AS func_3;
 
 -- Create a table with map columns
 DROP TABLE IF EXISTS user_preferences;
@@ -99,37 +99,37 @@ INSERT INTO user_preferences VALUES
      map('notifications', 'disabled', 'beta', 'true'),
      map('plan', 'free', 'region', 'apac'));
 
--- Query 1: mapContainsKey - Find users with specific settings
-SELECT '--- Users with Theme Setting (mapContainsKey) ---' AS query;
+-- Query 1: mapContains - Find users with specific settings
+SELECT '--- Users with Theme Setting (mapContains) ---' AS query;
 SELECT
     user_id,
     user_name,
-    mapContainsKey(settings, 'theme') AS has_theme,
-    mapContainsKey(settings, 'font_size') AS has_font_size,
+    mapContains(settings, 'theme') AS has_theme,
+    mapContains(settings, 'font_size') AS has_font_size,
     settings['theme'] AS theme_value
 FROM user_preferences
-WHERE mapContainsKey(settings, 'theme');
+WHERE mapContains(settings, 'theme');
 
--- Query 2: mapContainsValue - Find users with specific values
-SELECT '--- Users with Dark Theme (mapContainsValue) ---' AS query;
+-- Query 2: has(mapValues()) - Find users with specific values
+SELECT '--- Users with Dark Theme (has(mapValues())) ---' AS query;
 SELECT
     user_id,
     user_name,
     settings,
-    mapContainsValue(settings, 'dark') AS has_dark_theme
+    has(mapValues(settings), 'dark') AS has_dark_theme
 FROM user_preferences
-WHERE mapContainsValue(settings, 'dark');
+WHERE has(mapValues(settings), 'dark');
 
--- Query 3: mapContainsValueLike - Pattern matching in map values
-SELECT '--- Premium/Professional Plans (mapContainsValueLike) ---' AS query;
+-- Query 3: arrayExists over mapValues - Pattern matching in map values
+SELECT '--- Premium/Professional Plans (arrayExists over mapValues) ---' AS query;
 SELECT
     user_id,
     user_name,
     metadata,
     metadata['plan'] AS plan,
-    mapContainsValueLike(metadata, 'premium%') OR mapContainsValueLike(metadata, 'professional%') AS is_paid_plan
+    arrayExists(x -> x LIKE 'premium%', mapValues(metadata)) OR arrayExists(x -> x LIKE 'professional%', mapValues(metadata)) AS is_paid_plan
 FROM user_preferences
-WHERE mapContainsValueLike(metadata, 'premium%') OR mapContainsValueLike(metadata, 'professional%');
+WHERE arrayExists(x -> x LIKE 'premium%', mapValues(metadata)) OR arrayExists(x -> x LIKE 'professional%', mapValues(metadata));
 
 -- Query 4: Combine multiple map checks
 SELECT '--- Beta Users with Notifications Enabled ---' AS query;
@@ -140,17 +140,17 @@ SELECT
     features['notifications'] AS notification_status
 FROM user_preferences
 WHERE
-    mapContainsKey(features, 'beta') AND features['beta'] = 'true'
-    AND mapContainsKey(features, 'notifications') AND features['notifications'] = 'enabled';
+    mapContains(features, 'beta') AND features['beta'] = 'true'
+    AND mapContains(features, 'notifications') AND features['notifications'] = 'enabled';
 
 -- =====================================
--- 3. Iceberg Functions: icebergHash, icebergBucketTransform
+-- 3. Iceberg Functions: icebergHash, icebergBucket
 -- =====================================
 
 SELECT '=== Iceberg Functions ===' AS title;
 SELECT
     'icebergHash - computes hash for Iceberg partitioning' AS func_1,
-    'icebergBucketTransform - transforms value for Iceberg bucketing' AS func_2,
+    'icebergBucket - transforms value for Iceberg bucketing' AS func_2,
     'Used for compatible partitioning with Apache Iceberg tables' AS purpose;
 
 -- Create sample data for Iceberg hashing
@@ -191,22 +191,22 @@ SELECT
 FROM iceberg_compatible_data
 LIMIT 5;
 
--- Query 2: icebergBucketTransform - bucket assignment
+-- Query 2: icebergBucket - bucket assignment
 SELECT '--- Iceberg Bucket Transform Examples ---' AS query;
 SELECT
     user_email,
-    icebergBucketTransform(16, user_email) AS email_bucket_16,
+    icebergBucket(16, user_email) AS email_bucket_16,
     product_sku,
-    icebergBucketTransform(8, product_sku) AS sku_bucket_8,
+    icebergBucket(8, product_sku) AS sku_bucket_8,
     id,
-    icebergBucketTransform(4, id) AS id_bucket_4
+    icebergBucket(4, id) AS id_bucket_4
 FROM iceberg_compatible_data
 LIMIT 5;
 
 -- Query 3: Distribution analysis using buckets
 SELECT '--- Bucket Distribution Analysis ---' AS query;
 SELECT
-    icebergBucketTransform(8, user_email) AS bucket,
+    icebergBucket(8, user_email) AS bucket,
     count(*) AS record_count,
     groupArray(user_email) AS users_in_bucket
 FROM iceberg_compatible_data
@@ -243,7 +243,7 @@ SELECT
     avg(numerical_features['lifetime_value']) AS avg_ltv,
     avg(numerical_features['engagement_score']) AS avg_engagement
 FROM ml_features
-WHERE mapContainsKey(categorical_features, 'segment')
+WHERE mapContains(categorical_features, 'segment')
 GROUP BY segment
 ORDER BY avg_ltv DESC;
 
@@ -251,8 +251,8 @@ ORDER BY avg_ltv DESC;
 SELECT '=== Benefits of New Functions ===' AS info;
 SELECT
     'sparseGrams: Powerful text analysis and fuzzy search capabilities' AS benefit_1,
-    'mapContainsKey/Value: Efficient map filtering without extraction' AS benefit_2,
-    'mapContainsValueLike: Pattern matching within map structures' AS benefit_3,
+    'mapContains/Value: Efficient map filtering without extraction' AS benefit_2,
+    'arrayExists over mapValues: Pattern matching within map structures' AS benefit_3,
     'icebergHash/Bucket: Seamless integration with Iceberg tables' AS benefit_4,
     'All functions optimized for performance and scalability' AS benefit_5;
 

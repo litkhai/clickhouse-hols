@@ -90,7 +90,7 @@ SELECT '=== Test 2: Multi-Way Join (Manual Order) ===' AS title;
 SELECT '\nManual join order: orders -> products -> countries\n' AS info;
 
 -- Disable join reordering to see baseline performance
-SET allow_experimental_join_reordering = 0;
+SET query_plan_join_swap_table = 'false';
 
 SELECT
     c.continent,
@@ -116,7 +116,7 @@ SELECT '=== Test 3: Multi-Way Join (Automatic Reordering) ===' AS title;
 SELECT '\n🚀 ClickHouse 25.9 New Feature: Automatic Join Reordering\nClickHouse will automatically reorder joins based on table sizes and statistics\n' AS info;
 
 -- Enable automatic join reordering
-SET allow_experimental_join_reordering = 1;
+SET query_plan_join_swap_table = 'auto';
 
 EXPLAIN
 SELECT
@@ -179,7 +179,7 @@ FROM numbers(50000);
 SELECT format('✅ Created customers table: {0} rows', count()) AS status FROM customers;
 
 -- 4-way join with automatic reordering
-SET allow_experimental_join_reordering = 1;
+SET query_plan_join_swap_table = 'auto';
 
 SELECT
     cu.segment,
@@ -231,7 +231,7 @@ SELECT '
    - Data warehouse workloads
 
 Note: This is an experimental feature in 25.9
-Enable with: SET allow_experimental_join_reordering = 1;
+Enable with: SET query_plan_join_swap_table = auto
 ' AS benefits;
 
 -- Cleanup (commented out for inspection)

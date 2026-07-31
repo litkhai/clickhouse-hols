@@ -5,6 +5,9 @@
 -- Drop tables if exist
 DROP TABLE IF EXISTS product_embeddings;
 
+-- The vector similarity index is experimental in 25.5 and must be enabled first.
+SET allow_experimental_vector_similarity_index = 1;
+
 -- Create a table with vector embeddings for product recommendations
 -- This demonstrates the Vector Similarity Index feature in ClickHouse 25.5
 CREATE TABLE product_embeddings
@@ -14,7 +17,7 @@ CREATE TABLE product_embeddings
     category String,
     price Float32,
     embedding Array(Float32),
-    INDEX vec_idx embedding TYPE vector_similarity('hnsw', 'L2Distance') GRANULARITY 1
+    INDEX vec_idx embedding TYPE vector_similarity('hnsw', 'L2Distance', 8) GRANULARITY 1
 )
 ENGINE = MergeTree()
 ORDER BY product_id

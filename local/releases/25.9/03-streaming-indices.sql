@@ -120,7 +120,7 @@ WHERE event_type = 'video_play'
 ORDER BY event_time DESC
 LIMIT 100;
 
-SELECT format('✅ Retrieved top 100 events efficiently using streaming indices') AS status;
+SELECT 'Retrieved top 100 events efficiently using streaming indices' AS status;
 
 -- ==========================================
 -- Test 6: Session Analysis with Indices

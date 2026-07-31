@@ -45,7 +45,7 @@ INSERT INTO streaming_events VALUES
 -- This simulates the implicit table feature's schema discovery
 SELECT '=== JSON Schema Discovery (JSONAllPathsWithTypes) ===' AS title;
 SELECT DISTINCT
-    JSONAllPathsWithTypes(properties) AS properties_schema
+    JSONAllPathsWithTypes(properties::JSON) AS properties_schema
 FROM streaming_events
 LIMIT 5;
 
@@ -119,7 +119,7 @@ INSERT INTO application_logs VALUES
 SELECT '=== Log Context Schema Discovery ===' AS title;
 SELECT DISTINCT
     service,
-    JSONAllPathsWithTypes(context) AS context_schema
+    JSONAllPathsWithTypes(context::JSON) AS context_schema
 FROM application_logs;
 
 -- Query 6: Service health dashboard

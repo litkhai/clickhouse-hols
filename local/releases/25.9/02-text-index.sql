@@ -10,6 +10,9 @@ SELECT '=== Test 1: Creating Articles Table with Text Index ===' AS title;
 
 SELECT '\n🚀 ClickHouse 25.9 New Feature: Text Index for Full-Text Search\nExperimental feature for efficient full-text search\n' AS info;
 
+-- The text index is experimental in 25.9 and must be enabled first.
+SET allow_experimental_full_text_index = 1;
+
 DROP TABLE IF EXISTS articles;
 
 CREATE TABLE articles
@@ -22,7 +25,7 @@ CREATE TABLE articles
     publish_date Date,
     tags Array(String),
     view_count UInt32,
-    INDEX content_idx content TYPE full_text GRANULARITY 1
+    INDEX content_idx content TYPE text(tokenizer = 'default') GRANULARITY 1
 )
 ENGINE = MergeTree()
 ORDER BY (publish_date, article_id)
@@ -66,7 +69,7 @@ SELECT
     concat('Author_', toString((number % 20) + 1)) AS author,
     ['Technology', 'Database', 'Analytics', 'Cloud', 'Security'][1 + (number % 5)] AS category,
     today() - INTERVAL (number % 365) DAY AS publish_date,
-    ['clickhouse', 'database', 'analytics', 'performance', 'sql'][1:(number % 3) + 2] AS tags,
+    arraySlice(['clickhouse', 'database', 'analytics', 'performance', 'sql'], 1, (number % 3) + 2) AS tags,
     1000 + (number % 10000) AS view_count
 FROM numbers(10000);
 
@@ -250,7 +253,7 @@ SELECT '
    - Technical documentation search
 
 4. Configuration:
-   INDEX index_name column_name TYPE full_text GRANULARITY 1
+   INDEX index_name column_name TYPE text(tokenizer = default) GRANULARITY 1
 
 Note: This is an EXPERIMENTAL feature in 25.9
 The text index provides more efficient and reliable full-text search
