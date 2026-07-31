@@ -11,7 +11,7 @@ This guide helps you navigate the reorganized project structure and find what yo
 | **Try examples** | [examples/](../examples/) |
 | **Run tests** | [tests/](../tests/) |
 | **Read documentation** | [docs/](.) |
-| **View test results** | [docs/test-results/](test-results/) |
+| **View test results** | `docs/test-results/` |
 | **Learn with notebooks** | [notebooks/](../notebooks/) |
 
 ---
@@ -126,7 +126,7 @@ datalake-minio-catalog/
 ### Testing
 - **[UNITY_DELTALAKE_TEST_GUIDE.md](UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity Catalog + Delta Lake testing
 - **[COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)** - Version comparison report
-- **[test-results/](test-results/)** - Historical test results
+- **`test-results/`** - Historical test results
 
 ### Advanced
 - **[SPARK_SETUP.md](SPARK_SETUP.md)** - Spark integration guide
@@ -216,7 +216,7 @@ datalake-minio-catalog/
 → [docs/UNITY_DELTALAKE_TEST_GUIDE.md](UNITY_DELTALAKE_TEST_GUIDE.md)
 
 ### I want to see test results
-→ [docs/test-results/](test-results/)
+→ `docs/test-results/`
 → [docs/COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)
 
 ### I want to learn by example
@@ -232,7 +232,7 @@ datalake-minio-catalog/
 
 ### I want to compare ClickHouse versions
 → [docs/COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)
-→ [docs/test-results/](test-results/)
+→ `docs/test-results/`
 
 ---
 

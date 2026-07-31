@@ -79,7 +79,8 @@ jobs:
         # Only /Users/ — a container path such as /home/jovyan is legitimate,
         # and /Users/ is the shape that actually broke five scripts here.
         run: |
-          if git grep -InI -e '/Users/' -- ':!*.md'; then
+          # exclude the checkers themselves: they contain the pattern by nature
+          if git grep -InI -e '/Users/' -- ':!*.md' ':!.github/*' ':!.githooks/*'; then
             echo
             echo "Use paths derived from BASH_SOURCE or __file__ instead."
             exit 1
