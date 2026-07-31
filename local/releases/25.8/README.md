@@ -557,6 +557,25 @@ docker logs clickhouse-25-8
 | Multi-table union | No tracking | Source identification | Data lineage |
 | Data Lake writes | Limited | Full ACID | Data integrity |
 
+### 🆕 What's New in 25.8
+
+- **`_table` virtual column on every table** — not just `Merge` tables ([#63665](https://github.com/ClickHouse/ClickHouse/pull/63665))
+- **Hive-style partitioned writes** — plus a refactored read implementation ([#76802](https://github.com/ClickHouse/ClickHouse/pull/76802))
+- **Iceberg writes** — create operations, Glue and REST catalogs ([#83983](https://github.com/ClickHouse/ClickHouse/pull/83983))
+- **DeltaLake write support** — write to Delta tables ([#85564](https://github.com/ClickHouse/ClickHouse/pull/85564))
+- **PromQL dialect** — basic `rate`, `delta` and `increase` support ([#75036](https://github.com/ClickHouse/ClickHouse/pull/75036))
+- **ArrowFlight RPC** — new `arrowflight()` table function ([#74184](https://github.com/ClickHouse/ClickHouse/pull/74184))
+- **PostgreSQL `COPY`** — COPY command over the PostgreSQL protocol ([#74344](https://github.com/ClickHouse/ClickHouse/pull/74344))
+- **Iceberg position deletes** — merge-on-read deletes, merged by `OPTIMIZE` ([#83094](https://github.com/ClickHouse/ClickHouse/pull/83094))
+- **`JSONExtractCaseInsensitive`** — case-insensitive JSON key lookup ([#83770](https://github.com/ClickHouse/ClickHouse/pull/83770))
+- **`zookeeper_connection_log`** — historical ZooKeeper connections ([#79494](https://github.com/ClickHouse/ClickHouse/pull/79494))
+- **CPU preemption scheduling** — workload settings for CPU throttling ([#80879](https://github.com/ClickHouse/ClickHouse/pull/80879))
+- **`DESCRIBE SELECT`** — in addition to `DESCRIBE (SELECT ...)` ([#82947](https://github.com/ClickHouse/ClickHouse/pull/82947))
+- **`nowInBlock64()`** — block-level `DateTime64` ([#84178](https://github.com/ClickHouse/ClickHouse/pull/84178))
+- **`dateTimeToUUIDv7()`** — derive a UUIDv7 from a DateTime ([#84319](https://github.com/ClickHouse/ClickHouse/pull/84319))
+- **`Hash` output format** — fingerprint a query result ([#84607](https://github.com/ClickHouse/ClickHouse/pull/84607))
+- **S3 permission grants** — `GRANT READ ON S3('s3://foo/.*')` ([#84503](https://github.com/ClickHouse/ClickHouse/pull/84503))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.8 Release](https://clickhouse.com/blog/clickhouse-release-25-08)
@@ -1316,6 +1335,25 @@ docker logs clickhouse-25-8
 | Large JOIN | Memory limited | S3 spillover | Unlimited capacity |
 | Multi-table union | No tracking | Source identification | Data lineage |
 | Data Lake writes | Limited | Full ACID | Data integrity |
+
+### 🆕 25.8의 새로운 기능
+
+- **`_table` virtual column on every table** — not just `Merge` tables ([#63665](https://github.com/ClickHouse/ClickHouse/pull/63665))
+- **Hive-style partitioned writes** — plus a refactored read implementation ([#76802](https://github.com/ClickHouse/ClickHouse/pull/76802))
+- **Iceberg writes** — create operations, Glue and REST catalogs ([#83983](https://github.com/ClickHouse/ClickHouse/pull/83983))
+- **DeltaLake write support** — write to Delta tables ([#85564](https://github.com/ClickHouse/ClickHouse/pull/85564))
+- **PromQL dialect** — basic `rate`, `delta` and `increase` support ([#75036](https://github.com/ClickHouse/ClickHouse/pull/75036))
+- **ArrowFlight RPC** — new `arrowflight()` table function ([#74184](https://github.com/ClickHouse/ClickHouse/pull/74184))
+- **PostgreSQL `COPY`** — COPY command over the PostgreSQL protocol ([#74344](https://github.com/ClickHouse/ClickHouse/pull/74344))
+- **Iceberg position deletes** — merge-on-read deletes, merged by `OPTIMIZE` ([#83094](https://github.com/ClickHouse/ClickHouse/pull/83094))
+- **`JSONExtractCaseInsensitive`** — case-insensitive JSON key lookup ([#83770](https://github.com/ClickHouse/ClickHouse/pull/83770))
+- **`zookeeper_connection_log`** — historical ZooKeeper connections ([#79494](https://github.com/ClickHouse/ClickHouse/pull/79494))
+- **CPU preemption scheduling** — workload settings for CPU throttling ([#80879](https://github.com/ClickHouse/ClickHouse/pull/80879))
+- **`DESCRIBE SELECT`** — in addition to `DESCRIBE (SELECT ...)` ([#82947](https://github.com/ClickHouse/ClickHouse/pull/82947))
+- **`nowInBlock64()`** — block-level `DateTime64` ([#84178](https://github.com/ClickHouse/ClickHouse/pull/84178))
+- **`dateTimeToUUIDv7()`** — derive a UUIDv7 from a DateTime ([#84319](https://github.com/ClickHouse/ClickHouse/pull/84319))
+- **`Hash` output format** — fingerprint a query result ([#84607](https://github.com/ClickHouse/ClickHouse/pull/84607))
+- **S3 permission grants** — `GRANT READ ON S3('s3://foo/.*')` ([#84503](https://github.com/ClickHouse/ClickHouse/pull/84503))
 
 ### 🔍 추가 자료
 

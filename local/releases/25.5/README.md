@@ -308,6 +308,23 @@ docker logs clickhouse-25-5
 | AWS Glue | Managed AWS service | AWS SDK |
 | Unity Catalog | Databricks governance | REST API |
 
+### 🆕 What's New in 25.5
+
+- **Vector similarity index filtering** — pre-filtering and post-filtering for vector search ([#79854](https://github.com/ClickHouse/ClickHouse/pull/79854))
+- **`Time` / `Time64` data types** — time-of-day types with cast functions ([#75735](https://github.com/ClickHouse/ClickHouse/pull/75735))
+- **Implicit `FROM` table in clickhouse-local** — query without naming the table ([#79085](https://github.com/ClickHouse/ClickHouse/pull/79085))
+- **Geo types in Parquet** — native parsing of WKB-encoded geometries ([#79777](https://github.com/ClickHouse/ClickHouse/pull/79777))
+- **`icebergHash` / `icebergBucket`** — Iceberg bucketing functions ([#79262](https://github.com/ClickHouse/ClickHouse/pull/79262))
+- **`system.iceberg_history`** — Iceberg snapshot history table ([#78244](https://github.com/ClickHouse/ClickHouse/pull/78244))
+- **Correlated subqueries in `EXISTS`** — correlated `EXISTS` expressions ([#76078](https://github.com/ClickHouse/ClickHouse/pull/76078))
+- **`getServerSetting` / `getMergeTreeSetting`** — read settings from SQL ([#78439](https://github.com/ClickHouse/ClickHouse/pull/78439))
+- **Default compression codec for MergeTree columns** — per-table default codec ([#66394](https://github.com/ClickHouse/ClickHouse/pull/66394))
+- **`TRUNCATE ... LIKE`** — truncate tables matching a pattern ([#78597](https://github.com/ClickHouse/ClickHouse/pull/78597))
+- **`stringBytesUniq` / `stringBytesEntropy`** — byte-level string statistics ([#79350](https://github.com/ClickHouse/ClickHouse/pull/79350))
+- **Base32 encode/decode** — `base32Encode` and `base32Decode` ([#79809](https://github.com/ClickHouse/ClickHouse/pull/79809))
+- **`_part_starting_offset`** — new MergeTree virtual column ([#79417](https://github.com/ClickHouse/ClickHouse/pull/79417))
+- **Parallel replicas for distributed `INSERT SELECT`** — on replicated MergeTree ([#78041](https://github.com/ClickHouse/ClickHouse/pull/78041))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.5 Release](https://clickhouse.com/blog/clickhouse-release-25-05)
@@ -684,6 +701,23 @@ docker logs clickhouse-25-5
 | Hive Metastore | 전통적인 Hadoop | Thrift |
 | AWS Glue | 관리형 AWS 서비스 | AWS SDK |
 | Unity Catalog | Databricks 거버넌스 | REST API |
+
+### 🆕 25.5의 새로운 기능
+
+- **Vector similarity index filtering** — pre-filtering and post-filtering for vector search ([#79854](https://github.com/ClickHouse/ClickHouse/pull/79854))
+- **`Time` / `Time64` data types** — time-of-day types with cast functions ([#75735](https://github.com/ClickHouse/ClickHouse/pull/75735))
+- **Implicit `FROM` table in clickhouse-local** — query without naming the table ([#79085](https://github.com/ClickHouse/ClickHouse/pull/79085))
+- **Geo types in Parquet** — native parsing of WKB-encoded geometries ([#79777](https://github.com/ClickHouse/ClickHouse/pull/79777))
+- **`icebergHash` / `icebergBucket`** — Iceberg bucketing functions ([#79262](https://github.com/ClickHouse/ClickHouse/pull/79262))
+- **`system.iceberg_history`** — Iceberg snapshot history table ([#78244](https://github.com/ClickHouse/ClickHouse/pull/78244))
+- **Correlated subqueries in `EXISTS`** — correlated `EXISTS` expressions ([#76078](https://github.com/ClickHouse/ClickHouse/pull/76078))
+- **`getServerSetting` / `getMergeTreeSetting`** — read settings from SQL ([#78439](https://github.com/ClickHouse/ClickHouse/pull/78439))
+- **Default compression codec for MergeTree columns** — per-table default codec ([#66394](https://github.com/ClickHouse/ClickHouse/pull/66394))
+- **`TRUNCATE ... LIKE`** — truncate tables matching a pattern ([#78597](https://github.com/ClickHouse/ClickHouse/pull/78597))
+- **`stringBytesUniq` / `stringBytesEntropy`** — byte-level string statistics ([#79350](https://github.com/ClickHouse/ClickHouse/pull/79350))
+- **Base32 encode/decode** — `base32Encode` and `base32Decode` ([#79809](https://github.com/ClickHouse/ClickHouse/pull/79809))
+- **`_part_starting_offset`** — new MergeTree virtual column ([#79417](https://github.com/ClickHouse/ClickHouse/pull/79417))
+- **Parallel replicas for distributed `INSERT SELECT`** — on replicated MergeTree ([#78041](https://github.com/ClickHouse/ClickHouse/pull/78041))
 
 ### 🔍 추가 자료
 

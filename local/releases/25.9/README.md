@@ -301,6 +301,20 @@ curl http://localhost:8123/
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
 
+### 🆕 What's New in 25.9
+
+- **Automatic global join reordering** — reorders join graphs across tables
+- **Streaming secondary indices** — interleaves index checks with data reads
+- **New text index** — streaming-friendly, granule-structured full-text index
+- **`arrayExcept`** — difference between two arrays
+- **Iceberg `ALTER UPDATE` and `DROP TABLE`** — wider data lake write support
+- **Iceberg metadata log system table** — introspect Iceberg metadata
+- **ORC and Avro for Iceberg** — additional data lake file formats
+- **Unity catalog on Azure** — Azure-hosted Unity catalog
+- **Distributed `INSERT SELECT` for data lakes** — distributed lake ingestion
+- **Boolean settings without an argument** — `SET describe_compact_output;`
+- **S3 storage class** — specify classes such as `INTELLIGENT_TIERING`
+
 ### 🔍 Additional Resources
 
 - [ClickHouse 25.9 Release Blog](https://clickhouse.com/blog/clickhouse-release-25-09)
@@ -658,6 +672,20 @@ curl http://localhost:8123/
 | Text Index | Experimental | Built into table definition |
 | Streaming Indices | Stable | `use_skip_indexes_on_data_read = 1` |
 | arrayExcept | Stable | N/A (built-in function) |
+
+### 🆕 25.9의 새로운 기능
+
+- **Automatic global join reordering** — reorders join graphs across tables
+- **Streaming secondary indices** — interleaves index checks with data reads
+- **New text index** — streaming-friendly, granule-structured full-text index
+- **`arrayExcept`** — difference between two arrays
+- **Iceberg `ALTER UPDATE` and `DROP TABLE`** — wider data lake write support
+- **Iceberg metadata log system table** — introspect Iceberg metadata
+- **ORC and Avro for Iceberg** — additional data lake file formats
+- **Unity catalog on Azure** — Azure-hosted Unity catalog
+- **Distributed `INSERT SELECT` for data lakes** — distributed lake ingestion
+- **Boolean settings without an argument** — `SET describe_compact_output;`
+- **S3 storage class** — specify classes such as `INTELLIGENT_TIERING`
 
 ### 🔍 추가 자료
 

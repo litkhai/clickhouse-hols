@@ -344,6 +344,21 @@ docker logs clickhouse-25-7
 | Bulk UPDATE (1M rows) | Hours | Seconds | 4000x |
 | Complex conditional UPDATE | Very slow | Fast | 1000x |
 
+### 🆕 What's New in 25.7
+
+- **Lightweight `UPDATE`** — patch-part based updates for MergeTree ([#82004](https://github.com/ClickHouse/ClickHouse/pull/82004))
+- **AI-powered SQL generation** — natural language to SQL in the client ([#83314](https://github.com/ClickHouse/ClickHouse/pull/83314))
+- **Financial functions** — `XIRR`, `IRR`, `XNPV`, `NPV` ([#81599](https://github.com/ClickHouse/ClickHouse/pull/81599))
+- **`NumericIndexedVector`** — Roaring-bitmap compressed vector structure ([#74193](https://github.com/ClickHouse/ClickHouse/pull/74193))
+- **Iceberg writes** — INSERT support for Iceberg tables ([#82692](https://github.com/ClickHouse/ClickHouse/pull/82692))
+- **SZ3 lossy compression codec** — for `Float32` / `Float64` columns ([#67161](https://github.com/ClickHouse/ClickHouse/pull/67161))
+- **Complex types in Iceberg schema evolution** — nested type evolution ([#73714](https://github.com/ClickHouse/ClickHouse/pull/73714))
+- **`polygonIntersectsCartesian` / `Spherical`** — polygon intersection predicates ([#81882](https://github.com/ClickHouse/ClickHouse/pull/81882))
+- **`colorSRGBToOkLCH` / `colorOkLCHToSRGB`** — colour space conversion ([#83679](https://github.com/ClickHouse/ClickHouse/pull/83679))
+- **`_part_granule_offset`** — new MergeTree virtual column ([#82341](https://github.com/ClickHouse/ClickHouse/pull/82341))
+- **`max_waiting_queries`** — workload setting bounding the query queue ([#81250](https://github.com/ClickHouse/ClickHouse/pull/81250))
+- **Reading Iceberg data files by field id** — field-id based resolution ([#83653](https://github.com/ClickHouse/ClickHouse/pull/83653))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.7 Release](https://clickhouse.com/blog/clickhouse-release-25-07)
@@ -808,6 +823,21 @@ docker logs clickhouse-25-7
 | Single row UPDATE | Milliseconds | Microseconds | 100-1000x |
 | Bulk UPDATE (1M rows) | Hours | Seconds | 4000x |
 | Complex conditional UPDATE | Very slow | Fast | 1000x |
+
+### 🆕 25.7의 새로운 기능
+
+- **Lightweight `UPDATE`** — patch-part based updates for MergeTree ([#82004](https://github.com/ClickHouse/ClickHouse/pull/82004))
+- **AI-powered SQL generation** — natural language to SQL in the client ([#83314](https://github.com/ClickHouse/ClickHouse/pull/83314))
+- **Financial functions** — `XIRR`, `IRR`, `XNPV`, `NPV` ([#81599](https://github.com/ClickHouse/ClickHouse/pull/81599))
+- **`NumericIndexedVector`** — Roaring-bitmap compressed vector structure ([#74193](https://github.com/ClickHouse/ClickHouse/pull/74193))
+- **Iceberg writes** — INSERT support for Iceberg tables ([#82692](https://github.com/ClickHouse/ClickHouse/pull/82692))
+- **SZ3 lossy compression codec** — for `Float32` / `Float64` columns ([#67161](https://github.com/ClickHouse/ClickHouse/pull/67161))
+- **Complex types in Iceberg schema evolution** — nested type evolution ([#73714](https://github.com/ClickHouse/ClickHouse/pull/73714))
+- **`polygonIntersectsCartesian` / `Spherical`** — polygon intersection predicates ([#81882](https://github.com/ClickHouse/ClickHouse/pull/81882))
+- **`colorSRGBToOkLCH` / `colorOkLCHToSRGB`** — colour space conversion ([#83679](https://github.com/ClickHouse/ClickHouse/pull/83679))
+- **`_part_granule_offset`** — new MergeTree virtual column ([#82341](https://github.com/ClickHouse/ClickHouse/pull/82341))
+- **`max_waiting_queries`** — workload setting bounding the query queue ([#81250](https://github.com/ClickHouse/ClickHouse/pull/81250))
+- **Reading Iceberg data files by field id** — field-id based resolution ([#83653](https://github.com/ClickHouse/ClickHouse/pull/83653))
 
 ### 🔍 추가 자료
 

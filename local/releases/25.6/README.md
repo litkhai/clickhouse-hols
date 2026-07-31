@@ -304,6 +304,25 @@ docker logs clickhouse-25-6
 | Use case | Business hours, schedules | Timestamps, events |
 | Storage size | Smaller | Larger |
 
+### 🆕 What's New in 25.6
+
+- **`CoalescingMergeTree`** — engine for sparse updates ([#79344](https://github.com/ClickHouse/ClickHouse/pull/79344))
+- **`Time` / `Time64` data types** — time-of-day types with cast functions ([#81217](https://github.com/ClickHouse/ClickHouse/pull/81217))
+- **Bech32 encoding functions** — `bech32Encode` / `bech32Decode` ([#80239](https://github.com/ClickHouse/ClickHouse/pull/80239))
+- **`lag` / `lead` window functions** — SQL-standard offset windows ([#82108](https://github.com/ClickHouse/ClickHouse/pull/82108))
+- **Consistent storage snapshots across subqueries** — shared snapshot setting ([#79471](https://github.com/ClickHouse/ClickHouse/pull/79471))
+- **Writing to the `Merge` table engine** — `Merge` is no longer read-only ([#77484](https://github.com/ClickHouse/ClickHouse/pull/77484))
+- **Map value functions** — `mapContainsValues`, `mapExtractValuesLike` and friends ([#78171](https://github.com/ClickHouse/ClickHouse/pull/78171))
+- **Query slot scheduling for workloads** — workload-level concurrency control ([#78415](https://github.com/ClickHouse/ClickHouse/pull/78415))
+- **JSON columns in Parquet** — read and write ClickHouse JSON as Parquet JSON ([#79649](https://github.com/ClickHouse/ClickHouse/pull/79649))
+- **`deltaLakeLocal`** — query filesystem-mounted Delta tables ([#79781](https://github.com/ClickHouse/ClickHouse/pull/79781))
+- **WKB reader functions** — read Well-Known Binary geometries ([#80139](https://github.com/ClickHouse/ClickHouse/pull/80139))
+- **`MultiPolygon` in `pointInPolygon`** — multi-polygon containment ([#79773](https://github.com/ClickHouse/ClickHouse/pull/79773))
+- **`timeSeries*` helper functions** — time series operations ([#80590](https://github.com/ClickHouse/ClickHouse/pull/80590))
+- **`USE DATABASE`** — standard database switching syntax ([#81307](https://github.com/ClickHouse/ClickHouse/pull/81307))
+- **`system.codecs`** — introspect available compression codecs ([#81600](https://github.com/ClickHouse/ClickHouse/pull/81600))
+- **chdig TUI** — bundled terminal UI for ClickHouse ([#79666](https://github.com/ClickHouse/ClickHouse/pull/79666))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.6 Release](https://clickhouse.com/blog/clickhouse-release-25-06)
@@ -667,6 +686,25 @@ docker logs clickhouse-25-6
 | 정밀도 | 초 or 마이크로초 | 초 |
 | 용도 | 업무 시간, 일정 | 타임스탬프, 이벤트 |
 | 저장 크기 | 작음 | 큼 |
+
+### 🆕 25.6의 새로운 기능
+
+- **`CoalescingMergeTree`** — engine for sparse updates ([#79344](https://github.com/ClickHouse/ClickHouse/pull/79344))
+- **`Time` / `Time64` data types** — time-of-day types with cast functions ([#81217](https://github.com/ClickHouse/ClickHouse/pull/81217))
+- **Bech32 encoding functions** — `bech32Encode` / `bech32Decode` ([#80239](https://github.com/ClickHouse/ClickHouse/pull/80239))
+- **`lag` / `lead` window functions** — SQL-standard offset windows ([#82108](https://github.com/ClickHouse/ClickHouse/pull/82108))
+- **Consistent storage snapshots across subqueries** — shared snapshot setting ([#79471](https://github.com/ClickHouse/ClickHouse/pull/79471))
+- **Writing to the `Merge` table engine** — `Merge` is no longer read-only ([#77484](https://github.com/ClickHouse/ClickHouse/pull/77484))
+- **Map value functions** — `mapContainsValues`, `mapExtractValuesLike` and friends ([#78171](https://github.com/ClickHouse/ClickHouse/pull/78171))
+- **Query slot scheduling for workloads** — workload-level concurrency control ([#78415](https://github.com/ClickHouse/ClickHouse/pull/78415))
+- **JSON columns in Parquet** — read and write ClickHouse JSON as Parquet JSON ([#79649](https://github.com/ClickHouse/ClickHouse/pull/79649))
+- **`deltaLakeLocal`** — query filesystem-mounted Delta tables ([#79781](https://github.com/ClickHouse/ClickHouse/pull/79781))
+- **WKB reader functions** — read Well-Known Binary geometries ([#80139](https://github.com/ClickHouse/ClickHouse/pull/80139))
+- **`MultiPolygon` in `pointInPolygon`** — multi-polygon containment ([#79773](https://github.com/ClickHouse/ClickHouse/pull/79773))
+- **`timeSeries*` helper functions** — time series operations ([#80590](https://github.com/ClickHouse/ClickHouse/pull/80590))
+- **`USE DATABASE`** — standard database switching syntax ([#81307](https://github.com/ClickHouse/ClickHouse/pull/81307))
+- **`system.codecs`** — introspect available compression codecs ([#81600](https://github.com/ClickHouse/ClickHouse/pull/81600))
+- **chdig TUI** — bundled terminal UI for ClickHouse ([#79666](https://github.com/ClickHouse/ClickHouse/pull/79666))
 
 ### 🔍 추가 자료
 

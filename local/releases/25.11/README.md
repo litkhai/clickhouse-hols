@@ -254,6 +254,24 @@ docker logs clickhouse-25-11
 - Performance benchmarking and comparison
 - Integrate with external GIS tools and systems
 
+### 🆕 What's New in 25.11
+
+- **`Geometry` data type** — with WKB/WKT support ([#83344](https://github.com/ClickHouse/ClickHouse/pull/83344))
+- **`HAVING` without `GROUP BY`** — ANSI SQL aggregate filtering
+- **Fractional `LIMIT` / `OFFSET`** — percentage-based sampling ([#88755](https://github.com/ClickHouse/ClickHouse/pull/88755))
+- **Map aggregation** — aggregate directly over `Map` columns
+- **`readWKT*` geometry functions** — parse WKT into geometry types
+- **`naiveBayesClassifier`** — text classification function ([#88677](https://github.com/ClickHouse/ClickHouse/pull/88677))
+- **`EXECUTE AS`** — user impersonation statement ([#70775](https://github.com/ClickHouse/ClickHouse/pull/70775))
+- **Microsoft OneLake catalog** — new catalog subsystem ([#89366](https://github.com/ClickHouse/ClickHouse/pull/89366))
+- **`system.unicode`** — character property table ([#80857](https://github.com/ClickHouse/ClickHouse/pull/80857))
+- **`cume_dist`** — cumulative distribution window function ([#88102](https://github.com/ClickHouse/ClickHouse/pull/88102))
+- **`arrayRemove`** — remove elements from an array ([#89585](https://github.com/ClickHouse/ClickHouse/pull/89585))
+- **`flipCoordinates`** — swap coordinates in geometry arrays ([#79634](https://github.com/ClickHouse/ClickHouse/pull/79634))
+- **Text index preprocessor argument** — customise index preprocessing ([#88272](https://github.com/ClickHouse/ClickHouse/pull/88272))
+- **`CREATE OR REPLACE` for temporary tables** — atomic replacement ([#89450](https://github.com/ClickHouse/ClickHouse/pull/89450))
+- **`into_outfile_create_parent_directories`** — create parent dirs for INTO OUTFILE ([#88795](https://github.com/ClickHouse/ClickHouse/pull/88795))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.11 Release](https://clickhouse.com/blog/clickhouse-release-25-11)
@@ -538,6 +556,24 @@ docker logs clickhouse-25-11
 - EXPLAIN 명령으로 쿼리 실행 계획 분석
 - 성능 벤치마킹 및 비교
 - 외부 GIS 도구 및 시스템과 통합
+
+### 🆕 25.11의 새로운 기능
+
+- **`Geometry` data type** — with WKB/WKT support ([#83344](https://github.com/ClickHouse/ClickHouse/pull/83344))
+- **`HAVING` without `GROUP BY`** — ANSI SQL aggregate filtering
+- **Fractional `LIMIT` / `OFFSET`** — percentage-based sampling ([#88755](https://github.com/ClickHouse/ClickHouse/pull/88755))
+- **Map aggregation** — aggregate directly over `Map` columns
+- **`readWKT*` geometry functions** — parse WKT into geometry types
+- **`naiveBayesClassifier`** — text classification function ([#88677](https://github.com/ClickHouse/ClickHouse/pull/88677))
+- **`EXECUTE AS`** — user impersonation statement ([#70775](https://github.com/ClickHouse/ClickHouse/pull/70775))
+- **Microsoft OneLake catalog** — new catalog subsystem ([#89366](https://github.com/ClickHouse/ClickHouse/pull/89366))
+- **`system.unicode`** — character property table ([#80857](https://github.com/ClickHouse/ClickHouse/pull/80857))
+- **`cume_dist`** — cumulative distribution window function ([#88102](https://github.com/ClickHouse/ClickHouse/pull/88102))
+- **`arrayRemove`** — remove elements from an array ([#89585](https://github.com/ClickHouse/ClickHouse/pull/89585))
+- **`flipCoordinates`** — swap coordinates in geometry arrays ([#79634](https://github.com/ClickHouse/ClickHouse/pull/79634))
+- **Text index preprocessor argument** — customise index preprocessing ([#88272](https://github.com/ClickHouse/ClickHouse/pull/88272))
+- **`CREATE OR REPLACE` for temporary tables** — atomic replacement ([#89450](https://github.com/ClickHouse/ClickHouse/pull/89450))
+- **`into_outfile_create_parent_directories`** — create parent dirs for INTO OUTFILE ([#88795](https://github.com/ClickHouse/ClickHouse/pull/88795))
 
 ### 🔍 추가 자료
 

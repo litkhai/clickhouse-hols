@@ -236,6 +236,24 @@ docker logs clickhouse-25-10
 - Analyze query execution plans with EXPLAIN
 - Performance benchmarking and comparison
 
+### 🆕 What's New in 25.10
+
+- **`QBit` data type** — quantised vectors for vector search
+- **Negative `LIMIT` / `OFFSET`** — count from the end of the result ([#88411](https://github.com/ClickHouse/ClickHouse/pull/88411))
+- **`LIMIT BY ALL`** — expand the BY list to the selected expressions ([#84079](https://github.com/ClickHouse/ClickHouse/pull/84079))
+- **Automatic statistics** — build statistics on all suitable columns ([#87241](https://github.com/ClickHouse/ClickHouse/pull/87241))
+- **`naiveBayesClassifier`** — n-gram text classification ([#78700](https://github.com/ClickHouse/ClickHouse/pull/78700))
+- **`sparse_gram` bloom filter index** — new skip index type ([#79985](https://github.com/ClickHouse/ClickHouse/pull/79985))
+- **Apache Paimon support** — query Paimon tables ([#84423](https://github.com/ClickHouse/ClickHouse/pull/84423))
+- **`conv`** — convert numbers between bases 2-36 ([#83058](https://github.com/ClickHouse/ClickHouse/pull/83058))
+- **`quantilePrometheusHistogram`** — histogram quantile aggregate ([#86294](https://github.com/ClickHouse/ClickHouse/pull/86294))
+- **`studentTTestOneSample`** — one-sample t-test aggregate ([#85436](https://github.com/ClickHouse/ClickHouse/pull/85436))
+- **`Alias` table engine** — proxy to another table ([#87965](https://github.com/ClickHouse/ClickHouse/pull/87965))
+- **Case-insensitive `startsWith` / `endsWith`** — optimised variants ([#87374](https://github.com/ClickHouse/ClickHouse/pull/87374))
+- **Cloud login from the client** — `--login` with Cloud credentials ([#82753](https://github.com/ClickHouse/ClickHouse/pull/82753))
+- **`SYSTEM RECONNECT ZOOKEEPER`** — force a Keeper reconnect ([#87318](https://github.com/ClickHouse/ClickHouse/pull/87318))
+- **Delta Lake metadata system table** — inspect Delta metadata files ([#87263](https://github.com/ClickHouse/ClickHouse/pull/87263))
+
 ### 🔍 Additional Resources
 
 - **Official Release Blog**: [ClickHouse 25.10 Release](https://clickhouse.com/blog/clickhouse-release-25-10)
@@ -501,6 +519,24 @@ docker logs clickhouse-25-10
 - 모든 기능을 조합하여 실제 프로덕션 시나리오 구현
 - EXPLAIN 명령으로 쿼리 실행 계획 분석
 - 성능 벤치마킹 및 비교
+
+### 🆕 25.10의 새로운 기능
+
+- **`QBit` data type** — quantised vectors for vector search
+- **Negative `LIMIT` / `OFFSET`** — count from the end of the result ([#88411](https://github.com/ClickHouse/ClickHouse/pull/88411))
+- **`LIMIT BY ALL`** — expand the BY list to the selected expressions ([#84079](https://github.com/ClickHouse/ClickHouse/pull/84079))
+- **Automatic statistics** — build statistics on all suitable columns ([#87241](https://github.com/ClickHouse/ClickHouse/pull/87241))
+- **`naiveBayesClassifier`** — n-gram text classification ([#78700](https://github.com/ClickHouse/ClickHouse/pull/78700))
+- **`sparse_gram` bloom filter index** — new skip index type ([#79985](https://github.com/ClickHouse/ClickHouse/pull/79985))
+- **Apache Paimon support** — query Paimon tables ([#84423](https://github.com/ClickHouse/ClickHouse/pull/84423))
+- **`conv`** — convert numbers between bases 2-36 ([#83058](https://github.com/ClickHouse/ClickHouse/pull/83058))
+- **`quantilePrometheusHistogram`** — histogram quantile aggregate ([#86294](https://github.com/ClickHouse/ClickHouse/pull/86294))
+- **`studentTTestOneSample`** — one-sample t-test aggregate ([#85436](https://github.com/ClickHouse/ClickHouse/pull/85436))
+- **`Alias` table engine** — proxy to another table ([#87965](https://github.com/ClickHouse/ClickHouse/pull/87965))
+- **Case-insensitive `startsWith` / `endsWith`** — optimised variants ([#87374](https://github.com/ClickHouse/ClickHouse/pull/87374))
+- **Cloud login from the client** — `--login` with Cloud credentials ([#82753](https://github.com/ClickHouse/ClickHouse/pull/82753))
+- **`SYSTEM RECONNECT ZOOKEEPER`** — force a Keeper reconnect ([#87318](https://github.com/ClickHouse/ClickHouse/pull/87318))
+- **Delta Lake metadata system table** — inspect Delta metadata files ([#87263](https://github.com/ClickHouse/ClickHouse/pull/87263))
 
 ### 🔍 추가 자료
 
