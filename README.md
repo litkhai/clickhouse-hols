@@ -29,7 +29,7 @@ clickhouse-hols/
 | Lab | What it covers |
 |-----|----------------|
 | [local/oss-mac-setup](local/oss-mac-setup/) | ClickHouse OSS on macOS via Docker; `set.sh <version>` switches versions and every release lab builds on it |
-| [local/releases](local/releases/) | **15 per-release feature labs, 25.5 → 26.7** — one directory per release, each with runnable SQL for that version's new features |
+| [local/releases](local/releases/) | **19 per-release feature labs, 25.1 → 26.7** — one directory per release, each with runnable SQL for that version's new features |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | Local data lake: MinIO plus Iceberg / Nessie / Unity / Delta catalogs, with Jupyter notebooks |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka and MySQL table engines, including materialized-view block-size testing |
 | [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: querying ClickHouse from PostgreSQL |
@@ -219,7 +219,7 @@ clickhouse-hols/
 | 실습 | 내용 |
 |------|------|
 | [local/oss-mac-setup](local/oss-mac-setup/) | macOS Docker 기반 ClickHouse OSS. `set.sh <버전>`으로 버전을 전환하며, 모든 릴리스 랩이 이 환경을 사용 |
-| [local/releases](local/releases/) | **릴리스별 기능 랩 15개, 25.5 → 26.7** — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함 |
+| [local/releases](local/releases/) | **릴리스별 기능 랩 19개, 25.1 → 26.7** — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함 |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | 로컬 데이터 레이크: MinIO + Iceberg / Nessie / Unity / Delta 카탈로그, Jupyter 노트북 |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka·MySQL 테이블 엔진, 구체화 뷰 블록 크기 테스트 포함 |
 | [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: PostgreSQL에서 ClickHouse 조회 |

@@ -27,6 +27,10 @@ One directory per ClickHouse release, each a self-contained hands-on lab for tha
 | [25.7](25.7/) | 2025-07-24 | 4 | SQL `UPDATE`/`DELETE`, `count()` optimization, JOIN performance, bulk `UPDATE` |
 | [25.6](25.6/) | 2025-06-26 | 5 | `CoalescingMergeTree`, `Time`/`Time64` types, Bech32 encoding, `lag`/`lead`, consistent snapshot |
 | [25.5](25.5/) | 2025-05-22 | 5 | Vector similarity index, Hive Metastore catalog, implicit table, new functions, geo types in Parquet |
+| [25.4](25.4/) | 2025-04-30 | 3 | Array Levenshtein distance, `sparseGrams`, `toInterval` and editable database comments |
+| [25.3](25.3/) | 2025-03-20 | 3 | New functions (`arraySymmetricDifference`, `keccak256`), query condition cache, `estimateCompressionRatio` |
+| [25.2](25.2/) | 2025-03-07 | 3 | Parquet Bloom filters, `Backup` database engine, `stringCompare` and the progress formats |
+| [25.1](25.1/) | 2025-02-07 | 3 | Automatic minmax indices, `Merge` tables unifying schemas as `Variant`, `sequenceMatchEvents` |
 
 ### 🚀 Running a Lab
 
@@ -91,6 +95,10 @@ ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신�
 | [25.7](25.7/) | 2025-07-24 | 4 | SQL `UPDATE`/`DELETE`, `count()` 최적화, JOIN 성능, 대량 `UPDATE` |
 | [25.6](25.6/) | 2025-06-26 | 5 | `CoalescingMergeTree`, `Time`/`Time64` 타입, Bech32 인코딩, `lag`/`lead`, 일관된 스냅샷 |
 | [25.5](25.5/) | 2025-05-22 | 5 | 벡터 유사도 인덱스, Hive Metastore 카탈로그, 암시적 테이블, 신규 함수, Parquet 지오 타입 |
+| [25.4](25.4/) | 2025-04-30 | 3 | 배열 Levenshtein 거리, `sparseGrams`, `toInterval`과 수정 가능한 DB 코멘트 |
+| [25.3](25.3/) | 2025-03-20 | 3 | 신규 함수(`arraySymmetricDifference`, `keccak256`), 쿼리 조건 캐시, `estimateCompressionRatio` |
+| [25.2](25.2/) | 2025-03-07 | 3 | Parquet Bloom 필터, `Backup` 데이터베이스 엔진, `stringCompare`와 진행 포맷 |
+| [25.1](25.1/) | 2025-02-07 | 3 | 자동 minmax 인덱스, `Merge` 테이블의 `Variant` 스키마 통합, `sequenceMatchEvents` |
 
 ### 🚀 랩 실행
 
