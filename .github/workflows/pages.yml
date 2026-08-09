@@ -1,0 +1,52 @@
+name: pages
+
+# The repository's Pages source is set to "GitHub Actions", so this workflow is
+# what publishes the site — the legacy branch deployment no longer runs.
+#
+# The page is rebuilt here rather than taking the committed docs/index.html as
+# given, so the live site always reflects the indexes it is generated from. The
+# `site` job in checks.yml separately enforces that the committed copy matches,
+# which keeps local preview honest.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/scripts/build_site.py'
+      - '.github/workflows/pages.yml'
+      - 'README.md'
+      - 'local/releases/README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deployment finish; queue at most one more behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate the site from the repository indexes
+        run: python3 .github/scripts/build_site.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
