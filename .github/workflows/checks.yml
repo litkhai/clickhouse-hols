@@ -26,6 +26,14 @@ jobs:
       - name: Parse-check tracked files
         run: ./.github/scripts/check_syntax.sh
 
+  site:
+    name: pages site up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docs/index.html matches the indexes it is generated from
+        run: python3 .github/scripts/build_site.py --check
+
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest

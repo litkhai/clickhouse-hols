@@ -8,6 +8,8 @@
 
 A collection of practical, hands-on laboratory exercises for learning and exploring ClickHouse — the fast open-source column-oriented database management system.
 
+**[Browse the labs →](https://litkhai.github.io/clickhouse-hols/)**
+
 ### 🎯 Purpose
 
 These labs cover both **ClickHouse OSS** and **ClickHouse Cloud**, from a first local install to release-by-release feature testing, cloud integrations, workload benchmarks and full workshops. Each lab is self-contained: it brings up what it needs, generates its own data, and documents what to expect.
@@ -197,6 +199,8 @@ MIT License — see individual lab directories for specific license information.
 ## 한국어
 
 ClickHouse를 학습하고 탐색하기 위한 실습(Hands-On Lab) 모음입니다.
+
+**[실습 둘러보기 →](https://litkhai.github.io/clickhouse-hols/)**
 
 ### 🎯 목적
 
