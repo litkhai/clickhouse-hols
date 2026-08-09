@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory focuses on verified and working features newly added in ClickHouse 25.11 (released 2025-11-27).
+A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory covers features newly added in ClickHouse 25.11 (released 2025-11-27).
 
 ### 📋 Overview
 
@@ -286,7 +286,7 @@ docker logs clickhouse-25-11
 - Read and modify SQL files directly to experiment
 - Test data is generated within each SQL file
 - Cleanup is commented out by default for inspection
-- All features have been verified on ClickHouse 25.11.2
+- Written against ClickHouse 25.11.2. Unlike the versions marked verified in the [releases index](../README.md), these labs have not been re-run against that build here
 
 ### 🤝 Contributing
 
@@ -309,7 +309,7 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 
 ## 한국어
 
-ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 11월 27일 출시된 ClickHouse 25.11에서 검증된 작동 기능에 집중합니다.
+ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 11월 27일 출시된 ClickHouse 25.11에서 새로 추가된 기능을 다룹니다.
 
 ### 📋 개요
 
