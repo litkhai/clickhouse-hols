@@ -90,11 +90,11 @@ services:
       MONGO_URI: mongodb://admin:admin123@mongodb:27017/LibreChat?authSource=admin
       HOST: 0.0.0.0
       PORT: 3080
-      SESSION_SECRET: bed87c0a6e2a7bff276f50305a5d1bd5011655b9b50da425c07c2898ea0c5474
-      JWT_SECRET: bed87c0a6e2a7bff276f50305a5d1bd5011655b9b50da425c07c2898ea0c5474
-      JWT_REFRESH_SECRET: bed87c0a6e2a7bff276f50305a5d1bd5011655b9b50da425c07c2898ea0c5474
-      CREDS_KEY: a99f312ee48b8db3cd8c2b570ed428e7736d7f5b1d2c669f72d6d4d6b97ef809
-      CREDS_IV: e4078a2a3214cb669527299687a984c5
+      SESSION_SECRET: ${SESSION_SECRET:?generate one with `openssl rand -hex 32` and put it in config.env}
+      JWT_SECRET: ${JWT_SECRET:?generate one with `openssl rand -hex 32` and put it in config.env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?generate one with `openssl rand -hex 32` and put it in config.env}
+      CREDS_KEY: ${CREDS_KEY:?generate one with `openssl rand -hex 32` and put it in config.env}
+      CREDS_IV: ${CREDS_IV:?generate one with `openssl rand -hex 16` and put it in config.env}
       ALLOW_REGISTRATION: "true"
       ALLOW_UNVERIFIED_EMAIL: "true"
       DEBUG_CONSOLE: "true"

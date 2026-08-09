@@ -446,8 +446,14 @@ configure_librechat() {
     # LibreChat port
     prompt_input "LibreChat Port" "3080" LIBRECHAT_PORT
 
-    # Generate session secret
+    # Generate the LibreChat secrets. Every deployment gets its own: these sign
+    # sessions and encrypt stored provider credentials, so a shared value would
+    # let anyone holding it forge a session or read those credentials.
     SESSION_SECRET=$(openssl rand -hex 32)
+    JWT_SECRET=$(openssl rand -hex 32)
+    JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+    CREDS_KEY=$(openssl rand -hex 32)
+    CREDS_IV=$(openssl rand -hex 16)
 
     echo ""
     print_success "LibreChat configuration completed"
@@ -470,6 +476,10 @@ save_configuration() {
 # LibreChat Settings
 LIBRECHAT_PORT=${LIBRECHAT_PORT:-3080}
 SESSION_SECRET=${SESSION_SECRET}
+JWT_SECRET=${JWT_SECRET}
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+CREDS_KEY=${CREDS_KEY}
+CREDS_IV=${CREDS_IV}
 
 # Ollama Settings
 OLLAMA_BASE_URL=http://host.docker.internal:11434
