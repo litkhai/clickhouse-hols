@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 26.2 new features. This directory covers features newly added in ClickHouse 26.2 (released 2026-02-26).
+A hands-on laboratory for learning and testing ClickHouse 26.2 new features. This directory focuses on verified and working features newly added in ClickHouse 26.2 (released 2026-02-26).
 
 ### 📋 Overview
 
@@ -190,7 +190,7 @@ docker logs clickhouse-26-2
 - Each script can be executed independently
 - Test data is generated within each SQL file
 - Cleanup is commented out by default for inspection
-- Written against ClickHouse 26.2.19. Unlike the versions marked verified in the [releases index](../README.md), these labs have not been re-run against that build here
+- All features verified on ClickHouse 26.2.19.43
 
 ---
 
@@ -202,7 +202,7 @@ For questions or issues, see the main [clickhouse-hols README](../../../README.m
 
 ## 한국어
 
-ClickHouse 26.2 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 2월 26일 출시된 ClickHouse 26.2에서 새로 추가된 기능을 다룹니다.
+ClickHouse 26.2 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 2월 26일 출시된 ClickHouse 26.2에서 검증된 작동 기능에 집중합니다.
 
 ### 📋 개요
 

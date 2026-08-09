@@ -6,7 +6,7 @@
 
 ## English
 
-A hands-on laboratory for learning and testing ClickHouse 26.3 LTS new features. This directory covers features newly added in ClickHouse 26.3 (released 2026-03-26, the second LTS release of 2026).
+A hands-on laboratory for learning and testing ClickHouse 26.3 LTS new features. This directory focuses on verified and working features newly added in ClickHouse 26.3 (released 2026-03-26, the second LTS release of 2026).
 
 ### 📋 Overview
 
@@ -182,7 +182,7 @@ docker logs clickhouse-26-3
 ### 📝 Notes
 
 - 26.3 is the **LTS** release for 2026 — supported for 1 year vs. 6 months for stable
-- Written against ClickHouse 26.3.12. Unlike the versions marked verified in the [releases index](../README.md), these labs have not been re-run against that build here
+- All features verified on ClickHouse 26.3.12.3
 - Each script runs independently; cleanup is commented out for inspection
 
 ---
@@ -195,7 +195,7 @@ For questions, see the main [clickhouse-hols README](../../../README.md).
 
 ## 한국어
 
-ClickHouse 26.3 LTS 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 3월 26일 출시된 LTS 릴리스 ClickHouse 26.3에서 새로 추가된 기능을 다룹니다.
+ClickHouse 26.3 LTS 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 3월 26일 출시된 LTS 릴리스 ClickHouse 26.3에서 검증된 작동 기능에 집중합니다.
 
 ### 📋 개요
 

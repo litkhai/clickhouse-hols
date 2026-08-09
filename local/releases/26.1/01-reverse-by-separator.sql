@@ -10,27 +10,27 @@ SELECT '========== 1. Basic reverseBySeparator Examples ==========';
 -- URL path reversal
 SELECT
     '/users/john/documents/file.pdf' AS original_path,
-    reverseBySeparator('/', original_path) AS reversed_path;
+    reverseBySeparator(original_path, '/') AS reversed_path;
 
 -- Domain name reversal (useful for reverse DNS)
 SELECT
     'www.example.com' AS domain,
-    reverseBySeparator('.', domain) AS reversed_domain;
+    reverseBySeparator(domain, '.') AS reversed_domain;
 
 -- CSV column reordering
 SELECT
     'first,second,third,fourth' AS csv_line,
-    reverseBySeparator(',', csv_line) AS reversed_csv;
+    reverseBySeparator(csv_line, ',') AS reversed_csv;
 
 -- Breadcrumb navigation
 SELECT
     'Home > Products > Electronics > Laptops' AS breadcrumb,
-    reverseBySeparator(' > ', breadcrumb) AS reversed_breadcrumb;
+    reverseBySeparator(breadcrumb, ' > ') AS reversed_breadcrumb;
 
 -- File path reversal
 SELECT
     'C:\\Users\\John\\Documents\\file.txt' AS windows_path,
-    reverseBySeparator('\\', windows_path) AS reversed_windows_path;
+    reverseBySeparator(windows_path, '\\') AS reversed_windows_path;
 
 -- ============================================
 -- 2. Practical Use Cases
@@ -58,7 +58,7 @@ INSERT INTO url_logs VALUES
 -- Use reverseBySeparator to extract API version from paths
 SELECT
     url_path,
-    reverseBySeparator('/', url_path) AS reversed,
+    reverseBySeparator(url_path, '/') AS reversed,
     splitByChar('/', url_path)[2] AS api_version
 FROM url_logs
 WHERE url_path LIKE '/api/%'
@@ -91,8 +91,8 @@ INSERT INTO application_logs VALUES
 SELECT
     module_path,
     replaceAll(module_path, '.', '/') AS filesystem_path,
-    reverseBySeparator('.', module_path) AS reversed_package,
-    splitByChar('.', reverseBySeparator('.', module_path))[1] AS most_specific_module
+    reverseBySeparator(module_path, '.') AS reversed_package,
+    splitByChar('.', reverseBySeparator(module_path, '.'))[1] AS most_specific_module
 FROM application_logs
 ORDER BY log_time;
 
@@ -122,9 +122,9 @@ INSERT INTO dns_queries VALUES
 -- Reverse domain for grouping and analysis
 SELECT
     domain,
-    reverseBySeparator('.', domain) AS reversed_domain,
+    reverseBySeparator(domain, '.') AS reversed_domain,
     splitByChar('.', domain)[-1] AS tld,
-    splitByChar('.', reverseBySeparator('.', domain))[1] AS tld_check
+    splitByChar('.', reverseBySeparator(domain, '.'))[1] AS tld_check
 FROM dns_queries
 ORDER BY reversed_domain;
 
@@ -155,9 +155,9 @@ INSERT INTO product_categories VALUES
 SELECT
     product_name,
     category_path,
-    reverseBySeparator('/', category_path) AS reversed_path,
+    reverseBySeparator(category_path, '/') AS reversed_path,
     splitByChar('/', category_path)[1] AS top_category,
-    splitByChar('/', reverseBySeparator('/', category_path))[1] AS bottom_category
+    splitByChar('/', reverseBySeparator(category_path, '/'))[1] AS bottom_category
 FROM product_categories
 ORDER BY top_category, product_name;
 
@@ -170,14 +170,14 @@ SELECT '========== 6. Performance Characteristics ==========';
 -- Show that reverseBySeparator preserves empty segments
 SELECT
     'a//b///c' AS original,
-    reverseBySeparator('/', original) AS reversed,
+    reverseBySeparator(original, '/') AS reversed,
     splitByChar('/', original) AS split_array,
     splitByChar('/', reversed) AS reversed_array;
 
 -- Combining with other string functions
 SELECT
     '/api/v2/users/profile/settings' AS path,
-    reverseBySeparator('/', path) AS reversed,
+    reverseBySeparator(path, '/') AS reversed,
     arrayStringConcat(arrayReverse(splitByChar('/', path)), '/') AS manual_reverse,
     reversed = manual_reverse AS methods_match;
 

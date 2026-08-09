@@ -11,16 +11,16 @@ SELECT '=== Basic HMAC Examples ===' AS title;
 SELECT
     'Test Message' AS message,
     'secret_key' AS key,
-    hex(HMAC('Test Message', 'secret_key', 'sha256')) AS hmac_sha256;
+    hex(HMAC('sha256', 'Test Message', 'secret_key')) AS hmac_sha256;
 
 -- HMAC with different hash algorithms
 SELECT '=== HMAC with Different Hash Algorithms ===' AS title;
 SELECT
     'Hello World' AS message,
     'my_secret' AS key,
-    hex(HMAC('Hello World', 'my_secret', 'sha1')) AS hmac_sha1,
-    hex(HMAC('Hello World', 'my_secret', 'sha256')) AS hmac_sha256,
-    hex(HMAC('Hello World', 'my_secret', 'sha512')) AS hmac_sha512;
+    hex(HMAC('sha1', 'Hello World', 'my_secret')) AS hmac_sha1,
+    hex(HMAC('sha256', 'Hello World', 'my_secret')) AS hmac_sha256,
+    hex(HMAC('sha512', 'Hello World', 'my_secret')) AS hmac_sha512;
 
 -- Real-world use case: API webhook validation
 DROP TABLE IF EXISTS webhook_events;
@@ -51,7 +51,7 @@ SELECT
     event_id,
     event_type,
     payload,
-    hex(HMAC(payload, api_key, 'sha256')) AS computed_signature
+    hex(HMAC('sha256', payload, api_key)) AS computed_signature
 FROM webhook_events
 ORDER BY event_id;
 
@@ -64,7 +64,7 @@ WITH webhook_with_signature AS (
         event_type,
         payload,
         api_key,
-        hex(HMAC(payload, api_key, 'sha256')) AS expected_signature
+        hex(HMAC('sha256', payload, api_key)) AS expected_signature
     FROM webhook_events
 )
 SELECT
@@ -106,7 +106,7 @@ SELECT
     client_id,
     endpoint,
     request_params,
-    hex(HMAC(concat(endpoint, '?', request_params), client_secret, 'sha256')) AS request_signature
+    hex(HMAC('sha256', concat(endpoint, '?', request_params), client_secret)) AS request_signature
 FROM api_requests
 ORDER BY request_id;
 
@@ -117,14 +117,7 @@ SELECT
     client_id,
     endpoint,
     request_time,
-    hex(HMAC(
-        concat(
-            endpoint, '?', request_params,
-            '&timestamp=', toString(toUnixTimestamp(request_time))
-        ),
-        client_secret,
-        'sha256'
-    )) AS secure_signature,
+    hex(HMAC('sha256', concat( endpoint, '?', request_params, '&timestamp=', toString(toUnixTimestamp(request_time)) ), client_secret)) AS secure_signature,
     toUnixTimestamp(request_time) AS unix_timestamp
 FROM api_requests
 ORDER BY request_id;
@@ -160,16 +153,7 @@ SELECT
     username,
     login_time,
     expiry_time,
-    hex(HMAC(
-        concat(
-            'user_id=', toString(user_id),
-            '&username=', username,
-            '&login=', toString(toUnixTimestamp(login_time)),
-            '&expiry=', toString(toUnixTimestamp(expiry_time))
-        ),
-        session_secret,
-        'sha256'
-    )) AS session_token
+    hex(HMAC('sha256', concat( 'user_id=', toString(user_id), '&username=', username, '&login=', toString(toUnixTimestamp(login_time)), '&expiry=', toString(toUnixTimestamp(expiry_time)) ), session_secret)) AS session_token
 FROM user_sessions
 ORDER BY session_id;
 
@@ -182,16 +166,7 @@ SELECT
     login_time,
     expiry_time,
     now() < expiry_time AS is_active,
-    hex(HMAC(
-        concat(
-            'user_id=', toString(user_id),
-            '&username=', username,
-            '&login=', toString(toUnixTimestamp(login_time)),
-            '&expiry=', toString(toUnixTimestamp(expiry_time))
-        ),
-        session_secret,
-        'sha256'
-    )) AS current_token,
+    hex(HMAC('sha256', concat( 'user_id=', toString(user_id), '&username=', username, '&login=', toString(toUnixTimestamp(login_time)), '&expiry=', toString(toUnixTimestamp(expiry_time)) ), session_secret)) AS current_token,
     CASE
         WHEN now() < expiry_time THEN 'VALID'
         ELSE 'EXPIRED'
@@ -226,15 +201,7 @@ SELECT
     record_id,
     created_at,
     data_content,
-    hex(HMAC(
-        concat(
-            toString(record_id), '|',
-            toString(created_at), '|',
-            data_content
-        ),
-        integrity_key,
-        'sha256'
-    )) AS integrity_checksum
+    hex(HMAC('sha256', concat( toString(record_id), '|', toString(created_at), '|', data_content ), integrity_key)) AS integrity_checksum
 FROM data_records
 ORDER BY record_id;
 
@@ -244,15 +211,7 @@ WITH original_checksums AS (
     SELECT
         record_id,
         data_content,
-        hex(HMAC(
-            concat(
-                toString(record_id), '|',
-                toString(created_at), '|',
-                data_content
-            ),
-            integrity_key,
-            'sha256'
-        )) AS checksum
+        hex(HMAC('sha256', concat( toString(record_id), '|', toString(created_at), '|', data_content ), integrity_key)) AS checksum
     FROM data_records
 )
 SELECT

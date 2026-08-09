@@ -77,7 +77,7 @@ CREATE TABLE city_zones
     zone_id UInt64,
     city String,
     zone_name String,
-    zone_boundary Array(Tuple(Float64, Float64)),  -- Polygon represented as array of points
+    zone_boundary Polygon,  -- readWKTPolygon returns Polygon = Array(Ring) = Array(Array(Point))
     category String
 )
 ENGINE = MergeTree()
@@ -110,7 +110,8 @@ SELECT
     zone_id,
     city,
     zone_name,
-    length(zone_boundary) AS num_points,
+    length(zone_boundary)    AS num_rings,
+    length(zone_boundary[1]) AS num_points_outer_ring,
     category
 FROM city_zones
 ORDER BY city, zone_id;

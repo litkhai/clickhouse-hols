@@ -148,7 +148,7 @@ SELECT
     price
 FROM products_with_text_index
 WHERE hasAny(tags, ['wireless', 'bluetooth', 'portable'])
-ORDER BY arrayLength(matched_tags) DESC, product_name;
+ORDER BY length(matched_tags) DESC, product_name;
 
 -- ============================================
 -- 7. Pattern Matching with LIKE on Arrays

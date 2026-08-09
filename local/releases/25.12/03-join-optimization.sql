@@ -232,14 +232,17 @@ GROUP BY cat.category_name;
 -- Query 8: Star schema JOIN pattern
 SELECT '=== Star Schema Pattern ===' AS title;
 WITH fact_table AS (
+    -- customer_id lives on orders, not on order_items, so the fact rows are
+    -- assembled by joining the two.
     SELECT
-        order_id,
-        customer_id,
-        product_id,
-        quantity,
-        price,
-        quantity * price AS revenue
-    FROM order_items
+        oi.order_id    AS order_id,
+        o.customer_id  AS customer_id,
+        oi.product_id  AS product_id,
+        oi.quantity    AS quantity,
+        oi.price       AS price,
+        oi.quantity * oi.price AS revenue
+    FROM order_items AS oi
+    INNER JOIN orders AS o ON oi.order_id = o.order_id
 )
 SELECT
     c.country,

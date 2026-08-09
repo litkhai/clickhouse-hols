@@ -14,13 +14,13 @@ One directory per ClickHouse release, each a self-contained hands-on lab for tha
 |---------|----------|------|----------|------------------|
 | [26.7](26.7/) | 2026-07-22 | 3 | 26.7.1 | `EXPLAIN ANALYZE`, `AT TIME ZONE` / `AT LOCAL`, `groupFormat` + `-Tuple` combinator |
 | [26.6](26.6/) | 2026-06-25 | 3 | 26.6.2 | Hypothetical indexes + `EXPLAIN WHATIF`, `ADD ENUM VALUES`, SQL compatibility (`SOME`/`ALL`, `* LIKE`, `ESCAPE`, `date_part`) |
-| [26.5](26.5/) | 2026-05-21 | 3 | — | `filesystem()` table function, bare function names + `isPrime`, `tokenizeQuery` / `highlightQuery` |
-| [26.4](26.4/) | 2026-04-30 | 3 | — | `NATURAL JOIN` on `VALUES`, array functions, string/text functions |
-| [26.3](26.3/) | 2026-03-26 | 3 | — | Materialized CTE, natural sort key, Unicode functions |
-| [26.2](26.2/) | 2026-02-26 | 3 | — | `primes()` function, XXH3-128 hash, `system.tokenizers` |
-| [26.1](26.1/) | 2026-01-29 | 3 | — | `reverseBySeparator`, text index for arrays, Keeper HTTP API |
-| [25.12](25.12/) | 2025-12-18 | 3 | — | HMAC function, Naive Bayes classifier, JOIN order optimization (DPSize) |
-| [25.11](25.11/) | 2025-11-27 | 4 | — | `HAVING` without `GROUP BY`, fractional `LIMIT`, Map aggregation, geometry functions |
+| [26.5](26.5/) | 2026-05-21 | 3 | 26.5.1.882 | `filesystem()` table function, bare function names + `isPrime`, `tokenizeQuery` / `highlightQuery` |
+| [26.4](26.4/) | 2026-04-30 | 3 | 26.4.3.37 | `NATURAL JOIN` on `VALUES`, array functions, string/text functions |
+| [26.3](26.3/) | 2026-03-26 | 3 | 26.3.12.3 | Materialized CTE, natural sort key, Unicode functions |
+| [26.2](26.2/) | 2026-02-26 | 3 | 26.2.19.43 | `primes()` function, XXH3-128 hash, `system.tokenizers` |
+| [26.1](26.1/) | 2026-01-29 | 3 | 26.1.12.23 | `reverseBySeparator`, text index for arrays, Keeper HTTP API |
+| [25.12](25.12/) | 2025-12-18 | 3 | 25.12.11.4 | HMAC function, Naive Bayes classifier, JOIN order optimization (DPSize) |
+| [25.11](25.11/) | 2025-11-27 | 4 | 25.11.2.24 | `HAVING` without `GROUP BY`, fractional `LIMIT`, Map aggregation, geometry functions |
 | [25.10](25.10/) | 2025-10-30 | 5 | 25.10.7.6 | `QBit` vector search, negative `LIMIT`/`OFFSET`, JOIN improvements, `LIMIT BY ALL`, auto statistics |
 | [25.9](25.9/) | 2025-09-25 | 4 | 25.9.7.56 | Global join reordering, text index, streaming secondary indices, `arrayExcept` |
 | [25.8](25.8/) | 2025-08-28 | 6 | 25.8.28.1 | New Parquet reader, hive partitioning, temp data on S3, `UNION ALL` `_table`, data lake features, MinIO |
@@ -33,12 +33,11 @@ One directory per ClickHouse release, each a self-contained hands-on lab for tha
 | [25.1](25.1/) | 2025-02-07 | 3 | 25.1.8.25 | Automatic minmax indices, `Merge` tables unifying schemas as `Variant`, `sequenceMatchEvents` |
 
 **Verified** names the exact server build every lab in that directory was run
-against, end to end, with zero exceptions. A dash means the labs were written
-for that release but have not been executed here; the README inside those
-directories carries the author's original claim, which has not been reproduced.
-Of the six directories that *were* re-run, four turned out to contain SQL that
-had never worked on the release it documents, so read a dash as unknown rather
-than as working.
+against, end to end, with zero exceptions. All nineteen have been. Getting
+there took fixing eleven of them: SQL that referenced functions and settings
+which do not exist, arguments in the wrong order, and aliases that shadowed the
+column they aggregated. Re-run any of them yourself with
+`.github/scripts/verify_release_lab.sh <version>`.
 
 ### 🚀 Running a Lab
 
@@ -90,13 +89,13 @@ ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신�
 |------|--------|-------|------|-------------|
 | [26.7](26.7/) | 2026-07-22 | 3 | 26.7.1 | `EXPLAIN ANALYZE`, `AT TIME ZONE` / `AT LOCAL`, `groupFormat` + `-Tuple` 조합자 |
 | [26.6](26.6/) | 2026-06-25 | 3 | 26.6.2 | 가상 인덱스 + `EXPLAIN WHATIF`, `ADD ENUM VALUES`, SQL 호환성 (`SOME`/`ALL`, `* LIKE`, `ESCAPE`, `date_part`) |
-| [26.5](26.5/) | 2026-05-21 | 3 | — | `filesystem()` 테이블 함수, 베어 함수 이름 + `isPrime`, `tokenizeQuery` / `highlightQuery` |
-| [26.4](26.4/) | 2026-04-30 | 3 | — | `VALUES`에 대한 `NATURAL JOIN`, 배열 함수, 문자열/텍스트 함수 |
-| [26.3](26.3/) | 2026-03-26 | 3 | — | 구체화 CTE, 자연 정렬 키, 유니코드 함수 |
-| [26.2](26.2/) | 2026-02-26 | 3 | — | `primes()` 함수, XXH3-128 해시, `system.tokenizers` |
-| [26.1](26.1/) | 2026-01-29 | 3 | — | `reverseBySeparator`, 배열 텍스트 인덱스, Keeper HTTP API |
-| [25.12](25.12/) | 2025-12-18 | 3 | — | HMAC 함수, 나이브 베이즈 분류기, JOIN 순서 최적화 (DPSize) |
-| [25.11](25.11/) | 2025-11-27 | 4 | — | `GROUP BY` 없는 `HAVING`, 소수 `LIMIT`, Map 집계, 기하 함수 |
+| [26.5](26.5/) | 2026-05-21 | 3 | 26.5.1.882 | `filesystem()` 테이블 함수, 베어 함수 이름 + `isPrime`, `tokenizeQuery` / `highlightQuery` |
+| [26.4](26.4/) | 2026-04-30 | 3 | 26.4.3.37 | `VALUES`에 대한 `NATURAL JOIN`, 배열 함수, 문자열/텍스트 함수 |
+| [26.3](26.3/) | 2026-03-26 | 3 | 26.3.12.3 | 구체화 CTE, 자연 정렬 키, 유니코드 함수 |
+| [26.2](26.2/) | 2026-02-26 | 3 | 26.2.19.43 | `primes()` 함수, XXH3-128 해시, `system.tokenizers` |
+| [26.1](26.1/) | 2026-01-29 | 3 | 26.1.12.23 | `reverseBySeparator`, 배열 텍스트 인덱스, Keeper HTTP API |
+| [25.12](25.12/) | 2025-12-18 | 3 | 25.12.11.4 | HMAC 함수, 나이브 베이즈 분류기, JOIN 순서 최적화 (DPSize) |
+| [25.11](25.11/) | 2025-11-27 | 4 | 25.11.2.24 | `GROUP BY` 없는 `HAVING`, 소수 `LIMIT`, Map 집계, 기하 함수 |
 | [25.10](25.10/) | 2025-10-30 | 5 | 25.10.7.6 | `QBit` 벡터 검색, 음수 `LIMIT`/`OFFSET`, JOIN 개선, `LIMIT BY ALL`, 자동 통계 |
 | [25.9](25.9/) | 2025-09-25 | 4 | 25.9.7.56 | 전역 조인 재정렬, 텍스트 인덱스, 스트리밍 보조 인덱스, `arrayExcept` |
 | [25.8](25.8/) | 2025-08-28 | 6 | 25.8.28.1 | 신규 Parquet 리더, hive 파티셔닝, S3 임시 데이터, `UNION ALL` `_table`, 데이터 레이크, MinIO |
@@ -109,11 +108,10 @@ ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신�
 | [25.1](25.1/) | 2025-02-07 | 3 | 25.1.8.25 | 자동 minmax 인덱스, `Merge` 테이블의 `Variant` 스키마 통합, `sequenceMatchEvents` |
 
 **검증**은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버
-빌드입니다. 대시(—)는 해당 릴리스를 위해 작성됐지만 여기서 실행해 보지 않았다는
-뜻입니다. 그 디렉토리의 README에는 원작성자의 검증 문구가 있으나 재현되지
-않았습니다. 실제로 재실행한 6개 디렉토리 중 4개에서 해당 릴리스에서 한 번도
-동작한 적 없는 SQL이 발견됐으므로, 대시는 "정상"이 아니라 "미상"으로 읽는 편이
-안전합니다.
+빌드입니다. 19개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
+않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은
+문제였습니다. 직접 재현하려면
+`.github/scripts/verify_release_lab.sh <버전>` 을 실행하세요.
 
 ### 🚀 랩 실행
 

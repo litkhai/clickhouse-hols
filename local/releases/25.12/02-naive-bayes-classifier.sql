@@ -29,8 +29,7 @@ ORDER BY email_id;
 
 -- Insert training data for spam detection
 INSERT INTO email_training_data VALUES
-    -- Spam emails
-    (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),  -- Obvious spam
+    (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
     (2, 1, 1, 1, 0, 1, 1, 1, 0, 1),
     (3, 1, 0, 1, 1, 1, 1, 0, 1, 1),
     (4, 1, 1, 0, 1, 1, 1, 1, 1, 0),
@@ -38,17 +37,15 @@ INSERT INTO email_training_data VALUES
     (6, 1, 0, 1, 1, 1, 0, 1, 1, 1),
     (7, 1, 1, 1, 0, 1, 1, 0, 1, 1),
     (8, 1, 1, 0, 1, 1, 1, 1, 0, 1),
-    -- Legitimate emails
-    (9, 0, 0, 0, 0, 0, 0, 0, 0, 0),   -- Clean email
+    (9, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     (10, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-    (11, 0, 1, 0, 0, 0, 0, 0, 0, 0),  -- Contains "free" but not spam
-    (12, 0, 0, 0, 0, 1, 0, 0, 0, 0),  -- Contains "click" but not spam
+    (11, 0, 1, 0, 0, 0, 0, 0, 0, 0),
+    (12, 0, 0, 0, 0, 1, 0, 0, 0, 0),
     (13, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-    (14, 0, 0, 1, 0, 0, 0, 0, 0, 0),  -- Contains "money" but not spam (e.g., finance email)
+    (14, 0, 0, 1, 0, 0, 0, 0, 0, 0),
     (15, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-    (16, 0, 0, 0, 0, 0, 1, 0, 0, 0);  -- Has exclamation but not spam
+    (16, 0, 0, 0, 0, 0, 1, 0, 0, 0);
 
--- Query 1: View training data
 SELECT '=== Email Training Data ===' AS title;
 SELECT * FROM email_training_data ORDER BY email_id;
 
@@ -115,14 +112,12 @@ ORDER BY customer_id;
 
 -- Insert training data for churn prediction
 INSERT INTO customer_churn_training VALUES
-    -- Churned customers
     (1, 1, 1, 1, 1, 1, 0, 0),
     (2, 1, 1, 1, 0, 1, 0, 0),
     (3, 1, 1, 0, 1, 1, 0, 0),
     (4, 1, 0, 1, 1, 1, 0, 0),
     (5, 1, 1, 1, 1, 0, 0, 1),
     (6, 1, 1, 1, 1, 1, 0, 0),
-    -- Retained customers
     (7, 0, 0, 0, 0, 0, 1, 1),
     (8, 0, 0, 0, 0, 0, 1, 1),
     (9, 0, 0, 0, 1, 0, 1, 0),
@@ -180,7 +175,6 @@ ORDER BY review_id;
 
 -- Insert training data for sentiment analysis
 INSERT INTO sentiment_training VALUES
-    -- Positive sentiment
     (1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1),
     (2, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1),
     (3, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1),
@@ -188,7 +182,6 @@ INSERT INTO sentiment_training VALUES
     (5, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1),
     (6, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1),
     (7, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1),
-    -- Negative sentiment
     (8, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0),
     (9, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0),
     (10, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0),
@@ -204,7 +197,7 @@ SELECT * FROM sentiment_training ORDER BY review_id;
 -- Query 8: Sentiment feature analysis
 SELECT '=== Sentiment Feature Analysis ===' AS title;
 SELECT
-    'Positive' AS sentiment,
+    'Positive' AS sentiment_label,
     count() AS count,
     avg(has_excellent) AS p_excellent,
     avg(has_great) AS p_great,
@@ -215,7 +208,7 @@ FROM sentiment_training
 WHERE sentiment = 1
 UNION ALL
 SELECT
-    'Negative' AS sentiment,
+    'Negative' AS sentiment_label,
     count() AS count,
     avg(has_terrible) AS p_terrible,
     avg(has_awful) AS p_awful,
@@ -245,19 +238,16 @@ ORDER BY product_id;
 
 -- Insert training data for product classification
 INSERT INTO product_classification VALUES
-    -- Electronics
     (1, 'electronics', 1, 1, 0, 0, 0, 0, 1),
     (2, 'electronics', 1, 1, 0, 0, 0, 0, 1),
     (3, 'electronics', 1, 0, 0, 0, 0, 0, 1),
     (4, 'electronics', 1, 1, 0, 0, 0, 0, 1),
     (5, 'electronics', 1, 1, 0, 0, 0, 0, 0),
-    -- Clothing
     (6, 'clothing', 0, 0, 1, 1, 0, 0, 0),
     (7, 'clothing', 0, 0, 1, 1, 0, 0, 0),
     (8, 'clothing', 0, 1, 1, 1, 0, 0, 0),
     (9, 'clothing', 0, 0, 1, 1, 0, 0, 0),
     (10, 'clothing', 0, 0, 1, 1, 0, 0, 0),
-    -- Books
     (11, 'books', 0, 0, 0, 0, 1, 1, 0),
     (12, 'books', 0, 0, 0, 0, 1, 1, 0),
     (13, 'books', 0, 1, 0, 0, 1, 1, 0),
