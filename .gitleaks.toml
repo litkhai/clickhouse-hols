@@ -52,10 +52,6 @@ paths = [
     # files are fabricated on purpose — detecting them is the point of the lab.
     '''usecase/security-traffic-analysis/05-generate-demo-data\.sql$''',
     '''usecase/langfuse-ee/08-generate-pii-traces\.py$''',
-    # Local-only LibreChat stack. These JWT/session values are shared demo
-    # defaults for a localhost deployment; replace them before exposing the
-    # stack to anything else. Tracked as pending clean-up.
-    '''local/llm-mac-librechat-with-clickhouse/docker-compose(\.simple)?\.yml$''',
 ]
 
 regexes = [
