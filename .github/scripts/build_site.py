@@ -33,6 +33,7 @@ except ImportError:
 REPO = "litkhai/clickhouse-hols"
 TREE = f"https://github.com/{REPO}/tree/main"
 BLOB = f"https://github.com/{REPO}/blob/main"
+SITE = "https://litkhai.github.io/clickhouse-hols"
 
 RELEASE_ROW = re.compile(
     r"^\|\s*\[([0-9.]+)\]\([0-9.]+/\)\s*\|\s*(\S+)\s*\|\s*(\d+)\s*\|\s*(\S+)\s*\|\s*(.+?)\s*\|$"
@@ -226,7 +227,51 @@ def render_markdown(text, repo_path):
     return rewrite_links(md.convert(text), repo_path)
 
 
-def lab_page(root, repo_path, label, verified):
+IDENT = re.compile(r"[A-Za-z][A-Za-z0-9_.]{2,}")
+CODE_SHAPED = re.compile(r"[_.0-9]|.[A-Z]")
+# Upper-case SQL reads as code-shaped, but every lab contains it, so it
+# separates nothing. Dropping it keeps the filter's hit counts meaningful.
+UBIQUITOUS = frozenset("""select from where insert create table order group limit
+    set engine values with and not null exists like into drop alter clickhouse sql cli
+    the for use""".split())
+
+
+def keywords(root, repo_path):
+    """Terms to match a lab on beyond its one-line summary in the index.
+
+    The summaries are short, so filtering on them alone misses labs that plainly
+    cover what was typed — "iceberg" matched nothing while four labs used it.
+
+    Only code-shaped tokens are kept: an underscore, a dot, a digit or an
+    internal capital. That is what separates `icebergBucket` and
+    `allow_experimental_json_type` from the prose around them, and taking prose
+    too made "file" and "connect" match nearly every lab. Matching is by
+    substring, so "iceberg" still finds `icebergBucket`. Identifiers read the
+    same in both languages, so one attribute serves the KO and EN views alike.
+    """
+    readme = root / repo_path / "README.md"
+    if not readme.is_file():
+        return ""
+    text = readme.read_text()
+    terms = set()
+    for chunk in re.findall(r"`([^`\n]{3,60})`", text) + re.findall(r"^#+ (.+)$", text, re.M):
+        for word in IDENT.findall(chunk):
+            low = word.lower()
+            if CODE_SHAPED.search(word) and low not in UBIQUITOUS:
+                terms.add(low)
+    return " ".join(sorted(terms)[:150])
+
+
+def lab_title(root, repo_path, label):
+    """The lab's own H1, which is what the prev/next links should read."""
+    readme = root / repo_path / "README.md"
+    if not readme.is_file():
+        return None
+    m = re.search(r"^#\s+(.+)$", readme.read_text(), re.M)
+    return m.group(1).strip() if m else label
+
+
+def lab_page(root, repo_path, label, verified, prev=None, nxt=None):
     """Render one lab README, or None when the lab has no README."""
     readme = root / repo_path / "README.md"
     if not readme.is_file():
@@ -247,6 +292,21 @@ def lab_page(root, repo_path, label, verified):
                  % (bi("verified on", "검증"), html.escape(verified)))
 
     depth = len(pathlib.PurePosixPath(repo_path).parts) + 1   # + labs/
+    up = "../" * depth
+
+    # Walk the labs in index order without going back to the index each time.
+    def step(neighbour, css, arrow_en, arrow_ko):
+        if not neighbour:
+            return '<span class="step empty"></span>'
+        path, text = neighbour
+        return ('<a class="step %s" href="%slabs/%s/index.html">'
+                '<span class="dir">%s</span><span class="what">%s</span></a>'
+                % (css, up, path, bi(arrow_en, arrow_ko), html.escape(text)))
+
+    pager = ('<nav class="pager">%s%s</nav>'
+             % (step(prev, "prev", "← Previous", "← 이전"),
+                step(nxt, "next", "Next →", "다음 →")))
+
     body = """<main class="wrap doc">
   <nav class="crumbs">
     <a href="%(up)sindex.html">%(all)s</a>
@@ -256,9 +316,10 @@ def lab_page(root, repo_path, label, verified):
   <div class="readme en">%(en)s</div>
   <div class="readme ko">%(ko)s</div>
   <p class="src"><a href="%(tree)s/%(path)s">%(open)s</a></p>
-</main>""" % {"up": "../" * depth, "all": bi("All labs", "전체 실습"),
+  %(pager)s
+</main>""" % {"up": up, "all": bi("All labs", "전체 실습"),
               "path": html.escape(repo_path), "badge": badge,
-              "en": body_en, "ko": body_ko, "tree": TREE,
+              "en": body_en, "ko": body_ko, "tree": TREE, "pager": pager,
               "open": bi("Open this lab on GitHub →", "GitHub에서 이 실습 열기 →")}
     return shell("%s · ClickHouse HOLs" % title, body, depth,
                  "%s — hands-on ClickHouse lab." % title)
@@ -268,7 +329,7 @@ def lab_page(root, repo_path, label, verified):
 # index page
 # --------------------------------------------------------------------------- #
 
-def index_page(releases, areas, has_page):
+def index_page(releases, areas, has_page, kw):
     newest, oldest = releases[0][0], releases[-1][0]
 
     def href(repo_path):
@@ -279,23 +340,24 @@ def index_page(releases, areas, has_page):
     for version, released, labs, ver, feat_en, feat_ko in releases:
         badge = ('<span class="badge ok">%s</span>' % html.escape(ver) if ver != "—"
                  else '<span class="badge unknown">%s</span>' % bi("not run", "미실행"))
-        rows.append("""        <tr>
+        rows.append("""        <tr data-kw="%s">
           <td><a class="ver" href="%s">%s</a></td>
           <td class="num">%s</td>
           <td class="num">%d</td>
           <td>%s</td>
           <td>%s</td>
-        </tr>""" % (href("local/releases/%s" % version), version, released, labs,
+        </tr>""" % (kw.get("local/releases/%s" % version, ""),
+                    href("local/releases/%s" % version), version, released, labs,
                     badge, bi(md_inline(feat_en, has_page), md_inline(feat_ko, has_page))))
 
     blocks = []
     for h_en, h_ko, items in areas:
         cards = []
         for label, repo_path, desc_en, desc_ko in items:
-            cards.append("""          <li>
+            cards.append("""          <li data-kw="%s">
             <a href="%s"><code>%s</code></a>
             <p>%s</p>
-          </li>""" % (href(repo_path), html.escape(label),
+          </li>""" % (kw.get(repo_path, ""), href(repo_path), html.escape(label),
                       bi(md_inline(desc_en, has_page), md_inline(desc_ko, has_page))))
         blocks.append("""      <section class="area">
         <h3>%s</h3>
@@ -315,6 +377,14 @@ def index_page(releases, areas, has_page):
     </div>
   </div>
 
+  <div class="filter">
+    <input type="search" id="q" autocomplete="off" spellcheck="false"
+           data-ph-en="Filter by version, feature or lab name — try: JSON, Iceberg, vector"
+           data-ph-ko="버전·기능·랩 이름으로 검색 — 예: JSON, Iceberg, vector">
+    <p class="count" id="q-count" hidden></p>
+  </div>
+
+  <section class="group" id="g-releases">
   <h2>%(h_rel)s</h2>
   <p class="lede">%(lede_rel)s</p>
   <div class="scroll">
@@ -328,16 +398,21 @@ def index_page(releases, areas, has_page):
   </table>
   </div>
   <p class="note">%(note)s</p>
+  </section>
 
+  <section class="group" id="g-other">
   <h2>%(h_other)s</h2>
   <p class="lede">%(lede_other)s</p>
 %(blocks)s
+  </section>
 
+  <section id="g-start">
   <h2>%(h_start)s</h2>
   <pre><code>git clone https://github.com/%(repo)s.git
 cd clickhouse-hols/local/releases/%(newest)s
 ./00-setup.sh</code></pre>
   <p class="lede">%(lede_start)s</p>
+  </section>
 </main>""" % {
         "h1": bi("Hands-on ClickHouse labs", "ClickHouse 실습 랩"),
         "lede": bi(
@@ -403,20 +478,20 @@ CSS = """/* Generated by .github/scripts/build_site.py — do not edit by hand. 
   --line: #e3e3df; --accent: var(--yellow); --accent-fg: #16161a;
   --accent-line: #d8dd3f;
   --ok-bg: #eef7e6; --ok-fg: #2f6b1f; --unk-bg: #f0f0ee; --unk-fg: #6b6d75;
-  --code-bg: #f2f2ef;
+  --code-bg: #f2f2ef; --accent-soft: rgba(216, 221, 63, .35);
 }
 :root[data-theme="dark"] {
   --bg: #16161a; --surface: #1f1f24; --fg: #ececf0; --muted: #9a9ca6;
   --line: #2e2e35; --accent-line: #5c5f22;
   --ok-bg: #24301a; --ok-fg: #b6e26a; --unk-bg: #26262c; --unk-fg: #8b8d97;
-  --code-bg: #202027;
+  --code-bg: #202027; --accent-soft: rgba(250, 255, 105, .18);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] {
     --bg: #16161a; --surface: #1f1f24; --fg: #ececf0; --muted: #9a9ca6;
     --line: #2e2e35; --accent-line: #5c5f22;
     --ok-bg: #24301a; --ok-fg: #b6e26a; --unk-bg: #26262c; --unk-fg: #8b8d97;
-    --code-bg: #202027;
+    --code-bg: #202027; --accent-soft: rgba(250, 255, 105, .18);
   }
 }
 
@@ -484,6 +559,18 @@ a.ver { font-weight: 700; text-decoration: none; border-bottom: 2px solid var(--
         padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0 0;
         font-size: 14.5px; }
 
+/* index filter */
+.filter { margin: 30px 0 4px; }
+.filter input { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px;
+                padding: 12px 16px; color: var(--fg); background: var(--surface);
+                border: 1px solid var(--line); border-radius: 12px;
+                transition: border-color .15s, box-shadow .15s; }
+.filter input::placeholder { color: var(--muted); }
+.filter input:focus { outline: none; border-color: var(--accent);
+                      box-shadow: 0 0 0 3px var(--accent-soft); }
+.filter .count { margin: 8px 2px 0; font-size: 13px; color: var(--muted); }
+[hidden] { display: none !important; }
+
 .area { margin-top: 34px; }
 .area h3 { font-size: 17px; margin: 0 0 12px; }
 ul.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px;
@@ -516,6 +603,17 @@ ul.cards p { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
 .src { margin: 34px 0 0; font-size: 14.5px; }
 .src a { text-decoration: none; border-bottom: 2px solid var(--accent); font-weight: 600; }
 
+/* walk the labs in index order without going back to the index */
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 40px 0 0; }
+.pager .step { display: block; padding: 14px 16px; border-radius: 12px;
+               border: 1px solid var(--line); background: var(--surface);
+               text-decoration: none; transition: border-color .15s; }
+.pager .step:hover { border-color: var(--accent-line); }
+.pager .step.empty { border: 0; background: none; }
+.pager .next { text-align: right; }
+.pager .dir { display: block; font-size: 12.5px; color: var(--muted); }
+.pager .what { display: block; margin-top: 3px; font-weight: 600; font-size: 14.5px; }
+
 footer { margin-top: 64px; border-top: 1px solid var(--line); padding: 24px 0 48px;
          color: var(--muted); font-size: 14px; }
 
@@ -541,12 +639,73 @@ JS = """/* Generated by .github/scripts/build_site.py — do not edit by hand. *
     document.querySelectorAll('[data-set-lang]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
     });
+    // The filter's placeholder is an attribute, so the CSS switch cannot reach it.
+    document.querySelectorAll('[data-ph-en]').forEach(function (i) {
+      i.placeholder = lang === 'ko' ? i.dataset.phKo : i.dataset.phEn;
+    });
+    if (typeof filter === 'function') filter();
   }
 
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     document.querySelectorAll('[data-set-theme]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.setTheme === theme));
+    });
+  }
+
+  // Index filter. Matches the text of the language currently on screen, so
+  // typing "벡터" works in Korean and "vector" in English.
+  var box = document.getElementById('q');
+  var count = document.getElementById('q-count');
+
+  function visibleText(el) {
+    var lang = document.documentElement.lang;
+    var hidden = lang === 'ko' ? '.en' : '.ko';
+    var copy = el.cloneNode(true);
+    copy.querySelectorAll(hidden).forEach(function (n) { n.remove(); });
+    return (copy.textContent || '').toLowerCase();
+  }
+
+  function filter() {
+    if (!box) return;
+    var q = box.value.trim().toLowerCase();
+    var shown = 0, total = 0;
+
+    document.querySelectorAll('tbody tr, .cards li').forEach(function (el) {
+      total++;
+      var hit = !q || visibleText(el).indexOf(q) !== -1
+               || (el.dataset.kw || '').indexOf(q) !== -1;
+      el.hidden = !hit;
+      if (hit) shown++;
+    });
+
+    // Collapse a heading once nothing under it survives.
+    document.querySelectorAll('.area').forEach(function (s) {
+      s.hidden = !s.querySelector('.cards li:not([hidden])');
+    });
+    ['g-releases', 'g-other'].forEach(function (id) {
+      var s = document.getElementById(id);
+      if (s) s.hidden = !s.querySelector('tbody tr:not([hidden]), .cards li:not([hidden])');
+    });
+    var start = document.getElementById('g-start');
+    if (start) start.hidden = !!q;
+
+    if (count) {
+      count.hidden = !q;
+      count.textContent = document.documentElement.lang === 'ko'
+        ? (shown ? shown + ' / ' + total + '개 표시' : '일치하는 랩이 없습니다')
+        : (shown ? shown + ' of ' + total + ' shown' : 'no labs match');
+    }
+  }
+
+  if (box) {
+    box.addEventListener('input', filter);
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { box.value = ''; filter(); }
+    });
+    // "/" focuses the filter, the shortcut people already expect.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && document.activeElement !== box) { e.preventDefault(); box.focus(); }
     });
   }
 
@@ -566,6 +725,18 @@ JS = """/* Generated by .github/scripts/build_site.py — do not edit by hand. *
 
 # --------------------------------------------------------------------------- #
 
+def sitemap(has_page):
+    """Every page, so the lab pages are indexed and not just the front page."""
+    urls = ["%s/" % SITE] + sorted(
+        "%s/labs/%s/" % (SITE, p) for p in has_page)
+    body = "\n".join("  <url><loc>%s</loc></url>" % html.escape(u) for u in urls)
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            "%s\n</urlset>\n" % body)
+
+
+# --------------------------------------------------------------------------- #
+
 def build(root):
     releases = parse_releases(root / "local" / "releases" / "README.md")
     areas = parse_areas(root / "README.md")
@@ -574,16 +745,25 @@ def build(root):
               for v, _, _, b, _, _ in releases]
     wanted += [(p, label, None) for _, _, items in areas for label, p, _, _ in items]
 
-    files, has_page = {}, set()
-    for repo_path, label, verified in wanted:
-        page = lab_page(root, repo_path, label, verified)
-        if page is not None:
-            files["labs/%s/index.html" % repo_path] = page
-            has_page.add(repo_path)
+    # First pass: which labs have a README, and what each one calls itself.
+    # The prev/next links need both, and they need them before rendering.
+    pages = [(p, lab_title(root, p, label), v) for p, label, v in wanted]
+    pages = [(p, t, v) for p, t, v in pages if t is not None]
+    has_page = {p for p, _, _ in pages}
+    kw = {p: keywords(root, p) for p in has_page}
 
-    files["index.html"] = index_page(releases, areas, has_page)
+    files = {}
+    for i, (repo_path, title, verified) in enumerate(pages):
+        prev = (pages[i - 1][0], pages[i - 1][1]) if i else None
+        nxt = (pages[i + 1][0], pages[i + 1][1]) if i + 1 < len(pages) else None
+        files["labs/%s/index.html" % repo_path] = lab_page(
+            root, repo_path, title, verified, prev, nxt)
+
+    files["index.html"] = index_page(releases, areas, has_page, kw)
     files["assets/site.css"] = CSS
     files["assets/site.js"] = JS
+    files["sitemap.xml"] = sitemap(has_page)
+    files["robots.txt"] = "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n" % SITE
     files[".nojekyll"] = ""      # Jekyll would otherwise skip some paths
     return files, len(releases), sum(len(a[2]) for a in areas), len(has_page)
 

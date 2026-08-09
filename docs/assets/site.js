@@ -10,12 +10,73 @@
     document.querySelectorAll('[data-set-lang]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
     });
+    // The filter's placeholder is an attribute, so the CSS switch cannot reach it.
+    document.querySelectorAll('[data-ph-en]').forEach(function (i) {
+      i.placeholder = lang === 'ko' ? i.dataset.phKo : i.dataset.phEn;
+    });
+    if (typeof filter === 'function') filter();
   }
 
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     document.querySelectorAll('[data-set-theme]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.setTheme === theme));
+    });
+  }
+
+  // Index filter. Matches the text of the language currently on screen, so
+  // typing "벡터" works in Korean and "vector" in English.
+  var box = document.getElementById('q');
+  var count = document.getElementById('q-count');
+
+  function visibleText(el) {
+    var lang = document.documentElement.lang;
+    var hidden = lang === 'ko' ? '.en' : '.ko';
+    var copy = el.cloneNode(true);
+    copy.querySelectorAll(hidden).forEach(function (n) { n.remove(); });
+    return (copy.textContent || '').toLowerCase();
+  }
+
+  function filter() {
+    if (!box) return;
+    var q = box.value.trim().toLowerCase();
+    var shown = 0, total = 0;
+
+    document.querySelectorAll('tbody tr, .cards li').forEach(function (el) {
+      total++;
+      var hit = !q || visibleText(el).indexOf(q) !== -1
+               || (el.dataset.kw || '').indexOf(q) !== -1;
+      el.hidden = !hit;
+      if (hit) shown++;
+    });
+
+    // Collapse a heading once nothing under it survives.
+    document.querySelectorAll('.area').forEach(function (s) {
+      s.hidden = !s.querySelector('.cards li:not([hidden])');
+    });
+    ['g-releases', 'g-other'].forEach(function (id) {
+      var s = document.getElementById(id);
+      if (s) s.hidden = !s.querySelector('tbody tr:not([hidden]), .cards li:not([hidden])');
+    });
+    var start = document.getElementById('g-start');
+    if (start) start.hidden = !!q;
+
+    if (count) {
+      count.hidden = !q;
+      count.textContent = document.documentElement.lang === 'ko'
+        ? (shown ? shown + ' / ' + total + '개 표시' : '일치하는 랩이 없습니다')
+        : (shown ? shown + ' of ' + total + ' shown' : 'no labs match');
+    }
+  }
+
+  if (box) {
+    box.addEventListener('input', filter);
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { box.value = ''; filter(); }
+    });
+    // "/" focuses the filter, the shortcut people already expect.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && document.activeElement !== box) { e.preventDefault(); box.focus(); }
     });
   }
 
