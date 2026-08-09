@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Cloud Secure S3 Integration with Terraform · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Cloud Secure S3 Integration with Terraform — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/s3/terraform-chc-secures3-aws</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Cloud Secure S3 Integration with Terraform</h1>
+<p>This Terraform configuration sets up secure S3 access for ClickHouse Cloud using IAM role-based authentication. It allows ClickHouse Cloud to read from and write to an S3 bucket using the S3 table engine without managing access keys.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Secure IAM Role-Based Authentication</strong>: No access keys needed - uses AWS IAM role assumption</li>
+<li><strong>Read &amp; Write Permissions</strong>: Full support for SELECT, INSERT, and export operations</li>
+<li><strong>S3 Table Engine Support</strong>: Create tables backed by S3 storage in various formats (Parquet, CSV, JSON)</li>
+<li><strong>Production-Ready</strong>: Includes encryption, versioning, and public access blocking</li>
+<li><strong>Easy Integration</strong>: Pre-configured for ClickHouse Cloud service roles</li>
+<li><strong>Multiple Format Support</strong>: Parquet, CSV, JSON, and other ClickHouse-supported formats</li>
+</ul>
+<h2>Architecture</h2>
+<pre><code>┌─────────────────────────┐
+│  ClickHouse Cloud      │
+│  Service               │
+│  (with IAM Role)       │
+└───────────┬─────────────┘
+            │ AssumeRole
+            │
+            ▼
+┌─────────────────────────┐
+│  IAM Role              │
+│  ClickHouseS3Access    │
+│  (Created by Terraform) │
+└───────────┬─────────────┘
+            │ S3 Permissions
+            │ (Get, Put, Delete)
+            ▼
+┌─────────────────────────┐
+│  S3 Bucket             │
+│  - Encrypted           │
+│  - Versioned           │
+│  - Private             │
+└─────────────────────────┘
+</code></pre>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>ClickHouse Cloud service (free or paid tier)</li>
+</ul>
+<h2>AWS Credentials Setup</h2>
+<p>Set your AWS credentials as environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # If using temporary credentials
+export AWS_REGION=&quot;ap-northeast-2&quot;  # Optional: Set default region
+</code></pre>
+<h2>Quick Start</h2>
+<h3>Option A: Automated Deployment (Recommended)</h3>
+<p>The easiest way to deploy is using the automated deployment script:</p>
+<pre><code class="language-bash">cd terraform-chc-secures3-aws
+./deploy.sh
+</code></pre>
+<p>The script will:
+1. ✅ Check AWS credentials automatically
+2. ✅ Auto-detect AWS region
+3. ✅ Prompt for S3 bucket name (with random hash generation)
+4. ✅ Load saved ClickHouse IAM role ARN from <code>.env</code> (if exists)
+5. ✅ Prompt for ClickHouse Cloud IAM role ARN (with reuse option)
+6. ✅ Validate and save configuration
+7. ✅ Deploy the infrastructure
+8. ✅ Display connection information</p>
+<p><strong>Interactive Deployment Process:</strong></p>
+<p>When you run <code>./deploy.sh</code>, the script will:</p>
+<ol>
+<li>
+<p><strong>S3 Bucket Configuration:</strong>
+   - Prompt for bucket name prefix (default: <code>clickhouse-s3</code>)
+   - Automatically append 8-character random hash
+   - Example: <code>my-project</code> → <code>my-project-a1b2c3d4</code></p>
+</li>
+<li>
+<p><strong>ClickHouse IAM Role:</strong>
+   - Check for saved ARN in <code>.env</code> file
+   - If found, ask to reuse or enter new one
+   - If not found, prompt for new ARN
+   - Automatically save to <code>.env</code> for future use</p>
+</li>
+</ol>
+<p><strong>First Time Setup:</strong></p>
+<p>Get your ClickHouse Cloud IAM role ARN:
+1. Log into <a href="https://clickhouse.cloud/">ClickHouse Cloud Console</a>
+2. Select your service
+3. Navigate to: <strong>Settings</strong> → <strong>Network security information</strong>
+4. Copy the <strong>Service role ID (IAM)</strong> value
+   - Format: <code>arn:aws:iam::123456789012:role/ClickHouseInstanceRole-xxxxx</code></p>
+<p>Then run:</p>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p><strong>Subsequent Deployments:</strong></p>
+<p>The script will remember your ClickHouse IAM role ARN from <code>.env</code>:</p>
+<pre><code class="language-bash">./deploy.sh
+# ✅ Found saved ClickHouse IAM role ARN in .env
+# Use saved ClickHouse IAM role ARN from .env? (y/n): y
+</code></pre>
+<h3>Option B: Manual Deployment</h3>
+<p>If you prefer manual configuration:</p>
+<h4>1. Copy the example configuration:</h4>
+<pre><code class="language-bash">cd terraform-chc-secures3-aws
+cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<h4>2. Edit <code>terraform.tfvars</code>:</h4>
+<pre><code class="language-hcl"># REQUIRED: Set a globally unique bucket name
+bucket_name = &quot;my-company-clickhouse-data-2024&quot;
+
+# REQUIRED: Paste your ClickHouse Cloud IAM role ARN
+clickhouse_iam_role_arns = [
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-xxxxx&quot;
+]
+
+# Optional: Customize other settings
+aws_region = &quot;ap-northeast-2&quot;  # Same region as ClickHouse Cloud recommended
+iam_role_name = &quot;ClickHouseS3Access&quot;
+environment = &quot;production&quot;
+</code></pre>
+<h4>3. Deploy:</h4>
+<pre><code class="language-bash"># Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 1-2 minutes.</p>
+<h3>Get Connection Information</h3>
+<p>After deployment, view the connection details:</p>
+<pre><code class="language-bash"># View complete connection information
+terraform output connection_info
+
+# Get the IAM role ARN (needed for ClickHouse queries)
+terraform output iam_role_arn
+
+# View SQL examples
+terraform output clickhouse_sql_examples
+</code></pre>
+<h2>Usage Examples</h2>
+<h3>Example 1: Create S3-Backed Table (Parquet Format)</h3>
+<p>The most efficient format for ClickHouse is Parquet:</p>
+<pre><code class="language-sql">CREATE TABLE logs_s3
+(
+    timestamp DateTime,
+    level String,
+    message String
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/logs/app_logs.parquet',
+    'Parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+
+-- Insert data
+INSERT INTO logs_s3 VALUES
+    (now(), 'INFO', 'Application started'),
+    (now(), 'DEBUG', 'Processing request'),
+    (now(), 'ERROR', 'Connection timeout');
+
+-- Query data
+SELECT * FROM logs_s3;
+</code></pre>
+<h3>Example 2: Direct S3 Query Without Table</h3>
+<p>Query S3 files directly without creating a table:</p>
+<pre><code class="language-sql">SELECT *
+FROM s3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/*.parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+LIMIT 100;
+</code></pre>
+<h3>Example 3: Export Query Results to S3</h3>
+<p>Export aggregated results to S3:</p>
+<pre><code class="language-sql">INSERT INTO FUNCTION s3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/exports/daily_summary.parquet',
+    'Parquet',
+    'date Date, total_events UInt64, unique_users UInt64',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+SELECT
+    toDate(timestamp) AS date,
+    count() AS total_events,
+    uniq(user_id) AS unique_users
+FROM events
+GROUP BY date;
+</code></pre>
+<h3>Example 4: CSV Format with Headers</h3>
+<pre><code class="language-sql">CREATE TABLE events_csv
+(
+    event_id UInt64,
+    user_id String,
+    event_type String,
+    created_at DateTime
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/events.csv',
+    'CSVWithNames',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+</code></pre>
+<h3>Example 5: JSON Lines Format</h3>
+<pre><code class="language-sql">CREATE TABLE user_activity_json
+(
+    user_id String,
+    action String,
+    timestamp DateTime
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/activity_*.json',
+    'JSONEachRow',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+</code></pre>
+<h2>Supported File Formats</h2>
+<p>ClickHouse S3 integration supports many formats:</p>
+<ul>
+<li><strong>Parquet</strong> - Recommended for best compression and performance</li>
+<li><strong>CSV</strong>, <strong>CSVWithNames</strong> - Simple text format with optional headers</li>
+<li><strong>JSONEachRow</strong> - One JSON object per line</li>
+<li><strong>TSV</strong>, <strong>TSVWithNames</strong> - Tab-separated values</li>
+<li><strong>Native</strong> - ClickHouse native format (best for ClickHouse-to-ClickHouse)</li>
+<li><strong>Avro</strong>, <strong>ORC</strong> - Other columnar formats</li>
+</ul>
+<h2>Configuration</h2>
+<h3>Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>bucket_name</code></td>
+<td>S3 bucket name (globally unique)</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td><code>clickhouse_iam_role_arns</code></td>
+<td>ClickHouse Cloud IAM role ARN(s)</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td><code>iam_role_name</code></td>
+<td>Name for IAM role</td>
+<td>"ClickHouseS3Access"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>environment</code></td>
+<td>Environment tag</td>
+<td>"dev"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>enable_versioning</code></td>
+<td>Enable S3 versioning</td>
+<td>true</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>create_sample_folders</code></td>
+<td>Create sample folders</td>
+<td>true</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>require_external_id</code></td>
+<td>Use external ID for security</td>
+<td>false</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>external_id</code></td>
+<td>External ID shared secret</td>
+<td>""</td>
+<td>No (if enabled)</td>
+</tr>
+</tbody>
+</table>
+<h3>IAM Permissions</h3>
+<p>The Terraform configuration creates an IAM role with the following permissions:</p>
+<p><strong>Bucket-level permissions:</strong>
+- <code>s3:GetBucketLocation</code>
+- <code>s3:ListBucket</code></p>
+<p><strong>Object-level permissions (read):</strong>
+- <code>s3:GetObject</code>
+- <code>s3:GetObjectVersion</code>
+- <code>s3:ListMultipartUploadParts</code></p>
+<p><strong>Object-level permissions (write):</strong>
+- <code>s3:PutObject</code>
+- <code>s3:DeleteObject</code>
+- <code>s3:AbortMultipartUpload</code></p>
+<h2>Testing</h2>
+<p>Run the included test script to verify your setup:</p>
+<pre><code class="language-bash"># Make the script executable
+chmod +x test-s3-integration.sh
+
+# Run the test
+./test-s3-integration.sh
+</code></pre>
+<p>The test script will:
+1. Create a test table with S3 engine
+2. Insert sample data
+3. Query the data back
+4. Verify files were created in S3
+5. Clean up test resources</p>
+<h2>S3 Bucket Structure</h2>
+<p>The Terraform configuration optionally creates the following folder structure:</p>
+<pre><code>your-bucket-name/
+├── data/           # For data files
+├── logs/           # For log files
+└── exports/        # For exported query results
+</code></pre>
+<p>You can organize your files however you prefer.</p>
+<h2>Best Practices</h2>
+<h3>1. Use the Same AWS Region</h3>
+<p>Place your S3 bucket in the same AWS region as your ClickHouse Cloud service to:
+- Minimize data transfer costs
+- Reduce latency
+- Improve performance</p>
+<h3>2. Use Parquet Format</h3>
+<p>For best performance and storage efficiency:
+- Use Parquet for large datasets
+- Enable compression (Parquet has built-in compression)
+- Consider partitioning large datasets</p>
+<h3>3. Use Wildcards for Partitioned Data</h3>
+<pre><code class="language-sql">-- Query all partitions
+SELECT * FROM s3(
+    'https://s3.ap-northeast-2.amazonaws.com/bucket/data/year=*/month=*/day=*/*.parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+WHERE toDate(timestamp) &gt;= today() - 7;
+</code></pre>
+<h3>4. Enable S3 Versioning</h3>
+<p>Keep versioning enabled to:
+- Protect against accidental deletions
+- Maintain data history
+- Enable data recovery</p>
+<h3>5. Monitor Costs</h3>
+<p>Watch for:
+- S3 storage costs (varies by storage class)
+- Data transfer costs (especially cross-region)
+- S3 request costs (PUT, GET operations)</p>
+<h2>Troubleshooting</h2>
+<h3>Error: "Access Denied"</h3>
+<p><strong>Causes:</strong>
+1. Incorrect ClickHouse IAM role ARN
+2. IAM role trust policy issue
+3. Missing S3 permissions</p>
+<p><strong>Solutions:</strong></p>
+<pre><code class="language-bash"># 1. Verify your ClickHouse IAM role ARN
+terraform output connection_info
+
+# 2. Check the IAM role in AWS Console
+aws iam get-role --role-name ClickHouseS3Access
+
+# 3. Check the IAM role policy
+aws iam get-role-policy --role-name ClickHouseS3Access --policy-name ClickHouseS3Access-s3-policy
+
+# 4. Verify the assume role policy
+aws iam get-role --role-name ClickHouseS3Access --query 'Role.AssumeRolePolicyDocument'
+</code></pre>
+<h3>Error: "NoSuchBucket"</h3>
+<p><strong>Causes:</strong>
+1. Bucket name typo
+2. Wrong region
+3. Bucket not created</p>
+<p><strong>Solutions:</strong></p>
+<pre><code class="language-bash"># Verify bucket exists
+aws s3 ls s3://your-bucket-name
+
+# Check bucket region
+aws s3api get-bucket-location --bucket your-bucket-name
+</code></pre>
+<h3>Error: "InvalidParameter"</h3>
+<p><strong>Cause:</strong> Malformed S3 URL or role ARN</p>
+<p><strong>Solution:</strong> Use the exact format from terraform outputs:</p>
+<pre><code class="language-bash">terraform output clickhouse_sql_examples
+</code></pre>
+<h3>Testing IAM Role Assumption</h3>
+<p>Test if ClickHouse can assume the role:</p>
+<pre><code class="language-bash"># Get the role ARN
+ROLE_ARN=$(terraform output -raw iam_role_arn)
+
+# Try to assume the role (this should fail from your local machine)
+aws sts assume-role --role-arn $ROLE_ARN --role-session-name test
+# Expected: Error because only ClickHouse can assume this role
+</code></pre>
+<h2>Monitoring and Logging</h2>
+<h3>CloudWatch Metrics</h3>
+<p>Monitor these S3 metrics:
+- <code>NumberOfObjects</code> - Total objects in bucket
+- <code>BucketSizeBytes</code> - Total storage used
+- <code>AllRequests</code> - Total API requests</p>
+<h3>S3 Access Logging (Optional)</h3>
+<p>Enable S3 access logging for audit trails:</p>
+<pre><code class="language-hcl"># Add to main.tf
+resource &quot;aws_s3_bucket_logging&quot; &quot;clickhouse_data_logging&quot; {
+  bucket = aws_s3_bucket.clickhouse_data.id
+
+  target_bucket = aws_s3_bucket.log_bucket.id
+  target_prefix = &quot;s3-access-logs/&quot;
+}
+</code></pre>
+<h2>Cost Optimization</h2>
+<h3>Estimated Costs</h3>
+<p>For a bucket with 100 GB of data:</p>
+<ul>
+<li><strong>S3 Storage (Standard)</strong>: ~$2.30/month</li>
+<li><strong>S3 Requests</strong>: ~$0.50/month (varies by usage)</li>
+<li><strong>Data Transfer (same region)</strong>: $0 (free)</li>
+<li><strong>Data Transfer (cross-region)</strong>: $0.02/GB</li>
+</ul>
+<p><strong>Total</strong>: ~$3-5/month for moderate usage</p>
+<h3>Cost Saving Tips</h3>
+<ol>
+<li><strong>Use S3 Lifecycle Policies</strong>: Move old data to cheaper storage classes</li>
+<li><strong>Use S3 Intelligent-Tiering</strong>: Automatically optimize storage costs</li>
+<li><strong>Compress Data</strong>: Use Parquet with compression</li>
+<li><strong>Minimize Requests</strong>: Batch operations when possible</li>
+<li><strong>Keep Data in Same Region</strong>: Avoid cross-region transfer fees</li>
+</ol>
+<h2>Advanced Configuration</h2>
+<h3>Using External ID for Additional Security</h3>
+<p>For enhanced security, use an external ID:</p>
+<pre><code class="language-hcl"># In terraform.tfvars
+require_external_id = true
+external_id = &quot;your-shared-secret-12345&quot;
+</code></pre>
+<p>Then in ClickHouse queries:</p>
+<pre><code class="language-sql">ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/bucket/file.parquet',
+    'Parquet',
+    extra_credentials(
+        role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access',
+        external_id = 'your-shared-secret-12345'
+    )
+);
+</code></pre>
+<h3>Multiple ClickHouse Services</h3>
+<p>To grant access to multiple ClickHouse Cloud services:</p>
+<pre><code class="language-hcl"># In terraform.tfvars
+clickhouse_iam_role_arns = [
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-service1&quot;,
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-service2&quot;
+]
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash"># Review what will be deleted
+terraform plan -destroy
+
+# Delete all resources
+terraform destroy
+</code></pre>
+<p><strong>Warning</strong>: This will delete the S3 bucket and all its contents. Make sure to backup any important data first.</p>
+<h2>Outputs Reference</h2>
+<p>After deployment, these outputs are available:</p>
+<pre><code class="language-bash"># Essential outputs
+terraform output bucket_name              # S3 bucket name
+terraform output iam_role_arn            # IAM role ARN for ClickHouse
+terraform output s3_url_prefix           # Base S3 URL
+
+# Detailed information
+terraform output connection_info          # Complete setup information
+terraform output clickhouse_sql_examples  # Ready-to-use SQL examples
+terraform output setup_checklist         # Step-by-step setup guide
+</code></pre>
+<h2>Related Documentation</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/s3">ClickHouse S3 Table Engine</a></li>
+<li><a href="https://clickhouse.com/docs/cloud/data-sources/secure-s3">ClickHouse Cloud Secure S3</a></li>
+<li><a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html">AWS IAM Roles</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/best-practices.html">S3 Best Practices</a></li>
+</ul>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>ClickHouse Documentation: https://clickhouse.com/docs</li>
+<li>ClickHouse Community Slack: https://clickhouse.com/slack</li>
+<li>AWS Support: https://console.aws.amazon.com/support/</li>
+<li>Terraform AWS Provider: https://registry.terraform.io/providers/hashicorp/aws/</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <div class="readme ko"><h1>ClickHouse Cloud Secure S3 Integration with Terraform</h1>
+<p>This Terraform configuration sets up secure S3 access for ClickHouse Cloud using IAM role-based authentication. It allows ClickHouse Cloud to read from and write to an S3 bucket using the S3 table engine without managing access keys.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Secure IAM Role-Based Authentication</strong>: No access keys needed - uses AWS IAM role assumption</li>
+<li><strong>Read &amp; Write Permissions</strong>: Full support for SELECT, INSERT, and export operations</li>
+<li><strong>S3 Table Engine Support</strong>: Create tables backed by S3 storage in various formats (Parquet, CSV, JSON)</li>
+<li><strong>Production-Ready</strong>: Includes encryption, versioning, and public access blocking</li>
+<li><strong>Easy Integration</strong>: Pre-configured for ClickHouse Cloud service roles</li>
+<li><strong>Multiple Format Support</strong>: Parquet, CSV, JSON, and other ClickHouse-supported formats</li>
+</ul>
+<h2>Architecture</h2>
+<pre><code>┌─────────────────────────┐
+│  ClickHouse Cloud      │
+│  Service               │
+│  (with IAM Role)       │
+└───────────┬─────────────┘
+            │ AssumeRole
+            │
+            ▼
+┌─────────────────────────┐
+│  IAM Role              │
+│  ClickHouseS3Access    │
+│  (Created by Terraform) │
+└───────────┬─────────────┘
+            │ S3 Permissions
+            │ (Get, Put, Delete)
+            ▼
+┌─────────────────────────┐
+│  S3 Bucket             │
+│  - Encrypted           │
+│  - Versioned           │
+│  - Private             │
+└─────────────────────────┘
+</code></pre>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>ClickHouse Cloud service (free or paid tier)</li>
+</ul>
+<h2>AWS Credentials Setup</h2>
+<p>Set your AWS credentials as environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # If using temporary credentials
+export AWS_REGION=&quot;ap-northeast-2&quot;  # Optional: Set default region
+</code></pre>
+<h2>Quick Start</h2>
+<h3>Option A: Automated Deployment (Recommended)</h3>
+<p>The easiest way to deploy is using the automated deployment script:</p>
+<pre><code class="language-bash">cd terraform-chc-secures3-aws
+./deploy.sh
+</code></pre>
+<p>The script will:
+1. ✅ Check AWS credentials automatically
+2. ✅ Auto-detect AWS region
+3. ✅ Prompt for S3 bucket name (with random hash generation)
+4. ✅ Load saved ClickHouse IAM role ARN from <code>.env</code> (if exists)
+5. ✅ Prompt for ClickHouse Cloud IAM role ARN (with reuse option)
+6. ✅ Validate and save configuration
+7. ✅ Deploy the infrastructure
+8. ✅ Display connection information</p>
+<p><strong>Interactive Deployment Process:</strong></p>
+<p>When you run <code>./deploy.sh</code>, the script will:</p>
+<ol>
+<li>
+<p><strong>S3 Bucket Configuration:</strong>
+   - Prompt for bucket name prefix (default: <code>clickhouse-s3</code>)
+   - Automatically append 8-character random hash
+   - Example: <code>my-project</code> → <code>my-project-a1b2c3d4</code></p>
+</li>
+<li>
+<p><strong>ClickHouse IAM Role:</strong>
+   - Check for saved ARN in <code>.env</code> file
+   - If found, ask to reuse or enter new one
+   - If not found, prompt for new ARN
+   - Automatically save to <code>.env</code> for future use</p>
+</li>
+</ol>
+<p><strong>First Time Setup:</strong></p>
+<p>Get your ClickHouse Cloud IAM role ARN:
+1. Log into <a href="https://clickhouse.cloud/">ClickHouse Cloud Console</a>
+2. Select your service
+3. Navigate to: <strong>Settings</strong> → <strong>Network security information</strong>
+4. Copy the <strong>Service role ID (IAM)</strong> value
+   - Format: <code>arn:aws:iam::123456789012:role/ClickHouseInstanceRole-xxxxx</code></p>
+<p>Then run:</p>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p><strong>Subsequent Deployments:</strong></p>
+<p>The script will remember your ClickHouse IAM role ARN from <code>.env</code>:</p>
+<pre><code class="language-bash">./deploy.sh
+# ✅ Found saved ClickHouse IAM role ARN in .env
+# Use saved ClickHouse IAM role ARN from .env? (y/n): y
+</code></pre>
+<h3>Option B: Manual Deployment</h3>
+<p>If you prefer manual configuration:</p>
+<h4>1. Copy the example configuration:</h4>
+<pre><code class="language-bash">cd terraform-chc-secures3-aws
+cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<h4>2. Edit <code>terraform.tfvars</code>:</h4>
+<pre><code class="language-hcl"># REQUIRED: Set a globally unique bucket name
+bucket_name = &quot;my-company-clickhouse-data-2024&quot;
+
+# REQUIRED: Paste your ClickHouse Cloud IAM role ARN
+clickhouse_iam_role_arns = [
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-xxxxx&quot;
+]
+
+# Optional: Customize other settings
+aws_region = &quot;ap-northeast-2&quot;  # Same region as ClickHouse Cloud recommended
+iam_role_name = &quot;ClickHouseS3Access&quot;
+environment = &quot;production&quot;
+</code></pre>
+<h4>3. Deploy:</h4>
+<pre><code class="language-bash"># Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 1-2 minutes.</p>
+<h3>Get Connection Information</h3>
+<p>After deployment, view the connection details:</p>
+<pre><code class="language-bash"># View complete connection information
+terraform output connection_info
+
+# Get the IAM role ARN (needed for ClickHouse queries)
+terraform output iam_role_arn
+
+# View SQL examples
+terraform output clickhouse_sql_examples
+</code></pre>
+<h2>Usage Examples</h2>
+<h3>Example 1: Create S3-Backed Table (Parquet Format)</h3>
+<p>The most efficient format for ClickHouse is Parquet:</p>
+<pre><code class="language-sql">CREATE TABLE logs_s3
+(
+    timestamp DateTime,
+    level String,
+    message String
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/logs/app_logs.parquet',
+    'Parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+
+-- Insert data
+INSERT INTO logs_s3 VALUES
+    (now(), 'INFO', 'Application started'),
+    (now(), 'DEBUG', 'Processing request'),
+    (now(), 'ERROR', 'Connection timeout');
+
+-- Query data
+SELECT * FROM logs_s3;
+</code></pre>
+<h3>Example 2: Direct S3 Query Without Table</h3>
+<p>Query S3 files directly without creating a table:</p>
+<pre><code class="language-sql">SELECT *
+FROM s3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/*.parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+LIMIT 100;
+</code></pre>
+<h3>Example 3: Export Query Results to S3</h3>
+<p>Export aggregated results to S3:</p>
+<pre><code class="language-sql">INSERT INTO FUNCTION s3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/exports/daily_summary.parquet',
+    'Parquet',
+    'date Date, total_events UInt64, unique_users UInt64',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+SELECT
+    toDate(timestamp) AS date,
+    count() AS total_events,
+    uniq(user_id) AS unique_users
+FROM events
+GROUP BY date;
+</code></pre>
+<h3>Example 4: CSV Format with Headers</h3>
+<pre><code class="language-sql">CREATE TABLE events_csv
+(
+    event_id UInt64,
+    user_id String,
+    event_type String,
+    created_at DateTime
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/events.csv',
+    'CSVWithNames',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+</code></pre>
+<h3>Example 5: JSON Lines Format</h3>
+<pre><code class="language-sql">CREATE TABLE user_activity_json
+(
+    user_id String,
+    action String,
+    timestamp DateTime
+)
+ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/your-bucket-name/data/activity_*.json',
+    'JSONEachRow',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+);
+</code></pre>
+<h2>Supported File Formats</h2>
+<p>ClickHouse S3 integration supports many formats:</p>
+<ul>
+<li><strong>Parquet</strong> - Recommended for best compression and performance</li>
+<li><strong>CSV</strong>, <strong>CSVWithNames</strong> - Simple text format with optional headers</li>
+<li><strong>JSONEachRow</strong> - One JSON object per line</li>
+<li><strong>TSV</strong>, <strong>TSVWithNames</strong> - Tab-separated values</li>
+<li><strong>Native</strong> - ClickHouse native format (best for ClickHouse-to-ClickHouse)</li>
+<li><strong>Avro</strong>, <strong>ORC</strong> - Other columnar formats</li>
+</ul>
+<h2>Configuration</h2>
+<h3>Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>bucket_name</code></td>
+<td>S3 bucket name (globally unique)</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td><code>clickhouse_iam_role_arns</code></td>
+<td>ClickHouse Cloud IAM role ARN(s)</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td><code>iam_role_name</code></td>
+<td>Name for IAM role</td>
+<td>"ClickHouseS3Access"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>environment</code></td>
+<td>Environment tag</td>
+<td>"dev"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>enable_versioning</code></td>
+<td>Enable S3 versioning</td>
+<td>true</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>create_sample_folders</code></td>
+<td>Create sample folders</td>
+<td>true</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>require_external_id</code></td>
+<td>Use external ID for security</td>
+<td>false</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>external_id</code></td>
+<td>External ID shared secret</td>
+<td>""</td>
+<td>No (if enabled)</td>
+</tr>
+</tbody>
+</table>
+<h3>IAM Permissions</h3>
+<p>The Terraform configuration creates an IAM role with the following permissions:</p>
+<p><strong>Bucket-level permissions:</strong>
+- <code>s3:GetBucketLocation</code>
+- <code>s3:ListBucket</code></p>
+<p><strong>Object-level permissions (read):</strong>
+- <code>s3:GetObject</code>
+- <code>s3:GetObjectVersion</code>
+- <code>s3:ListMultipartUploadParts</code></p>
+<p><strong>Object-level permissions (write):</strong>
+- <code>s3:PutObject</code>
+- <code>s3:DeleteObject</code>
+- <code>s3:AbortMultipartUpload</code></p>
+<h2>Testing</h2>
+<p>Run the included test script to verify your setup:</p>
+<pre><code class="language-bash"># Make the script executable
+chmod +x test-s3-integration.sh
+
+# Run the test
+./test-s3-integration.sh
+</code></pre>
+<p>The test script will:
+1. Create a test table with S3 engine
+2. Insert sample data
+3. Query the data back
+4. Verify files were created in S3
+5. Clean up test resources</p>
+<h2>S3 Bucket Structure</h2>
+<p>The Terraform configuration optionally creates the following folder structure:</p>
+<pre><code>your-bucket-name/
+├── data/           # For data files
+├── logs/           # For log files
+└── exports/        # For exported query results
+</code></pre>
+<p>You can organize your files however you prefer.</p>
+<h2>Best Practices</h2>
+<h3>1. Use the Same AWS Region</h3>
+<p>Place your S3 bucket in the same AWS region as your ClickHouse Cloud service to:
+- Minimize data transfer costs
+- Reduce latency
+- Improve performance</p>
+<h3>2. Use Parquet Format</h3>
+<p>For best performance and storage efficiency:
+- Use Parquet for large datasets
+- Enable compression (Parquet has built-in compression)
+- Consider partitioning large datasets</p>
+<h3>3. Use Wildcards for Partitioned Data</h3>
+<pre><code class="language-sql">-- Query all partitions
+SELECT * FROM s3(
+    'https://s3.ap-northeast-2.amazonaws.com/bucket/data/year=*/month=*/day=*/*.parquet',
+    extra_credentials(role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access')
+)
+WHERE toDate(timestamp) &gt;= today() - 7;
+</code></pre>
+<h3>4. Enable S3 Versioning</h3>
+<p>Keep versioning enabled to:
+- Protect against accidental deletions
+- Maintain data history
+- Enable data recovery</p>
+<h3>5. Monitor Costs</h3>
+<p>Watch for:
+- S3 storage costs (varies by storage class)
+- Data transfer costs (especially cross-region)
+- S3 request costs (PUT, GET operations)</p>
+<h2>Troubleshooting</h2>
+<h3>Error: "Access Denied"</h3>
+<p><strong>Causes:</strong>
+1. Incorrect ClickHouse IAM role ARN
+2. IAM role trust policy issue
+3. Missing S3 permissions</p>
+<p><strong>Solutions:</strong></p>
+<pre><code class="language-bash"># 1. Verify your ClickHouse IAM role ARN
+terraform output connection_info
+
+# 2. Check the IAM role in AWS Console
+aws iam get-role --role-name ClickHouseS3Access
+
+# 3. Check the IAM role policy
+aws iam get-role-policy --role-name ClickHouseS3Access --policy-name ClickHouseS3Access-s3-policy
+
+# 4. Verify the assume role policy
+aws iam get-role --role-name ClickHouseS3Access --query 'Role.AssumeRolePolicyDocument'
+</code></pre>
+<h3>Error: "NoSuchBucket"</h3>
+<p><strong>Causes:</strong>
+1. Bucket name typo
+2. Wrong region
+3. Bucket not created</p>
+<p><strong>Solutions:</strong></p>
+<pre><code class="language-bash"># Verify bucket exists
+aws s3 ls s3://your-bucket-name
+
+# Check bucket region
+aws s3api get-bucket-location --bucket your-bucket-name
+</code></pre>
+<h3>Error: "InvalidParameter"</h3>
+<p><strong>Cause:</strong> Malformed S3 URL or role ARN</p>
+<p><strong>Solution:</strong> Use the exact format from terraform outputs:</p>
+<pre><code class="language-bash">terraform output clickhouse_sql_examples
+</code></pre>
+<h3>Testing IAM Role Assumption</h3>
+<p>Test if ClickHouse can assume the role:</p>
+<pre><code class="language-bash"># Get the role ARN
+ROLE_ARN=$(terraform output -raw iam_role_arn)
+
+# Try to assume the role (this should fail from your local machine)
+aws sts assume-role --role-arn $ROLE_ARN --role-session-name test
+# Expected: Error because only ClickHouse can assume this role
+</code></pre>
+<h2>Monitoring and Logging</h2>
+<h3>CloudWatch Metrics</h3>
+<p>Monitor these S3 metrics:
+- <code>NumberOfObjects</code> - Total objects in bucket
+- <code>BucketSizeBytes</code> - Total storage used
+- <code>AllRequests</code> - Total API requests</p>
+<h3>S3 Access Logging (Optional)</h3>
+<p>Enable S3 access logging for audit trails:</p>
+<pre><code class="language-hcl"># Add to main.tf
+resource &quot;aws_s3_bucket_logging&quot; &quot;clickhouse_data_logging&quot; {
+  bucket = aws_s3_bucket.clickhouse_data.id
+
+  target_bucket = aws_s3_bucket.log_bucket.id
+  target_prefix = &quot;s3-access-logs/&quot;
+}
+</code></pre>
+<h2>Cost Optimization</h2>
+<h3>Estimated Costs</h3>
+<p>For a bucket with 100 GB of data:</p>
+<ul>
+<li><strong>S3 Storage (Standard)</strong>: ~$2.30/month</li>
+<li><strong>S3 Requests</strong>: ~$0.50/month (varies by usage)</li>
+<li><strong>Data Transfer (same region)</strong>: $0 (free)</li>
+<li><strong>Data Transfer (cross-region)</strong>: $0.02/GB</li>
+</ul>
+<p><strong>Total</strong>: ~$3-5/month for moderate usage</p>
+<h3>Cost Saving Tips</h3>
+<ol>
+<li><strong>Use S3 Lifecycle Policies</strong>: Move old data to cheaper storage classes</li>
+<li><strong>Use S3 Intelligent-Tiering</strong>: Automatically optimize storage costs</li>
+<li><strong>Compress Data</strong>: Use Parquet with compression</li>
+<li><strong>Minimize Requests</strong>: Batch operations when possible</li>
+<li><strong>Keep Data in Same Region</strong>: Avoid cross-region transfer fees</li>
+</ol>
+<h2>Advanced Configuration</h2>
+<h3>Using External ID for Additional Security</h3>
+<p>For enhanced security, use an external ID:</p>
+<pre><code class="language-hcl"># In terraform.tfvars
+require_external_id = true
+external_id = &quot;your-shared-secret-12345&quot;
+</code></pre>
+<p>Then in ClickHouse queries:</p>
+<pre><code class="language-sql">ENGINE = S3(
+    'https://s3.ap-northeast-2.amazonaws.com/bucket/file.parquet',
+    'Parquet',
+    extra_credentials(
+        role_arn = 'arn:aws:iam::123456789012:role/ClickHouseS3Access',
+        external_id = 'your-shared-secret-12345'
+    )
+);
+</code></pre>
+<h3>Multiple ClickHouse Services</h3>
+<p>To grant access to multiple ClickHouse Cloud services:</p>
+<pre><code class="language-hcl"># In terraform.tfvars
+clickhouse_iam_role_arns = [
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-service1&quot;,
+  &quot;arn:aws:iam::123456789012:role/ClickHouseInstanceRole-service2&quot;
+]
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash"># Review what will be deleted
+terraform plan -destroy
+
+# Delete all resources
+terraform destroy
+</code></pre>
+<p><strong>Warning</strong>: This will delete the S3 bucket and all its contents. Make sure to backup any important data first.</p>
+<h2>Outputs Reference</h2>
+<p>After deployment, these outputs are available:</p>
+<pre><code class="language-bash"># Essential outputs
+terraform output bucket_name              # S3 bucket name
+terraform output iam_role_arn            # IAM role ARN for ClickHouse
+terraform output s3_url_prefix           # Base S3 URL
+
+# Detailed information
+terraform output connection_info          # Complete setup information
+terraform output clickhouse_sql_examples  # Ready-to-use SQL examples
+terraform output setup_checklist         # Step-by-step setup guide
+</code></pre>
+<h2>Related Documentation</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/s3">ClickHouse S3 Table Engine</a></li>
+<li><a href="https://clickhouse.com/docs/cloud/data-sources/secure-s3">ClickHouse Cloud Secure S3</a></li>
+<li><a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html">AWS IAM Roles</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/best-practices.html">S3 Best Practices</a></li>
+</ul>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>ClickHouse Documentation: https://clickhouse.com/docs</li>
+<li>ClickHouse Community Slack: https://clickhouse.com/slack</li>
+<li>AWS Support: https://console.aws.amazon.com/support/</li>
+<li>Terraform AWS Provider: https://registry.terraform.io/providers/hashicorp/aws/</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/s3/terraform-chc-secures3-aws"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

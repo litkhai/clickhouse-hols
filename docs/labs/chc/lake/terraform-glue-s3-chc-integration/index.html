@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Cloud + AWS Glue Catalog Integration · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Cloud + AWS Glue Catalog Integration — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/lake/terraform-glue-s3-chc-integration</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Cloud + AWS Glue Catalog Integration</h1>
+<p>Simple Terraform setup to integrate ClickHouse Cloud with AWS Glue Catalog using Apache Iceberg tables.</p>
+<h2>⚠️ Current Limitations (ClickHouse Cloud 25.8)</h2>
+<p><strong>Known limitations in ClickHouse Cloud version 25.8:</strong>
+- ❌ <code>glue_database</code> parameter not supported in DataLakeCatalog
+- ❌ IAM role-based authentication not supported (must use access keys)
+- ✅ DataLakeCatalog discovers all Glue databases in the region automatically</p>
+<p><strong>Future Updates:</strong>
+Once ClickHouse Cloud updates to support these features, this setup will be enhanced with:
+- Specific Glue database selection
+- IAM role-based authentication support
+- Cross-account Glue catalog access</p>
+<h2>What This Does</h2>
+<ol>
+<li>Creates S3 bucket for Iceberg data storage</li>
+<li>Sets up AWS Glue Database and Crawler</li>
+<li>Generates sample Iceberg table data</li>
+<li>Automatically runs crawler to register tables</li>
+<li>Outputs ready-to-use ClickHouse SQL commands</li>
+</ol>
+<h2>Prerequisites</h2>
+<ul>
+<li>Terraform &gt;= 1.0</li>
+<li>AWS CLI configured</li>
+<li>Python 3 with pip</li>
+<li>ClickHouse Cloud account (same AWS region)</li>
+<li>AWS credentials with permissions for:</li>
+<li>S3 (create buckets, upload objects)</li>
+<li>Glue (create databases, crawlers)</li>
+<li>IAM (create/manage roles for Glue Crawler)</li>
+</ul>
+<p>⚠️ <strong>Note</strong>: Some operations may fail if your AWS account has Service Control Policies (SCP) restrictions.</p>
+<h2>Quick Start</h2>
+<h3>1. Run Deployment Script</h3>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p>The script will:
+1. <strong>Prompt for AWS credentials</strong> (stored only in environment variables, not in files)
+   - AWS Access Key ID (must start with AKIA for long-term credentials)
+   - AWS Secret Access Key
+   - AWS Region (default: ap-northeast-2)</p>
+<ol start="2">
+<li>
+<p><strong>Deploy all AWS infrastructure</strong>
+   - S3 bucket with encryption and versioning
+   - AWS Glue Database and Crawler
+   - IAM Role for Glue Crawler (if permissions allow)</p>
+</li>
+<li>
+<p><strong>Create and upload sample Iceberg table</strong> (<code>sales_orders</code>)</p>
+</li>
+<li>
+<p><strong>Run Glue Crawler</strong> to register the table</p>
+</li>
+<li>
+<p><strong>Display ClickHouse connection SQL</strong> with credentials embedded</p>
+</li>
+</ol>
+<h3>2. Use in ClickHouse Cloud</h3>
+<p>Copy the SQL output from deploy.sh and run it in your ClickHouse Cloud console. The SQL will already have your credentials embedded:</p>
+<pre><code class="language-sql">CREATE DATABASE glue_db
+ENGINE = DataLakeCatalog
+SETTINGS
+    catalog_type = 'glue',
+ -- glue_database = 'clickhouse_iceberg_db', -- Not supported in ClickHouse 25.8
+    region = 'ap-northeast-2',
+    aws_access_key_id = 'AKIA...',           -- Your actual credentials
+    aws_secret_access_key = 'your-secret';    -- filled in by deploy.sh
+
+-- List all tables (from default Glue database in the region)
+SHOW TABLES FROM glue_db;
+
+-- Query the Iceberg table
+SELECT * FROM glue_db.`sales_orders` LIMIT 10;
+
+-- Run analytics
+SELECT category, SUM(price * quantity) as revenue
+FROM glue_db.`sales_orders`
+GROUP BY category
+ORDER BY revenue DESC;
+</code></pre>
+<p><strong>Note:</strong> The <code>glue_database</code> parameter is not supported in ClickHouse 25.8. DataLakeCatalog will automatically discover all Glue databases in the specified region.</p>
+<h2>Manual Setup (Alternative)</h2>
+<p>If you prefer step-by-step control:</p>
+<pre><code class="language-bash"># 1. Set AWS credentials as environment variables
+export AWS_ACCESS_KEY_ID=&quot;AKIA...&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_REGION=&quot;ap-northeast-2&quot;
+
+# 2. Initialize Terraform
+terraform init
+
+# 3. Deploy infrastructure
+terraform apply
+
+# 4. Create Iceberg table
+python3 ./scripts/create-iceberg-table.py
+
+# 5. Run Glue Crawler
+aws glue start-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+
+# 6. Wait ~2 minutes, then check tables
+aws glue get-tables --database-name clickhouse_iceberg_db --region ap-northeast-2
+
+# 7. Get connection info (credentials will show as $AWS_ACCESS_KEY_ID placeholders)
+terraform output clickhouse_connection_info
+</code></pre>
+<h2>What Gets Created</h2>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Name</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S3 Bucket</td>
+<td><code>chc-glue-integration-{account_id}</code></td>
+<td>Stores Iceberg data</td>
+</tr>
+<tr>
+<td>Glue Database</td>
+<td><code>clickhouse_iceberg_db</code></td>
+<td>Metadata catalog</td>
+</tr>
+<tr>
+<td>Glue Crawler</td>
+<td><code>chc-glue-integration-iceberg-crawler</code></td>
+<td>Auto-discovers tables</td>
+</tr>
+<tr>
+<td>IAM Role</td>
+<td><code>chc-glue-integration-glue-crawler-role</code></td>
+<td>Crawler permissions</td>
+</tr>
+<tr>
+<td>Sample Table</td>
+<td><code>sales_orders</code></td>
+<td>Demo Iceberg table with 10 rows</td>
+</tr>
+</tbody>
+</table>
+<h2>Configuration</h2>
+<p>AWS credentials are provided via environment variables (not stored in files):
+- <code>AWS_ACCESS_KEY_ID</code> - Your AWS access key (must start with AKIA for long-term)
+- <code>AWS_SECRET_ACCESS_KEY</code> - Your AWS secret access key
+- <code>AWS_REGION</code> - AWS region (default: ap-northeast-2)</p>
+<p>Optional settings in <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">aws_region         = &quot;ap-northeast-2&quot;           # AWS region
+project_name       = &quot;chc-glue-integration&quot;     # Resource name prefix
+glue_database_name = &quot;clickhouse_iceberg_db&quot;    # Glue database name
+</code></pre>
+<h2>Architecture</h2>
+<pre><code>┌─────────────────────────────┐
+│    ClickHouse Cloud         │
+│  ┌───────────────────────┐  │
+│  │ DataLakeCatalog DB    │  │
+│  │ - Auto-discovers      │  │
+│  │   all Glue tables     │  │
+│  └───────────┬───────────┘  │
+└──────────────┼──────────────┘
+               │ AWS Credentials
+               ▼
+┌─────────────────────────────┐
+│         AWS Account         │
+│  ┌──────────────────────┐  │
+│  │  Glue Catalog        │  │
+│  │  - clickhouse_       │  │
+│  │    iceberg_db        │  │
+│  │  - sales_orders      │  │
+│  │                      │  │
+│  │  Glue Crawler        │  │
+│  │  (Auto-updates)      │  │
+│  └──────────┬───────────┘  │
+│             │              │
+│  ┌──────────▼───────────┐  │
+│  │  S3 Bucket           │  │
+│  │  /iceberg/           │  │
+│  │    /sales_orders/    │  │
+│  │      /metadata/      │  │
+│  │      /data/          │  │
+│  └──────────────────────┘  │
+└─────────────────────────────┘
+</code></pre>
+<h2>Sample Data</h2>
+<p>The <code>sales_orders</code> table contains:
+- 10 sample records
+- Categories: Electronics, Books, Clothing, Food, Sports
+- Partitioned by <code>order_date</code>
+- Schema: id, user_id, product_id, category, quantity, price, order_date, description</p>
+<h2>Troubleshooting</h2>
+<h3>Tables not visible in ClickHouse</h3>
+<pre><code class="language-bash"># Check if table exists in Glue
+aws glue get-table --database-name clickhouse_iceberg_db --name sales_orders --region ap-northeast-2
+
+# Check crawler status
+aws glue get-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+
+# Manually trigger crawler
+aws glue start-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+</code></pre>
+<h3>Access Denied errors</h3>
+<ul>
+<li>Verify your AWS credentials have S3 and Glue read permissions</li>
+<li>Check that credentials start with <code>AKIA</code> (long-term, not temporary <code>ASIA</code>)</li>
+<li>Test manually:
+  <code>bash
+  aws s3 ls s3://chc-glue-integration-{your-account-id}/
+  aws glue get-database --name clickhouse_iceberg_db --region ap-northeast-2</code></li>
+</ul>
+<h3>AWS SCP Restrictions</h3>
+<p>If you see permission denied errors for IAM operations:
+- Your AWS account has organizational restrictions
+- The setup will still work if you have S3 and Glue permissions
+- IAM Role creation may fail (this is expected and safe to ignore)</p>
+<h2>Cleanup</h2>
+<pre><code class="language-bash"># Remove all resources
+./destroy.sh
+</code></pre>
+<p>This will:
+- Destroy all AWS resources (S3 bucket, Glue database, crawlers, IAM roles)
+- Optionally clean up local Terraform state files</p>
+<p>⚠️ <strong>Warning</strong>: This permanently deletes the S3 bucket, Glue database, and all data.</p>
+<h2>Key Features</h2>
+<ul>
+<li>✅ <strong>Database-level integration</strong>: Mount entire Glue database in ClickHouse</li>
+<li>✅ <strong>Automatic table discovery</strong>: All Glue tables immediately available</li>
+<li>✅ <strong>Schema synchronization</strong>: Changes reflected automatically</li>
+<li>✅ <strong>Partition pruning</strong>: Efficient queries on partitioned data</li>
+<li>✅ <strong>ACID guarantees</strong>: Powered by Apache Iceberg</li>
+</ul>
+<h2>Documentation</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/use-cases/data-lake/glue-catalog">ClickHouse DataLakeCatalog Documentation</a></li>
+<li><a href="https://iceberg.apache.org/spec/">Apache Iceberg Specification</a></li>
+<li><a href="https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html">AWS Glue Data Catalog</a></li>
+</ul>
+<h2>License</h2>
+<p>MIT License</p></div>
+  <div class="readme ko"><h1>ClickHouse Cloud + AWS Glue Catalog Integration</h1>
+<p>Simple Terraform setup to integrate ClickHouse Cloud with AWS Glue Catalog using Apache Iceberg tables.</p>
+<h2>⚠️ Current Limitations (ClickHouse Cloud 25.8)</h2>
+<p><strong>Known limitations in ClickHouse Cloud version 25.8:</strong>
+- ❌ <code>glue_database</code> parameter not supported in DataLakeCatalog
+- ❌ IAM role-based authentication not supported (must use access keys)
+- ✅ DataLakeCatalog discovers all Glue databases in the region automatically</p>
+<p><strong>Future Updates:</strong>
+Once ClickHouse Cloud updates to support these features, this setup will be enhanced with:
+- Specific Glue database selection
+- IAM role-based authentication support
+- Cross-account Glue catalog access</p>
+<h2>What This Does</h2>
+<ol>
+<li>Creates S3 bucket for Iceberg data storage</li>
+<li>Sets up AWS Glue Database and Crawler</li>
+<li>Generates sample Iceberg table data</li>
+<li>Automatically runs crawler to register tables</li>
+<li>Outputs ready-to-use ClickHouse SQL commands</li>
+</ol>
+<h2>Prerequisites</h2>
+<ul>
+<li>Terraform &gt;= 1.0</li>
+<li>AWS CLI configured</li>
+<li>Python 3 with pip</li>
+<li>ClickHouse Cloud account (same AWS region)</li>
+<li>AWS credentials with permissions for:</li>
+<li>S3 (create buckets, upload objects)</li>
+<li>Glue (create databases, crawlers)</li>
+<li>IAM (create/manage roles for Glue Crawler)</li>
+</ul>
+<p>⚠️ <strong>Note</strong>: Some operations may fail if your AWS account has Service Control Policies (SCP) restrictions.</p>
+<h2>Quick Start</h2>
+<h3>1. Run Deployment Script</h3>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p>The script will:
+1. <strong>Prompt for AWS credentials</strong> (stored only in environment variables, not in files)
+   - AWS Access Key ID (must start with AKIA for long-term credentials)
+   - AWS Secret Access Key
+   - AWS Region (default: ap-northeast-2)</p>
+<ol start="2">
+<li>
+<p><strong>Deploy all AWS infrastructure</strong>
+   - S3 bucket with encryption and versioning
+   - AWS Glue Database and Crawler
+   - IAM Role for Glue Crawler (if permissions allow)</p>
+</li>
+<li>
+<p><strong>Create and upload sample Iceberg table</strong> (<code>sales_orders</code>)</p>
+</li>
+<li>
+<p><strong>Run Glue Crawler</strong> to register the table</p>
+</li>
+<li>
+<p><strong>Display ClickHouse connection SQL</strong> with credentials embedded</p>
+</li>
+</ol>
+<h3>2. Use in ClickHouse Cloud</h3>
+<p>Copy the SQL output from deploy.sh and run it in your ClickHouse Cloud console. The SQL will already have your credentials embedded:</p>
+<pre><code class="language-sql">CREATE DATABASE glue_db
+ENGINE = DataLakeCatalog
+SETTINGS
+    catalog_type = 'glue',
+ -- glue_database = 'clickhouse_iceberg_db', -- Not supported in ClickHouse 25.8
+    region = 'ap-northeast-2',
+    aws_access_key_id = 'AKIA...',           -- Your actual credentials
+    aws_secret_access_key = 'your-secret';    -- filled in by deploy.sh
+
+-- List all tables (from default Glue database in the region)
+SHOW TABLES FROM glue_db;
+
+-- Query the Iceberg table
+SELECT * FROM glue_db.`sales_orders` LIMIT 10;
+
+-- Run analytics
+SELECT category, SUM(price * quantity) as revenue
+FROM glue_db.`sales_orders`
+GROUP BY category
+ORDER BY revenue DESC;
+</code></pre>
+<p><strong>Note:</strong> The <code>glue_database</code> parameter is not supported in ClickHouse 25.8. DataLakeCatalog will automatically discover all Glue databases in the specified region.</p>
+<h2>Manual Setup (Alternative)</h2>
+<p>If you prefer step-by-step control:</p>
+<pre><code class="language-bash"># 1. Set AWS credentials as environment variables
+export AWS_ACCESS_KEY_ID=&quot;AKIA...&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_REGION=&quot;ap-northeast-2&quot;
+
+# 2. Initialize Terraform
+terraform init
+
+# 3. Deploy infrastructure
+terraform apply
+
+# 4. Create Iceberg table
+python3 ./scripts/create-iceberg-table.py
+
+# 5. Run Glue Crawler
+aws glue start-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+
+# 6. Wait ~2 minutes, then check tables
+aws glue get-tables --database-name clickhouse_iceberg_db --region ap-northeast-2
+
+# 7. Get connection info (credentials will show as $AWS_ACCESS_KEY_ID placeholders)
+terraform output clickhouse_connection_info
+</code></pre>
+<h2>What Gets Created</h2>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Name</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S3 Bucket</td>
+<td><code>chc-glue-integration-{account_id}</code></td>
+<td>Stores Iceberg data</td>
+</tr>
+<tr>
+<td>Glue Database</td>
+<td><code>clickhouse_iceberg_db</code></td>
+<td>Metadata catalog</td>
+</tr>
+<tr>
+<td>Glue Crawler</td>
+<td><code>chc-glue-integration-iceberg-crawler</code></td>
+<td>Auto-discovers tables</td>
+</tr>
+<tr>
+<td>IAM Role</td>
+<td><code>chc-glue-integration-glue-crawler-role</code></td>
+<td>Crawler permissions</td>
+</tr>
+<tr>
+<td>Sample Table</td>
+<td><code>sales_orders</code></td>
+<td>Demo Iceberg table with 10 rows</td>
+</tr>
+</tbody>
+</table>
+<h2>Configuration</h2>
+<p>AWS credentials are provided via environment variables (not stored in files):
+- <code>AWS_ACCESS_KEY_ID</code> - Your AWS access key (must start with AKIA for long-term)
+- <code>AWS_SECRET_ACCESS_KEY</code> - Your AWS secret access key
+- <code>AWS_REGION</code> - AWS region (default: ap-northeast-2)</p>
+<p>Optional settings in <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">aws_region         = &quot;ap-northeast-2&quot;           # AWS region
+project_name       = &quot;chc-glue-integration&quot;     # Resource name prefix
+glue_database_name = &quot;clickhouse_iceberg_db&quot;    # Glue database name
+</code></pre>
+<h2>Architecture</h2>
+<pre><code>┌─────────────────────────────┐
+│    ClickHouse Cloud         │
+│  ┌───────────────────────┐  │
+│  │ DataLakeCatalog DB    │  │
+│  │ - Auto-discovers      │  │
+│  │   all Glue tables     │  │
+│  └───────────┬───────────┘  │
+└──────────────┼──────────────┘
+               │ AWS Credentials
+               ▼
+┌─────────────────────────────┐
+│         AWS Account         │
+│  ┌──────────────────────┐  │
+│  │  Glue Catalog        │  │
+│  │  - clickhouse_       │  │
+│  │    iceberg_db        │  │
+│  │  - sales_orders      │  │
+│  │                      │  │
+│  │  Glue Crawler        │  │
+│  │  (Auto-updates)      │  │
+│  └──────────┬───────────┘  │
+│             │              │
+│  ┌──────────▼───────────┐  │
+│  │  S3 Bucket           │  │
+│  │  /iceberg/           │  │
+│  │    /sales_orders/    │  │
+│  │      /metadata/      │  │
+│  │      /data/          │  │
+│  └──────────────────────┘  │
+└─────────────────────────────┘
+</code></pre>
+<h2>Sample Data</h2>
+<p>The <code>sales_orders</code> table contains:
+- 10 sample records
+- Categories: Electronics, Books, Clothing, Food, Sports
+- Partitioned by <code>order_date</code>
+- Schema: id, user_id, product_id, category, quantity, price, order_date, description</p>
+<h2>Troubleshooting</h2>
+<h3>Tables not visible in ClickHouse</h3>
+<pre><code class="language-bash"># Check if table exists in Glue
+aws glue get-table --database-name clickhouse_iceberg_db --name sales_orders --region ap-northeast-2
+
+# Check crawler status
+aws glue get-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+
+# Manually trigger crawler
+aws glue start-crawler --name chc-glue-integration-iceberg-crawler --region ap-northeast-2
+</code></pre>
+<h3>Access Denied errors</h3>
+<ul>
+<li>Verify your AWS credentials have S3 and Glue read permissions</li>
+<li>Check that credentials start with <code>AKIA</code> (long-term, not temporary <code>ASIA</code>)</li>
+<li>Test manually:
+  <code>bash
+  aws s3 ls s3://chc-glue-integration-{your-account-id}/
+  aws glue get-database --name clickhouse_iceberg_db --region ap-northeast-2</code></li>
+</ul>
+<h3>AWS SCP Restrictions</h3>
+<p>If you see permission denied errors for IAM operations:
+- Your AWS account has organizational restrictions
+- The setup will still work if you have S3 and Glue permissions
+- IAM Role creation may fail (this is expected and safe to ignore)</p>
+<h2>Cleanup</h2>
+<pre><code class="language-bash"># Remove all resources
+./destroy.sh
+</code></pre>
+<p>This will:
+- Destroy all AWS resources (S3 bucket, Glue database, crawlers, IAM roles)
+- Optionally clean up local Terraform state files</p>
+<p>⚠️ <strong>Warning</strong>: This permanently deletes the S3 bucket, Glue database, and all data.</p>
+<h2>Key Features</h2>
+<ul>
+<li>✅ <strong>Database-level integration</strong>: Mount entire Glue database in ClickHouse</li>
+<li>✅ <strong>Automatic table discovery</strong>: All Glue tables immediately available</li>
+<li>✅ <strong>Schema synchronization</strong>: Changes reflected automatically</li>
+<li>✅ <strong>Partition pruning</strong>: Efficient queries on partitioned data</li>
+<li>✅ <strong>ACID guarantees</strong>: Powered by Apache Iceberg</li>
+</ul>
+<h2>Documentation</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/use-cases/data-lake/glue-catalog">ClickHouse DataLakeCatalog Documentation</a></li>
+<li><a href="https://iceberg.apache.org/spec/">Apache Iceberg Specification</a></li>
+<li><a href="https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html">AWS Glue Data Catalog</a></li>
+</ul>
+<h2>License</h2>
+<p>MIT License</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/lake/terraform-glue-s3-chc-integration"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

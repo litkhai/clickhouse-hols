@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.7 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.7 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.7</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.7.1</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.7 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.7 new features. This directory focuses on verified and working features newly added in ClickHouse 26.7 (released 2026-07-22).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.7 puts measurement and standard syntax front and centre: <code>EXPLAIN ANALYZE</code> runs a query and annotates every plan node with real rows, bytes, time share and parallelism; the ANSI <code>AT TIME ZONE</code> / <code>AT LOCAL</code> postfix operators land alongside <code>toTimeZone</code>; and aggregation gains <code>groupFormat</code> for serializing a group and the <code>-Tuple</code> combinator for element-wise aggregation over tuples.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong><code>EXPLAIN ANALYZE</code></strong> — execute a query and read measured per-node counters</li>
+<li><strong><code>AT TIME ZONE</code> / <code>AT LOCAL</code></strong> — standard SQL postfix time zone operators</li>
+<li><strong><code>groupFormat</code> + <code>-Tuple</code> combinator</strong> — serialize a group with any output format; aggregate tuples element-wise</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/26.7
+./00-setup.sh
+
+./01-explain-analyze.sh
+./02-at-time-zone.sh
+./03-groupformat-tuple.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. <code>EXPLAIN ANALYZE</code> (01-explain-analyze)</h4>
+<p><strong>New Feature:</strong> <code>EXPLAIN ANALYZE &lt;query&gt;</code> executes the query and prints the plan with measured counters on every node: rows in → out with selectivity, bytes, time share, parallelism, join algorithm with separate build/probe timings, and index/granule pruning. A summary header splits total time into planning and execution and reports rows read and peak memory. (<a href="https://github.com/ClickHouse/ClickHouse/pull/106586">#106586</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/110668">#110668</a>)</p>
+<p><strong>Test Content:</strong>
+- A 2M-row fact table plus a small dimension table
+- <code>EXPLAIN</code> (estimated plan) versus <code>EXPLAIN ANALYZE</code> (measured) on the same query
+- Reading the summary header: planning vs execution time, rows read, peak memory
+- Following selectivity (<code>rows N → M (P%)</code>) from the bottom of the plan upwards
+- Primary key pruning: <code>Granules: 1/245</code> with <code>Search Algorithm: binary search</code>
+- The same result set filtered on a non-key column — 8.19 thousand rows read vs 2.00 million
+- Join internals: algorithm name, which side was built, and build vs probe timings
+- A high-cardinality <code>GROUP BY</code> where the cost moves into the aggregation stages
+- Two formulations of one question compared side by side (filter early vs filter late)</p>
+<p><strong>Key Learning Points:</strong>
+- <code>EXPLAIN ANALYZE</code> <strong>executes</strong> the query — the numbers are real, so do not point it at statements with side effects
+- The header's planning/execution split identifies plans that are expensive to build rather than to run
+- Per-node <code>rows N → M (P%)</code> shows exactly where data volume collapses; the node that does not reduce rows is usually the one to fix
+- <code>ReadFromMergeTree</code> reports parts, granules and the search algorithm, making key support or its absence obvious
+- Join nodes name the algorithm (e.g. <code>SpillingHashJoin(HashJoin)</code>) and time build and probe separately, so a bad build side is visible immediately
+- Time percentages are relative to execution, and <code>parallelism</code> shows how many threads a node actually used</p>
+<p><strong>Use Cases:</strong>
+- Diagnosing a slow query without instrumenting the client or reading <code>system.query_log</code>
+- Proving an optimization worked by comparing two <code>EXPLAIN ANALYZE</code> outputs
+- Verifying that an index or ORDER BY key is actually being used
+- Teaching query-plan reading with real numbers attached</p>
+<hr />
+<h4>2. <code>AT TIME ZONE</code> / <code>AT LOCAL</code> (02-at-time-zone)</h4>
+<p><strong>New Feature:</strong> the standard SQL postfix operators <code>&lt;datetime&gt; AT TIME ZONE '&lt;tz&gt;'</code> and <code>&lt;datetime&gt; AT LOCAL</code>. The first re-labels a value with the given time zone, the second uses the session's <code>session_timezone</code>. Both are equivalent to <code>toTimeZone()</code> and preserve <code>DateTime64</code> precision. (<a href="https://github.com/ClickHouse/ClickHouse/pull/106092">#106092</a>)</p>
+<p><strong>Test Content:</strong>
+- One UTC instant rendered in Seoul, Paris and New York
+- Type and epoch inspection: the type changes to <code>DateTime('Asia/Seoul')</code>, the Unix timestamp does not
+- Equality with the <code>toTimeZone()</code> function form
+- <code>AT LOCAL</code> under two different <code>session_timezone</code> settings
+- Chained conversions, where the last operator wins
+- <code>DateTime64(6)</code> keeping microseconds through the conversion
+- A deploy log rendered simultaneously in three office time zones
+- The classic reporting bug: a 23:30 UTC event belongs to the next calendar day in Seoul
+- Filtering semantics — comparisons use the instant, so local-day filters must convert the boundary too</p>
+<p><strong>Key Learning Points:</strong>
+- The operator changes the time zone <em>label</em>, not the instant: <code>toUnixTimestamp()</code> is unchanged before and after
+- <code>toTypeName()</code> reflects the conversion (<code>DateTime('UTC')</code> → <code>DateTime('Asia/Seoul')</code>)
+- <code>AT LOCAL</code> resolves against <code>session_timezone</code>, so the same query yields different output per session
+- Sub-second precision survives: <code>DateTime64(6, 'UTC')</code> → <code>DateTime64(6, 'Asia/Seoul')</code>
+- Grouping on a raw UTC value attributes late-evening events to the wrong local day — convert before <code>toDate()</code>
+- Because comparisons operate on the instant, <code>WHERE ts AT TIME ZONE 'Asia/Seoul' &gt;= '...'</code> filters identically to the unconverted form; convert the <em>boundary</em> for local-calendar filters</p>
+<p><strong>Use Cases:</strong>
+- Porting Postgres/Snowflake/BigQuery reports that already use <code>AT TIME ZONE</code>
+- Per-region dashboards rendering one event stream in several local times
+- Correcting daily aggregates that silently used UTC day boundaries
+- Keeping storage in UTC while presenting local time</p>
+<hr />
+<h4>3. <code>groupFormat</code> + <code>-Tuple</code> Combinator (03-groupformat-tuple)</h4>
+<p><strong>New Features:</strong>
+- <code>groupFormat('&lt;format&gt;')(cols...)</code> — an aggregate that serializes the rows of each group using any ClickHouse output format, returning a single value (<a href="https://github.com/ClickHouse/ClickHouse/pull/93201">#93201</a>)
+- <code>-Tuple</code> combinator — applies an aggregate element-wise to a <code>Tuple</code> argument, e.g. <code>sumTuple((a, b))</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98190">#98190</a>)</p>
+<p><strong>Test Content:</strong>
+- <code>groupFormat('CSV')</code> basics
+- The same group as <code>TSV</code>, <code>JSONEachRow</code> and <code>Values</code>
+- One payload per group with <code>GROUP BY</code> — per-device CSV exports
+- A <code>JSONEachRow</code> payload per room, and the named-tuple trick for real JSON keys
+- <code>sumTuple</code> / <code>avgTuple</code> / <code>minTuple</code> / <code>maxTuple</code> in a single pass, with the long-hand equivalent alongside
+- Named tuples whose members stay addressable (<code>sumTuple(m).temp</code>)
+- Stacking combinators: <code>sumTupleIf((a, b), predicate)</code>
+- A combined report using both features</p>
+<p><strong>Key Learning Points:</strong>
+- The format name is a <strong>parameter</strong> of <code>groupFormat</code>, the columns are its <strong>arguments</strong>: <code>groupFormat('CSV')(c1, c2)</code>
+- Serialized columns are always labelled <code>c1</code>, <code>c2</code>, … — aliases and even <code>CSVWithNames</code> do not change that; wrap the arguments in a <strong>named tuple</strong> to get real keys into the payload
+- <code>groupFormat</code> respects <code>GROUP BY</code>, so one query can build many independent payloads
+- <code>-Tuple</code> replaces N repeated aggregates with one call and returns a tuple of the same arity
+- Named tuple members survive aggregation and remain addressable by name
+- Combinators compose — <code>sumTupleIf</code> applies both the tuple and the conditional behaviour</p>
+<p><strong>Use Cases:</strong>
+- Building per-tenant or per-device export payloads directly in SQL
+- Producing webhook/queue message bodies without an application-side serializer
+- Aggregating coordinate or metric pairs (temp/humidity, lat/lon, min/max) in one pass
+- Compact reports over tuple-shaped measurements</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-26-7
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.7/
+├── README.md                          # This document
+├── 00-setup.sh                        # ClickHouse 26.7 installation script
+├── 01-explain-analyze.sh              # EXPLAIN ANALYZE runner
+├── 01-explain-analyze.sql             # EXPLAIN ANALYZE SQL
+├── 02-at-time-zone.sh                 # AT TIME ZONE / AT LOCAL runner
+├── 02-at-time-zone.sql                # AT TIME ZONE / AT LOCAL SQL
+├── 03-groupformat-tuple.sh            # groupFormat + -Tuple runner
+└── 03-groupformat-tuple.sql           # groupFormat + -Tuple SQL
+</code></pre>
+<h3>🆕 What's New in 26.7</h3>
+<ul>
+<li><strong><code>EXPLAIN ANALYZE</code></strong> for query performance examination (<a href="https://github.com/ClickHouse/ClickHouse/pull/106586">#106586</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/110668">#110668</a>)</li>
+<li><strong><code>WHERE</code> clauses in projection definitions</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/102347">#102347</a>)</li>
+<li><strong><code>groupFormat</code></strong> aggregate function (<a href="https://github.com/ClickHouse/ClickHouse/pull/93201">#93201</a>)</li>
+<li><strong><code>-Tuple</code> aggregate combinator</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98190">#98190</a>)</li>
+<li><strong><code>AT TIME ZONE</code> / <code>AT LOCAL</code></strong> postfix operators (<a href="https://github.com/ClickHouse/ClickHouse/pull/106092">#106092</a>)</li>
+<li><strong><code>Remote</code> and <code>RemoteSecure</code> table engines</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/106189">#106189</a>)</li>
+<li><strong><code>QueryRunner</code> table engine</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107888">#107888</a>)</li>
+<li><strong>Engine-agnostic <code>SYSTEM STOP/START/PAUSE/CANCEL/REFRESH</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107476">#107476</a>)</li>
+<li><strong><code>mysql</code> / <code>postgresql</code> / <code>sqlite</code> table functions accept user queries</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107740">#107740</a>)</li>
+<li><strong><code>WITH TIES</code> for negative <code>LIMIT</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/100930">#100930</a>)</li>
+<li><strong><code>GeoJSON</code> output format</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108065">#108065</a>) — the input side arrived in 26.6</li>
+<li><strong>UTM/MGRS conversions</strong> — <code>geoToUTM</code>, <code>UTMToGeo</code>, <code>geoToMGRS</code>, <code>MGRSToGeo</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108939">#108939</a>)</li>
+<li><strong><code>geometryIntersectCartesian</code> / <code>geometryIntersectSpherical</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/110062">#110062</a>)</li>
+<li><strong><code>digits(n, offset[, length])</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109012">#109012</a>) and <strong><code>sqr</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109061">#109061</a>)</li>
+<li><strong><code>xxHash64Spark</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108436">#108436</a>)</li>
+<li><strong><code>dotProductTransposed</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108100">#108100</a>) and <strong><code>randomHadamardTransform</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108227">#108227</a>)</li>
+<li><strong><code>QBit</code> stride parameter</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108103">#108103</a>) and <strong><code>Int8</code> element type</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108105">#108105</a>)</li>
+<li><strong>Text index <code>postprocessor</code> argument</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98939">#98939</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/108606">#108606</a>) and <strong><code>system.stemmers</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/100611">#100611</a>)</li>
+<li><strong>Naive Bayes as a <code>NAIVE_BAYES</code> dictionary layout</strong> with <code>naiveBayesClassifierWithProb</code>, <code>naiveBayesClassifierWithAllProbs</code>, <code>naiveBayesNgrams</code> — ~49× less memory, ~11× faster load and classification</li>
+<li><strong><code>SYSTEM UNLOAD DICTIONARY</code> / <code>DICTIONARIES</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109639">#109639</a>), <strong>per-dictionary lazy loading</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108314">#108314</a>), <strong><code>dictGetRoot</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109459">#109459</a>)</li>
+<li><strong><code>ALTER USER</code> / <code>ALTER ROLE ... SET name = value</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108722">#108722</a>) and <strong><code>ALTER TABLE ... MODIFY CONSTRAINT [IF EXISTS]</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108768">#108768</a>)</li>
+<li><strong><code>AWS_MSK_IAM</code> for <code>kafka_sasl_mechanism</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/96100">#96100</a>)</li>
+<li><strong><code>skip_unavailable_shards_mode</code> setting</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/79091">#79091</a>) and <strong>query parameters usable as setting values</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108760">#108760</a>)</li>
+<li><strong>Web UI</strong>: query tabs (<a href="https://github.com/ClickHouse/ClickHouse/pull/107826">#107826</a>), per-column color coding (<a href="https://github.com/ClickHouse/ClickHouse/pull/108873">#108873</a>), built-in documentation search at <code>/docs</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108345">#108345</a>)</li>
+<li><strong>Performance</strong>: primary key index analysis 5–26% faster, <code>arrayMin</code>/<code>arrayMax</code> ~1.3–1.5× faster, Delta codec decompression 1.5–5× faster, shared null maps for single-argument <code>Nullable</code> functions</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 26.7</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.7/">ClickHouse 26.7</a></li>
+<li><strong><code>EXPLAIN</code> Reference</strong>: <a href="https://clickhouse.com/docs/sql-reference/statements/explain">docs.clickhouse.com/sql-reference/statements/explain</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 26.7.1</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+<li><code>EXPLAIN ANALYZE</code> runs the query it is given; <code>01-explain-analyze.sql</code> therefore executes every example against the 2M-row table</li>
+<li><code>02-at-time-zone.sql</code> changes <code>session_timezone</code> and resets it to <code>UTC</code> at the end of the section</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.7 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 7월 22일 출시된 ClickHouse 26.7에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.7은 측정과 표준 구문을 앞세웁니다. <code>EXPLAIN ANALYZE</code>는 쿼리를 실제로 실행하고 모든 플랜 노드에 실제 행 수·바이트·시간 비중·병렬도를 붙여 출력합니다. ANSI <code>AT TIME ZONE</code> / <code>AT LOCAL</code> 후위 연산자가 <code>toTimeZone</code>과 함께 제공되고, 집계 쪽에는 그룹을 직렬화하는 <code>groupFormat</code>과 튜플을 원소별로 집계하는 <code>-Tuple</code> 조합자가 추가됩니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong><code>EXPLAIN ANALYZE</code></strong> — 쿼리를 실행하고 노드별 실측 카운터 확인</li>
+<li><strong><code>AT TIME ZONE</code> / <code>AT LOCAL</code></strong> — 표준 SQL 후위 시간대 연산자</li>
+<li><strong><code>groupFormat</code> + <code>-Tuple</code> 조합자</strong> — 임의 출력 포맷으로 그룹 직렬화, 튜플 원소별 집계</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/26.7
+./00-setup.sh
+
+./01-explain-analyze.sh
+./02-at-time-zone.sh
+./03-groupformat-tuple.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. <code>EXPLAIN ANALYZE</code></h4>
+<p><code>EXPLAIN ANALYZE &lt;쿼리&gt;</code>는 쿼리를 실행한 뒤 모든 노드에 실측 카운터를 붙여 플랜을 출력합니다: 선택도가 포함된 입력→출력 행 수, 바이트, 시간 비중, 병렬도, build/probe 시간이 분리된 조인 알고리즘, 인덱스·granule 프루닝 정보입니다. 요약 헤더는 전체 시간을 계획(planning)과 실행(execution)으로 나누고 읽은 행 수와 최대 메모리를 보고합니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/106586">#106586</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/110668">#110668</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 200만 행 팩트 테이블과 소형 디멘션 테이블
+- 같은 쿼리에 대한 <code>EXPLAIN</code>(추정 플랜)과 <code>EXPLAIN ANALYZE</code>(실측) 비교
+- 요약 헤더 읽기: 계획 vs 실행 시간, 읽은 행 수, 최대 메모리
+- 플랜 하단부터 위로 선택도(<code>rows N → M (P%)</code>) 따라가기
+- 주 키 프루닝: <code>Granules: 1/245</code>와 <code>Search Algorithm: binary search</code>
+- 동일한 결과를 비(非)키 컬럼으로 필터링 — 8.19천 행 읽기 vs 200만 행
+- 조인 내부: 알고리즘 이름, build된 쪽, build vs probe 시간
+- 고카디널리티 <code>GROUP BY</code>에서 비용이 집계 단계로 이동하는 모습
+- 하나의 질문에 대한 두 가지 작성법 비교 (선(先)필터 vs 후(後)필터)</p>
+<p><strong>핵심 학습 포인트:</strong>
+- <code>EXPLAIN ANALYZE</code>는 쿼리를 <strong>실행합니다</strong> — 수치가 실측인 이유이며, 부수 효과가 있는 문장에는 사용하지 마세요
+- 헤더의 계획/실행 분리는 실행보다 계획 수립이 비싼 플랜을 식별해 줍니다
+- 노드별 <code>rows N → M (P%)</code>는 데이터 양이 어디서 줄어드는지 정확히 보여줍니다. 행을 줄이지 못하는 노드가 보통 손봐야 할 곳입니다
+- <code>ReadFromMergeTree</code>는 파트·granule·탐색 알고리즘을 보고하므로 키 활용 여부가 드러납니다
+- 조인 노드는 알고리즘(예: <code>SpillingHashJoin(HashJoin)</code>)을 명시하고 build/probe 시간을 분리하므로 잘못된 build 쪽을 즉시 알 수 있습니다
+- 시간 백분율은 실행 시간 기준이며, <code>parallelism</code>은 노드가 실제로 사용한 스레드 수를 보여줍니다</p>
+<h4>2. <code>AT TIME ZONE</code> / <code>AT LOCAL</code></h4>
+<p>표준 SQL 후위 연산자 <code>&lt;datetime&gt; AT TIME ZONE '&lt;tz&gt;'</code>와 <code>&lt;datetime&gt; AT LOCAL</code>입니다. 전자는 지정한 시간대로 값을 재표기하고, 후자는 세션의 <code>session_timezone</code>을 사용합니다. 둘 다 <code>toTimeZone()</code>과 동등하며 <code>DateTime64</code> 정밀도를 유지합니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/106092">#106092</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 하나의 UTC 시각을 서울·파리·뉴욕으로 표현
+- 타입과 epoch 확인: 타입은 <code>DateTime('Asia/Seoul')</code>로 바뀌지만 Unix 타임스탬프는 그대로
+- <code>toTimeZone()</code> 함수 형태와의 동일성 확인
+- 서로 다른 두 <code>session_timezone</code> 하에서의 <code>AT LOCAL</code>
+- 연쇄 변환 — 마지막 연산자가 결과를 결정
+- 변환 후에도 마이크로초가 유지되는 <code>DateTime64(6)</code>
+- 배포 로그를 3개 오피스 시간대로 동시 표현
+- 전형적인 리포트 버그: UTC 23:30 이벤트는 서울에서 다음 날짜에 속함
+- 필터링 의미 — 비교는 시각(instant) 기준이므로 로컬 날짜 필터는 경계값도 변환해야 함</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 이 연산자는 시각이 아니라 시간대 <em>라벨</em>을 바꿉니다: 전후로 <code>toUnixTimestamp()</code>가 동일합니다
+- <code>toTypeName()</code>에 변환이 반영됩니다 (<code>DateTime('UTC')</code> → <code>DateTime('Asia/Seoul')</code>)
+- <code>AT LOCAL</code>은 <code>session_timezone</code>을 따르므로 같은 쿼리가 세션마다 다른 결과를 냅니다
+- 초 미만 정밀도가 유지됩니다: <code>DateTime64(6, 'UTC')</code> → <code>DateTime64(6, 'Asia/Seoul')</code>
+- 원본 UTC 값으로 그룹화하면 늦은 저녁 이벤트가 잘못된 로컬 날짜에 집계됩니다 — <code>toDate()</code> 전에 변환하세요
+- 비교는 시각 기준으로 동작하므로 <code>WHERE ts AT TIME ZONE 'Asia/Seoul' &gt;= '...'</code>는 변환하지 않은 형태와 동일하게 필터링됩니다. 로컬 달력 기준 필터에는 <em>경계값</em>을 변환하세요</p>
+<h4>3. <code>groupFormat</code> + <code>-Tuple</code> 조합자</h4>
+<ul>
+<li><code>groupFormat('&lt;포맷&gt;')(컬럼...)</code> — 각 그룹의 행들을 임의의 ClickHouse 출력 포맷으로 직렬화해 하나의 값으로 반환하는 집계 함수 (<a href="https://github.com/ClickHouse/ClickHouse/pull/93201">#93201</a>)</li>
+<li><code>-Tuple</code> 조합자 — 집계를 <code>Tuple</code> 인자에 원소별로 적용, 예: <code>sumTuple((a, b))</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98190">#98190</a>)</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- <code>groupFormat('CSV')</code> 기본
+- 같은 그룹을 <code>TSV</code>, <code>JSONEachRow</code>, <code>Values</code>로 출력
+- <code>GROUP BY</code>와 함께 그룹별 페이로드 — 디바이스별 CSV 익스포트
+- 방(room)별 <code>JSONEachRow</code> 페이로드, 그리고 실제 JSON 키를 얻는 명명 튜플 기법
+- <code>sumTuple</code> / <code>avgTuple</code> / <code>minTuple</code> / <code>maxTuple</code>을 한 번에, 장문 등가식과 나란히 비교
+- 멤버 이름으로 계속 접근 가능한 명명 튜플 (<code>sumTuple(m).temp</code>)
+- 조합자 중첩: <code>sumTupleIf((a, b), 조건)</code>
+- 두 기능을 결합한 리포트</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 포맷 이름은 <code>groupFormat</code>의 <strong>파라미터</strong>, 컬럼은 <strong>인자</strong>입니다: <code>groupFormat('CSV')(c1, c2)</code>
+- 직렬화된 컬럼은 항상 <code>c1</code>, <code>c2</code>, … 로 표기됩니다 — 별칭이나 <code>CSVWithNames</code>로도 바뀌지 않습니다. 실제 키를 페이로드에 넣으려면 인자를 <strong>명명 튜플</strong>로 감싸세요
+- <code>groupFormat</code>은 <code>GROUP BY</code>를 따르므로 한 쿼리로 다수의 독립 페이로드를 만들 수 있습니다
+- <code>-Tuple</code>은 N개의 반복 집계를 한 번의 호출로 대체하고 같은 길이의 튜플을 반환합니다
+- 명명 튜플의 멤버는 집계 후에도 이름으로 접근할 수 있습니다
+- 조합자는 중첩됩니다 — <code>sumTupleIf</code>는 튜플 동작과 조건 동작을 함께 적용합니다</p>
+<h3>🆕 26.7의 새로운 기능</h3>
+<ul>
+<li><strong><code>EXPLAIN ANALYZE</code></strong> — 쿼리 성능 분석 (<a href="https://github.com/ClickHouse/ClickHouse/pull/106586">#106586</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/110668">#110668</a>)</li>
+<li><strong>프로젝션 정의의 <code>WHERE</code> 절</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/102347">#102347</a>)</li>
+<li><strong><code>groupFormat</code></strong> 집계 함수 (<a href="https://github.com/ClickHouse/ClickHouse/pull/93201">#93201</a>)</li>
+<li><strong><code>-Tuple</code> 집계 조합자</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98190">#98190</a>)</li>
+<li><strong><code>AT TIME ZONE</code> / <code>AT LOCAL</code></strong> 후위 연산자 (<a href="https://github.com/ClickHouse/ClickHouse/pull/106092">#106092</a>)</li>
+<li><strong><code>Remote</code> / <code>RemoteSecure</code> 테이블 엔진</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/106189">#106189</a>)</li>
+<li><strong><code>QueryRunner</code> 테이블 엔진</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107888">#107888</a>)</li>
+<li><strong>엔진 무관 <code>SYSTEM STOP/START/PAUSE/CANCEL/REFRESH</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107476">#107476</a>)</li>
+<li><strong><code>mysql</code> / <code>postgresql</code> / <code>sqlite</code> 테이블 함수가 사용자 쿼리를 수용</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/107740">#107740</a>)</li>
+<li><strong>음수 <code>LIMIT</code>의 <code>WITH TIES</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/100930">#100930</a>)</li>
+<li><strong><code>GeoJSON</code> 출력 포맷</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108065">#108065</a>) — 입력 포맷은 26.6에 추가됨</li>
+<li><strong>UTM/MGRS 변환</strong> — <code>geoToUTM</code>, <code>UTMToGeo</code>, <code>geoToMGRS</code>, <code>MGRSToGeo</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108939">#108939</a>)</li>
+<li><strong><code>geometryIntersectCartesian</code> / <code>geometryIntersectSpherical</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/110062">#110062</a>)</li>
+<li><strong><code>digits(n, offset[, length])</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109012">#109012</a>), <strong><code>sqr</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109061">#109061</a>)</li>
+<li><strong><code>xxHash64Spark</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108436">#108436</a>)</li>
+<li><strong><code>dotProductTransposed</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108100">#108100</a>), <strong><code>randomHadamardTransform</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108227">#108227</a>)</li>
+<li><strong><code>QBit</code> stride 파라미터</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108103">#108103</a>), <strong><code>Int8</code> 원소 타입</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108105">#108105</a>)</li>
+<li><strong>텍스트 인덱스 <code>postprocessor</code> 인자</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/98939">#98939</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/108606">#108606</a>), <strong><code>system.stemmers</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/100611">#100611</a>)</li>
+<li><strong>Naive Bayes를 <code>NAIVE_BAYES</code> 딕셔너리 레이아웃으로 구성</strong> — <code>naiveBayesClassifierWithProb</code>, <code>naiveBayesClassifierWithAllProbs</code>, <code>naiveBayesNgrams</code> 추가, 메모리 약 49배 절감·로드 및 분류 약 11배 향상</li>
+<li><strong><code>SYSTEM UNLOAD DICTIONARY</code> / <code>DICTIONARIES</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109639">#109639</a>), <strong>딕셔너리별 지연 로딩</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108314">#108314</a>), <strong><code>dictGetRoot</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/109459">#109459</a>)</li>
+<li><strong><code>ALTER USER</code> / <code>ALTER ROLE ... SET name = value</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108722">#108722</a>), <strong><code>ALTER TABLE ... MODIFY CONSTRAINT [IF EXISTS]</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108768">#108768</a>)</li>
+<li><strong><code>kafka_sasl_mechanism</code>의 <code>AWS_MSK_IAM</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/96100">#96100</a>)</li>
+<li><strong><code>skip_unavailable_shards_mode</code> 설정</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/79091">#79091</a>), <strong>쿼리 파라미터를 설정 값으로 사용</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/108760">#108760</a>)</li>
+<li><strong>Web UI</strong>: 쿼리 탭 (<a href="https://github.com/ClickHouse/ClickHouse/pull/107826">#107826</a>), 컬럼별 색상 코딩 (<a href="https://github.com/ClickHouse/ClickHouse/pull/108873">#108873</a>), <code>/docs</code> 내장 문서 검색 (<a href="https://github.com/ClickHouse/ClickHouse/pull/108345">#108345</a>)</li>
+<li><strong>성능</strong>: 주 키 인덱스 분석 5–26% 향상, <code>arrayMin</code>/<code>arrayMax</code> 약 1.3–1.5배 향상, Delta 코덱 압축 해제 1.5–5배 향상, 단일 인자 <code>Nullable</code> 함수의 null map 공유</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 26.7</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.7/">ClickHouse 26.7</a></li>
+<li><strong><code>EXPLAIN</code> 레퍼런스</strong>: <a href="https://clickhouse.com/docs/sql-reference/statements/explain">docs.clickhouse.com/sql-reference/statements/explain</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 26.7.1에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 안에서 생성</li>
+<li>정리(cleanup) 구문은 확인을 위해 주석 처리</li>
+<li><code>EXPLAIN ANALYZE</code>는 대상 쿼리를 실제로 실행합니다 — <code>01-explain-analyze.sql</code>은 모든 예제를 200만 행 테이블에 대해 실행합니다</li>
+<li><code>02-at-time-zone.sql</code>은 <code>session_timezone</code>을 변경한 뒤 해당 섹션 끝에서 <code>UTC</code>로 되돌립니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

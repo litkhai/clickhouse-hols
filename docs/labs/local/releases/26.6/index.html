@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.6 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.6 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.6</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.6.2</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.6 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.6 new features. This directory focuses on verified and working features newly added in ClickHouse 26.6 (released 2026-06-25, the 10-year anniversary release with 56 new features, 79 performance optimizations and 366 bug fixes).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.6 makes index tuning measurable and schema changes cheap. <code>CREATE HYPOTHETICAL INDEX</code> plus <code>EXPLAIN WHATIF</code> price a skip-index candidate before you pay to build it, <code>ADD ENUM VALUES</code> turns an Enum extension into an append instead of a whole-type rewrite, and a batch of ANSI/PostgreSQL syntax — <code>SOME</code>/<code>ALL</code> quantifiers, column selection by pattern, <code>LIKE ... ESCAPE</code>, <code>date_part</code> — closes long-standing porting gaps.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Hypothetical Indexes + <code>EXPLAIN WHATIF</code></strong> — estimate a skip index's benefit without building it</li>
+<li><strong><code>ALTER TABLE ... ADD ENUM VALUES</code></strong> — append Enum members without restating the existing ones</li>
+<li><strong>SQL Compatibility and Ergonomics</strong> — <code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>/<code>* ILIKE</code>, <code>LIKE ... ESCAPE</code>, <code>date_part</code>/<code>EXTRACT</code>, compatibility aliases, <code>system.documentation</code></li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/26.6
+./00-setup.sh
+
+./01-hypothetical-indexes.sh
+./02-add-enum-values.sh
+./03-sql-compatibility.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Hypothetical Indexes + <code>EXPLAIN WHATIF</code> (01-hypothetical-indexes)</h4>
+<p><strong>New Feature:</strong> <code>CREATE HYPOTHETICAL INDEX &lt;name&gt; ON &lt;table&gt; (&lt;expr&gt;) TYPE &lt;type&gt; GRANULARITY &lt;n&gt;</code> registers a skip-index <em>candidate</em> that is never built and never written to disk. <code>EXPLAIN WHATIF &lt;query&gt;</code> then reports, per candidate, how many marks and bytes the query would read and the resulting <code>skip_ratio</code>. (<a href="https://clickhouse.com/blog/clickhouse-release-26-06">Release blog</a>)</p>
+<p><strong>Test Content:</strong>
+- A 1M-row table with three deliberately different distributions (clustered, uniformly spread, key-correlated)
+- <code>EXPLAIN WHATIF</code> with no candidate defined — baseline only, with a hint
+- A <code>set(4)</code> candidate on a clustered column → 87% skip
+- Three candidates (<code>set</code>, <code>minmax</code>, <code>bloom_filter</code>) compared in a single report
+- <code>system.hypothetical_indexes</code> inventory
+- Clustered vs uniformly spread rare values: 99.2% vs 0.8% skip for the <em>same</em> index type
+- <code>not_applicable</code> verdicts with the reason
+- <code>DROP HYPOTHETICAL INDEX</code>
+- Proof that <code>SHOW CREATE TABLE</code> and <code>system.data_skipping_indices</code> never changed
+- Materializing the winner with <code>ADD INDEX</code> + <code>MATERIALIZE INDEX</code> and confirming that <code>EXPLAIN indexes = 1</code> reports the granule count WHATIF predicted</p>
+<p><strong>Key Learning Points:</strong>
+- Hypothetical indexes are <strong>session-scoped</strong>: they live only inside the connection that created them, which is why the whole lab must run in one <code>clickhouse-client</code> invocation
+- <code>EXPLAIN WHATIF</code> prints the baseline (after primary key, partition and existing indexes) first, then one block per candidate
+- The estimate is empirical — ClickHouse reads table data to build the candidate in memory, so the scan counts against the session's read limits and quotas
+- Rarity does not make a value indexable: a value appearing every 1,000 rows lands in every granule, so <code>skip_ratio</code> stays near zero
+- <code>not_applicable</code> is reported with a reason instead of the candidate being silently dropped
+- The predicted mark count matches the granule count of the real index once materialized</p>
+<p><strong>Use Cases:</strong>
+- Choosing between skip-index candidates without a build-benchmark-drop cycle
+- Justifying (or rejecting) an index request with numbers before touching production DDL
+- Teaching why data distribution, not cardinality alone, decides index value
+- Auditing whether existing indexes still earn their storage</p>
+<hr />
+<h4>2. <code>ALTER TABLE ... ADD ENUM VALUES</code> (02-add-enum-values)</h4>
+<p><strong>New Feature:</strong> <code>ALTER TABLE &lt;t&gt; MODIFY COLUMN &lt;col&gt; ADD ENUM VALUES('name' = id, ...)</code> appends members to an existing <code>Enum8</code>/<code>Enum16</code> without restating the values it already has. Ids may be omitted, in which case they continue from <code>max(id) + 1</code>. (<a href="https://clickhouse.com/blog/clickhouse-release-26-06">Release blog</a>)</p>
+<p><strong>Test Content:</strong>
+- A 200k-row table with a three-value event taxonomy
+- The pre-26.6 way: <code>MODIFY COLUMN</code> restating every value (still valid)
+- The new way: appending a single member
+- Auto-assigned ids
+- Appending several members in one statement
+- Verifying the original rows read back unchanged, then inserting rows that use the new members
+- <code>Enum16</code> for sparse code taxonomies (HTTP-status style)
+- <code>Nullable(Enum8)</code>
+- Ordering semantics: <code>ORDER BY</code> on an Enum sorts by id, so appended values sort last</p>
+<p><strong>Key Learning Points:</strong>
+- The append is metadata-only — existing parts are not rewritten
+- Omitting <code>= N</code> appends at <code>max(id) + 1</code>; explicit ids may leave gaps (<code>5, 6, 10, 11, 12</code>)
+- Works the same on <code>Enum16</code> and on <code>Nullable(Enum8)</code>
+- <code>ORDER BY enum_col</code> sorts by the numeric id, not the name — cast with <code>toString()</code> for alphabetical order
+- Restating the whole type still works, which matters for migrations that must run on older servers too</p>
+<p><strong>Use Cases:</strong>
+- Growing event/status taxonomies in append-only fashion
+- Migrations that previously risked dropping a value while retyping a long Enum
+- Keeping <code>Enum</code> (compact, ordered) instead of retreating to <code>LowCardinality(String)</code> just because the set changes
+- Adding error codes to an <code>Enum16</code> without a full-column rewrite</p>
+<hr />
+<h4>3. SQL Compatibility and Ergonomics (03-sql-compatibility)</h4>
+<p><strong>New Features:</strong>
+- <code>SOME</code> / <code>ALL</code> quantified comparisons over arrays and subqueries
+- Column selection by pattern: <code>SELECT * LIKE 'ts_%'</code>, <code>SELECT * ILIKE 'ORDER%'</code>
+- <code>ESCAPE</code> clause for <code>LIKE</code>
+- PostgreSQL-style <code>date_part('unit', value)</code> alongside ANSI <code>EXTRACT(unit FROM value)</code>
+- Compatibility aliases <code>min_by</code>, <code>max_by</code>, <code>REGEXP_SUBSTR</code>
+- <code>system.documentation</code> — the reference docs embedded in the server, behind the CLI <code>help</code> command</p>
+<p>(<a href="https://clickhouse.com/blog/clickhouse-release-26-06">Release blog</a>)</p>
+<p><strong>Test Content:</strong>
+- <code>SOME</code>/<code>ALL</code> over arrays, with the <code>arrayAll</code>/<code>arrayExists</code> equivalents side by side
+- <code>SOME</code>/<code>ALL</code> over subqueries ("larger than every ap-south order")
+- <code>* LIKE</code> / <code>* ILIKE</code>, composed with <code>EXCEPT (col)</code> and <code>APPLY max</code>
+- <code>LIKE 'ORDER!_%' ESCAPE '!'</code> matching a literal underscore, and rejecting other characters
+- <code>date_part</code> and <code>EXTRACT</code> for year/month/day/hour/minute/quarter, plus a grouped daily report
+- <code>min_by</code>/<code>max_by</code> next to native <code>argMin</code>/<code>argMax</code>, and <code>REGEXP_SUBSTR</code>
+- A per-region report combining the new syntax
+- <code>system.documentation</code>: entity counts by type, a single-function lookup, and a full-text search over the docs</p>
+<p><strong>Key Learning Points:</strong>
+- <code>x &gt; ALL(...)</code> / <code>x &gt; SOME(...)</code> accept both array literals and subqueries
+- <code>* LIKE</code> / <code>* ILIKE</code> select columns by name pattern; only <code>LIKE</code> and <code>ILIKE</code> are supported (<code>* NOT LIKE</code> is not, and regex column selection remains <code>COLUMNS('...')</code>)
+- Column patterns compose with the existing <code>EXCEPT</code> and <code>APPLY</code> modifiers
+- <code>ESCAPE</code> nominates a character that turns off <code>_</code>/<code>%</code> wildcard meaning for the next character
+- <code>date_part</code> and <code>EXTRACT</code> are two spellings of one operation, so ported reports can keep their original form
+- <code>min_by</code>/<code>max_by</code> are aliases of <code>argMin</code>/<code>argMax</code> — same semantics, familiar name
+- <code>system.documentation</code> carries ~1,600 documented functions plus settings, formats and engines, searchable from SQL</p>
+<p><strong>Use Cases:</strong>
+- Porting Postgres/Snowflake reports with fewer rewrites
+- Querying wide tables by column-name convention (<code>ts_*</code>, <code>dim_*</code>) instead of listing columns
+- Matching identifiers that legitimately contain <code>_</code> or <code>%</code>
+- Discovering functions and settings without leaving the session</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-26-6
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.6/
+├── README.md                          # This document
+├── 00-setup.sh                        # ClickHouse 26.6 installation script
+├── 01-hypothetical-indexes.sh         # Hypothetical index runner
+├── 01-hypothetical-indexes.sql        # Hypothetical index SQL
+├── 02-add-enum-values.sh              # ADD ENUM VALUES runner
+├── 02-add-enum-values.sql             # ADD ENUM VALUES SQL
+├── 03-sql-compatibility.sh            # SQL compatibility runner
+└── 03-sql-compatibility.sql           # SQL compatibility SQL
+</code></pre>
+<h3>🆕 What's New in 26.6</h3>
+<ul>
+<li><strong>Hypothetical skip indexes</strong> — <code>CREATE HYPOTHETICAL INDEX</code> + <code>EXPLAIN WHATIF</code></li>
+<li><strong><code>ALTER TABLE ... ADD ENUM VALUES</code></strong></li>
+<li><strong>Cascading refreshable materialized views</strong> — <code>REFRESH DEPENDS ON</code>, dependency-driven instead of independent timers</li>
+<li><strong>CLI <code>help</code> command</strong> backed by the new <strong><code>system.documentation</code></strong> table</li>
+<li><strong>clickhouse-local server mode</strong> — <code>SYSTEM START/STOP LISTEN TCP/HTTP</code></li>
+<li><strong>Continuous queries</strong> (experimental) — <code>SELECT ... FROM &lt;table&gt; STREAM</code></li>
+<li><strong>Schema Visualizer</strong> in the web UI — dependency graph of tables, materialized views and dictionaries</li>
+<li><strong><code>PNG</code> output format</strong> — render query results as an image</li>
+<li><strong><code>GeoJSON</code> input format</strong> and <strong>MVT functions</strong> (<code>MVTEncodeGeom</code>, <code>MVTEncode</code>, <code>MVTBoundingBox</code>)</li>
+<li><strong><code>aiEmbed</code></strong> (experimental) — embeddings via a configured AI provider</li>
+<li><strong>Quantization functions</strong> — <code>quantizeBFloat16ToInt8</code>, <code>dequantizeInt8ToBFloat16</code></li>
+<li><strong>Memory reservations for workloads</strong> — <code>CREATE RESOURCE memory (MEMORY RESERVATION)</code></li>
+<li><strong><code>SOME</code> / <code>ALL</code> array quantifiers</strong></li>
+<li><strong>Column selection by pattern</strong> — <code>SELECT * LIKE / * ILIKE</code></li>
+<li><strong><code>ESCAPE</code> clause for <code>LIKE</code></strong></li>
+<li><strong>PostgreSQL-style <code>date_part()</code></strong> alongside <code>EXTRACT</code></li>
+<li><strong>Compatibility aliases</strong> — <code>min_by</code>, <code>max_by</code>, <code>REGEXP_SUBSTR</code></li>
+<li><strong>Multi-stage distributed query execution</strong> (experimental)</li>
+<li><strong>3x lower latency on deeply nested queries</strong></li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-26-06">ClickHouse Release 26.6</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.6/">ClickHouse 26.6</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 26.6.2</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+<li><code>01-hypothetical-indexes.sql</code> must run as a single session — hypothetical indexes disappear when the connection closes</li>
+<li><code>EXPLAIN WHATIF</code> reads real data to produce its estimate, so expect a few seconds on the 1M-row table</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.6 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 6월 25일 출시된 ClickHouse 26.6에서 검증된 작동 기능에 집중합니다. 26.6은 10주년 기념 릴리스로 신기능 56건, 성능 최적화 79건, 버그 수정 366건을 포함합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.6은 인덱스 튜닝을 측정 가능하게 만들고 스키마 변경 비용을 낮춥니다. <code>CREATE HYPOTHETICAL INDEX</code>와 <code>EXPLAIN WHATIF</code>로 스킵 인덱스 후보를 만들기 전에 효과를 산정하고, <code>ADD ENUM VALUES</code>는 Enum 확장을 전체 타입 재작성이 아닌 추가(append)로 바꿉니다. 여기에 <code>SOME</code>/<code>ALL</code> 수량자, 패턴 기반 컬럼 선택, <code>LIKE ... ESCAPE</code>, <code>date_part</code> 등 ANSI/PostgreSQL 구문이 이식 시의 간극을 메웁니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>가상 인덱스 + <code>EXPLAIN WHATIF</code></strong> — 인덱스를 만들지 않고 효과를 산정</li>
+<li><strong><code>ALTER TABLE ... ADD ENUM VALUES</code></strong> — 기존 값을 다시 나열하지 않고 Enum 멤버 추가</li>
+<li><strong>SQL 호환성과 사용성</strong> — <code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>/<code>* ILIKE</code>, <code>LIKE ... ESCAPE</code>, <code>date_part</code>/<code>EXTRACT</code>, 호환 별칭, <code>system.documentation</code></li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/26.6
+./00-setup.sh
+
+./01-hypothetical-indexes.sh
+./02-add-enum-values.sh
+./03-sql-compatibility.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. 가상 인덱스 + <code>EXPLAIN WHATIF</code></h4>
+<p><code>CREATE HYPOTHETICAL INDEX &lt;이름&gt; ON &lt;테이블&gt; (&lt;식&gt;) TYPE &lt;타입&gt; GRANULARITY &lt;n&gt;</code>은 실제로 만들지도, 디스크에 쓰지도 않는 스킵 인덱스 <strong>후보</strong>를 등록합니다. 이후 <code>EXPLAIN WHATIF &lt;쿼리&gt;</code>가 후보별로 읽게 될 mark 수·바이트와 <code>skip_ratio</code>를 보고합니다. (<a href="https://clickhouse.com/blog/clickhouse-release-26-06">릴리스 블로그</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 서로 다른 3가지 분포(군집형, 균일 분산형, 키 상관형)를 가진 100만 행 테이블
+- 후보가 없는 상태의 <code>EXPLAIN WHATIF</code> — baseline과 안내 메시지
+- 군집형 컬럼에 <code>set(4)</code> 후보 → 87% skip
+- <code>set</code>/<code>minmax</code>/<code>bloom_filter</code> 세 후보를 한 번에 비교
+- <code>system.hypothetical_indexes</code> 목록
+- 같은 인덱스 타입에서 군집형 vs 균일 분산형 희귀값: 99.2% vs 0.8% skip
+- 사유가 붙은 <code>not_applicable</code> 판정
+- <code>DROP HYPOTHETICAL INDEX</code>
+- <code>SHOW CREATE TABLE</code>과 <code>system.data_skipping_indices</code>가 전혀 변하지 않았음을 확인
+- 승자를 <code>ADD INDEX</code> + <code>MATERIALIZE INDEX</code>로 실제 생성한 뒤, <code>EXPLAIN indexes = 1</code>의 granule 수가 WHATIF 예측과 일치하는지 확인</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 가상 인덱스는 <strong>세션 범위</strong>입니다 — 생성한 커넥션 안에서만 존재하므로 이 랩 전체가 하나의 <code>clickhouse-client</code> 실행으로 돌아가야 합니다
+- <code>EXPLAIN WHATIF</code>는 baseline(주 키·파티션·기존 인덱스 적용 후)을 먼저 출력하고 이어서 후보별 블록을 출력합니다
+- 산정은 경험적(empirical)입니다 — 후보 인덱스를 메모리에 만들기 위해 실제 데이터를 읽으므로 세션의 read 제한·쿼터에 집계됩니다
+- 희귀하다고 인덱스가 되는 것은 아닙니다: 1,000행마다 등장하는 값은 모든 granule에 들어가므로 <code>skip_ratio</code>가 0에 가깝습니다
+- 적용 불가 후보는 조용히 빠지지 않고 사유와 함께 <code>not_applicable</code>로 보고됩니다
+- 예측된 mark 수는 실제 인덱스를 만든 뒤의 granule 수와 일치합니다</p>
+<h4>2. <code>ALTER TABLE ... ADD ENUM VALUES</code></h4>
+<p><code>ALTER TABLE &lt;t&gt; MODIFY COLUMN &lt;col&gt; ADD ENUM VALUES('이름' = id, ...)</code>는 기존 값을 다시 나열하지 않고 <code>Enum8</code>/<code>Enum16</code>에 멤버를 추가합니다. id를 생략하면 <code>max(id) + 1</code>부터 이어서 부여됩니다. (<a href="https://clickhouse.com/blog/clickhouse-release-26-06">릴리스 블로그</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 3개 값 이벤트 분류를 가진 20만 행 테이블
+- 26.6 이전 방식: 모든 값을 다시 나열하는 <code>MODIFY COLUMN</code> (여전히 유효)
+- 새 방식: 멤버 하나만 추가
+- id 자동 부여
+- 한 문장에서 여러 멤버 추가
+- 기존 행이 그대로 읽히는지 확인한 뒤 새 멤버를 사용한 INSERT
+- 희소한 코드 분류를 위한 <code>Enum16</code> (HTTP 상태 코드 형태)
+- <code>Nullable(Enum8)</code>
+- 정렬 의미: Enum의 <code>ORDER BY</code>는 id 기준이므로 추가된 값이 마지막에 정렬됨</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 추가는 메타데이터 전용 작업입니다 — 기존 파트는 재작성되지 않습니다
+- <code>= N</code>을 생략하면 <code>max(id) + 1</code>에 추가되고, 명시적 id는 간격을 남길 수 있습니다 (<code>5, 6, 10, 11, 12</code>)
+- <code>Enum16</code>, <code>Nullable(Enum8)</code>에서도 동일하게 동작합니다
+- <code>ORDER BY enum_col</code>은 이름이 아니라 숫자 id로 정렬합니다 — 알파벳 순서가 필요하면 <code>toString()</code>으로 캐스팅하세요
+- 전체 타입 재작성 방식도 계속 동작하므로, 구버전 서버에서도 실행돼야 하는 마이그레이션에 유용합니다</p>
+<h4>3. SQL 호환성과 사용성</h4>
+<ul>
+<li>배열과 서브쿼리에 대한 <code>SOME</code> / <code>ALL</code> 수량 비교</li>
+<li>패턴 기반 컬럼 선택: <code>SELECT * LIKE 'ts_%'</code>, <code>SELECT * ILIKE 'ORDER%'</code></li>
+<li><code>LIKE</code>의 <code>ESCAPE</code> 절</li>
+<li>PostgreSQL 스타일 <code>date_part('unit', value)</code>와 ANSI <code>EXTRACT(unit FROM value)</code></li>
+<li>호환 별칭 <code>min_by</code>, <code>max_by</code>, <code>REGEXP_SUBSTR</code></li>
+<li><code>system.documentation</code> — 서버에 내장된 레퍼런스 문서, CLI <code>help</code> 명령의 백엔드</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- 배열에 대한 <code>SOME</code>/<code>ALL</code>과 <code>arrayAll</code>/<code>arrayExists</code> 대응 비교
+- 서브쿼리에 대한 <code>SOME</code>/<code>ALL</code> ("모든 ap-south 주문보다 큰 주문")
+- <code>* LIKE</code> / <code>* ILIKE</code>, <code>EXCEPT (col)</code> 및 <code>APPLY max</code>와의 조합
+- <code>LIKE 'ORDER!_%' ESCAPE '!'</code>로 리터럴 밑줄 매칭, 다른 문자는 거부
+- year/month/day/hour/minute/quarter에 대한 <code>date_part</code>와 <code>EXTRACT</code>, 그리고 일자별 집계 리포트
+- <code>min_by</code>/<code>max_by</code>와 네이티브 <code>argMin</code>/<code>argMax</code> 비교, <code>REGEXP_SUBSTR</code>
+- 새 구문을 결합한 지역별 리포트
+- <code>system.documentation</code>: 타입별 엔티티 수, 함수 단건 조회, 문서 전문 검색</p>
+<p><strong>핵심 학습 포인트:</strong>
+- <code>x &gt; ALL(...)</code> / <code>x &gt; SOME(...)</code>은 배열 리터럴과 서브쿼리를 모두 받습니다
+- <code>* LIKE</code> / <code>* ILIKE</code>는 이름 패턴으로 컬럼을 고릅니다. 지원되는 것은 <code>LIKE</code>와 <code>ILIKE</code>뿐이며(<code>* NOT LIKE</code>는 불가), 정규식 컬럼 선택은 기존 <code>COLUMNS('...')</code>입니다
+- 컬럼 패턴은 기존 <code>EXCEPT</code>, <code>APPLY</code> 수정자와 조합됩니다
+- <code>ESCAPE</code>는 다음 문자의 <code>_</code>/<code>%</code> 와일드카드 의미를 해제하는 문자를 지정합니다
+- <code>date_part</code>와 <code>EXTRACT</code>는 같은 연산의 두 표기이므로 이식된 리포트를 원형 그대로 유지할 수 있습니다
+- <code>min_by</code>/<code>max_by</code>는 <code>argMin</code>/<code>argMax</code>의 별칭입니다 — 의미는 같고 이름만 친숙해집니다
+- <code>system.documentation</code>에는 함수 약 1,600건과 설정·포맷·엔진 문서가 들어 있어 SQL로 검색할 수 있습니다</p>
+<h3>🆕 26.6의 새로운 기능</h3>
+<ul>
+<li><strong>가상 스킵 인덱스</strong> — <code>CREATE HYPOTHETICAL INDEX</code> + <code>EXPLAIN WHATIF</code></li>
+<li><strong><code>ALTER TABLE ... ADD ENUM VALUES</code></strong></li>
+<li><strong>연쇄 갱신 구체화 뷰</strong> — <code>REFRESH DEPENDS ON</code>, 독립 타이머 대신 의존성 기반 갱신</li>
+<li><strong>CLI <code>help</code> 명령</strong> — 신규 <strong><code>system.documentation</code></strong> 테이블 기반</li>
+<li><strong>clickhouse-local 서버 모드</strong> — <code>SYSTEM START/STOP LISTEN TCP/HTTP</code></li>
+<li><strong>연속 쿼리</strong> (실험적) — <code>SELECT ... FROM &lt;테이블&gt; STREAM</code></li>
+<li><strong>Schema Visualizer</strong> 웹 UI — 테이블·구체화 뷰·딕셔너리 의존성 그래프</li>
+<li><strong><code>PNG</code> 출력 포맷</strong> — 쿼리 결과를 이미지로 렌더링</li>
+<li><strong><code>GeoJSON</code> 입력 포맷</strong>과 <strong>MVT 함수</strong> (<code>MVTEncodeGeom</code>, <code>MVTEncode</code>, <code>MVTBoundingBox</code>)</li>
+<li><strong><code>aiEmbed</code></strong> (실험적) — 설정된 AI 제공자를 통한 임베딩 생성</li>
+<li><strong>양자화 함수</strong> — <code>quantizeBFloat16ToInt8</code>, <code>dequantizeInt8ToBFloat16</code></li>
+<li><strong>워크로드 메모리 예약</strong> — <code>CREATE RESOURCE memory (MEMORY RESERVATION)</code></li>
+<li><strong><code>SOME</code> / <code>ALL</code> 배열 수량자</strong></li>
+<li><strong>패턴 기반 컬럼 선택</strong> — <code>SELECT * LIKE / * ILIKE</code></li>
+<li><strong><code>LIKE</code>의 <code>ESCAPE</code> 절</strong></li>
+<li><strong>PostgreSQL 스타일 <code>date_part()</code></strong> 와 <code>EXTRACT</code></li>
+<li><strong>호환 별칭</strong> — <code>min_by</code>, <code>max_by</code>, <code>REGEXP_SUBSTR</code></li>
+<li><strong>다단계 분산 쿼리 실행</strong> (실험적)</li>
+<li><strong>깊게 중첩된 쿼리 지연 3배 감소</strong></li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-26-06">ClickHouse Release 26.6</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.6/">ClickHouse 26.6</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 26.6.2에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 안에서 생성</li>
+<li>정리(cleanup) 구문은 확인을 위해 주석 처리</li>
+<li><code>01-hypothetical-indexes.sql</code>은 반드시 단일 세션으로 실행해야 합니다 — 커넥션이 닫히면 가상 인덱스는 사라집니다</li>
+<li><code>EXPLAIN WHATIF</code>는 실제 데이터를 읽어 산정하므로 100만 행 테이블에서 수 초가 걸릴 수 있습니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.6"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

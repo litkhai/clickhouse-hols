@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genome Variants Lab - ClickHouse Hands-on Lab · ClickHouse HOLs</title>
+<meta name="description" content="Genome Variants Lab - ClickHouse Hands-on Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/gnome-variants</code>
+    
+  </nav>
+  <div class="readme en"><h1>Genome Variants Lab - ClickHouse Hands-on Lab</h1>
+<hr />
+<p>A hands-on laboratory for genome variant data analysis using ClickHouse, featuring 3 billion variant records and real-world genomics workload patterns.</p>
+<h3>🎯 Purpose</h3>
+<p>This lab provides practical experience with ClickHouse for genomics data analysis:
+- Large-scale genomics data processing (3 billion records)
+- Understanding partition strategies for chromosome-based data
+- Implementing and testing various indexing techniques
+- Optimizing queries for genomics research workflows
+- Performance monitoring and tuning for scientific workloads</p>
+<p>Whether you're working in bioinformatics or exploring large-scale analytical databases, this lab demonstrates real-world performance characteristics with production-like data volumes.</p>
+<h3>📊 Data Schema</h3>
+<p><strong>106 Columns Including</strong>:
+- Position information (chromosome, position, reference, alternate)
+- Gene and functional impact annotations
+- Population frequency data
+- ClinVar clinical significance
+- In-silico prediction scores
+- Conservation scores
+- Splicing predictions
+- Regulatory information</p>
+<p><strong>Dataset Characteristics</strong>:
+- <strong>3 Billion Rows</strong>: Simulates real-world genome analysis environment
+- <strong>Partitioning</strong>: By chromosome (24 partitions: chr1-22, chrX, chrY)
+- <strong>Compressed Size</strong>: ~50-100GB
+- <strong>Uncompressed Size</strong>: ~200-400GB
+- <strong>Compression Ratio</strong>: 4-8x</p>
+<h3>📁 File Structure</h3>
+<pre><code>gnome-variants/
+├── README.md                # This file
+├── 01-genome-schema.sql     # Schema definition
+├── 02-genome-load.sql       # Data generation
+├── 03-genome-query.sql      # Benchmark queries
+├── 04-genome-monitor.sql    # Monitoring queries
+└── 05-genome-drop.sql       # Cleanup script
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<p>Execute all scripts in sequence:</p>
+<pre><code class="language-bash">cd usecase/gnome-variants
+
+# 1. Create schema
+clickhouse-client &lt; 01-genome-schema.sql
+
+# 2. Load data (takes 10-30 minutes)
+clickhouse-client &lt; 02-genome-load.sql
+
+# 3. Run benchmark queries
+clickhouse-client &lt; 03-genome-query.sql
+
+# 4. Monitor performance
+clickhouse-client &lt; 04-genome-monitor.sql
+
+# 5. Cleanup when done
+clickhouse-client &lt; 05-genome-drop.sql
+</code></pre>
+<h3>📖 Detailed Lab Steps</h3>
+<h4>1. Create Schema</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 01-genome-schema.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates database and table with MergeTree engine
+- Sets up chromosome-based partitioning
+- Creates skip indices:
+  - <strong>Bloom Filter</strong>: For exact value searches (gene, sample_id, clinvar_significance)
+  - <strong>N-gram Index</strong>: For partial gene name searches
+- Creates Materialized View for pre-computed gene statistics
+- Creates Projection for sample-based query optimization</p>
+<p><strong>Expected time</strong>: &lt; 5 seconds</p>
+<hr />
+<h4>2. Load Data</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 02-genome-load.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Generates 3 billion sample variant records
+- Distributes data across 24 chromosome partitions
+- Creates realistic genomics data patterns</p>
+<p><strong>Expected time</strong>: 10-30 minutes (system dependent)</p>
+<p><strong>Expected data size</strong>:
+- Compressed: ~50-100GB
+- Uncompressed: ~200-400GB
+- Compression ratio: 4-8x</p>
+<p><strong>Note</strong>: Ensure sufficient disk space before starting.</p>
+<hr />
+<h4>3. Run Benchmark Queries</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 03-genome-query.sql
+</code></pre>
+<p><strong>Query patterns tested</strong>:
+- <strong>Q1: Range Query</strong> - Position-based variant search
+- <strong>Q2: Gene Filtering</strong> - Filter variants by specific genes
+- <strong>Q3: N-gram Search</strong> - Partial gene name matching
+- <strong>Q4: Aggregation</strong> - Gene-level statistics computation
+- <strong>Q5: Complex Query</strong> - Multiple filtering conditions
+- <strong>Q6: Sample-specific Lookup</strong> - Variants for specific samples
+- <strong>Q7: Chromosome-wide Statistics</strong> - Chromosome-level aggregations
+- <strong>Q8: Clinical Hotspot Analysis</strong> - Pathogenic variant clusters
+- <strong>Q9: Population Frequency</strong> - Allele frequency distributions
+- <strong>Q10: Co-occurrence Analysis</strong> - Variant co-occurrence patterns</p>
+<p><strong>Expected time</strong>: Varies by query (&lt; 1 second to several seconds)</p>
+<hr />
+<h4>4. Monitor Performance</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 04-genome-monitor.sql
+</code></pre>
+<p><strong>What it monitors</strong>:
+- Query execution times and resource usage
+- Granule skip efficiency (how many granules were skipped)
+- Index usage and effectiveness
+- Memory and I/O statistics</p>
+<hr />
+<h4>5. Cleanup</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 05-genome-drop.sql
+</code></pre>
+<p>Removes all data and database.</p>
+<h3>🔍 Performance Optimization Techniques</h3>
+<h4>1. Partitioning</h4>
+<ul>
+<li><strong>Chromosome-based partitioning</strong> improves query performance by pruning irrelevant partitions</li>
+<li>Queries targeting specific chromosomes only read relevant data</li>
+</ul>
+<h4>2. Skip Indices</h4>
+<ul>
+<li><strong>Bloom Filter</strong>: Efficiently filters exact value matches</li>
+<li><strong>N-gram</strong>: Enables partial string matching for gene names</li>
+<li><strong>Granule-level skipping</strong>: Reduces I/O by skipping irrelevant data blocks</li>
+</ul>
+<h4>3. Materialized View</h4>
+<ul>
+<li><strong>Pre-computed gene statistics</strong> accelerate aggregation queries</li>
+<li>Automatically maintained as new data arrives</li>
+</ul>
+<h4>4. Projection</h4>
+<ul>
+<li><strong>Sample-based sorting</strong> optimizes sample-specific queries</li>
+<li>Alternative data organization within the same table</li>
+</ul>
+<h4>5. LowCardinality Type</h4>
+<ul>
+<li><strong>Compression optimization</strong> for columns with low cardinality</li>
+<li>Reduces storage and improves query performance</li>
+</ul>
+<h3>📚 Key Learning Points</h3>
+<ol>
+<li>
+<p><strong>Large-scale Data Processing</strong>
+   - Generate and query 3 billion records
+   - Understand compression and storage characteristics</p>
+</li>
+<li>
+<p><strong>Index Strategy</strong>
+   - When to use Bloom Filter vs N-gram indices
+   - Measuring index effectiveness with granule skip rates</p>
+</li>
+<li>
+<p><strong>Query Optimization</strong>
+   - Analyzing execution plans with EXPLAIN
+   - Understanding partition pruning
+   - Leveraging projections for query acceleration</p>
+</li>
+<li>
+<p><strong>Performance Monitoring</strong>
+   - Using query_log for performance analysis
+   - Tracking resource usage and bottlenecks
+   - Identifying optimization opportunities</p>
+</li>
+<li>
+<p><strong>Real-world Use Case</strong>
+   - Genomics variant analysis workflows
+   - Scientific data processing patterns
+   - Production-scale data volumes</p>
+</li>
+</ol>
+<h3>🛠 Prerequisites</h3>
+<ul>
+<li><strong>ClickHouse</strong>: Version 23.x or higher</li>
+<li><strong>Memory</strong>: Minimum 16GB recommended, 32GB+ for better performance</li>
+<li><strong>Disk</strong>: Minimum 200GB free space</li>
+<li><strong>Environment</strong>: ClickHouse Cloud or Self-hosted</li>
+</ul>
+<h3>🔧 Troubleshooting</h3>
+<h4>Data Generation Taking Too Long</h4>
+<ul>
+<li>Check system resources (CPU, memory, disk I/O)</li>
+<li>Consider reducing data volume for testing</li>
+<li>Ensure no other heavy workloads are running</li>
+</ul>
+<h4>Out of Memory During Queries</h4>
+<pre><code class="language-sql">SET max_memory_usage = 20000000000; -- 20GB
+</code></pre>
+<h4>Query Performance Issues</h4>
+<ul>
+<li>Check if indices are being used (run <code>04-genome-monitor.sql</code>)</li>
+<li>Verify partition pruning is working (use EXPLAIN)</li>
+<li>Ensure sufficient system resources</li>
+</ul>
+<h3>💡 Performance Tips</h3>
+<ul>
+<li><strong>For Range Queries</strong>: Ensure partition key is used in WHERE clause</li>
+<li><strong>For Gene Searches</strong>: Utilize Bloom Filter index with exact matches</li>
+<li><strong>For Partial Searches</strong>: Use N-gram index for gene name patterns</li>
+<li><strong>For Aggregations</strong>: Consider using pre-computed Materialized Views</li>
+<li><strong>For Sample Queries</strong>: Leverage sample_id Projection</li>
+</ul>
+<h3>📚 Reference</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree">ClickHouse MergeTree Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/optimize/skipping-indexes">Skip Indices Guide</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#projections">Projections Documentation</a></li>
+</ul>
+<h3>📝 License</h3>
+<p>This project is provided for educational and hands-on lab purposes.</p>
+<h3>👤 Author</h3>
+<p>Ken (ClickHouse Solution Architect)</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse를 사용한 유전체 변이 데이터 분석 실습으로, 30억 건의 변이 데이터와 실제 유전체학 워크로드 패턴을 제공합니다.</p>
+<h3>🎯 목적</h3>
+<p>이 랩은 ClickHouse를 활용한 유전체 데이터 분석에 대한 실무 경험을 제공합니다:
+- 대규모 유전체 데이터 처리 (30억 레코드)
+- 염색체 기반 데이터를 위한 파티션 전략 이해
+- 다양한 인덱싱 기법 구현 및 테스트
+- 유전체학 연구 워크플로우를 위한 쿼리 최적화
+- 과학 워크로드를 위한 성능 모니터링 및 튜닝</p>
+<p>생물정보학 분야에서 일하거나 대규모 분석 데이터베이스를 탐구하는 경우, 이 랩은 프로덕션 수준의 데이터 볼륨으로 실제 성능 특성을 시연합니다.</p>
+<h3>📊 데이터 스키마</h3>
+<p><strong>106개 컬럼 포함</strong>:
+- 위치 정보 (염색체, 위치, 참조, 대체)
+- 유전자 및 기능적 영향 주석
+- 집단 빈도 데이터
+- ClinVar 임상적 중요성
+- In-silico 예측 점수
+- Conservation 점수
+- Splicing 예측
+- Regulatory 정보</p>
+<p><strong>데이터셋 특성</strong>:
+- <strong>30억 Rows</strong>: 실제 유전체 분석 환경 시뮬레이션
+- <strong>파티셔닝</strong>: 염색체별 (24개 파티션: chr1-22, chrX, chrY)
+- <strong>압축 크기</strong>: ~50-100GB
+- <strong>비압축 크기</strong>: ~200-400GB
+- <strong>압축률</strong>: 4-8배</p>
+<h3>📁 파일 구성</h3>
+<pre><code>gnome-variants/
+├── README.md                # 이 파일
+├── 01-genome-schema.sql     # 스키마 정의
+├── 02-genome-load.sql       # 데이터 생성
+├── 03-genome-query.sql      # 벤치마크 쿼리
+├── 04-genome-monitor.sql    # 모니터링 쿼리
+└── 05-genome-drop.sql       # 정리 스크립트
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<p>모든 스크립트를 순서대로 실행:</p>
+<pre><code class="language-bash">cd usecase/gnome-variants
+
+# 1. 스키마 생성
+clickhouse-client &lt; 01-genome-schema.sql
+
+# 2. 데이터 로드 (10-30분 소요)
+clickhouse-client &lt; 02-genome-load.sql
+
+# 3. 벤치마크 쿼리 실행
+clickhouse-client &lt; 03-genome-query.sql
+
+# 4. 성능 모니터링
+clickhouse-client &lt; 04-genome-monitor.sql
+
+# 5. 완료 후 정리
+clickhouse-client &lt; 05-genome-drop.sql
+</code></pre>
+<h3>📖 상세 실습 단계</h3>
+<h4>1. 스키마 생성</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 01-genome-schema.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- MergeTree 엔진으로 데이터베이스 및 테이블 생성
+- 염색체 기반 파티셔닝 설정
+- Skip 인덱스 생성:
+  - <strong>Bloom Filter</strong>: 정확한 값 검색용 (gene, sample_id, clinvar_significance)
+  - <strong>N-gram Index</strong>: 유전자명 부분 검색용
+- 유전자별 통계를 위한 Materialized View 생성
+- 샘플 기반 쿼리 최적화를 위한 Projection 생성</p>
+<p><strong>예상 시간</strong>: 5초 미만</p>
+<hr />
+<h4>2. 데이터 로드</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 02-genome-load.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 30억 개의 샘플 변이 레코드 생성
+- 24개 염색체 파티션에 데이터 분산
+- 실제 유전체학 데이터 패턴 생성</p>
+<p><strong>예상 시간</strong>: 10-30분 (시스템 사양에 따라 다름)</p>
+<p><strong>예상 데이터 크기</strong>:
+- 압축: ~50-100GB
+- 비압축: ~200-400GB
+- 압축률: 4-8배</p>
+<p><strong>참고</strong>: 시작하기 전에 충분한 디스크 공간을 확보하세요.</p>
+<hr />
+<h4>3. 벤치마크 쿼리 실행</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 03-genome-query.sql
+</code></pre>
+<p><strong>테스트되는 쿼리 패턴</strong>:
+- <strong>Q1: Range Query</strong> - 위치 기반 변이 검색
+- <strong>Q2: Gene Filtering</strong> - 특정 유전자별 변이 필터링
+- <strong>Q3: N-gram Search</strong> - 유전자명 부분 매칭
+- <strong>Q4: Aggregation</strong> - 유전자 수준 통계 계산
+- <strong>Q5: Complex Query</strong> - 다중 필터링 조건
+- <strong>Q6: Sample-specific Lookup</strong> - 특정 샘플의 변이
+- <strong>Q7: Chromosome-wide Statistics</strong> - 염색체 수준 집계
+- <strong>Q8: Clinical Hotspot Analysis</strong> - 병원성 변이 클러스터
+- <strong>Q9: Population Frequency</strong> - 대립 유전자 빈도 분포
+- <strong>Q10: Co-occurrence Analysis</strong> - 변이 공존 패턴</p>
+<p><strong>예상 시간</strong>: 쿼리에 따라 다름 (1초 미만부터 수 초)</p>
+<hr />
+<h4>4. 성능 모니터링</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 04-genome-monitor.sql
+</code></pre>
+<p><strong>모니터링 내용</strong>:
+- 쿼리 실행 시간 및 리소스 사용량
+- Granule 스킵 효율성 (스킵된 granule 수)
+- 인덱스 사용 및 효과성
+- 메모리 및 I/O 통계</p>
+<hr />
+<h4>5. 정리</h4>
+<pre><code class="language-bash">clickhouse-client &lt; 05-genome-drop.sql
+</code></pre>
+<p>모든 데이터 및 데이터베이스를 삭제합니다.</p>
+<h3>🔍 성능 최적화 기법</h3>
+<h4>1. 파티셔닝</h4>
+<ul>
+<li><strong>염색체 기반 파티셔닝</strong>으로 관련 없는 파티션을 제거하여 쿼리 성능 향상</li>
+<li>특정 염색체를 대상으로 하는 쿼리는 관련 데이터만 읽음</li>
+</ul>
+<h4>2. Skip 인덱스</h4>
+<ul>
+<li><strong>Bloom Filter</strong>: 정확한 값 매칭을 효율적으로 필터링</li>
+<li><strong>N-gram</strong>: 유전자명에 대한 부분 문자열 매칭 지원</li>
+<li><strong>Granule 수준 스킵</strong>: 관련 없는 데이터 블록을 스킵하여 I/O 감소</li>
+</ul>
+<h4>3. Materialized View</h4>
+<ul>
+<li><strong>사전 계산된 유전자 통계</strong>로 집계 쿼리 가속화</li>
+<li>새 데이터가 도착하면 자동으로 유지 관리</li>
+</ul>
+<h4>4. Projection</h4>
+<ul>
+<li><strong>샘플 기반 정렬</strong>로 샘플별 쿼리 최적화</li>
+<li>동일한 테이블 내에서 대안적인 데이터 구성</li>
+</ul>
+<h4>5. LowCardinality 타입</h4>
+<ul>
+<li><strong>낮은 카디널리티 컬럼에 대한 압축 최적화</strong></li>
+<li>저장 공간 감소 및 쿼리 성능 향상</li>
+</ul>
+<h3>📚 주요 학습 포인트</h3>
+<ol>
+<li>
+<p><strong>대용량 데이터 처리</strong>
+   - 30억 레코드 생성 및 쿼리
+   - 압축 및 저장 특성 이해</p>
+</li>
+<li>
+<p><strong>인덱스 전략</strong>
+   - Bloom Filter vs N-gram 인덱스 사용 시기
+   - Granule 스킵률로 인덱스 효과성 측정</p>
+</li>
+<li>
+<p><strong>쿼리 최적화</strong>
+   - EXPLAIN으로 실행 계획 분석
+   - 파티션 프루닝 이해
+   - Projection을 활용한 쿼리 가속화</p>
+</li>
+<li>
+<p><strong>성능 모니터링</strong>
+   - query_log를 사용한 성능 분석
+   - 리소스 사용 및 병목 현상 추적
+   - 최적화 기회 식별</p>
+</li>
+<li>
+<p><strong>실제 사용 사례</strong>
+   - 유전체학 변이 분석 워크플로우
+   - 과학 데이터 처리 패턴
+   - 프로덕션 규모 데이터 볼륨</p>
+</li>
+</ol>
+<h3>🛠 사전 요구사항</h3>
+<ul>
+<li><strong>ClickHouse</strong>: 버전 23.x 이상</li>
+<li><strong>메모리</strong>: 최소 16GB 권장, 32GB+ 권장 (더 나은 성능)</li>
+<li><strong>디스크</strong>: 최소 200GB 여유 공간</li>
+<li><strong>환경</strong>: ClickHouse Cloud 또는 Self-hosted</li>
+</ul>
+<h3>🔧 트러블슈팅</h3>
+<h4>데이터 생성이 너무 오래 걸림</h4>
+<ul>
+<li>시스템 리소스 확인 (CPU, 메모리, 디스크 I/O)</li>
+<li>테스트를 위해 데이터 볼륨 줄이기 고려</li>
+<li>다른 무거운 워크로드가 실행 중이지 않은지 확인</li>
+</ul>
+<h4>쿼리 중 메모리 부족</h4>
+<pre><code class="language-sql">SET max_memory_usage = 20000000000; -- 20GB
+</code></pre>
+<h4>쿼리 성능 문제</h4>
+<ul>
+<li>인덱스가 사용되고 있는지 확인 (<code>04-genome-monitor.sql</code> 실행)</li>
+<li>파티션 프루닝이 작동하는지 확인 (EXPLAIN 사용)</li>
+<li>충분한 시스템 리소스 확보</li>
+</ul>
+<h3>💡 성능 팁</h3>
+<ul>
+<li><strong>Range 쿼리</strong>: WHERE 절에서 파티션 키 사용 확인</li>
+<li><strong>유전자 검색</strong>: 정확한 매칭에 Bloom Filter 인덱스 활용</li>
+<li><strong>부분 검색</strong>: 유전자명 패턴에 N-gram 인덱스 사용</li>
+<li><strong>집계</strong>: 사전 계산된 Materialized View 사용 고려</li>
+<li><strong>샘플 쿼리</strong>: sample_id Projection 활용</li>
+</ul>
+<h3>📚 참고 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree">ClickHouse MergeTree Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/optimize/skipping-indexes">Skip Indices Guide</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#projections">Projections Documentation</a></li>
+</ul>
+<h3>📝 라이선스</h3>
+<p>이 프로젝트는 교육 및 실습 목적으로 제공됩니다.</p>
+<h3>👤 작성자</h3>
+<p>Ken (ClickHouse Solution Architect)</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/gnome-variants"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

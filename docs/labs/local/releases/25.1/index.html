@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.1 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.1 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.1</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.1.8.25</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.1 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.1 new features. This directory focuses on verified and working features newly added in ClickHouse 25.1 (released 2025-02-07, the first release of 2025 with 15 new features, 36 performance optimizations and 77 bug fixes).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.1 trims boilerplate off two everyday jobs. A table setting builds minmax skip indices on every suitable column, so a wide table no longer needs an <code>INDEX</code> clause per column. <code>Merge</code> tables stop breaking when the underlying schemas have drifted: a column whose type differs between tables now surfaces as a <code>Variant</code>. On the function side, <code>sequenceMatchEvents</code> returns the rows a funnel pattern matched rather than a yes/no.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Automatic MinMax Indices</strong> — one table setting instead of an <code>INDEX</code> clause per column</li>
+<li><strong><code>Merge</code> Tables Unify Schemas as <code>Variant</code></strong> — schema drift becomes a type, not an error</li>
+<li><strong>New Functions</strong> — <code>sequenceMatchEvents</code>, <code>arrayNormalizedGini</code>, <code>currentQueryID</code></li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/25.1
+./00-setup.sh
+
+./01-auto-minmax-index.sh
+./02-merge-variant-schema.sh
+./03-new-functions.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Automatic MinMax Indices (01-auto-minmax-index)</h4>
+<p><strong>New Feature:</strong> the MergeTree settings <code>add_minmax_index_for_numeric_columns</code> and <code>add_minmax_index_for_string_columns</code> build a minmax skip index on every column of that kind, named <code>auto_minmax_index_&lt;column&gt;</code>.</p>
+<p><strong>Test Content:</strong>
+- A 500k-row table with and without the setting, side by side
+- The generated index list from <code>system.data_skipping_indices</code>
+- The separate switch for string columns
+- <code>EXPLAIN indexes = 1</code> on a correlated column, showing the skip index engage
+- The same query returning identical results either way
+- An uncorrelated column where the index is built but prunes nothing
+- What the indices cost on disk against the table itself
+- The setting is create-time only — the explicit <code>ADD INDEX</code> + <code>MATERIALIZE INDEX</code> route for an existing table</p>
+<p><strong>Key Learning Points:</strong>
+- The indices are named <code>auto_minmax_index_&lt;column&gt;</code> and appear in <code>system.data_skipping_indices</code> like any other
+- Numeric and string columns are two separate settings; neither is on by default
+- The setting is <strong>read-only after creation</strong> — <code>ALTER TABLE ... MODIFY SETTING</code> fails with <code>READONLY_SETTING</code>, so an existing table needs indices added explicitly
+- An index is built per column regardless of whether it can help: on a column that cycles every few rows every granule holds every value, and nothing is pruned
+- Index storage is small next to the data (≈1.2 KiB against ≈4 MiB here), which is what makes indexing everything reasonable</p>
+<p><strong>Use Cases:</strong>
+- Wide fact tables where writing an <code>INDEX</code> clause per column is tedious
+- Exploratory tables whose query patterns are not known yet
+- Getting range-predicate pruning without picking winners in advance</p>
+<hr />
+<h4>2. <code>Merge</code> Tables Unify Schemas as <code>Variant</code> (02-merge-variant-schema)</h4>
+<p><strong>New Feature:</strong> when the <code>merge()</code> table function spans tables whose columns share a name but not a type, the column is exposed as a <code>Variant</code> of the types involved instead of failing.</p>
+<p><strong>Test Content:</strong>
+- Three tables where <code>user_id</code> migrated from <code>UInt32</code> to <code>String</code>
+- The merged view showing <code>Variant(String, UInt32)</code>
+- <code>variantType()</code> and <code>variantElement()</code> to see and extract which alternative a row holds
+- Filtering to only the legacy rows, then only the migrated rows
+- Normalising back to one comparable key with <code>toString()</code>, then aggregating on it
+- Columns that agree keeping their original type
+- A <code>Merge</code> <strong>engine</strong> table following its declared schema instead, and why that differs
+- <code>_table</code> showing which source each row came from</p>
+<p><strong>Key Learning Points:</strong>
+- Only the conflicting column becomes a <code>Variant</code>; the rest keep their types
+- <code>variantType(col)</code> names the alternative a row holds; <code>variantElement(col, 'Type')</code> extracts it and returns <code>NULL</code> for the others
+- Casting the <code>Variant</code> to a common type gives one key usable for <code>GROUP BY</code> or a join
+- The <code>merge()</code> <strong>function</strong> infers the <code>Variant</code>; a <code>Merge</code> <strong>engine</strong> table created <code>AS &lt;table&gt;</code> uses that declared schema and casts into it instead
+- <code>_table</code> is the handle for attributing rows back to their source during a migration</p>
+<p><strong>Use Cases:</strong>
+- Querying across a table that was rewritten mid-migration
+- Union views over per-version or per-tenant tables whose schemas have drifted
+- Auditing which rows still use a retired representation</p>
+<hr />
+<h4>3. New Functions (03-new-functions)</h4>
+<p><strong>New Features:</strong>
+- <code>sequenceMatchEvents(pattern)(timestamp, cond1, ...)</code> — returns the timestamps of the events that satisfied a sequence pattern
+- <code>arrayNormalizedGini(scores, labels)</code> — ranking quality as <code>(gini, perfect_gini, normalized_gini)</code>
+- <code>currentQueryID()</code> / <code>current_query_id()</code> — the id of the running query</p>
+<p><strong>Test Content:</strong>
+- A four-user funnel with complete, abandoned and out-of-order journeys
+- <code>sequenceMatchEvents</code> returning the matched timestamps per user
+- The same pattern through <code>sequenceMatch</code>, which only answers yes or no
+- Deriving time-to-purchase from the matched events
+- <code>arrayNormalizedGini</code> on a perfect, an inverted and a signal-free ranking
+- Scoring two stored models and ranking them by normalized Gini
+- <code>currentQueryID()</code> and its snake_case alias
+- Carrying the query id into a result set</p>
+<p><strong>Key Learning Points:</strong>
+- <code>sequenceMatchEvents</code> returns what it found even when the full pattern did not match — a partial journey yields a shorter array, so check <code>length()</code> before indexing
+- The array positions line up with the pattern conditions, so <code>matched[1]</code> and <code>matched[3]</code> bracket the funnel
+- <code>arrayNormalizedGini</code> returns a tuple; the third member is the normalized score, <code>1</code> for a perfect ranking and <code>-1</code> for a perfectly inverted one
+- <code>currentQueryID()</code> lets a result carry the handle needed to find itself in <code>system.query_log</code>
+- <code>generateSerialID</code>, also new in 25.1, is not covered here: it stores its counter in Keeper and returns <code>NO_ELEMENTS_IN_CONFIG</code> on a standalone server</p>
+<p><strong>Use Cases:</strong>
+- Funnel analysis that needs the matched events, not just a match flag
+- Comparing ranking models directly in SQL
+- Correlating an exported result with its entry in the query log</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-25-1
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.1/
+├── README.md                       # This document
+├── 00-setup.sh                     # ClickHouse 25.1 installation script
+├── 01-auto-minmax-index.sh         # Automatic minmax index runner
+├── 01-auto-minmax-index.sql        # Automatic minmax index SQL
+├── 02-merge-variant-schema.sh      # Merge/Variant runner
+├── 02-merge-variant-schema.sql     # Merge/Variant SQL
+├── 03-new-functions.sh             # New functions runner
+└── 03-new-functions.sql            # New functions SQL
+</code></pre>
+<h3>🆕 What's New in 25.1</h3>
+<ul>
+<li><strong>Automatic minmax indices</strong> — <code>add_minmax_index_for_numeric_columns</code> / <code>add_minmax_index_for_string_columns</code></li>
+<li><strong><code>Merge</code> tables unify differing column types</strong> as <code>Variant</code></li>
+<li><strong><code>sequenceMatchEvents</code></strong> — the matched events of a sequence pattern</li>
+<li><strong><code>arrayNormalizedGini</code></strong> — normalized Gini coefficient for ranking quality</li>
+<li><strong><code>currentQueryID</code></strong> / <strong><code>current_query_id</code></strong> — id of the running query</li>
+<li><strong><code>generateSerialID</code></strong> — distributed auto-increment counters backed by Keeper</li>
+<li><strong><code>system.azure_queue</code></strong> system table</li>
+<li><strong>Faster parallel hash join</strong> — two-level hash map in the build phase</li>
+<li><strong>Binary format confirmation</strong> — prompts before writing a binary format to a terminal</li>
+<li><strong>Column name shortening</strong> in pretty output formats</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-01">ClickHouse Release 25.1</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.1.8.25</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+<li><code>generateSerialID</code> needs a configured Keeper and is therefore not exercised by these labs</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.1 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 2월 7일 출시된 ClickHouse 25.1에서 검증된 작동 기능에 집중합니다. 25.1은 2025년 첫 릴리스로 신기능 15건, 성능 최적화 36건, 버그 수정 77건을 포함합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.1은 일상적인 두 작업의 보일러플레이트를 걷어냅니다. 테이블 설정 하나로 적합한 모든 컬럼에 minmax 스킵 인덱스를 만들어, 넓은 테이블에 컬럼마다 <code>INDEX</code> 절을 쓸 필요가 없어집니다. 스키마가 달라진 테이블들을 <code>Merge</code>로 묶어도 더 이상 실패하지 않고, 타입이 다른 컬럼은 <code>Variant</code>로 노출됩니다. 함수 쪽에서는 <code>sequenceMatchEvents</code>가 퍼널 패턴의 매칭 여부가 아니라 <strong>매칭된 행</strong>을 돌려줍니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>자동 MinMax 인덱스</strong> — 컬럼마다 <code>INDEX</code> 절을 쓰는 대신 테이블 설정 하나로</li>
+<li><strong><code>Merge</code> 테이블의 스키마 통합(<code>Variant</code>)</strong> — 스키마 드리프트가 오류가 아닌 타입이 됨</li>
+<li><strong>신규 함수</strong> — <code>sequenceMatchEvents</code>, <code>arrayNormalizedGini</code>, <code>currentQueryID</code></li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/25.1
+./00-setup.sh
+
+./01-auto-minmax-index.sh
+./02-merge-variant-schema.sh
+./03-new-functions.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. 자동 MinMax 인덱스</h4>
+<p>MergeTree 설정 <code>add_minmax_index_for_numeric_columns</code>와 <code>add_minmax_index_for_string_columns</code>가 해당 종류의 모든 컬럼에 <code>auto_minmax_index_&lt;컬럼&gt;</code> 이름으로 minmax 스킵 인덱스를 생성합니다.</p>
+<p><strong>테스트 내용:</strong>
+- 설정 유무를 나란히 둔 50만 행 테이블
+- <code>system.data_skipping_indices</code>에서 생성된 인덱스 목록
+- 문자열 컬럼용 별도 스위치
+- 상관관계가 있는 컬럼에 대한 <code>EXPLAIN indexes = 1</code> — 스킵 인덱스 동작 확인
+- 양쪽 결과가 동일함을 확인
+- 인덱스가 만들어져도 프루닝하지 못하는 비상관 컬럼
+- 테이블 대비 인덱스의 디스크 비용
+- 생성 시점 전용 설정임을 확인하고, 기존 테이블용 <code>ADD INDEX</code> + <code>MATERIALIZE INDEX</code> 경로 제시</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 인덱스 이름은 <code>auto_minmax_index_&lt;컬럼&gt;</code>이며 일반 인덱스처럼 <code>system.data_skipping_indices</code>에 나타납니다
+- 숫자용·문자열용은 별개 설정이고 둘 다 기본값은 꺼짐입니다
+- 이 설정은 <strong>생성 후 읽기 전용</strong>입니다 — <code>ALTER TABLE ... MODIFY SETTING</code>은 <code>READONLY_SETTING</code>으로 실패하므로 기존 테이블은 인덱스를 명시적으로 추가해야 합니다
+- 도움이 되는지와 무관하게 컬럼마다 인덱스가 생깁니다. 값이 몇 행마다 순환하는 컬럼은 모든 granule이 모든 값을 담아 프루닝이 되지 않습니다
+- 인덱스 저장 비용은 데이터에 비해 작습니다(여기서는 약 1.2 KiB 대 약 4 MiB) — 전부 인덱싱해도 괜찮은 이유입니다</p>
+<h4>2. <code>Merge</code> 테이블의 <code>Variant</code> 스키마 통합</h4>
+<p><code>merge()</code> 테이블 함수가 이름은 같고 타입은 다른 컬럼을 가진 테이블들을 묶을 때, 실패하는 대신 해당 컬럼을 관련 타입들의 <code>Variant</code>로 노출합니다.</p>
+<p><strong>테스트 내용:</strong>
+- <code>user_id</code>가 <code>UInt32</code>에서 <code>String</code>으로 마이그레이션된 테이블 3개
+- 병합 뷰에서 <code>Variant(String, UInt32)</code> 확인
+- <code>variantType()</code>·<code>variantElement()</code>로 행이 가진 대안 확인 및 추출
+- 레거시 행만, 그다음 마이그레이션된 행만 필터링
+- <code>toString()</code>으로 비교 가능한 단일 키로 정규화한 뒤 집계
+- 타입이 일치하는 컬럼은 원래 타입 유지
+- <code>Merge</code> <strong>엔진</strong> 테이블은 선언된 스키마를 따른다는 차이
+- <code>_table</code>로 각 행의 출처 확인</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 충돌하는 컬럼만 <code>Variant</code>가 되고 나머지는 타입을 유지합니다
+- <code>variantType(col)</code>은 행이 가진 대안의 이름을, <code>variantElement(col, 'Type')</code>은 그 값을 반환하며 다른 대안이면 <code>NULL</code>입니다
+- <code>Variant</code>를 공통 타입으로 캐스팅하면 <code>GROUP BY</code>나 조인에 쓸 수 있는 단일 키가 됩니다
+- <code>Variant</code>를 추론하는 건 <code>merge()</code> <strong>함수</strong>입니다. <code>AS &lt;테이블&gt;</code>로 만든 <code>Merge</code> <strong>엔진</strong> 테이블은 선언된 스키마를 따르며 그 타입으로 캐스팅합니다
+- 마이그레이션 중 행의 출처를 추적할 때는 <code>_table</code>이 유용합니다</p>
+<h4>3. 신규 함수</h4>
+<ul>
+<li><code>sequenceMatchEvents(패턴)(타임스탬프, 조건1, ...)</code> — 시퀀스 패턴을 만족한 이벤트들의 타임스탬프 반환</li>
+<li><code>arrayNormalizedGini(점수, 라벨)</code> — <code>(gini, 완전정렬 gini, 정규화 gini)</code> 형태의 랭킹 품질</li>
+<li><code>currentQueryID()</code> / <code>current_query_id()</code> — 실행 중인 쿼리의 id</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- 완주·이탈·순서 이탈이 섞인 4명의 퍼널 데이터
+- 사용자별 매칭 타임스탬프를 반환하는 <code>sequenceMatchEvents</code>
+- 예/아니오만 답하는 <code>sequenceMatch</code>와 비교
+- 매칭된 이벤트로 구매까지 걸린 시간 계산
+- 완전 정렬·역정렬·무신호 랭킹에 대한 <code>arrayNormalizedGini</code>
+- 저장된 두 모델을 정규화 Gini로 채점·정렬
+- <code>currentQueryID()</code>와 snake_case 별칭
+- 결과 집합에 쿼리 id 실어 보내기</p>
+<p><strong>핵심 학습 포인트:</strong>
+- <code>sequenceMatchEvents</code>는 전체 패턴이 매칭되지 않아도 찾은 것까지 반환합니다 — 부분 여정은 더 짧은 배열이 되므로 인덱싱 전에 <code>length()</code>를 확인하세요
+- 배열 위치는 패턴 조건과 대응하므로 <code>matched[1]</code>과 <code>matched[3]</code>이 퍼널의 양 끝이 됩니다
+- <code>arrayNormalizedGini</code>는 튜플을 반환하며 세 번째 값이 정규화 점수입니다. 완전 정렬이면 <code>1</code>, 완전 역정렬이면 <code>-1</code>입니다
+- <code>currentQueryID()</code>로 결과가 <code>system.query_log</code>에서 자신을 찾을 수 있는 핸들을 지니게 됩니다
+- 같은 25.1 신규 기능인 <code>generateSerialID</code>는 여기서 다루지 않습니다 — 카운터를 Keeper에 저장하므로 단독 서버에서는 <code>NO_ELEMENTS_IN_CONFIG</code>가 발생합니다</p>
+<h3>🆕 25.1의 새로운 기능</h3>
+<ul>
+<li><strong>자동 minmax 인덱스</strong> — <code>add_minmax_index_for_numeric_columns</code> / <code>add_minmax_index_for_string_columns</code></li>
+<li><strong><code>Merge</code> 테이블의 타입 불일치 컬럼을 <code>Variant</code>로 통합</strong></li>
+<li><strong><code>sequenceMatchEvents</code></strong> — 시퀀스 패턴에 매칭된 이벤트</li>
+<li><strong><code>arrayNormalizedGini</code></strong> — 랭킹 품질용 정규화 Gini 계수</li>
+<li><strong><code>currentQueryID</code></strong> / <strong><code>current_query_id</code></strong> — 실행 중인 쿼리 id</li>
+<li><strong><code>generateSerialID</code></strong> — Keeper 기반 분산 auto-increment 카운터</li>
+<li><strong><code>system.azure_queue</code></strong> 시스템 테이블</li>
+<li><strong>병렬 해시 조인 속도 개선</strong> — build 단계의 2단계 해시 맵</li>
+<li><strong>바이너리 포맷 확인 프롬프트</strong> — 터미널에 바이너리 포맷 출력 전 확인</li>
+<li><strong>Pretty 출력 포맷의 긴 컬럼명 축약</strong></li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-01">ClickHouse Release 25.1</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 25.1.8.25에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 안에서 생성</li>
+<li>정리(cleanup) 구문은 확인을 위해 주석 처리</li>
+<li><code>generateSerialID</code>는 Keeper 설정이 필요해 이 랩에서는 다루지 않습니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.1"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

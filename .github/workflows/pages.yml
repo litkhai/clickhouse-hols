@@ -15,8 +15,7 @@ on:
       - 'docs/**'
       - '.github/scripts/build_site.py'
       - '.github/workflows/pages.yml'
-      - 'README.md'
-      - 'local/releases/README.md'
+      - '**/README.md'
   workflow_dispatch:
 
 permissions:
@@ -34,7 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Regenerate the site from the repository indexes
+      - run: pip install --quiet markdown
+      - name: Regenerate the site from the repository
         run: python3 .github/scripts/build_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

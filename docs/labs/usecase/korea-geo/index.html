@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse (OSS) + Superset — Korean Administrative-Boundary (Sigungu) Map Lab / 한국 행정구역(시군구) 지도 랩 · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse (OSS) + Superset — Korean Administrative-Boundary (Sigungu) Map Lab / 한국 행정구역(시군구) 지도 랩 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/korea-geo</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse (OSS) + Superset — Korean Administrative-Boundary (Sigungu) Map Lab / 한국 행정구역(시군구) 지도 랩</h1>
+<hr />
+<p>A hands-on lab that implements <strong>coordinate → district reverse geocoding</strong> (ClickHouse Polygon Dictionary) and a <strong>deck.gl Polygon choropleth</strong> (Superset) entirely on local Docker. It demonstrates the full pipeline where <strong>ClickHouse classifies &amp; aggregates</strong> and <strong>Superset visualizes</strong>, and ends with a weather-station dashboard that overlays 3,000 points on per-district aggregates.</p>
+<blockquote>
+<p><strong>Key trap:</strong> ClickHouse geo functions (<code>pointInPolygon</code>, <code>geoToH3</code>, polygon dictionary) assume <strong>WGS84 longitude/latitude in degrees (EPSG:4326)</strong>. Feeding EPSG:5179 (UTM-K, meters) coordinates produces a <strong>silently wrong result with no error</strong>. So data must be loaded in 4326.</p>
+</blockquote>
+<p>Author: Ken Lee (ClickHouse SA) · License: MIT</p>
+<h3>Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Image</th>
+<th>Port (host)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ClickHouse</td>
+<td><code>clickhouse/clickhouse-server:25.5</code></td>
+<td>8123 (HTTP), 9000 (native)</td>
+<td><code>default</code> user, no password (local lab)</td>
+</tr>
+<tr>
+<td>Superset</td>
+<td><code>apache/superset:4.1.1</code> + <code>clickhouse-connect</code></td>
+<td>8088</td>
+<td>SQLite metadata (volume-persisted), admin/admin</td>
+</tr>
+</tbody>
+</table>
+<pre><code>korea-geo/
+├── docker-compose.yml          # clickhouse + superset stack (network: korea-geo)
+├── superset/
+│   ├── Dockerfile              # official image + clickhouse-connect
+│   ├── requirements-local.txt  # clickhouse-connect
+│   ├── superset_config.py      # SECRET_KEY / MAPBOX_API_KEY / SQLite metadata
+│   └── bootstrap.sh            # db upgrade → create-admin → init → gunicorn
+├── data/sig_4326.geojson       # 251 sigungu boundaries (WGS84) — southkorea/southkorea-maps
+├── ddl/
+│   ├── 01_schema.sql              # DB + 2 tables + Polygon Dictionary
+│   ├── 02_validate.sql            # load / reverse-geocoding / coordinate-trap checks
+│   ├── 03_points_choropleth.sql   # random points → classify → aggregate → update metric
+│   └── 04_weather_stations.sql    # 3,000 stations + per-district aggregates + choropleth join
+├── scripts/
+│   ├── load_geo.py                # geojson → ClickHouse (clickhouse-connect)
+│   ├── setup_superset.py          # Superset DB connection + sig_map dataset (auto)
+│   └── setup_dashboard.py         # station datasets + 4 charts + dashboard (auto, idempotent)
+└── README.md
+</code></pre>
+<p>Two data representations are kept separate because each tool needs a different format:
+- <code>geospatial.sig_polygons</code> — full MultiPolygon <code>[polygon][ring][point]</code> → Polygon Dictionary source (accurate classification)
+- <code>geospatial.sig_map</code> — one outer ring per row, <code>coordinates</code> as <code>[[lon,lat],...]</code> JSON → deck.gl visualization</p>
+<h3>Run order (reproduce)</h3>
+<pre><code class="language-bash">cd usecase/korea-geo
+
+# 0) (optional) Mapbox token for deck.gl basemap tiles. Without it, only polygons render.
+export MAPBOX_API_KEY=&quot;pk.xxxxx&quot;
+
+# 1) Bring up the stack (superset image builds on first run)
+docker compose up -d --build
+
+# 2) Health checks
+curl 'http://localhost:8123/?query=SELECT%20version()'      # -&gt; 25.5.x
+curl -I http://localhost:8088/health                         # -&gt; HTTP/1.1 200 OK
+
+# 3) Schema + dictionary
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/01_schema.sql
+
+# 4) Load data (host python; install driver)
+python3 -m pip install --user clickhouse-connect
+python3 scripts/load_geo.py
+docker exec kg-clickhouse clickhouse-client --query &quot;SYSTEM RELOAD DICTIONARY geospatial.sig_dict&quot;
+
+# 5) Validate
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/02_validate.sql
+
+# 6) (optional) points → classify → aggregate → update choropleth metric
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/03_points_choropleth.sql
+
+# 7) Register the ClickHouse connection + sig_map dataset in Superset
+python3 scripts/setup_superset.py
+</code></pre>
+<p>Inside the ClickHouse container <code>localhost:9000</code> is a self-reference, so the dictionary <code>SOURCE</code> HOST is <code>localhost</code>. From the Superset container, ClickHouse is reached by the compose service name <code>clickhouse:8123</code> (see URI below).</p>
+<h3>Verified results (measured — ClickHouse 25.5.11.15 / Superset 4.1.1)</h3>
+<ul>
+<li>[x] <code>curl SELECT version()</code> → <code>25.5.11.15</code></li>
+<li>[x] Superset <code>/health</code> → <code>HTTP 200</code>, admin (admin/admin) login works</li>
+<li>[x] <code>sig_map</code> rows / distinct sigungu → <strong>rings=325, sigungu=251</strong></li>
+<li>[x] <code>sig_polygons</code> (dictionary source) = <strong>251</strong></li>
+<li>[x] <code>sig_dict</code> reverse geocoding correct (table below)</li>
+<li>[x] <code>utmk_bad = 0</code>, <code>wgs84_ok = 1</code> — coordinate-system trap reproduced</li>
+<li>[x] Superset ClickHouse connection test → <strong>200 OK</strong></li>
+<li>[x] deck.gl Polygon chart-data query → <strong>325 rows</strong> (<code>coordinates</code> JSON + <code>name</code> + <code>MAX(metric)</code>)</li>
+</ul>
+<p><strong>Reverse geocoding</strong> (<code>dictGet('geospatial.sig_dict','name',(lon,lat))</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Input (lon, lat)</th>
+<th>Result</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(127.289, 36.480)</code></td>
+<td><strong>세종시 (Sejong)</strong></td>
+<td>Sejong (admin capital) ✓</td>
+</tr>
+<tr>
+<td><code>(126.9780, 37.5665)</code></td>
+<td><strong>종로구 (Jongno-gu)</strong></td>
+<td>central Seoul ✓</td>
+</tr>
+<tr>
+<td><code>(129.0756, 35.1796)</code></td>
+<td><strong>연제구 (Yeonje-gu)</strong></td>
+<td>near Busan ✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Coordinate-system trap</strong> (geo-function smoke test):</p>
+<pre><code>geoToH3(127.289, 36.480, 7)                       = 608482148894113791
+pointInPolygon((127.289, 36.480), Korea bbox)     = 1   ← WGS84 OK
+pointInPolygon((612656, 1791892), Korea bbox)     = 0   ← 5179 meters = silently wrong
+</code></pre>
+<p>The same Sejong location is inside the box (1) in 4326 (degrees) but outside (0) in 5179 (meters) — proof that <strong>skipping reprojection yields a wrong result with no error</strong>.</p>
+<h3>Weather-station dashboard — point visualization + per-district aggregation</h3>
+<p>Place <strong>3,000 random weather stations</strong> nationwide and build a dashboard that ① visualizes the points, ② aggregates per district, and ③ overlays both. Swap <code>weather_stations</code> for real station/sensor/store lon·lat and it becomes a production dashboard as-is.</p>
+<pre><code class="language-bash">docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/04_weather_stations.sql
+python3 scripts/setup_dashboard.py
+</code></pre>
+<ul>
+<li><code>geospatial.weather_stations</code> — 3,000 stations. Only bbox-random points that the dictionary classifies into a sigungu (= on land) are kept. Each gets a synthetic <code>temp_c</code> (colder as latitude rises + noise), <code>elevation_m</code>, and <code>sigungu_code</code>/<code>sigungu_name</code> (the classification result).</li>
+<li><code>geospatial.sig_station_agg</code> — per-district <code>station_count</code> / <code>avg_temp</code> / <code>avg_elev</code>.</li>
+<li><code>geospatial.sig_station_map</code> — <code>sig_map</code> (polygon rings) ⨝ aggregates → for the deck.gl Polygon choropleth (zero-station districts kept via LEFT JOIN).</li>
+</ul>
+<p><strong>Measured:</strong> 3,000 stations across <strong>217</strong> districts; temperature range <strong>-0.7 ~ 17.9 °C</strong> (≈3 °C in northern Gangwon, ≈9 °C in the south). Top districts (large rural counties — natural under uniform random): 인제군 53 · 홍천군 49 · 안동시 48 · 의성군 44 · 평창군 41 … All 4 Superset charts + dashboard auto-created; every chart-data API call returned 200/data.</p>
+<p><strong>Endpoints (admin/admin):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dashboard "전국 관측소 현황"</strong></td>
+<td>http://localhost:8088/superset/dashboard/1/</td>
+</tr>
+<tr>
+<td>Overlay map (deck.gl Multi: choropleth + station points)</td>
+<td>http://localhost:8088/explore/?slice_id=3</td>
+</tr>
+<tr>
+<td>Station distribution (deck.gl Scatter)</td>
+<td>http://localhost:8088/explore/?slice_id=1</td>
+</tr>
+<tr>
+<td>Stations per district (deck.gl Polygon choropleth)</td>
+<td>http://localhost:8088/explore/?slice_id=2</td>
+</tr>
+<tr>
+<td>Per-district TOP (Table)</td>
+<td>http://localhost:8088/explore/?slice_id=4</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Layout: <strong>overlay map</strong> on top (station points + district shading), <strong>choropleth + TOP table</strong> below.
+Points/polygons render without a token; basemap tiles appear only when <code>MAPBOX_API_KEY</code> is set.</p>
+</blockquote>
+<p><code>setup_dashboard.py</code> is <strong>idempotent</strong> — re-running after re-generating stations (<code>04_weather_stations.sql</code>) or swapping in real data updates the same charts/dashboard instead of duplicating them.</p>
+<h3>Build a deck.gl Polygon chart manually (UI)</h3>
+<ol>
+<li>http://localhost:8088 → log in <strong>admin / admin</strong>.</li>
+<li>Charts → + Chart → dataset <code>sig_map</code> (or <code>sig_station_map</code>) → <strong>deck.gl Polygon</strong>:
+   - <strong>Polygon Column</strong>: <code>coordinates</code>
+   - <strong>line_type / Polygon Encoding</strong>: <code>json</code>
+   - <strong>Metric</strong>: <code>MAX(metric)</code> (or <code>MAX(station_count)</code>)
+   - pick a linear color scheme + opacity → <strong>Run</strong>.</li>
+<li><strong>Visual check:</strong> districts shaded over the peninsula, with the <strong>Sejong polygon centered in Chungcheong</strong> — visual proof the coordinate system is right.</li>
+</ol>
+<p>Superset DB connection URI (uses the service name):</p>
+<pre><code>clickhousedb://default:@clickhouse:8123/geospatial
+</code></pre>
+<h3>Troubleshooting (including issues actually hit during this build)</h3>
+<ul>
+<li><strong>Superset can't find the <code>clickhousedb</code> dialect</strong> → <code>clickhouse-connect</code> not installed. Add to <code>superset/requirements-local.txt</code>, then <code>docker compose build superset</code>.</li>
+<li><strong>Connects but host not found</strong> → set the URI host to the compose service name <code>clickhouse</code>, not <code>localhost</code>.</li>
+<li><strong><code>test_connection</code> returns an HTML redirect</strong> → the endpoint needs a <strong>trailing slash</strong> (<code>/api/v1/database/test_connection/</code>). Handled in <code>setup_superset.py</code>.</li>
+<li><strong><code>ALTER ... UPDATE</code> errors with UNKNOWN_IDENTIFIER</strong> → ClickHouse mutations don't support correlated subqueries. <code>03_points_choropleth.sql</code> works around it with a flat dictionary (<code>sig_counts_dict</code>) + <code>dictGetOrDefault</code>.</li>
+<li><strong>Dictionary empty / lookup fails</strong> → run <code>SYSTEM RELOAD DICTIONARY geospatial.sig_dict</code> <strong>after</strong> loading data. <code>LIFETIME(0)</code> never auto-reloads.</li>
+<li><strong>Reverse geocoding all wrong/blank</strong> → suspect un-reprojected (5179) data. <code>load_geo.py</code> blocks this by checking the first coordinate's magnitude before loading.</li>
+<li><strong>Superset REST filter returns 400 "Not a valid rison" / duplicate charts on re-run</strong> → names containing parentheses break the rison filter. <code>setup_dashboard.py</code> wraps filter values in single quotes (<code>find_id()</code>) so lookups match and re-runs update in place.</li>
+<li><strong>Dashboard panel says "no chart definition associated with this component"</strong> → charts created via API must be explicitly linked to the dashboard; <code>setup_dashboard.py</code> PUTs <code>dashboards:[id]</code> on each chart.</li>
+</ul>
+<h3>If your source needs reprojection (EPSG:5179 → 4326)</h3>
+<p>This lab's data (<code>southkorea/southkorea-maps</code>) is already WGS84, so no conversion is needed. For a 5179 (meters) source, convert <strong>before</strong> loading:</p>
+<pre><code class="language-bash">ogr2ogr -t_srs EPSG:4326 data/sig_4326.geojson sig_5179.shp
+# or
+python -c &quot;import geopandas as gpd; gpd.read_file('sig_5179.shp').to_crs(4326).to_file('data/sig_4326.geojson', driver='GeoJSON')&quot;
+</code></pre>
+<h3>Teardown / scope</h3>
+<pre><code class="language-bash">docker compose down            # containers only
+docker compose down -v         # also drop volumes (ClickHouse data + Superset metadata)
+</code></pre>
+<ul>
+<li>This lab works at the <strong>sigungu (251)</strong> level. Eup/myeon/dong (thousands, vertex explosion → needs simplification) is out of scope for the first pass.</li>
+<li>Data source: <a href="https://github.com/southkorea/southkorea-maps"><code>southkorea/southkorea-maps</code></a> <code>kostat/2013</code> sigungu GeoJSON (WGS84, simplified).</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>좌표 → 시군구 <strong>리버스 지오코딩</strong>(ClickHouse Polygon Dictionary)과 <strong>deck.gl Polygon choropleth</strong>(Superset)를 전부 로컬 Docker에서 구현한 핸즈온 랩. <strong>ClickHouse가 분류·집계</strong>하고 <strong>Superset이 시각화</strong>하는 풀 파이프라인을 보여주며, 마지막엔 관측소 3,000개 포인트를 시군구별 집계 위에 오버레이한 대시보드까지 만든다.</p>
+<blockquote>
+<p><strong>핵심 함정:</strong> ClickHouse geo 함수(<code>pointInPolygon</code>, <code>geoToH3</code>, polygon dictionary)는 <strong>WGS84 경위도(degree, EPSG:4326)</strong> 를 전제한다. EPSG:5179(UTM-K, 미터) 좌표를 넣으면 <strong>에러 없이 조용히 틀린 결과</strong>를 낸다. 따라서 데이터는 반드시 4326 상태로 적재한다.</p>
+</blockquote>
+<p>작성자: Ken Lee (ClickHouse SA) · 라이선스: MIT</p>
+<h3>구성</h3>
+<table>
+<thead>
+<tr>
+<th>서비스</th>
+<th>이미지</th>
+<th>포트(호스트)</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ClickHouse</td>
+<td><code>clickhouse/clickhouse-server:25.5</code></td>
+<td>8123(HTTP), 9000(native)</td>
+<td><code>default</code> 유저, 패스워드 없음(로컬 랩)</td>
+</tr>
+<tr>
+<td>Superset</td>
+<td><code>apache/superset:4.1.1</code> + <code>clickhouse-connect</code></td>
+<td>8088</td>
+<td>메타DB는 SQLite(볼륨 영속), admin/admin</td>
+</tr>
+</tbody>
+</table>
+<pre><code>korea-geo/
+├── docker-compose.yml          # clickhouse + superset 스택 (network: korea-geo)
+├── superset/
+│   ├── Dockerfile              # 공식 이미지 + clickhouse-connect
+│   ├── requirements-local.txt  # clickhouse-connect
+│   ├── superset_config.py      # SECRET_KEY / MAPBOX_API_KEY / SQLite 메타DB
+│   └── bootstrap.sh            # db upgrade → create-admin → init → gunicorn
+├── data/sig_4326.geojson       # 시군구 251개 경계 (WGS84) — southkorea/southkorea-maps
+├── ddl/
+│   ├── 01_schema.sql              # DB + 테이블 2종 + Polygon Dictionary
+│   ├── 02_validate.sql            # 적재/리버스지오코딩/좌표계 함정 검증
+│   ├── 03_points_choropleth.sql   # 랜덤 포인트 → 분류 → 집계 → metric 갱신
+│   └── 04_weather_stations.sql    # 관측소 3,000개 + 시군구별 집계 + choropleth 조인
+├── scripts/
+│   ├── load_geo.py                # geojson → ClickHouse (clickhouse-connect)
+│   ├── setup_superset.py          # Superset DB연결 + sig_map 데이터셋 자동 생성
+│   └── setup_dashboard.py         # 관측소 데이터셋 + 차트 4종 + 대시보드 자동 생성(멱등)
+└── README.md
+</code></pre>
+<p>데이터 표현 2종 분리 — 도구별 요구 포맷이 다르기 때문:
+- <code>geospatial.sig_polygons</code> : 전체 MultiPolygon <code>[polygon][ring][point]</code> → Polygon Dictionary 소스(정확한 분류)
+- <code>geospatial.sig_map</code> : 외곽 ring 1개 = 1행, <code>coordinates</code>는 <code>[[lon,lat],...]</code> JSON → deck.gl 시각화</p>
+<h3>실행 순서 (재현)</h3>
+<pre><code class="language-bash">cd usecase/korea-geo
+
+# 0) (선택) deck.gl 베이스맵 타일용 Mapbox 토큰. 없으면 폴리곤만 렌더된다.
+export MAPBOX_API_KEY=&quot;pk.xxxxx&quot;
+
+# 1) 스택 기동 (superset 이미지는 최초 1회 빌드)
+docker compose up -d --build
+
+# 2) 헬스 확인
+curl 'http://localhost:8123/?query=SELECT%20version()'      # -&gt; 25.5.x
+curl -I http://localhost:8088/health                         # -&gt; HTTP/1.1 200 OK
+
+# 3) 스키마 + 딕셔너리 생성
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/01_schema.sql
+
+# 4) 데이터 적재 (호스트 python; 드라이버 설치)
+python3 -m pip install --user clickhouse-connect
+python3 scripts/load_geo.py
+docker exec kg-clickhouse clickhouse-client --query &quot;SYSTEM RELOAD DICTIONARY geospatial.sig_dict&quot;
+
+# 5) 검증
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/02_validate.sql
+
+# 6) (선택) 포인트 → 분류 → 집계 → choropleth metric 갱신
+docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/03_points_choropleth.sql
+
+# 7) Superset에 ClickHouse 연결 + 데이터셋 자동 등록
+python3 scripts/setup_superset.py
+</code></pre>
+<p>ClickHouse 컨테이너 안에서 <code>localhost:9000</code>을 self-reference 하므로 딕셔너리 <code>SOURCE</code>의 HOST는 <code>localhost</code>로 둔다. Superset 컨테이너에서는 ClickHouse를 compose 서비스명 <code>clickhouse:8123</code>으로 접근한다(아래 URI).</p>
+<h3>검증 결과 (실측, ClickHouse 25.5.11.15 / Superset 4.1.1)</h3>
+<ul>
+<li>[x] <code>curl SELECT version()</code> → <code>25.5.11.15</code></li>
+<li>[x] Superset <code>/health</code> → <code>HTTP 200</code>, admin(admin/admin) 로그인됨</li>
+<li>[x] <code>sig_map</code> 행 수 / 고유 시군구 → <strong>rings=325, 시군구=251</strong></li>
+<li>[x] <code>sig_polygons</code> (딕셔너리 소스) = <strong>251</strong></li>
+<li>[x] <code>sig_dict</code> 리버스 지오코딩 정상 (아래 표)</li>
+<li>[x] <code>utmk_bad = 0</code>, <code>wgs84_ok = 1</code> — 좌표계 함정 재현</li>
+<li>[x] Superset ClickHouse 연결 Test → <strong>200 OK</strong></li>
+<li>[x] deck.gl Polygon chart-data 쿼리 → <strong>325행</strong> (<code>coordinates</code> JSON + <code>name</code> + <code>MAX(metric)</code>)</li>
+</ul>
+<p><strong>리버스 지오코딩</strong> (<code>dictGet('geospatial.sig_dict','name',(lon,lat))</code>):</p>
+<table>
+<thead>
+<tr>
+<th>입력 좌표 (lon, lat)</th>
+<th>결과</th>
+<th>기대</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(127.289, 36.480)</code></td>
+<td><strong>세종시</strong></td>
+<td>세종(행정수도) ✓</td>
+</tr>
+<tr>
+<td><code>(126.9780, 37.5665)</code></td>
+<td><strong>종로구</strong></td>
+<td>서울 중심 ✓</td>
+</tr>
+<tr>
+<td><code>(129.0756, 35.1796)</code></td>
+<td><strong>연제구</strong></td>
+<td>부산 인근 ✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>좌표계 함정</strong> (geo 함수 스모크):</p>
+<pre><code>geoToH3(127.289, 36.480, 7)                  = 608482148894113791
+pointInPolygon((127.289, 36.480), 한반도bbox)  = 1   ← WGS84 정상
+pointInPolygon((612656, 1791892), 한반도bbox)  = 0   ← 5179 미터값 = 조용히 틀림
+</code></pre>
+<p>세종을 가리키는 동일 지점이라도 4326(degree)은 박스 안(1), 5179(미터)는 박스 밖(0)으로 판정 → <strong>좌표계 미변환 시 에러 없이 틀린 결과</strong>가 난다는 증거.</p>
+<h3>관측소(weather stations) 대시보드 — 포인트 시각화 + 시군구별 집계</h3>
+<p>전국에 임의 관측소 <strong>3,000개</strong>를 찍어 ① 포인트 시각화 ② 행정구역별 집계 ③ 둘을 오버레이한 대시보드를 만든다. 실제 관측소/센서/매장 lon·lat 데이터로 <code>weather_stations</code>만 바꾸면 그대로 운영용 대시보드가 된다.</p>
+<pre><code class="language-bash">docker exec -i kg-clickhouse clickhouse-client --multiquery &lt; ddl/04_weather_stations.sql
+python3 scripts/setup_dashboard.py
+</code></pre>
+<ul>
+<li><code>geospatial.weather_stations</code> — 관측소 3,000개. bbox 랜덤 점 중 <strong>딕셔너리로 시군구에 분류된(=육지)</strong> 점만 채택. 각 점에 합성 <code>temp_c</code>(위도↑ → 기온↓ + 노이즈), <code>elevation_m</code>, 그리고 <code>sigungu_code</code>/<code>sigungu_name</code>(분류 결과) 부여.</li>
+<li><code>geospatial.sig_station_agg</code> — 시군구별 <code>station_count</code> / <code>avg_temp</code> / <code>avg_elev</code> 집계.</li>
+<li><code>geospatial.sig_station_map</code> — <code>sig_map</code>(폴리곤 ring) ⨝ 집계 → deck.gl Polygon choropleth용(관측소 0개 시군구도 LEFT JOIN 포함).</li>
+</ul>
+<p><strong>실측:</strong> 관측소 3,000개, <strong>217개</strong> 시군구에 분포. 기온 범위 <strong>-0.7 ~ 17.9 °C</strong>(북부 강원 ~3 °C, 남부 ~9 °C). 상위 시군구(면적 큰 군 지역, 균등 랜덤이라 자연스러움): 인제군 53 · 홍천군 49 · 안동시 48 · 의성군 44 · 평창군 41 … Superset 4개 차트 + 대시보드 자동 생성, chart-data API 전부 200/데이터 반환 확인.</p>
+<p><strong>엔드포인트 (admin/admin):</strong></p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>대시보드 "전국 관측소 현황"</strong></td>
+<td>http://localhost:8088/superset/dashboard/1/</td>
+</tr>
+<tr>
+<td>오버레이 지도 (deck.gl Multi: choropleth + 관측소 포인트)</td>
+<td>http://localhost:8088/explore/?slice_id=3</td>
+</tr>
+<tr>
+<td>관측소 분포 (deck.gl Scatter)</td>
+<td>http://localhost:8088/explore/?slice_id=1</td>
+</tr>
+<tr>
+<td>시군구별 관측소 수 (deck.gl Polygon choropleth)</td>
+<td>http://localhost:8088/explore/?slice_id=2</td>
+</tr>
+<tr>
+<td>시군구별 TOP (Table)</td>
+<td>http://localhost:8088/explore/?slice_id=4</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>레이아웃: 상단에 <strong>오버레이 지도</strong>(관측소 점 + 시군구별 색칠), 하단에 <strong>choropleth + TOP 테이블</strong>.
+점/폴리곤은 토큰 없이도 렌더되지만, 배경 지도 타일은 <code>MAPBOX_API_KEY</code> 설정 시 표시된다.</p>
+</blockquote>
+<p><code>setup_dashboard.py</code>는 <strong>멱등</strong>이다. 관측소 데이터를 다시 뽑거나(<code>04_weather_stations.sql</code> 재실행) 실데이터로 교체한 뒤 스크립트를 다시 돌리면 중복 없이 같은 차트/대시보드가 갱신된다.</p>
+<h3>deck.gl Polygon 차트 수동 구성 (UI)</h3>
+<ol>
+<li>http://localhost:8088 → <strong>admin / admin</strong> 로그인.</li>
+<li>Charts → + Chart → dataset <code>sig_map</code>(또는 <code>sig_station_map</code>) → <strong>deck.gl Polygon</strong>:
+   - <strong>Polygon Column</strong>: <code>coordinates</code>
+   - <strong>line_type / Polygon Encoding</strong>: <code>json</code>
+   - <strong>Metric</strong>: <code>MAX(metric)</code> (또는 <code>MAX(station_count)</code>)
+   - linear color scheme + opacity 지정 → <strong>Run</strong>.</li>
+<li><strong>눈 검증:</strong> 시군구 경계가 한반도 위에 색칠되고, <strong>세종 폴리곤이 충청 중앙</strong>에 정확히 위치하면 좌표계가 시각적으로도 맞다는 증거.</li>
+</ol>
+<p>Superset DB 연결 URI (서비스명 사용):</p>
+<pre><code>clickhousedb://default:@clickhouse:8123/geospatial
+</code></pre>
+<h3>트러블슈팅 (이번 구축 중 실제로 만난 것 포함)</h3>
+<ul>
+<li><strong>Superset가 <code>clickhousedb</code> dialect 못 찾음</strong> → <code>clickhouse-connect</code> 미설치. <code>superset/requirements-local.txt</code> 반영 후 <code>docker compose build superset</code>.</li>
+<li><strong>연결되는데 host 못 찾음</strong> → URI host를 <code>localhost</code>가 아닌 compose 서비스명 <code>clickhouse</code>로.</li>
+<li><strong><code>test_connection</code>이 HTML redirect 반환</strong> → 엔드포인트 끝에 <strong>트레일링 슬래시</strong> 필요(<code>/api/v1/database/test_connection/</code>). <code>setup_superset.py</code>에 반영됨.</li>
+<li><strong><code>ALTER ... UPDATE</code>가 상관 서브쿼리 에러(UNKNOWN_IDENTIFIER)</strong> → ClickHouse mutation은 상관 서브쿼리 미지원. <code>03_points_choropleth.sql</code>은 flat dictionary(<code>sig_counts_dict</code>) + <code>dictGetOrDefault</code>로 우회.</li>
+<li><strong>딕셔너리 비어 있음/조회 실패</strong> → 데이터 적재 <strong>후</strong> <code>SYSTEM RELOAD DICTIONARY geospatial.sig_dict</code>. <code>LIFETIME(0)</code>은 자동 reload 안 함.</li>
+<li><strong>리버스 지오코딩 전부 틀림/공백</strong> → 좌표계 미변환(5179) 의심. <code>load_geo.py</code>가 적재 전 첫 좌표 magnitude로 자동 차단함.</li>
+<li><strong>Superset REST 필터가 400 "Not a valid rison" / 재실행 시 차트 중복 생성</strong> → 이름에 괄호가 있으면 rison 필터가 깨진다. <code>setup_dashboard.py</code>는 필터 값을 작은따옴표로 감싸(<code>find_id()</code>) 조회가 매칭되고 재실행이 제자리 갱신되도록 처리.</li>
+<li><strong>대시보드 패널에 "no chart definition associated with this component"</strong> → API로 만든 차트는 대시보드에 명시적으로 연결해야 한다. <code>setup_dashboard.py</code>가 각 차트에 <code>dashboards:[id]</code>를 PUT 한다.</li>
+</ul>
+<h3>좌표계 변환이 필요한 소스를 받았다면 (EPSG:5179 → 4326)</h3>
+<p>이 랩 데이터(<code>southkorea/southkorea-maps</code>)는 이미 WGS84라 변환 불필요. 5179(미터) 소스를 쓸 경우 <strong>적재 전</strong>에 변환:</p>
+<pre><code class="language-bash">ogr2ogr -t_srs EPSG:4326 data/sig_4326.geojson sig_5179.shp
+# 또는
+python -c &quot;import geopandas as gpd; gpd.read_file('sig_5179.shp').to_crs(4326).to_file('data/sig_4326.geojson', driver='GeoJSON')&quot;
+</code></pre>
+<h3>정리 / 범위</h3>
+<pre><code class="language-bash">docker compose down            # 컨테이너만
+docker compose down -v         # 볼륨(ClickHouse 데이터 + Superset 메타DB)까지 삭제
+</code></pre>
+<ul>
+<li>이번 랩은 <strong>시군구(251개)</strong> 단위. 읍면동(수천 개, vertex 폭증 → 단순화 필요)은 1차 범위에서 제외.</li>
+<li>데이터 출처: <a href="https://github.com/southkorea/southkorea-maps"><code>southkorea/southkorea-maps</code></a> <code>kostat/2013</code> 시군구 GeoJSON(WGS84, 단순화본).</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/korea-geo"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

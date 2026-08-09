@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluent Platform with NLB SSL Termination · ClickHouse HOLs</title>
+<meta name="description" content="Confluent Platform with NLB SSL Termination — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/kafka/terraform-confluent-aws-nlb-ssl</code>
+    
+  </nav>
+  <div class="readme en"><h1>Confluent Platform with NLB SSL Termination</h1>
+<h2>✅ <strong>SOLUTION: Advertised Listener Fix</strong></h2>
+<p>This Terraform configuration demonstrates <strong>NLB SSL termination with Kafka</strong> using the <strong>advertised listener pattern</strong>.</p>
+<p><strong>TL;DR</strong>: By configuring Kafka to advertise the NLB DNS instead of EC2 DNS, clients maintain protocol consistency throughout their connection lifecycle.</p>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/NLB_ADVERTISED_LISTENER_FIX.md">NLB_ADVERTISED_LISTENER_FIX.md</a> for detailed explanation of the solution.</p>
+<h2>Architecture (Working Solution)</h2>
+<pre><code>External Client (SASL_SSL)
+        ↓
+    NLB:9094 (SSL/TLS Termination)  ← Initial connection with SSL
+        ↓
+    Kafka Broker:9092 (SASL_PLAINTEXT - No TLS)
+        ↓
+    Kafka advertises: &quot;I'm at NLB:9094&quot;  ← Key fix!
+        ↓
+    Client → NLB:9094 (SASL_SSL)  ← ✅ Works! Stays at NLB
+</code></pre>
+<p><strong>Solution</strong>: Kafka advertises NLB:9094 instead of EC2:9092, keeping clients at the NLB where SSL is handled.</p>
+<h3>Key Features (What Was Tested)</h3>
+<ol>
+<li><strong>Kafka Broker</strong>: Configured with SASL_PLAINTEXT (NO TLS encryption)</li>
+<li><strong>NLB</strong>: Provides SSL/TLS termination on port 9094</li>
+<li><strong>Expected Behavior</strong>: Clients connect to NLB with SSL, NLB forwards to Kafka without encryption</li>
+<li><strong>Actual Behavior</strong>: ❌ Clients fail after metadata fetch due to protocol mismatch</li>
+</ol>
+<h3>Why This Architecture Was Tested</h3>
+<p>This setup was meant to test:
+- SSL/TLS termination at the load balancer layer
+- Reduced CPU load on Kafka brokers (no SSL processing)
+- Centralized certificate management at NLB
+- Testing scenarios where SSL is handled by network infrastructure</p>
+<p><strong>Result</strong>: ❌ This approach is incompatible with Kafka's advertised listener mechanism</p>
+<h2>Prerequisites</h2>
+<ol>
+<li>AWS CLI configured with credentials</li>
+<li>Terraform &gt;= 1.0</li>
+<li>An AWS EC2 key pair (optional, for SSH access)</li>
+<li>Understanding of Kafka and NLB concepts</li>
+</ol>
+<h2>Quick Start</h2>
+<h3>Option A: Automated Deployment (Recommended)</h3>
+<pre><code class="language-bash"># 1. Configure variables first
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your settings
+
+# 2. Run automated deployment script
+./deploy-with-cert.sh
+</code></pre>
+<p>This script handles everything automatically:
+- Generates initial certificate
+- Deploys infrastructure
+- Updates certificate with NLB DNS
+- Updates ACM certificate</p>
+<h3>Option B: Manual Step-by-Step</h3>
+<h4>1. Generate Initial Certificate</h4>
+<pre><code class="language-bash">cd certs
+./generate-nlb-cert.sh
+cd ..
+</code></pre>
+<p>This creates placeholder certificates that will be replaced with the correct NLB DNS.</p>
+<h4>2. Configure Variables</h4>
+<p>Copy and edit the variables file:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">aws_region           = &quot;us-east-1&quot;
+instance_name        = &quot;confluent-nlb-ssl&quot;
+instance_type        = &quot;r5.xlarge&quot;
+key_pair_name        = &quot;your-key-pair-name&quot;
+kafka_sasl_username  = &quot;admin&quot;
+kafka_sasl_password  = &quot;your-secure-password&quot;
+</code></pre>
+<h4>3. Initial Deployment</h4>
+<pre><code class="language-bash">terraform init
+terraform plan
+terraform apply
+</code></pre>
+<p>This creates the infrastructure with a placeholder certificate.</p>
+<h4>4. Update Certificate with NLB DNS</h4>
+<p>After the initial deployment, update the certificate:</p>
+<pre><code class="language-bash">terraform apply -replace='aws_acm_certificate.nlb_cert'
+</code></pre>
+<p><strong>Automated Process</strong>:
+1. First <code>terraform apply</code>: Creates NLB, generates correct certificate in background
+2. Second <code>terraform apply -replace</code>: Updates ACM with the new certificate
+3. Certificate now matches NLB DNS perfectly!</p>
+<h4>5. Get Connection Information</h4>
+<pre><code class="language-bash">terraform output connection_info
+terraform output nlb_endpoint
+</code></pre>
+<h2>Connection Examples</h2>
+<h3>Python Client (via NLB with SSL)</h3>
+<pre><code class="language-python">from confluent_kafka import Producer
+
+config = {
+    'bootstrap.servers': '&lt;NLB_ENDPOINT&gt;:9094',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+    'ssl.ca.location': 'certs/nlb-certificate.pem',
+}
+
+producer = Producer(config)
+producer.produce('test-topic', key='key', value='value')
+producer.flush()
+</code></pre>
+<h3>Python Client (Direct to EC2, No SSL)</h3>
+<pre><code class="language-python">from confluent_kafka import Producer
+
+config = {
+    'bootstrap.servers': '&lt;EC2_DNS&gt;:9092',
+    'security.protocol': 'SASL_PLAINTEXT',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+}
+
+producer = Producer(config)
+</code></pre>
+<h3>ClickHouse Kafka Engine (via NLB)</h3>
+<pre><code class="language-sql">CREATE TABLE kafka_queue_nlb
+ENGINE = Kafka()
+SETTINGS
+    kafka_broker_list = '&lt;NLB_ENDPOINT&gt;:9094',
+    kafka_topic_list = 'sample-data-topic',
+    kafka_group_name = 'clickhouse_group',
+    kafka_format = 'JSONEachRow',
+    kafka_sasl_mechanism = 'PLAIN',
+    kafka_sasl_username = 'admin',
+    kafka_sasl_password = 'your-password',
+    kafka_security_protocol = 'SASL_SSL';
+</code></pre>
+<h2>Testing</h2>
+<h3>1. Test Direct Connection (No SSL)</h3>
+<p>SSH into the EC2 instance and run the test script:</p>
+<pre><code class="language-bash">ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt;
+python3 /opt/confluent/test_kafka_sasl.py
+</code></pre>
+<h3>2. Test via NLB (with SSL)</h3>
+<p>From your local machine:</p>
+<pre><code class="language-bash"># Copy the NLB certificate
+cp certs/nlb-certificate.pem /path/to/your/test/directory/
+
+# Create a test script
+cat &gt; test_nlb.py &lt;&lt; 'EOF'
+from confluent_kafka import Producer, Consumer
+from confluent_kafka.admin import AdminClient
+
+config = {
+    'bootstrap.servers': '&lt;NLB_ENDPOINT&gt;:9094',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+    'ssl.ca.location': 'nlb-certificate.pem',
+}
+
+# Test connection
+admin = AdminClient(config)
+metadata = admin.list_topics(timeout=10)
+print(f&quot;Connected! Found {len(metadata.topics)} topics&quot;)
+EOF
+
+python3 test_nlb.py
+</code></pre>
+<h2>Architecture Details</h2>
+<h3>Kafka Configuration</h3>
+<ul>
+<li><strong>Port 9092</strong>: SASL_PLAINTEXT listener (no TLS)</li>
+<li><strong>Port 29092</strong>: Internal PLAINTEXT listener (for Confluent components)</li>
+<li><strong>SASL Mechanism</strong>: PLAIN</li>
+<li><strong>Broker Advertised Listener</strong>: Uses EC2 public DNS</li>
+</ul>
+<h3>NLB Configuration</h3>
+<ul>
+<li><strong>Port 9094</strong>: TLS listener with SSL termination</li>
+<li><strong>Protocol</strong>: TLS (TCP with SSL/TLS)</li>
+<li><strong>Target</strong>: EC2 instance port 9092</li>
+<li><strong>SSL Policy</strong>: ELBSecurityPolicy-TLS13-1-2-2021-06</li>
+<li><strong>Certificate</strong>: Self-signed certificate with NLB DNS (auto-generated during deployment)</li>
+<li><strong>Certificate CN</strong>: Matches actual NLB DNS name (e.g., <code>confluent-server-nlb-xxx.elb.region.amazonaws.com</code>)</li>
+</ul>
+<h3>Security Group Rules</h3>
+<ul>
+<li><strong>Port 9092</strong>: Kafka SASL_PLAINTEXT (from allowed CIDR blocks)</li>
+<li><strong>Port 2181</strong>: ZooKeeper (from allowed CIDR blocks)</li>
+<li><strong>Port 9021</strong>: Control Center (from allowed CIDR blocks)</li>
+<li><strong>Port 22</strong>: SSH (from allowed CIDR blocks)</li>
+</ul>
+<h2>Deployed Services</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kafka (Direct)</td>
+<td>9092</td>
+<td><code>&lt;EC2_DNS&gt;:9092</code></td>
+</tr>
+<tr>
+<td>Kafka (via NLB)</td>
+<td>9094</td>
+<td><code>&lt;NLB_ENDPOINT&gt;:9094</code></td>
+</tr>
+<tr>
+<td>Control Center</td>
+<td>9021</td>
+<td><code>http://&lt;EC2_DNS&gt;:9021</code></td>
+</tr>
+<tr>
+<td>Schema Registry</td>
+<td>8081</td>
+<td><code>http://&lt;EC2_DNS&gt;:8081</code></td>
+</tr>
+<tr>
+<td>Kafka Connect</td>
+<td>8083</td>
+<td><code>http://&lt;EC2_DNS&gt;:8083</code></td>
+</tr>
+<tr>
+<td>ksqlDB Server</td>
+<td>8088</td>
+<td><code>http://&lt;EC2_DNS&gt;:8088</code></td>
+</tr>
+<tr>
+<td>REST Proxy</td>
+<td>8082</td>
+<td><code>http://&lt;EC2_DNS&gt;:8082</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Useful Commands</h2>
+<pre><code class="language-bash"># Show all outputs
+terraform output
+
+# Show connection info
+terraform output connection_info
+
+# Show NLB endpoint
+terraform output nlb_endpoint
+
+# Show Kafka bootstrap servers
+terraform output kafka_bootstrap_servers_nlb
+
+# SSH to instance
+ssh -i your-key.pem ubuntu@$(terraform output -raw instance_public_dns)
+
+# Check Kafka status on instance
+ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt; 'sudo /opt/confluent/status.sh'
+
+# View producer logs
+ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt; 'sudo journalctl -u confluent-producer -f'
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<h2>Troubleshooting</h2>
+<h3>NLB Health Check Failing</h3>
+<p>Check if Kafka is listening on port 9092:</p>
+<pre><code class="language-bash">ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt;
+docker exec broker kafka-broker-api-versions --bootstrap-server localhost:29092
+</code></pre>
+<h3>SSL Connection Issues</h3>
+<ol>
+<li>Verify the NLB certificate is correctly copied to client machine</li>
+<li>Check NLB listener is active: <code>aws elbv2 describe-listeners --load-balancer-arn &lt;ARN&gt;</code></li>
+<li>Verify target group health: <code>aws elbv2 describe-target-health --target-group-arn &lt;ARN&gt;</code></li>
+</ol>
+<h3>Cannot Connect via NLB</h3>
+<ol>
+<li>Check security group allows traffic on port 9092</li>
+<li>Verify NLB target group has healthy targets</li>
+<li>Test direct connection to EC2:9092 first</li>
+<li>Check Kafka logs: <code>docker logs broker</code></li>
+</ol>
+<h2>Architecture Limitations &amp; Test Results</h2>
+<h3>⚠️ <strong>IMPORTANT: This Architecture Has Fundamental Limitations</strong></h3>
+<p>This project was created to <strong>test NLB SSL termination with Kafka</strong>, but testing revealed a <strong>critical architectural flaw</strong> that prevents it from working correctly with most Kafka clients.</p>
+<h3>Test Objective</h3>
+<p>The goal was to test whether we could:
+1. Use AWS Network Load Balancer (NLB) to handle SSL/TLS termination
+2. Keep Kafka broker without TLS (SASL_PLAINTEXT only)
+3. Allow external clients to connect securely via NLB with SASL_SSL</p>
+<h3>Why It Fails</h3>
+<p><strong>The Problem</strong>: Kafka's advertised listener mechanism is incompatible with this SSL termination approach.</p>
+<p><strong>Failure Flow</strong>:</p>
+<pre><code>1. Client → NLB:9094 (SASL_SSL connection)           ✓ Success
+2. NLB → Kafka:9092 (SSL terminated, forwards plain) ✓ Success
+3. Kafka returns metadata: &quot;I'm at EC2:9092&quot;         ✓ Success
+4. Client → EC2:9092 (attempts SASL_SSL connection)  ❌ FAILURE
+   - Kafka:9092 only speaks SASL_PLAINTEXT
+   - Client expects SASL_SSL
+   - SSL handshake fails: &quot;connecting to a PLAINTEXT broker listener?&quot;
+</code></pre>
+<p><strong>Root Cause</strong>:
+- Kafka advertises its listener as <code>EC2_DNS:9092</code>
+- When clients fetch metadata through the NLB, they get redirected to connect directly to EC2:9092
+- Clients try to connect to EC2:9092 with SASL_SSL (since they initially connected via SSL)
+- But Kafka:9092 only supports SASL_PLAINTEXT
+- Result: Protocol mismatch and connection failure</p>
+<h3>Test Results</h3>
+<p><strong>Direct EC2 Connection (SASL_PLAINTEXT)</strong>: ✅ <strong>Works perfectly</strong></p>
+<pre><code class="language-bash">bootstrap.servers: ec2-xxx.amazonaws.com:9092
+security.protocol: SASL_PLAINTEXT
+# Successfully connects and produces/consumes
+</code></pre>
+<p><strong>NLB Connection (SASL_SSL)</strong>: ❌ <strong>Fails</strong></p>
+<pre><code class="language-bash">bootstrap.servers: nlb-xxx.elb.amazonaws.com:9094
+security.protocol: SASL_SSL
+# Initial connection succeeds, but metadata fetch redirects to EC2:9092
+# SSL handshake fails when trying to reconnect to EC2:9092
+# Error: &quot;SSL handshake failed: connecting to a PLAINTEXT broker listener?&quot;
+</code></pre>
+<h3>Why This Architecture Doesn't Work</h3>
+<p>Kafka's design requires that:
+1. The advertised listener protocol must match what clients use to connect
+2. Clients will be redirected to the advertised listener address after initial connection
+3. All subsequent connections must use the same security protocol</p>
+<p>With NLB SSL termination:
+- NLB terminates SSL and forwards PLAINTEXT to Kafka ✓
+- Kafka advertises PLAINTEXT listener (EC2:9092) ✓
+- Client connects with SASL_SSL via NLB ✓
+- Client gets redirected to EC2:9092 with SASL_SSL ❌ (protocol mismatch!)</p>
+<h3>Correct Architectures for SSL with Kafka</h3>
+<h4>Option 1: End-to-End Encryption (Recommended)</h4>
+<pre><code>Client (SASL_SSL) → Kafka (SASL_SSL on 9092)
+</code></pre>
+<ul>
+<li>Kafka handles SSL directly</li>
+<li>No load balancer SSL termination</li>
+<li>See: terraform-confluent-aws (our other project)</li>
+</ul>
+<h4>Option 2: NLB TCP Passthrough</h4>
+<pre><code>Client (SASL_SSL) → NLB:9094 (TCP passthrough) → Kafka:9092 (SASL_SSL)
+</code></pre>
+<ul>
+<li>NLB in TCP mode (not TLS mode)</li>
+<li>Kafka still does SSL/TLS encryption</li>
+<li>NLB just forwards encrypted traffic</li>
+</ul>
+<h4>Option 3: No SSL on External Network (Not Recommended)</h4>
+<pre><code>Client (SASL_PLAINTEXT) → Kafka (SASL_PLAINTEXT on 9092)
+</code></pre>
+<ul>
+<li>Direct connection without any SSL</li>
+<li>Only for trusted networks or testing</li>
+</ul>
+<h3>What This Project Demonstrates</h3>
+<p>✅ <strong>Successfully demonstrates</strong>:
+- How to set up AWS NLB with TLS termination
+- How to configure ACM certificates for NLB
+- Automated certificate generation matching NLB DNS
+- Terraform infrastructure for Confluent Platform on AWS</p>
+<p>❌ <strong>Does NOT work for</strong>:
+- External Kafka clients connecting via NLB with SSL
+- Production use cases requiring SSL/TLS encryption
+- ClickHouse ClickPipes or other Kafka clients expecting SASL_SSL</p>
+<h3>Conclusion</h3>
+<p><strong>This architecture is a proof-of-concept that reveals an important limitation</strong>: NLB SSL termination is <strong>incompatible</strong> with Kafka's advertised listener mechanism.</p>
+<p>For production Kafka deployments requiring SSL:
+- Use end-to-end encryption with Kafka handling SSL directly
+- Or use NLB in TCP passthrough mode (not TLS termination mode)
+- See our <code>terraform-confluent-aws</code> project for a working SSL implementation</p>
+<p>This project remains useful as:
+- A learning exercise about Kafka networking and SSL
+- Infrastructure template for Confluent Platform on AWS
+- Documentation of what doesn't work and why</p>
+<h2>Important Notes</h2>
+<ul>
+<li>⚠️ <strong>This architecture does NOT work for external Kafka clients</strong> - See "Architecture Limitations" above</li>
+<li>⚠️ <strong>TLS is disabled on Kafka broker</strong> - Only NLB provides SSL termination</li>
+<li>⚠️ <strong>Kafka advertised listener uses EC2 DNS</strong> - Clients get redirected to EC2:9092 (PLAINTEXT)</li>
+<li>⚠️ <strong>Protocol mismatch</strong> - Clients expect SASL_SSL but Kafka only speaks SASL_PLAINTEXT</li>
+<li>✅ <strong>Direct EC2 connection works</strong> - Use SASL_PLAINTEXT to connect directly to EC2:9092</li>
+<li>ℹ️ <strong>For working SSL setup</strong> - See terraform-confluent-aws project instead</li>
+<li>ℹ️ <strong>Certificate auto-generated</strong> - Matches NLB DNS automatically during deployment</li>
+<li>ℹ️ Self-signed certificate is used - Not suitable for production</li>
+</ul>
+<h2>Cost Estimation</h2>
+<p>Approximate AWS costs (us-east-1):
+- EC2 r5.xlarge: ~$0.25/hour
+- NLB: ~$0.0225/hour + data processing charges
+- EBS gp3 100GB: ~$8/month
+- Data transfer: Variable</p>
+<p><strong>Estimated monthly cost</strong>: ~$190-220 (if running 24/7)</p>
+<h2>Differences from terraform-confluent-aws</h2>
+<ol>
+<li><strong>TLS Configuration</strong>: Kafka has NO TLS (vs SASL_SSL on 9092)</li>
+<li><strong>NLB Added</strong>: SSL termination at NLB layer</li>
+<li><strong>Port Changes</strong>: NLB listens on 9094 (vs direct access on 9092/9093)</li>
+<li><strong>Certificate Management</strong>: NLB certificate (vs Kafka broker certificates)</li>
+<li><strong>Architecture</strong>: SSL termination at load balancer (vs end-to-end encryption)</li>
+</ol>
+<h2>SSL Certificate Configuration</h2>
+<p>This project uses <strong>self-signed certificates</strong> for testing. For production use:</p>
+<h3>Using Self-Signed Certificates (Testing Only)</h3>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/SSL_CERTIFICATE_GUIDE.md">SSL_CERTIFICATE_GUIDE.md</a> for:
+- Python, Go, Java, Node.js configuration examples
+- How to disable certificate verification for testing
+- Certificate troubleshooting</p>
+<h3>Using Valid CA-Signed Certificates (Production)</h3>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/CUSTOM_DOMAIN_SETUP.md">CUSTOM_DOMAIN_SETUP.md</a> for:
+- Setting up custom domain (e.g., <code>kafka.yourcompany.com</code>)
+- Obtaining valid certificates from Let's Encrypt or ACM
+- Configuring Route 53 DNS
+- No certificate verification issues!</p>
+<p><strong>Recommended for Production</strong>: Use a custom domain with valid certificates.</p>
+<h2>References</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/network/create-tls-listener.html">AWS Network Load Balancer - TLS Termination</a></li>
+<li><a href="https://docs.confluent.io/">Confluent Platform Documentation</a></li>
+<li><a href="https://kafka.apache.org/documentation/#security">Kafka Security Documentation</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-103+-+Separation+of+Internal+and+External+traffic">Kafka Advertised Listeners</a></li>
+</ul></div>
+  <div class="readme ko"><h1>Confluent Platform with NLB SSL Termination</h1>
+<h2>✅ <strong>SOLUTION: Advertised Listener Fix</strong></h2>
+<p>This Terraform configuration demonstrates <strong>NLB SSL termination with Kafka</strong> using the <strong>advertised listener pattern</strong>.</p>
+<p><strong>TL;DR</strong>: By configuring Kafka to advertise the NLB DNS instead of EC2 DNS, clients maintain protocol consistency throughout their connection lifecycle.</p>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/NLB_ADVERTISED_LISTENER_FIX.md">NLB_ADVERTISED_LISTENER_FIX.md</a> for detailed explanation of the solution.</p>
+<h2>Architecture (Working Solution)</h2>
+<pre><code>External Client (SASL_SSL)
+        ↓
+    NLB:9094 (SSL/TLS Termination)  ← Initial connection with SSL
+        ↓
+    Kafka Broker:9092 (SASL_PLAINTEXT - No TLS)
+        ↓
+    Kafka advertises: &quot;I'm at NLB:9094&quot;  ← Key fix!
+        ↓
+    Client → NLB:9094 (SASL_SSL)  ← ✅ Works! Stays at NLB
+</code></pre>
+<p><strong>Solution</strong>: Kafka advertises NLB:9094 instead of EC2:9092, keeping clients at the NLB where SSL is handled.</p>
+<h3>Key Features (What Was Tested)</h3>
+<ol>
+<li><strong>Kafka Broker</strong>: Configured with SASL_PLAINTEXT (NO TLS encryption)</li>
+<li><strong>NLB</strong>: Provides SSL/TLS termination on port 9094</li>
+<li><strong>Expected Behavior</strong>: Clients connect to NLB with SSL, NLB forwards to Kafka without encryption</li>
+<li><strong>Actual Behavior</strong>: ❌ Clients fail after metadata fetch due to protocol mismatch</li>
+</ol>
+<h3>Why This Architecture Was Tested</h3>
+<p>This setup was meant to test:
+- SSL/TLS termination at the load balancer layer
+- Reduced CPU load on Kafka brokers (no SSL processing)
+- Centralized certificate management at NLB
+- Testing scenarios where SSL is handled by network infrastructure</p>
+<p><strong>Result</strong>: ❌ This approach is incompatible with Kafka's advertised listener mechanism</p>
+<h2>Prerequisites</h2>
+<ol>
+<li>AWS CLI configured with credentials</li>
+<li>Terraform &gt;= 1.0</li>
+<li>An AWS EC2 key pair (optional, for SSH access)</li>
+<li>Understanding of Kafka and NLB concepts</li>
+</ol>
+<h2>Quick Start</h2>
+<h3>Option A: Automated Deployment (Recommended)</h3>
+<pre><code class="language-bash"># 1. Configure variables first
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your settings
+
+# 2. Run automated deployment script
+./deploy-with-cert.sh
+</code></pre>
+<p>This script handles everything automatically:
+- Generates initial certificate
+- Deploys infrastructure
+- Updates certificate with NLB DNS
+- Updates ACM certificate</p>
+<h3>Option B: Manual Step-by-Step</h3>
+<h4>1. Generate Initial Certificate</h4>
+<pre><code class="language-bash">cd certs
+./generate-nlb-cert.sh
+cd ..
+</code></pre>
+<p>This creates placeholder certificates that will be replaced with the correct NLB DNS.</p>
+<h4>2. Configure Variables</h4>
+<p>Copy and edit the variables file:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">aws_region           = &quot;us-east-1&quot;
+instance_name        = &quot;confluent-nlb-ssl&quot;
+instance_type        = &quot;r5.xlarge&quot;
+key_pair_name        = &quot;your-key-pair-name&quot;
+kafka_sasl_username  = &quot;admin&quot;
+kafka_sasl_password  = &quot;your-secure-password&quot;
+</code></pre>
+<h4>3. Initial Deployment</h4>
+<pre><code class="language-bash">terraform init
+terraform plan
+terraform apply
+</code></pre>
+<p>This creates the infrastructure with a placeholder certificate.</p>
+<h4>4. Update Certificate with NLB DNS</h4>
+<p>After the initial deployment, update the certificate:</p>
+<pre><code class="language-bash">terraform apply -replace='aws_acm_certificate.nlb_cert'
+</code></pre>
+<p><strong>Automated Process</strong>:
+1. First <code>terraform apply</code>: Creates NLB, generates correct certificate in background
+2. Second <code>terraform apply -replace</code>: Updates ACM with the new certificate
+3. Certificate now matches NLB DNS perfectly!</p>
+<h4>5. Get Connection Information</h4>
+<pre><code class="language-bash">terraform output connection_info
+terraform output nlb_endpoint
+</code></pre>
+<h2>Connection Examples</h2>
+<h3>Python Client (via NLB with SSL)</h3>
+<pre><code class="language-python">from confluent_kafka import Producer
+
+config = {
+    'bootstrap.servers': '&lt;NLB_ENDPOINT&gt;:9094',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+    'ssl.ca.location': 'certs/nlb-certificate.pem',
+}
+
+producer = Producer(config)
+producer.produce('test-topic', key='key', value='value')
+producer.flush()
+</code></pre>
+<h3>Python Client (Direct to EC2, No SSL)</h3>
+<pre><code class="language-python">from confluent_kafka import Producer
+
+config = {
+    'bootstrap.servers': '&lt;EC2_DNS&gt;:9092',
+    'security.protocol': 'SASL_PLAINTEXT',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+}
+
+producer = Producer(config)
+</code></pre>
+<h3>ClickHouse Kafka Engine (via NLB)</h3>
+<pre><code class="language-sql">CREATE TABLE kafka_queue_nlb
+ENGINE = Kafka()
+SETTINGS
+    kafka_broker_list = '&lt;NLB_ENDPOINT&gt;:9094',
+    kafka_topic_list = 'sample-data-topic',
+    kafka_group_name = 'clickhouse_group',
+    kafka_format = 'JSONEachRow',
+    kafka_sasl_mechanism = 'PLAIN',
+    kafka_sasl_username = 'admin',
+    kafka_sasl_password = 'your-password',
+    kafka_security_protocol = 'SASL_SSL';
+</code></pre>
+<h2>Testing</h2>
+<h3>1. Test Direct Connection (No SSL)</h3>
+<p>SSH into the EC2 instance and run the test script:</p>
+<pre><code class="language-bash">ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt;
+python3 /opt/confluent/test_kafka_sasl.py
+</code></pre>
+<h3>2. Test via NLB (with SSL)</h3>
+<p>From your local machine:</p>
+<pre><code class="language-bash"># Copy the NLB certificate
+cp certs/nlb-certificate.pem /path/to/your/test/directory/
+
+# Create a test script
+cat &gt; test_nlb.py &lt;&lt; 'EOF'
+from confluent_kafka import Producer, Consumer
+from confluent_kafka.admin import AdminClient
+
+config = {
+    'bootstrap.servers': '&lt;NLB_ENDPOINT&gt;:9094',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanism': 'PLAIN',
+    'sasl.username': 'admin',
+    'sasl.password': 'your-password',
+    'ssl.ca.location': 'nlb-certificate.pem',
+}
+
+# Test connection
+admin = AdminClient(config)
+metadata = admin.list_topics(timeout=10)
+print(f&quot;Connected! Found {len(metadata.topics)} topics&quot;)
+EOF
+
+python3 test_nlb.py
+</code></pre>
+<h2>Architecture Details</h2>
+<h3>Kafka Configuration</h3>
+<ul>
+<li><strong>Port 9092</strong>: SASL_PLAINTEXT listener (no TLS)</li>
+<li><strong>Port 29092</strong>: Internal PLAINTEXT listener (for Confluent components)</li>
+<li><strong>SASL Mechanism</strong>: PLAIN</li>
+<li><strong>Broker Advertised Listener</strong>: Uses EC2 public DNS</li>
+</ul>
+<h3>NLB Configuration</h3>
+<ul>
+<li><strong>Port 9094</strong>: TLS listener with SSL termination</li>
+<li><strong>Protocol</strong>: TLS (TCP with SSL/TLS)</li>
+<li><strong>Target</strong>: EC2 instance port 9092</li>
+<li><strong>SSL Policy</strong>: ELBSecurityPolicy-TLS13-1-2-2021-06</li>
+<li><strong>Certificate</strong>: Self-signed certificate with NLB DNS (auto-generated during deployment)</li>
+<li><strong>Certificate CN</strong>: Matches actual NLB DNS name (e.g., <code>confluent-server-nlb-xxx.elb.region.amazonaws.com</code>)</li>
+</ul>
+<h3>Security Group Rules</h3>
+<ul>
+<li><strong>Port 9092</strong>: Kafka SASL_PLAINTEXT (from allowed CIDR blocks)</li>
+<li><strong>Port 2181</strong>: ZooKeeper (from allowed CIDR blocks)</li>
+<li><strong>Port 9021</strong>: Control Center (from allowed CIDR blocks)</li>
+<li><strong>Port 22</strong>: SSH (from allowed CIDR blocks)</li>
+</ul>
+<h2>Deployed Services</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kafka (Direct)</td>
+<td>9092</td>
+<td><code>&lt;EC2_DNS&gt;:9092</code></td>
+</tr>
+<tr>
+<td>Kafka (via NLB)</td>
+<td>9094</td>
+<td><code>&lt;NLB_ENDPOINT&gt;:9094</code></td>
+</tr>
+<tr>
+<td>Control Center</td>
+<td>9021</td>
+<td><code>http://&lt;EC2_DNS&gt;:9021</code></td>
+</tr>
+<tr>
+<td>Schema Registry</td>
+<td>8081</td>
+<td><code>http://&lt;EC2_DNS&gt;:8081</code></td>
+</tr>
+<tr>
+<td>Kafka Connect</td>
+<td>8083</td>
+<td><code>http://&lt;EC2_DNS&gt;:8083</code></td>
+</tr>
+<tr>
+<td>ksqlDB Server</td>
+<td>8088</td>
+<td><code>http://&lt;EC2_DNS&gt;:8088</code></td>
+</tr>
+<tr>
+<td>REST Proxy</td>
+<td>8082</td>
+<td><code>http://&lt;EC2_DNS&gt;:8082</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Useful Commands</h2>
+<pre><code class="language-bash"># Show all outputs
+terraform output
+
+# Show connection info
+terraform output connection_info
+
+# Show NLB endpoint
+terraform output nlb_endpoint
+
+# Show Kafka bootstrap servers
+terraform output kafka_bootstrap_servers_nlb
+
+# SSH to instance
+ssh -i your-key.pem ubuntu@$(terraform output -raw instance_public_dns)
+
+# Check Kafka status on instance
+ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt; 'sudo /opt/confluent/status.sh'
+
+# View producer logs
+ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt; 'sudo journalctl -u confluent-producer -f'
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<h2>Troubleshooting</h2>
+<h3>NLB Health Check Failing</h3>
+<p>Check if Kafka is listening on port 9092:</p>
+<pre><code class="language-bash">ssh -i your-key.pem ubuntu@&lt;EC2_DNS&gt;
+docker exec broker kafka-broker-api-versions --bootstrap-server localhost:29092
+</code></pre>
+<h3>SSL Connection Issues</h3>
+<ol>
+<li>Verify the NLB certificate is correctly copied to client machine</li>
+<li>Check NLB listener is active: <code>aws elbv2 describe-listeners --load-balancer-arn &lt;ARN&gt;</code></li>
+<li>Verify target group health: <code>aws elbv2 describe-target-health --target-group-arn &lt;ARN&gt;</code></li>
+</ol>
+<h3>Cannot Connect via NLB</h3>
+<ol>
+<li>Check security group allows traffic on port 9092</li>
+<li>Verify NLB target group has healthy targets</li>
+<li>Test direct connection to EC2:9092 first</li>
+<li>Check Kafka logs: <code>docker logs broker</code></li>
+</ol>
+<h2>Architecture Limitations &amp; Test Results</h2>
+<h3>⚠️ <strong>IMPORTANT: This Architecture Has Fundamental Limitations</strong></h3>
+<p>This project was created to <strong>test NLB SSL termination with Kafka</strong>, but testing revealed a <strong>critical architectural flaw</strong> that prevents it from working correctly with most Kafka clients.</p>
+<h3>Test Objective</h3>
+<p>The goal was to test whether we could:
+1. Use AWS Network Load Balancer (NLB) to handle SSL/TLS termination
+2. Keep Kafka broker without TLS (SASL_PLAINTEXT only)
+3. Allow external clients to connect securely via NLB with SASL_SSL</p>
+<h3>Why It Fails</h3>
+<p><strong>The Problem</strong>: Kafka's advertised listener mechanism is incompatible with this SSL termination approach.</p>
+<p><strong>Failure Flow</strong>:</p>
+<pre><code>1. Client → NLB:9094 (SASL_SSL connection)           ✓ Success
+2. NLB → Kafka:9092 (SSL terminated, forwards plain) ✓ Success
+3. Kafka returns metadata: &quot;I'm at EC2:9092&quot;         ✓ Success
+4. Client → EC2:9092 (attempts SASL_SSL connection)  ❌ FAILURE
+   - Kafka:9092 only speaks SASL_PLAINTEXT
+   - Client expects SASL_SSL
+   - SSL handshake fails: &quot;connecting to a PLAINTEXT broker listener?&quot;
+</code></pre>
+<p><strong>Root Cause</strong>:
+- Kafka advertises its listener as <code>EC2_DNS:9092</code>
+- When clients fetch metadata through the NLB, they get redirected to connect directly to EC2:9092
+- Clients try to connect to EC2:9092 with SASL_SSL (since they initially connected via SSL)
+- But Kafka:9092 only supports SASL_PLAINTEXT
+- Result: Protocol mismatch and connection failure</p>
+<h3>Test Results</h3>
+<p><strong>Direct EC2 Connection (SASL_PLAINTEXT)</strong>: ✅ <strong>Works perfectly</strong></p>
+<pre><code class="language-bash">bootstrap.servers: ec2-xxx.amazonaws.com:9092
+security.protocol: SASL_PLAINTEXT
+# Successfully connects and produces/consumes
+</code></pre>
+<p><strong>NLB Connection (SASL_SSL)</strong>: ❌ <strong>Fails</strong></p>
+<pre><code class="language-bash">bootstrap.servers: nlb-xxx.elb.amazonaws.com:9094
+security.protocol: SASL_SSL
+# Initial connection succeeds, but metadata fetch redirects to EC2:9092
+# SSL handshake fails when trying to reconnect to EC2:9092
+# Error: &quot;SSL handshake failed: connecting to a PLAINTEXT broker listener?&quot;
+</code></pre>
+<h3>Why This Architecture Doesn't Work</h3>
+<p>Kafka's design requires that:
+1. The advertised listener protocol must match what clients use to connect
+2. Clients will be redirected to the advertised listener address after initial connection
+3. All subsequent connections must use the same security protocol</p>
+<p>With NLB SSL termination:
+- NLB terminates SSL and forwards PLAINTEXT to Kafka ✓
+- Kafka advertises PLAINTEXT listener (EC2:9092) ✓
+- Client connects with SASL_SSL via NLB ✓
+- Client gets redirected to EC2:9092 with SASL_SSL ❌ (protocol mismatch!)</p>
+<h3>Correct Architectures for SSL with Kafka</h3>
+<h4>Option 1: End-to-End Encryption (Recommended)</h4>
+<pre><code>Client (SASL_SSL) → Kafka (SASL_SSL on 9092)
+</code></pre>
+<ul>
+<li>Kafka handles SSL directly</li>
+<li>No load balancer SSL termination</li>
+<li>See: terraform-confluent-aws (our other project)</li>
+</ul>
+<h4>Option 2: NLB TCP Passthrough</h4>
+<pre><code>Client (SASL_SSL) → NLB:9094 (TCP passthrough) → Kafka:9092 (SASL_SSL)
+</code></pre>
+<ul>
+<li>NLB in TCP mode (not TLS mode)</li>
+<li>Kafka still does SSL/TLS encryption</li>
+<li>NLB just forwards encrypted traffic</li>
+</ul>
+<h4>Option 3: No SSL on External Network (Not Recommended)</h4>
+<pre><code>Client (SASL_PLAINTEXT) → Kafka (SASL_PLAINTEXT on 9092)
+</code></pre>
+<ul>
+<li>Direct connection without any SSL</li>
+<li>Only for trusted networks or testing</li>
+</ul>
+<h3>What This Project Demonstrates</h3>
+<p>✅ <strong>Successfully demonstrates</strong>:
+- How to set up AWS NLB with TLS termination
+- How to configure ACM certificates for NLB
+- Automated certificate generation matching NLB DNS
+- Terraform infrastructure for Confluent Platform on AWS</p>
+<p>❌ <strong>Does NOT work for</strong>:
+- External Kafka clients connecting via NLB with SSL
+- Production use cases requiring SSL/TLS encryption
+- ClickHouse ClickPipes or other Kafka clients expecting SASL_SSL</p>
+<h3>Conclusion</h3>
+<p><strong>This architecture is a proof-of-concept that reveals an important limitation</strong>: NLB SSL termination is <strong>incompatible</strong> with Kafka's advertised listener mechanism.</p>
+<p>For production Kafka deployments requiring SSL:
+- Use end-to-end encryption with Kafka handling SSL directly
+- Or use NLB in TCP passthrough mode (not TLS termination mode)
+- See our <code>terraform-confluent-aws</code> project for a working SSL implementation</p>
+<p>This project remains useful as:
+- A learning exercise about Kafka networking and SSL
+- Infrastructure template for Confluent Platform on AWS
+- Documentation of what doesn't work and why</p>
+<h2>Important Notes</h2>
+<ul>
+<li>⚠️ <strong>This architecture does NOT work for external Kafka clients</strong> - See "Architecture Limitations" above</li>
+<li>⚠️ <strong>TLS is disabled on Kafka broker</strong> - Only NLB provides SSL termination</li>
+<li>⚠️ <strong>Kafka advertised listener uses EC2 DNS</strong> - Clients get redirected to EC2:9092 (PLAINTEXT)</li>
+<li>⚠️ <strong>Protocol mismatch</strong> - Clients expect SASL_SSL but Kafka only speaks SASL_PLAINTEXT</li>
+<li>✅ <strong>Direct EC2 connection works</strong> - Use SASL_PLAINTEXT to connect directly to EC2:9092</li>
+<li>ℹ️ <strong>For working SSL setup</strong> - See terraform-confluent-aws project instead</li>
+<li>ℹ️ <strong>Certificate auto-generated</strong> - Matches NLB DNS automatically during deployment</li>
+<li>ℹ️ Self-signed certificate is used - Not suitable for production</li>
+</ul>
+<h2>Cost Estimation</h2>
+<p>Approximate AWS costs (us-east-1):
+- EC2 r5.xlarge: ~$0.25/hour
+- NLB: ~$0.0225/hour + data processing charges
+- EBS gp3 100GB: ~$8/month
+- Data transfer: Variable</p>
+<p><strong>Estimated monthly cost</strong>: ~$190-220 (if running 24/7)</p>
+<h2>Differences from terraform-confluent-aws</h2>
+<ol>
+<li><strong>TLS Configuration</strong>: Kafka has NO TLS (vs SASL_SSL on 9092)</li>
+<li><strong>NLB Added</strong>: SSL termination at NLB layer</li>
+<li><strong>Port Changes</strong>: NLB listens on 9094 (vs direct access on 9092/9093)</li>
+<li><strong>Certificate Management</strong>: NLB certificate (vs Kafka broker certificates)</li>
+<li><strong>Architecture</strong>: SSL termination at load balancer (vs end-to-end encryption)</li>
+</ol>
+<h2>SSL Certificate Configuration</h2>
+<p>This project uses <strong>self-signed certificates</strong> for testing. For production use:</p>
+<h3>Using Self-Signed Certificates (Testing Only)</h3>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/SSL_CERTIFICATE_GUIDE.md">SSL_CERTIFICATE_GUIDE.md</a> for:
+- Python, Go, Java, Node.js configuration examples
+- How to disable certificate verification for testing
+- Certificate troubleshooting</p>
+<h3>Using Valid CA-Signed Certificates (Production)</h3>
+<p>See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws-nlb-ssl/CUSTOM_DOMAIN_SETUP.md">CUSTOM_DOMAIN_SETUP.md</a> for:
+- Setting up custom domain (e.g., <code>kafka.yourcompany.com</code>)
+- Obtaining valid certificates from Let's Encrypt or ACM
+- Configuring Route 53 DNS
+- No certificate verification issues!</p>
+<p><strong>Recommended for Production</strong>: Use a custom domain with valid certificates.</p>
+<h2>References</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/network/create-tls-listener.html">AWS Network Load Balancer - TLS Termination</a></li>
+<li><a href="https://docs.confluent.io/">Confluent Platform Documentation</a></li>
+<li><a href="https://kafka.apache.org/documentation/#security">Kafka Security Documentation</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-103+-+Separation+of+Internal+and+External+traffic">Kafka Advertised Listeners</a></li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws-nlb-ssl"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

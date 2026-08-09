@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LibreChat with Local LLM and ClickHouse MCP Server · ClickHouse HOLs</title>
+<meta name="description" content="LibreChat with Local LLM and ClickHouse MCP Server — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/llm-mac-librechat-with-clickhouse</code>
+    
+  </nav>
+  <div class="readme en"><h1>LibreChat with Local LLM and ClickHouse MCP Server</h1>
+<p>로컬 LLM (Ollama)과 ClickHouse MCP 서버를 통합한 LibreChat 환경입니다.</p>
+<h2>개요</h2>
+<p>이 설정은 다음을 제공합니다:</p>
+<ul>
+<li><strong>LibreChat</strong>: 오픈소스 ChatGPT 대안 웹 인터페이스</li>
+<li><strong>Ollama</strong>: 로컬 LLM 모델 실행 (Mac 최적화)</li>
+<li><strong>ClickHouse MCP Server</strong>: ClickHouse 데이터베이스에 대한 MCP (Model Context Protocol) 접근</li>
+<li><strong>MongoDB</strong>: LibreChat 데이터 저장소</li>
+</ul>
+<h2>추천 경량 모델</h2>
+<p>Mac에서 원활하게 작동하는 경량 모델들:</p>
+<h3>MCP Tool Calling 지원 모델 (필수)</h3>
+<p>MCP 서버와 함께 사용하려면 <strong>반드시 tool calling을 지원하는 모델</strong>을 사용해야 합니다:</p>
+<ol>
+<li><strong>llama3.1:8b</strong> (8B) ✅ - <strong>최고의 function calling 성능 (91% 성공률, 권장)</strong></li>
+<li><strong>mistral-nemo</strong> (12B) ✅ - Mistral 7B보다 우수한 대안</li>
+<li><strong>qwen2.5:7b-instruct</strong> (7B) ✅ - 빠르고 안정적</li>
+</ol>
+<h3>Tool Calling 지원 제한적/불안정 모델</h3>
+<p>다음 모델들은 MCP와 함께 사용 시 문제가 있을 수 있습니다:</p>
+<ol>
+<li><strong>mistral:7b-instruct</strong> (7B) ⚠️ - v0.3 필요, 불안정 (86% 성공률)</li>
+<li><strong>qwen2.5-coder:3b</strong> (3B) ⚠️ - JSON 문자열 반환 문제</li>
+<li><strong>phi-3.5:3.8b</strong> (3.8B) ❌ - Tool calling 미지원</li>
+<li><strong>gemma2:2b</strong> (2B) ❌ - Tool calling 미지원</li>
+<li><strong>tinyllama:1.1b</strong> (1.1B) ❌ - Tool calling 미지원</li>
+</ol>
+<h2>사전 요구사항</h2>
+<h3>필수</h3>
+<ul>
+<li>Docker Desktop for Mac</li>
+<li>Ollama (<a href="https://ollama.ai">https://ollama.ai</a>)</li>
+<li>ClickHouse 인스턴스 (로컬 또는 클라우드)</li>
+</ul>
+<h3>권장</h3>
+<ul>
+<li>최소 16GB RAM</li>
+<li>Apple Silicon (M1/M2/M3) 또는 Intel Mac</li>
+</ul>
+<h2>빠른 시작</h2>
+<h3>1. Ollama 설치 및 실행</h3>
+<pre><code class="language-bash"># Ollama 설치 (Homebrew)
+brew install ollama
+
+# Ollama 서비스 시작
+ollama serve
+</code></pre>
+<h3>2. 초기 설정</h3>
+<pre><code class="language-bash">cd local/llm-mac-librechat
+./setup.sh
+</code></pre>
+<p>대화형 프롬프트에서 다음을 입력합니다:
+- ClickHouse 연결 정보 (host, port, user, password)
+- 사용할 LLM 모델 선택
+- LibreChat 포트 설정</p>
+<h3>3. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<h3>4. 접속</h3>
+<p>브라우저에서 <code>http://localhost:3080</code> 접속 후:
+1. 계정 생성
+2. 로그인
+3. 모델 선택 (드롭다운에서 Ollama 모델 선택)
+4. ClickHouse 데이터와 대화 시작!</p>
+<h2>사용법</h2>
+<h3>기본 명령어</h3>
+<pre><code class="language-bash"># 초기 설정 (최초 1회)
+./setup.sh
+
+# 서비스 시작
+./start.sh
+
+# 서비스 중지
+./stop.sh
+
+# 재시작
+./restart.sh
+
+# 상태 확인
+./status.sh
+
+# 로그 보기
+./logs.sh
+
+# 특정 서비스 로그만 보기
+./logs.sh librechat
+./logs.sh mcp-server
+./logs.sh mongodb
+</code></pre>
+<h3>ClickHouse 쿼리 예제</h3>
+<p>LibreChat에서 다음과 같이 질문할 수 있습니다:</p>
+<pre><code>&quot;시스템에 있는 모든 테이블을 보여줘&quot;
+&quot;users 테이블의 스키마를 설명해줘&quot;
+&quot;지난 7일간의 사용자 활동을 분석해줘&quot;
+&quot;sales 테이블에서 상위 10개 제품을 조회해줘&quot;
+</code></pre>
+<p>MCP 서버가 자동으로 ClickHouse 쿼리를 실행하고 결과를 반환합니다.</p>
+<h2>구조</h2>
+<pre><code>local/llm-mac-librechat/
+├── setup.sh                    # 초기 설정 스크립트
+├── start.sh                    # 서비스 시작
+├── stop.sh                     # 서비스 중지
+├── restart.sh                  # 서비스 재시작
+├── logs.sh                     # 로그 조회
+├── status.sh                   # 상태 확인
+├── docker-compose.yml          # Docker 서비스 정의
+├── config.env                  # 환경 설정 (자동 생성)
+├── .credentials               # ClickHouse 인증 정보 (자동 생성, git 제외)
+├── librechat.yaml             # LibreChat 설정
+├── mcp-server/
+│   └── server.js              # ClickHouse MCP 서버
+├── librechat-data/            # LibreChat 데이터 (자동 생성)
+└── README.md                  # 이 파일
+</code></pre>
+<h2>서비스 구성</h2>
+<h3>LibreChat</h3>
+<ul>
+<li><strong>포트</strong>: 3080 (기본값)</li>
+<li><strong>데이터</strong>: MongoDB에 저장</li>
+<li><strong>기능</strong>:</li>
+<li>다중 모델 지원</li>
+<li>대화 기록</li>
+<li>파일 업로드</li>
+<li>MCP 통합</li>
+</ul>
+<h3>Ollama (호스트)</h3>
+<ul>
+<li><strong>포트</strong>: 11434</li>
+<li><strong>위치</strong>: 호스트 머신에서 실행</li>
+<li><strong>모델</strong>: ~/.ollama/models</li>
+</ul>
+<h3>ClickHouse MCP Server</h3>
+<ul>
+<li><strong>포트</strong>: 3001 (기본값)</li>
+<li><strong>기능</strong>:</li>
+<li>쿼리 실행</li>
+<li>스키마 조회</li>
+<li>테이블 목록</li>
+<li>DDL/DML 실행</li>
+</ul>
+<h3>MongoDB</h3>
+<ul>
+<li><strong>포트</strong>: 27017 (내부)</li>
+<li><strong>데이터</strong>: Docker 볼륨</li>
+<li><strong>인증</strong>: admin/admin123</li>
+</ul>
+<h2>MCP 서버 API</h2>
+<h3>Endpoints</h3>
+<h4>Health Check</h4>
+<pre><code class="language-bash">curl http://localhost:3001/health
+</code></pre>
+<h4>List Tables</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/tools/execute \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;tool&quot;: &quot;list_tables&quot;, &quot;parameters&quot;: {}}'
+</code></pre>
+<h4>Query</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/query \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;sql&quot;: &quot;SELECT * FROM system.tables LIMIT 5&quot;}'
+</code></pre>
+<h4>Describe Table</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/tools/execute \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;tool&quot;: &quot;describe_table&quot;, &quot;parameters&quot;: {&quot;table&quot;: &quot;users&quot;}}'
+</code></pre>
+<h2>모델 관리</h2>
+<h3>모델 다운로드</h3>
+<pre><code class="language-bash"># MCP Tool Calling 권장 모델
+ollama pull llama3.1:8b              # 최고 성능 (91% 성공률)
+ollama pull mistral-nemo             # 대안 (12B)
+ollama pull qwen2.5:7b-instruct      # 대안 (7B)
+</code></pre>
+<h3>설치된 모델 확인</h3>
+<pre><code class="language-bash">ollama list
+</code></pre>
+<h3>모델 삭제</h3>
+<pre><code class="language-bash">ollama rm &lt;model-name&gt;
+</code></pre>
+<h2>문제 해결</h2>
+<h3>🔧 LibreChat v0.8.x "Ollama" 이름 버그 (해결됨)</h3>
+<p><strong>문제</strong>: LibreChat v0.8.x에서 custom endpoint 이름을 "Ollama" (대소문자 무관)로 설정하면 agents controller로 잘못 라우팅되어 "fetch failed" 오류가 발생합니다.</p>
+<p><strong>원인</strong>: LibreChat의 알려진 버그 (<a href="https://github.com/danny-avila/LibreChat/issues/10327">Issue #10327</a>)</p>
+<p><strong>해결책</strong>: <code>librechat.yaml</code>에서 엔드포인트 이름을 "Ollama"가 아닌 다른 이름으로 변경:</p>
+<pre><code class="language-yaml">endpoints:
+  custom:
+    - name: &quot;LocalLLM&quot;  # &quot;Ollama&quot; 대신 다른 이름 사용
+      apiKey: &quot;ollama&quot;
+      baseURL: &quot;http://host.docker.internal:11434/v1/&quot;
+      modelDisplayLabel: &quot;Ollama&quot;  # UI에는 &quot;Ollama&quot;로 표시됨
+</code></pre>
+<p>이 설정으로 Ollama가 정상적으로 작동합니다.</p>
+<h3>⚠️ MCP Tool Calling 제한사항 (중요)</h3>
+<p><strong>문제</strong>: LibreChat v0.8.x에서 일부 Ollama 모델을 사용한 MCP tool calling이 제대로 작동하지 않습니다.</p>
+<p><strong>원인</strong>:
+- 일부 모델(qwen2.5-coder:3b, mistral:7b-instruct v0.2)은 tool call을 <code>message.content</code>에 JSON 문자열로 반환
+- LibreChat은 <code>tool_calls</code> 필드의 구조화된 객체를 기대함
+- 이로 인해 tool이 호출되지 않고 JSON만 텍스트로 표시됨
+- LiteLLM 프록시 사용 시 응답 변환 문제 발생</p>
+<p><strong>검증된 해결책</strong>:
+1. <strong>llama3.1:8b 사용 (✅ 권장)</strong>:
+   - 가장 우수한 tool calling 지원 (91% 성공률)
+   - 가장 빠른 응답 속도 (4.04초 평균)
+   - 현재 설정에서 완벽히 작동 확인됨
+   <code>bash
+   ollama pull llama3.1:8b</code></p>
+<ol start="2">
+<li>
+<p><strong>대안 모델</strong>:
+   - <code>mistral-nemo</code> (12B) - Mistral 7B보다 우수
+   - <code>qwen2.5:7b-instruct</code> - 빠르고 안정적</p>
+</li>
+<li>
+<p><strong>capabilities 설정 필수</strong>:
+   <code>yaml
+   capabilities:
+     tools: true
+     agents: true</code></p>
+</li>
+<li>
+<p><strong>OpenAI/Claude API 사용</strong>: 완벽한 MCP 통합 보장</p>
+</li>
+</ol>
+<p><strong>참고 자료</strong>:
+- <a href="https://github.com/danny-avila/LibreChat/discussions/7639">LibreChat Discussion #7639</a> - MCP Tools 호출 문제
+- <a href="https://ollama.com/blog/tool-support">Ollama Tool Support Blog</a> - 공식 지원 모델
+- <a href="https://collabnix.com/best-ollama-models-for-function-calling-tools-complete-guide-2025/">Best Ollama Models 2025 for Function Calling</a> - 성능 벤치마크</p>
+<h3>Ollama 연결 오류</h3>
+<pre><code class="language-bash"># Ollama 서비스 상태 확인
+ps aux | grep ollama
+
+# Ollama 재시작
+killall ollama
+ollama serve
+</code></pre>
+<h3>ClickHouse 연결 오류</h3>
+<ol>
+<li>ClickHouse가 실행 중인지 확인</li>
+<li><code>.credentials</code> 파일의 연결 정보 확인</li>
+<li>방화벽/네트워크 설정 확인</li>
+</ol>
+<pre><code class="language-bash"># 연결 테스트
+curl &quot;http://localhost:8123/?query=SELECT%20version()&quot;
+</code></pre>
+<h3>LibreChat 접속 불가</h3>
+<pre><code class="language-bash"># 컨테이너 상태 확인
+./status.sh
+
+# 로그 확인
+./logs.sh
+
+# 재시작
+./restart.sh
+</code></pre>
+<h3>MongoDB 오류</h3>
+<pre><code class="language-bash"># MongoDB 컨테이너 재시작
+docker restart librechat-mongodb
+
+# 컨테이너 로그 확인
+./logs.sh mongodb
+</code></pre>
+<h2>보안 고려사항</h2>
+<h3>주의사항</h3>
+<ol>
+<li>
+<p><strong><code>.credentials</code> 파일</strong>
+   - Git에 커밋하지 마세요
+   - 권한: 600 (자동 설정)
+   - 민감한 정보 포함</p>
+</li>
+<li>
+<p><strong>기본 비밀번호 변경</strong>
+   - MongoDB: admin/admin123
+   - 프로덕션 환경에서는 반드시 변경</p>
+</li>
+<li>
+<p><strong>네트워크 노출</strong>
+   - 기본 설정은 localhost만 허용
+   - 외부 접근 시 인증/암호화 필수</p>
+</li>
+</ol>
+<h2>성능 최적화</h2>
+<h3>Mac 시스템 권장사항</h3>
+<ol>
+<li>
+<p><strong>Docker 리소스 할당</strong>
+   - Docker Desktop &gt; Settings &gt; Resources
+   - CPU: 최소 4 코어
+   - Memory: 8GB 이상
+   - Swap: 2GB</p>
+</li>
+<li>
+<p><strong>Ollama 메모리</strong>
+   - 모델 크기에 따라 4-8GB RAM 필요
+   - 여러 모델 동시 로드 시 더 많은 메모리 필요</p>
+</li>
+<li>
+<p><strong>디스크 공간</strong>
+   - 모델: ~2-4GB per model
+   - Docker 이미지: ~2GB
+   - 데이터: 필요에 따라</p>
+</li>
+</ol>
+<h2>업데이트</h2>
+<h3>이미지 업데이트</h3>
+<pre><code class="language-bash"># 이미지 pull
+docker compose pull
+
+# 재시작
+./restart.sh
+</code></pre>
+<h3>모델 업데이트</h3>
+<pre><code class="language-bash"># 최신 모델 pull
+ollama pull &lt;model-name&gt;
+</code></pre>
+<h2>기여</h2>
+<p>개선 사항이나 버그는 이슈로 제출해주세요.</p>
+<h2>라이선스</h2>
+<p>이 프로젝트는 각 구성 요소의 라이선스를 따릅니다:
+- LibreChat: MIT License
+- Ollama: MIT License
+- ClickHouse: Apache License 2.0</p>
+<h2>참고 링크</h2>
+<ul>
+<li><a href="https://docs.librechat.ai/">LibreChat Documentation</a></li>
+<li><a href="https://ollama.ai/">Ollama</a></li>
+<li><a href="https://clickhouse.com/docs">ClickHouse Documentation</a></li>
+<li><a href="https://modelcontextprotocol.io/">Model Context Protocol (MCP)</a></li>
+</ul></div>
+  <div class="readme ko"><h1>LibreChat with Local LLM and ClickHouse MCP Server</h1>
+<p>로컬 LLM (Ollama)과 ClickHouse MCP 서버를 통합한 LibreChat 환경입니다.</p>
+<h2>개요</h2>
+<p>이 설정은 다음을 제공합니다:</p>
+<ul>
+<li><strong>LibreChat</strong>: 오픈소스 ChatGPT 대안 웹 인터페이스</li>
+<li><strong>Ollama</strong>: 로컬 LLM 모델 실행 (Mac 최적화)</li>
+<li><strong>ClickHouse MCP Server</strong>: ClickHouse 데이터베이스에 대한 MCP (Model Context Protocol) 접근</li>
+<li><strong>MongoDB</strong>: LibreChat 데이터 저장소</li>
+</ul>
+<h2>추천 경량 모델</h2>
+<p>Mac에서 원활하게 작동하는 경량 모델들:</p>
+<h3>MCP Tool Calling 지원 모델 (필수)</h3>
+<p>MCP 서버와 함께 사용하려면 <strong>반드시 tool calling을 지원하는 모델</strong>을 사용해야 합니다:</p>
+<ol>
+<li><strong>llama3.1:8b</strong> (8B) ✅ - <strong>최고의 function calling 성능 (91% 성공률, 권장)</strong></li>
+<li><strong>mistral-nemo</strong> (12B) ✅ - Mistral 7B보다 우수한 대안</li>
+<li><strong>qwen2.5:7b-instruct</strong> (7B) ✅ - 빠르고 안정적</li>
+</ol>
+<h3>Tool Calling 지원 제한적/불안정 모델</h3>
+<p>다음 모델들은 MCP와 함께 사용 시 문제가 있을 수 있습니다:</p>
+<ol>
+<li><strong>mistral:7b-instruct</strong> (7B) ⚠️ - v0.3 필요, 불안정 (86% 성공률)</li>
+<li><strong>qwen2.5-coder:3b</strong> (3B) ⚠️ - JSON 문자열 반환 문제</li>
+<li><strong>phi-3.5:3.8b</strong> (3.8B) ❌ - Tool calling 미지원</li>
+<li><strong>gemma2:2b</strong> (2B) ❌ - Tool calling 미지원</li>
+<li><strong>tinyllama:1.1b</strong> (1.1B) ❌ - Tool calling 미지원</li>
+</ol>
+<h2>사전 요구사항</h2>
+<h3>필수</h3>
+<ul>
+<li>Docker Desktop for Mac</li>
+<li>Ollama (<a href="https://ollama.ai">https://ollama.ai</a>)</li>
+<li>ClickHouse 인스턴스 (로컬 또는 클라우드)</li>
+</ul>
+<h3>권장</h3>
+<ul>
+<li>최소 16GB RAM</li>
+<li>Apple Silicon (M1/M2/M3) 또는 Intel Mac</li>
+</ul>
+<h2>빠른 시작</h2>
+<h3>1. Ollama 설치 및 실행</h3>
+<pre><code class="language-bash"># Ollama 설치 (Homebrew)
+brew install ollama
+
+# Ollama 서비스 시작
+ollama serve
+</code></pre>
+<h3>2. 초기 설정</h3>
+<pre><code class="language-bash">cd local/llm-mac-librechat
+./setup.sh
+</code></pre>
+<p>대화형 프롬프트에서 다음을 입력합니다:
+- ClickHouse 연결 정보 (host, port, user, password)
+- 사용할 LLM 모델 선택
+- LibreChat 포트 설정</p>
+<h3>3. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<h3>4. 접속</h3>
+<p>브라우저에서 <code>http://localhost:3080</code> 접속 후:
+1. 계정 생성
+2. 로그인
+3. 모델 선택 (드롭다운에서 Ollama 모델 선택)
+4. ClickHouse 데이터와 대화 시작!</p>
+<h2>사용법</h2>
+<h3>기본 명령어</h3>
+<pre><code class="language-bash"># 초기 설정 (최초 1회)
+./setup.sh
+
+# 서비스 시작
+./start.sh
+
+# 서비스 중지
+./stop.sh
+
+# 재시작
+./restart.sh
+
+# 상태 확인
+./status.sh
+
+# 로그 보기
+./logs.sh
+
+# 특정 서비스 로그만 보기
+./logs.sh librechat
+./logs.sh mcp-server
+./logs.sh mongodb
+</code></pre>
+<h3>ClickHouse 쿼리 예제</h3>
+<p>LibreChat에서 다음과 같이 질문할 수 있습니다:</p>
+<pre><code>&quot;시스템에 있는 모든 테이블을 보여줘&quot;
+&quot;users 테이블의 스키마를 설명해줘&quot;
+&quot;지난 7일간의 사용자 활동을 분석해줘&quot;
+&quot;sales 테이블에서 상위 10개 제품을 조회해줘&quot;
+</code></pre>
+<p>MCP 서버가 자동으로 ClickHouse 쿼리를 실행하고 결과를 반환합니다.</p>
+<h2>구조</h2>
+<pre><code>local/llm-mac-librechat/
+├── setup.sh                    # 초기 설정 스크립트
+├── start.sh                    # 서비스 시작
+├── stop.sh                     # 서비스 중지
+├── restart.sh                  # 서비스 재시작
+├── logs.sh                     # 로그 조회
+├── status.sh                   # 상태 확인
+├── docker-compose.yml          # Docker 서비스 정의
+├── config.env                  # 환경 설정 (자동 생성)
+├── .credentials               # ClickHouse 인증 정보 (자동 생성, git 제외)
+├── librechat.yaml             # LibreChat 설정
+├── mcp-server/
+│   └── server.js              # ClickHouse MCP 서버
+├── librechat-data/            # LibreChat 데이터 (자동 생성)
+└── README.md                  # 이 파일
+</code></pre>
+<h2>서비스 구성</h2>
+<h3>LibreChat</h3>
+<ul>
+<li><strong>포트</strong>: 3080 (기본값)</li>
+<li><strong>데이터</strong>: MongoDB에 저장</li>
+<li><strong>기능</strong>:</li>
+<li>다중 모델 지원</li>
+<li>대화 기록</li>
+<li>파일 업로드</li>
+<li>MCP 통합</li>
+</ul>
+<h3>Ollama (호스트)</h3>
+<ul>
+<li><strong>포트</strong>: 11434</li>
+<li><strong>위치</strong>: 호스트 머신에서 실행</li>
+<li><strong>모델</strong>: ~/.ollama/models</li>
+</ul>
+<h3>ClickHouse MCP Server</h3>
+<ul>
+<li><strong>포트</strong>: 3001 (기본값)</li>
+<li><strong>기능</strong>:</li>
+<li>쿼리 실행</li>
+<li>스키마 조회</li>
+<li>테이블 목록</li>
+<li>DDL/DML 실행</li>
+</ul>
+<h3>MongoDB</h3>
+<ul>
+<li><strong>포트</strong>: 27017 (내부)</li>
+<li><strong>데이터</strong>: Docker 볼륨</li>
+<li><strong>인증</strong>: admin/admin123</li>
+</ul>
+<h2>MCP 서버 API</h2>
+<h3>Endpoints</h3>
+<h4>Health Check</h4>
+<pre><code class="language-bash">curl http://localhost:3001/health
+</code></pre>
+<h4>List Tables</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/tools/execute \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;tool&quot;: &quot;list_tables&quot;, &quot;parameters&quot;: {}}'
+</code></pre>
+<h4>Query</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/query \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;sql&quot;: &quot;SELECT * FROM system.tables LIMIT 5&quot;}'
+</code></pre>
+<h4>Describe Table</h4>
+<pre><code class="language-bash">curl -X POST http://localhost:3001/api/tools/execute \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;tool&quot;: &quot;describe_table&quot;, &quot;parameters&quot;: {&quot;table&quot;: &quot;users&quot;}}'
+</code></pre>
+<h2>모델 관리</h2>
+<h3>모델 다운로드</h3>
+<pre><code class="language-bash"># MCP Tool Calling 권장 모델
+ollama pull llama3.1:8b              # 최고 성능 (91% 성공률)
+ollama pull mistral-nemo             # 대안 (12B)
+ollama pull qwen2.5:7b-instruct      # 대안 (7B)
+</code></pre>
+<h3>설치된 모델 확인</h3>
+<pre><code class="language-bash">ollama list
+</code></pre>
+<h3>모델 삭제</h3>
+<pre><code class="language-bash">ollama rm &lt;model-name&gt;
+</code></pre>
+<h2>문제 해결</h2>
+<h3>🔧 LibreChat v0.8.x "Ollama" 이름 버그 (해결됨)</h3>
+<p><strong>문제</strong>: LibreChat v0.8.x에서 custom endpoint 이름을 "Ollama" (대소문자 무관)로 설정하면 agents controller로 잘못 라우팅되어 "fetch failed" 오류가 발생합니다.</p>
+<p><strong>원인</strong>: LibreChat의 알려진 버그 (<a href="https://github.com/danny-avila/LibreChat/issues/10327">Issue #10327</a>)</p>
+<p><strong>해결책</strong>: <code>librechat.yaml</code>에서 엔드포인트 이름을 "Ollama"가 아닌 다른 이름으로 변경:</p>
+<pre><code class="language-yaml">endpoints:
+  custom:
+    - name: &quot;LocalLLM&quot;  # &quot;Ollama&quot; 대신 다른 이름 사용
+      apiKey: &quot;ollama&quot;
+      baseURL: &quot;http://host.docker.internal:11434/v1/&quot;
+      modelDisplayLabel: &quot;Ollama&quot;  # UI에는 &quot;Ollama&quot;로 표시됨
+</code></pre>
+<p>이 설정으로 Ollama가 정상적으로 작동합니다.</p>
+<h3>⚠️ MCP Tool Calling 제한사항 (중요)</h3>
+<p><strong>문제</strong>: LibreChat v0.8.x에서 일부 Ollama 모델을 사용한 MCP tool calling이 제대로 작동하지 않습니다.</p>
+<p><strong>원인</strong>:
+- 일부 모델(qwen2.5-coder:3b, mistral:7b-instruct v0.2)은 tool call을 <code>message.content</code>에 JSON 문자열로 반환
+- LibreChat은 <code>tool_calls</code> 필드의 구조화된 객체를 기대함
+- 이로 인해 tool이 호출되지 않고 JSON만 텍스트로 표시됨
+- LiteLLM 프록시 사용 시 응답 변환 문제 발생</p>
+<p><strong>검증된 해결책</strong>:
+1. <strong>llama3.1:8b 사용 (✅ 권장)</strong>:
+   - 가장 우수한 tool calling 지원 (91% 성공률)
+   - 가장 빠른 응답 속도 (4.04초 평균)
+   - 현재 설정에서 완벽히 작동 확인됨
+   <code>bash
+   ollama pull llama3.1:8b</code></p>
+<ol start="2">
+<li>
+<p><strong>대안 모델</strong>:
+   - <code>mistral-nemo</code> (12B) - Mistral 7B보다 우수
+   - <code>qwen2.5:7b-instruct</code> - 빠르고 안정적</p>
+</li>
+<li>
+<p><strong>capabilities 설정 필수</strong>:
+   <code>yaml
+   capabilities:
+     tools: true
+     agents: true</code></p>
+</li>
+<li>
+<p><strong>OpenAI/Claude API 사용</strong>: 완벽한 MCP 통합 보장</p>
+</li>
+</ol>
+<p><strong>참고 자료</strong>:
+- <a href="https://github.com/danny-avila/LibreChat/discussions/7639">LibreChat Discussion #7639</a> - MCP Tools 호출 문제
+- <a href="https://ollama.com/blog/tool-support">Ollama Tool Support Blog</a> - 공식 지원 모델
+- <a href="https://collabnix.com/best-ollama-models-for-function-calling-tools-complete-guide-2025/">Best Ollama Models 2025 for Function Calling</a> - 성능 벤치마크</p>
+<h3>Ollama 연결 오류</h3>
+<pre><code class="language-bash"># Ollama 서비스 상태 확인
+ps aux | grep ollama
+
+# Ollama 재시작
+killall ollama
+ollama serve
+</code></pre>
+<h3>ClickHouse 연결 오류</h3>
+<ol>
+<li>ClickHouse가 실행 중인지 확인</li>
+<li><code>.credentials</code> 파일의 연결 정보 확인</li>
+<li>방화벽/네트워크 설정 확인</li>
+</ol>
+<pre><code class="language-bash"># 연결 테스트
+curl &quot;http://localhost:8123/?query=SELECT%20version()&quot;
+</code></pre>
+<h3>LibreChat 접속 불가</h3>
+<pre><code class="language-bash"># 컨테이너 상태 확인
+./status.sh
+
+# 로그 확인
+./logs.sh
+
+# 재시작
+./restart.sh
+</code></pre>
+<h3>MongoDB 오류</h3>
+<pre><code class="language-bash"># MongoDB 컨테이너 재시작
+docker restart librechat-mongodb
+
+# 컨테이너 로그 확인
+./logs.sh mongodb
+</code></pre>
+<h2>보안 고려사항</h2>
+<h3>주의사항</h3>
+<ol>
+<li>
+<p><strong><code>.credentials</code> 파일</strong>
+   - Git에 커밋하지 마세요
+   - 권한: 600 (자동 설정)
+   - 민감한 정보 포함</p>
+</li>
+<li>
+<p><strong>기본 비밀번호 변경</strong>
+   - MongoDB: admin/admin123
+   - 프로덕션 환경에서는 반드시 변경</p>
+</li>
+<li>
+<p><strong>네트워크 노출</strong>
+   - 기본 설정은 localhost만 허용
+   - 외부 접근 시 인증/암호화 필수</p>
+</li>
+</ol>
+<h2>성능 최적화</h2>
+<h3>Mac 시스템 권장사항</h3>
+<ol>
+<li>
+<p><strong>Docker 리소스 할당</strong>
+   - Docker Desktop &gt; Settings &gt; Resources
+   - CPU: 최소 4 코어
+   - Memory: 8GB 이상
+   - Swap: 2GB</p>
+</li>
+<li>
+<p><strong>Ollama 메모리</strong>
+   - 모델 크기에 따라 4-8GB RAM 필요
+   - 여러 모델 동시 로드 시 더 많은 메모리 필요</p>
+</li>
+<li>
+<p><strong>디스크 공간</strong>
+   - 모델: ~2-4GB per model
+   - Docker 이미지: ~2GB
+   - 데이터: 필요에 따라</p>
+</li>
+</ol>
+<h2>업데이트</h2>
+<h3>이미지 업데이트</h3>
+<pre><code class="language-bash"># 이미지 pull
+docker compose pull
+
+# 재시작
+./restart.sh
+</code></pre>
+<h3>모델 업데이트</h3>
+<pre><code class="language-bash"># 최신 모델 pull
+ollama pull &lt;model-name&gt;
+</code></pre>
+<h2>기여</h2>
+<p>개선 사항이나 버그는 이슈로 제출해주세요.</p>
+<h2>라이선스</h2>
+<p>이 프로젝트는 각 구성 요소의 라이선스를 따릅니다:
+- LibreChat: MIT License
+- Ollama: MIT License
+- ClickHouse: Apache License 2.0</p>
+<h2>참고 링크</h2>
+<ul>
+<li><a href="https://docs.librechat.ai/">LibreChat Documentation</a></li>
+<li><a href="https://ollama.ai/">Ollama</a></li>
+<li><a href="https://clickhouse.com/docs">ClickHouse Documentation</a></li>
+<li><a href="https://modelcontextprotocol.io/">Model Context Protocol (MCP)</a></li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/llm-mac-librechat-with-clickhouse"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

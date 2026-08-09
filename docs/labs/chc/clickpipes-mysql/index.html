@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickPipes CDC Demo - MySQL Source · ClickHouse HOLs</title>
+<meta name="description" content="ClickPipes CDC Demo - MySQL Source — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/clickpipes-mysql</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickPipes CDC Demo - MySQL Source</h1>
+<p>MySQL → ClickPipes CDC 파이프라인 데모용 Docker 환경입니다.</p>
+<hr />
+<h2>빠른 시작</h2>
+<h3>1. MySQL 컨테이너 실행</h3>
+<pre><code class="language-bash">cd clickpipes-mysql
+docker compose up -d
+</code></pre>
+<p>컨테이너가 완전히 뜰 때까지 헬스체크 확인:</p>
+<pre><code class="language-bash">docker compose ps
+# STATUS: healthy 확인
+</code></pre>
+<h3>2. 연결 확인</h3>
+<pre><code class="language-bash">mysql -h 127.0.0.1 -P 3306 -u cdc_user -pClickPipes2024! cdc_demo
+</code></pre>
+<h3>3. DML 데모 스크립트 실행</h3>
+<pre><code class="language-bash"># 기본 (3초 간격)
+./scripts/dml-demo.sh
+
+# 간격 조정 (1초)
+INTERVAL=1 ./scripts/dml-demo.sh
+</code></pre>
+<hr />
+<h2>MySQL 접속 정보</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host</td>
+<td><code>localhost</code> (또는 머신 IP)</td>
+</tr>
+<tr>
+<td>Port</td>
+<td><code>3306</code></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><code>cdc_demo</code></td>
+</tr>
+<tr>
+<td>Root Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+<tr>
+<td>App User</td>
+<td><code>cdc_user</code> / <code>ClickPipes2024!</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>ClickPipes CDC 전용 계정</h2>
+<p>ClickPipes에 입력할 <strong>복제 전용</strong> 계정:</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Username</td>
+<td><code>clickpipes_repl</code></td>
+</tr>
+<tr>
+<td>Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+<tr>
+<td>권한</td>
+<td><code>REPLICATION SLAVE</code>, <code>REPLICATION CLIENT</code>, <code>SELECT</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>CDC 활성화 설정 확인</h2>
+<pre><code class="language-sql">-- binlog 설정 확인
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'binlog_format';
+SHOW VARIABLES LIKE 'binlog_row_image';
+SHOW VARIABLES LIKE 'gtid_mode';
+
+-- 현재 binlog 위치 확인
+SHOW MASTER STATUS;
+</code></pre>
+<p>기대값:
+- <code>log_bin</code> = <code>ON</code>
+- <code>binlog_format</code> = <code>ROW</code>
+- <code>binlog_row_image</code> = <code>FULL</code>
+- <code>gtid_mode</code> = <code>ON</code></p>
+<hr />
+<h2>데모 테이블 구조</h2>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>customers</code></td>
+<td>고객 정보 (tier 업그레이드로 UPDATE 시연)</td>
+</tr>
+<tr>
+<td><code>products</code></td>
+<td>상품 및 재고 (stock 차감으로 UPDATE 시연)</td>
+</tr>
+<tr>
+<td><code>orders</code></td>
+<td>주문 (status 변경으로 UPDATE, 오래된 주문 DELETE 시연)</td>
+</tr>
+<tr>
+<td><code>order_items</code></td>
+<td>주문 항목 (주문 삭제 시 CASCADE DELETE 시연)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>ClickPipes 설정 가이드</h2>
+<h3>Step 1: ClickPipes 소스 설정</h3>
+<p>ClickHouse Cloud 콘솔 → <strong>Data Sources</strong> → <strong>ClickPipes</strong> → <strong>MySQL CDC</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host</td>
+<td>머신의 외부 IP (Docker 내부 127.0.0.1 불가)</td>
+</tr>
+<tr>
+<td>Port</td>
+<td><code>3306</code></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><code>cdc_demo</code></td>
+</tr>
+<tr>
+<td>Username</td>
+<td><code>clickpipes_repl</code></td>
+</tr>
+<tr>
+<td>Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>로컬 환경에서 ClickHouse Cloud 연결 시:</strong><br />
+ngrok 또는 SSH 터널을 사용하여 MySQL 포트를 외부에 노출해야 합니다.<br />
+```bash</p>
+<h1>ngrok 사용 예시</h1>
+<p>ngrok tcp 3306</p>
+<h1>→ Forwarding: tcp://0.tcp.ngrok.io:XXXXX → localhost:3306</h1>
+<p>```</p>
+</blockquote>
+<h3>Step 2: 복제할 테이블 선택</h3>
+<pre><code>cdc_demo.customers
+cdc_demo.products
+cdc_demo.orders
+cdc_demo.order_items
+</code></pre>
+<h3>Step 3: ClickHouse 대상 테이블 설정</h3>
+<p>ClickPipes가 자동으로 스키마를 감지하여 ReplacingMergeTree 테이블을 생성합니다.</p>
+<h3>Step 4: 파이프라인 시작 후 DML 스크립트 실행</h3>
+<pre><code class="language-bash">./scripts/dml-demo.sh
+</code></pre>
+<p>ClickHouse Cloud에서 실시간 데이터 수신 확인:</p>
+<pre><code class="language-sql">-- ClickHouse에서 실행
+SELECT count(), max(_peerdb_synced_at)
+FROM cdc_demo.orders
+GROUP BY ()
+</code></pre>
+<hr />
+<h2>컨테이너 정리</h2>
+<pre><code class="language-bash">docker compose down -v  # 볼륨까지 삭제
+</code></pre></div>
+  <div class="readme ko"><h1>ClickPipes CDC Demo - MySQL Source</h1>
+<p>MySQL → ClickPipes CDC 파이프라인 데모용 Docker 환경입니다.</p>
+<hr />
+<h2>빠른 시작</h2>
+<h3>1. MySQL 컨테이너 실행</h3>
+<pre><code class="language-bash">cd clickpipes-mysql
+docker compose up -d
+</code></pre>
+<p>컨테이너가 완전히 뜰 때까지 헬스체크 확인:</p>
+<pre><code class="language-bash">docker compose ps
+# STATUS: healthy 확인
+</code></pre>
+<h3>2. 연결 확인</h3>
+<pre><code class="language-bash">mysql -h 127.0.0.1 -P 3306 -u cdc_user -pClickPipes2024! cdc_demo
+</code></pre>
+<h3>3. DML 데모 스크립트 실행</h3>
+<pre><code class="language-bash"># 기본 (3초 간격)
+./scripts/dml-demo.sh
+
+# 간격 조정 (1초)
+INTERVAL=1 ./scripts/dml-demo.sh
+</code></pre>
+<hr />
+<h2>MySQL 접속 정보</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host</td>
+<td><code>localhost</code> (또는 머신 IP)</td>
+</tr>
+<tr>
+<td>Port</td>
+<td><code>3306</code></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><code>cdc_demo</code></td>
+</tr>
+<tr>
+<td>Root Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+<tr>
+<td>App User</td>
+<td><code>cdc_user</code> / <code>ClickPipes2024!</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>ClickPipes CDC 전용 계정</h2>
+<p>ClickPipes에 입력할 <strong>복제 전용</strong> 계정:</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Username</td>
+<td><code>clickpipes_repl</code></td>
+</tr>
+<tr>
+<td>Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+<tr>
+<td>권한</td>
+<td><code>REPLICATION SLAVE</code>, <code>REPLICATION CLIENT</code>, <code>SELECT</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>CDC 활성화 설정 확인</h2>
+<pre><code class="language-sql">-- binlog 설정 확인
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'binlog_format';
+SHOW VARIABLES LIKE 'binlog_row_image';
+SHOW VARIABLES LIKE 'gtid_mode';
+
+-- 현재 binlog 위치 확인
+SHOW MASTER STATUS;
+</code></pre>
+<p>기대값:
+- <code>log_bin</code> = <code>ON</code>
+- <code>binlog_format</code> = <code>ROW</code>
+- <code>binlog_row_image</code> = <code>FULL</code>
+- <code>gtid_mode</code> = <code>ON</code></p>
+<hr />
+<h2>데모 테이블 구조</h2>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>customers</code></td>
+<td>고객 정보 (tier 업그레이드로 UPDATE 시연)</td>
+</tr>
+<tr>
+<td><code>products</code></td>
+<td>상품 및 재고 (stock 차감으로 UPDATE 시연)</td>
+</tr>
+<tr>
+<td><code>orders</code></td>
+<td>주문 (status 변경으로 UPDATE, 오래된 주문 DELETE 시연)</td>
+</tr>
+<tr>
+<td><code>order_items</code></td>
+<td>주문 항목 (주문 삭제 시 CASCADE DELETE 시연)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>ClickPipes 설정 가이드</h2>
+<h3>Step 1: ClickPipes 소스 설정</h3>
+<p>ClickHouse Cloud 콘솔 → <strong>Data Sources</strong> → <strong>ClickPipes</strong> → <strong>MySQL CDC</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host</td>
+<td>머신의 외부 IP (Docker 내부 127.0.0.1 불가)</td>
+</tr>
+<tr>
+<td>Port</td>
+<td><code>3306</code></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><code>cdc_demo</code></td>
+</tr>
+<tr>
+<td>Username</td>
+<td><code>clickpipes_repl</code></td>
+</tr>
+<tr>
+<td>Password</td>
+<td><code>ClickPipes2024!</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>로컬 환경에서 ClickHouse Cloud 연결 시:</strong><br />
+ngrok 또는 SSH 터널을 사용하여 MySQL 포트를 외부에 노출해야 합니다.<br />
+```bash</p>
+<h1>ngrok 사용 예시</h1>
+<p>ngrok tcp 3306</p>
+<h1>→ Forwarding: tcp://0.tcp.ngrok.io:XXXXX → localhost:3306</h1>
+<p>```</p>
+</blockquote>
+<h3>Step 2: 복제할 테이블 선택</h3>
+<pre><code>cdc_demo.customers
+cdc_demo.products
+cdc_demo.orders
+cdc_demo.order_items
+</code></pre>
+<h3>Step 3: ClickHouse 대상 테이블 설정</h3>
+<p>ClickPipes가 자동으로 스키마를 감지하여 ReplacingMergeTree 테이블을 생성합니다.</p>
+<h3>Step 4: 파이프라인 시작 후 DML 스크립트 실행</h3>
+<pre><code class="language-bash">./scripts/dml-demo.sh
+</code></pre>
+<p>ClickHouse Cloud에서 실시간 데이터 수신 확인:</p>
+<pre><code class="language-sql">-- ClickHouse에서 실행
+SELECT count(), max(_peerdb_synced_at)
+FROM cdc_demo.orders
+GROUP BY ()
+</code></pre>
+<hr />
+<h2>컨테이너 정리</h2>
+<pre><code class="language-bash">docker compose down -v  # 볼륨까지 삭제
+</code></pre></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-mysql"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

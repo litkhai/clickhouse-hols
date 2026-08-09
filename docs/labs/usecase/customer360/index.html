@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer 360 Lab with ClickHouse · ClickHouse HOLs</title>
+<meta name="description" content="Customer 360 Lab with ClickHouse — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/customer360</code>
+    
+  </nav>
+  <div class="readme en"><h1>Customer 360 Lab with ClickHouse</h1>
+<hr />
+<p>A comprehensive hands-on laboratory for large-scale Customer 360 analytics using ClickHouse, featuring 815 million records across 6 months of customer activity data.</p>
+<h3>🎯 Purpose</h3>
+<p>This lab provides practical experience with ClickHouse for Customer 360 analytics:
+- Large-scale customer data integration (815M+ records)
+- Multi-dimensional customer behavior analysis
+- Advanced analytics: RFM, cohort analysis, CLV prediction
+- Performance optimization with Materialized Views
+- Data governance: RBAC, data masking, GDPR compliance</p>
+<p>Whether you're building a customer data platform or exploring analytical capabilities for customer insights, this lab demonstrates production-ready patterns with realistic data volumes.</p>
+<h3>📊 Dataset Scale</h3>
+<ul>
+<li><strong>Customers</strong>: 30M (30 million)</li>
+<li><strong>Transactions</strong>: 500M (500 million)</li>
+<li><strong>Events</strong>: 200M (200 million)</li>
+<li><strong>Support Tickets</strong>: 5M (5 million)</li>
+<li><strong>Campaign Responses</strong>: 100M (100 million)</li>
+<li><strong>Product Reviews</strong>: 10M (10 million)</li>
+<li><strong>Total Records</strong>: ~815M</li>
+<li><strong>Time Period</strong>: 180 days (6 months)</li>
+</ul>
+<h3>📁 File Structure</h3>
+<pre><code>customer360/
+├── README.md                      # This file
+├── 01-schema.sql                  # Database and table creation
+├── 02-load.sql                    # Test data generation
+├── 03-basic-queries.sql           # Basic analysis queries
+├── 04-advanced-queries.sql        # Advanced analysis queries
+├── 05-optimization.sql            # Materialized views and optimization
+└── 06-management.sql              # Data management and security
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<p>Execute all scripts in sequence:</p>
+<pre><code class="language-bash">cd usecase/customer360
+
+# Sequential execution
+clickhouse-client --queries-file 01-schema.sql
+clickhouse-client --queries-file 02-load.sql
+clickhouse-client --queries-file 03-basic-queries.sql
+clickhouse-client --queries-file 04-advanced-queries.sql
+clickhouse-client --queries-file 05-optimization.sql
+clickhouse-client --queries-file 06-management.sql
+</code></pre>
+<p>Or in a loop:</p>
+<pre><code class="language-bash">for file in 01-schema.sql 02-load.sql 03-basic-queries.sql 04-advanced-queries.sql 05-optimization.sql 06-management.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 Detailed Lab Steps</h3>
+<h4>1. Schema Creation</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-schema.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates <code>customer360</code> database
+- Creates 6 tables:
+  - <code>customers</code>: Customer profile information
+  - <code>transactions</code>: Transaction history (partitioned by month)
+  - <code>customer_events</code>: Web/app activity events
+  - <code>support_tickets</code>: Customer service tickets
+  - <code>campaign_responses</code>: Marketing campaign responses
+  - <code>product_reviews</code>: Product reviews and ratings</p>
+<p><strong>Expected time</strong>: ~1 second</p>
+<hr />
+<h4>2. Data Loading</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-load.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Generates 30M customer records
+- Generates 500M transaction records (2 batches)
+- Generates 200M event records (2 batches)
+- Generates 5M support tickets
+- Generates 100M campaign responses (2 batches)
+- Generates 10M product reviews</p>
+<p><strong>Expected time</strong>: 30-60 minutes (system dependent)</p>
+<p><strong>Warning</strong>: Large-scale data generation. Ensure sufficient disk space (minimum 100GB).</p>
+<hr />
+<h4>3. Basic Analytics</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-basic-queries.sql
+</code></pre>
+<p><strong>Query scenarios</strong>:
+- <strong>Customer 360 Unified View</strong>: 5-way JOIN for complete customer activity
+- <strong>Channel Analysis</strong>: Revenue and customer behavior by channel
+- <strong>Product Preferences by Segment</strong>: Category preferences by customer segment
+- <strong>Monthly Business Trends</strong>: 6-month revenue and growth trends
+- <strong>Channel Growth Trends</strong>: Monthly performance by channel
+- <strong>Conversion Funnel</strong>: Conversion rates from visit to purchase</p>
+<p><strong>Expected time</strong>: 1-10 seconds per query</p>
+<hr />
+<h4>4. Advanced Analytics</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-advanced-queries.sql
+</code></pre>
+<p><strong>What it analyzes</strong>:
+- <strong>RFM Analysis</strong>: Customer segmentation by Recency, Frequency, Monetary
+- <strong>Cohort Analysis</strong>: Retention rates by registration month
+- <strong>CLV Prediction</strong>: Customer lifetime value prediction metrics
+- <strong>LTV Analysis</strong>: 6-month customer lifetime value
+- <strong>Churn Risk Identification</strong>: Predict customer churn risk
+- <strong>Multi-touch Attribution</strong>: Campaign effectiveness analysis
+- <strong>Customer Journey Mapping</strong>: Customer interaction pattern analysis</p>
+<p><strong>Expected time</strong>: 5-30 seconds per query</p>
+<hr />
+<h4>5. Optimization</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-optimization.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- <strong>Create Materialized View</strong>: Pre-aggregated customer KPIs
+- <strong>MV Query Examples</strong>: Queries using pre-aggregated data
+- <strong>Storage Analysis</strong>: Compression ratio and storage space
+- <strong>Query Execution Plan</strong>: EXPLAIN ESTIMATE for query cost analysis
+- <strong>Table Optimization</strong>: OPTIMIZE TABLE execution
+- <strong>Partition Management</strong>: Partition list and status
+- <strong>Performance Monitoring</strong>: Query performance metrics tracking</p>
+<p><strong>Expected time</strong>: 5-10 minutes for optimization tasks</p>
+<hr />
+<h4>6. Management &amp; Security</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 06-management.sql
+</code></pre>
+<p><strong>What it covers</strong>:
+- <strong>Partition Management</strong>: Delete old partitions
+- <strong>TTL Settings</strong>: Automatic data deletion and aggregation
+- <strong>RBAC</strong>: Role-based access control setup
+- <strong>Data Masking</strong>: PII masking views
+- <strong>Row Level Security</strong>: Row-level security policies
+- <strong>GDPR Compliance</strong>: Personal data deletion and anonymization
+- <strong>Audit Log</strong>: Access history tracking
+- <strong>System Monitoring</strong>: Disk usage and query statistics</p>
+<p><strong>Expected time</strong>: Immediate execution for most commands</p>
+<h3>🔍 Key Learning Points</h3>
+<h4>1. Schema Design</h4>
+<ul>
+<li>MergeTree engine utilization</li>
+<li>Partition key configuration (<code>PARTITION BY toYYYYMM</code>)</li>
+<li>Sorting key optimization (<code>ORDER BY</code>)</li>
+<li>LowCardinality type utilization</li>
+</ul>
+<h4>2. Large-scale Data Processing</h4>
+<ul>
+<li>Test data generation with <code>numbers()</code> function</li>
+<li>Parallel INSERT with <code>max_insert_threads</code></li>
+<li>Batch INSERT strategy</li>
+</ul>
+<h4>3. Complex Analytical Queries</h4>
+<ul>
+<li>Multi-table JOINs</li>
+<li>Window Functions</li>
+<li>CTE (Common Table Expressions)</li>
+<li>Aggregate function utilization</li>
+</ul>
+<h4>4. Performance Optimization</h4>
+<ul>
+<li>Materialized Views</li>
+<li>AggregatingMergeTree</li>
+<li>Query execution plan analysis</li>
+<li>Partition pruning</li>
+</ul>
+<h4>5. Operations Management</h4>
+<ul>
+<li>TTL settings</li>
+<li>Partition management</li>
+<li>RBAC</li>
+<li>Data masking</li>
+<li>Audit logging</li>
+</ul>
+<h3>🛠 Prerequisites</h3>
+<ul>
+<li><strong>CPU</strong>: Minimum 4 cores, recommended 8+ cores</li>
+<li><strong>Memory</strong>: Minimum 16GB, recommended 32GB+</li>
+<li><strong>Disk</strong>: Minimum 100GB free space</li>
+<li><strong>ClickHouse Version</strong>: 23.x or higher</li>
+</ul>
+<h3>💡 Performance Tips</h3>
+<h4>During Data Loading</h4>
+<ul>
+<li>Adjust <code>max_insert_threads</code> setting</li>
+<li>Optimize batch size</li>
+</ul>
+<h4>During Query Execution</h4>
+<ul>
+<li>Utilize partition keys in WHERE clause</li>
+<li>Use sampling (<code>WHERE customer_id % 100 = 0</code>)</li>
+<li>Use appropriate LIMIT</li>
+</ul>
+<h4>Monitoring</h4>
+<ul>
+<li>Utilize <code>system.query_log</code> table</li>
+<li>Check partitions with <code>system.parts</code></li>
+<li>Monitor running queries with <code>system.processes</code></li>
+</ul>
+<h3>🔧 Troubleshooting</h3>
+<h4>Out of Memory Error</h4>
+<pre><code class="language-sql">SET max_memory_usage = 10000000000; -- 10GB
+</code></pre>
+<h4>Query Timeout</h4>
+<pre><code class="language-sql">SET max_execution_time = 300; -- 5 minutes
+</code></pre>
+<h4>Insufficient Disk Space</h4>
+<ul>
+<li>Delete old partitions</li>
+<li>Set TTL for automatic cleanup</li>
+<li>Drop unnecessary tables</li>
+</ul>
+<h3>🧹 Clean Up</h3>
+<p>Delete the test database after completion:</p>
+<pre><code class="language-sql">DROP DATABASE IF EXISTS customer360;
+</code></pre>
+<h3>📚 Reference</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse Official Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/">MergeTree Engine Guide</a></li>
+<li><a href="https://clickhouse.com/docs/optimize/query-optimization">Query Optimization Guide</a></li>
+</ul>
+<h3>📝 License</h3>
+<p>MIT License</p>
+<h3>👤 Author</h3>
+<p>Ken (ClickHouse Solution Architect)
+Created: 2025-12-06</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse를 활용한 대규모 고객 360도 분석 종합 실습으로, 6개월간의 고객 활동 데이터를 포함한 8억 1천 5백만 레코드를 제공합니다.</p>
+<h3>🎯 목적</h3>
+<p>이 랩은 ClickHouse를 활용한 Customer 360 분석에 대한 실무 경험을 제공합니다:
+- 대규모 고객 데이터 통합 (8억 1천 5백만+ 레코드)
+- 다차원 고객 행동 분석
+- 고급 분석: RFM, 코호트 분석, CLV 예측
+- Materialized View를 통한 성능 최적화
+- 데이터 거버넌스: RBAC, 데이터 마스킹, GDPR 준수</p>
+<p>고객 데이터 플랫폼을 구축하거나 고객 인사이트를 위한 분석 기능을 탐구하는 경우, 이 랩은 실제 데이터 볼륨으로 프로덕션 수준의 패턴을 시연합니다.</p>
+<h3>📊 데이터셋 규모</h3>
+<ul>
+<li><strong>고객</strong>: 30M (3천만)</li>
+<li><strong>거래</strong>: 500M (5억)</li>
+<li><strong>이벤트</strong>: 200M (2억)</li>
+<li><strong>서포트 티켓</strong>: 5M (5백만)</li>
+<li><strong>캠페인 응답</strong>: 100M (1억)</li>
+<li><strong>제품 리뷰</strong>: 10M (1천만)</li>
+<li><strong>총 레코드</strong>: ~815M</li>
+<li><strong>기간</strong>: 180일 (6개월)</li>
+</ul>
+<h3>📁 파일 구성</h3>
+<pre><code>customer360/
+├── README.md                      # 이 파일
+├── 01-schema.sql                  # 데이터베이스 및 테이블 생성
+├── 02-load.sql                    # 테스트 데이터 생성
+├── 03-basic-queries.sql           # 기본 분석 쿼리
+├── 04-advanced-queries.sql        # 고급 분석 쿼리
+├── 05-optimization.sql            # Materialized View 및 최적화
+└── 06-management.sql              # 데이터 관리 및 보안
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<p>모든 스크립트를 순서대로 실행:</p>
+<pre><code class="language-bash">cd usecase/customer360
+
+# 순차 실행
+clickhouse-client --queries-file 01-schema.sql
+clickhouse-client --queries-file 02-load.sql
+clickhouse-client --queries-file 03-basic-queries.sql
+clickhouse-client --queries-file 04-advanced-queries.sql
+clickhouse-client --queries-file 05-optimization.sql
+clickhouse-client --queries-file 06-management.sql
+</code></pre>
+<p>또는 반복문으로:</p>
+<pre><code class="language-bash">for file in 01-schema.sql 02-load.sql 03-basic-queries.sql 04-advanced-queries.sql 05-optimization.sql 06-management.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 상세 실습 단계</h3>
+<h4>1. 스키마 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-schema.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- <code>customer360</code> 데이터베이스 생성
+- 6개 테이블 생성:
+  - <code>customers</code>: 고객 프로필 정보
+  - <code>transactions</code>: 거래 이력 (월별 파티션)
+  - <code>customer_events</code>: 웹/앱 활동 이벤트
+  - <code>support_tickets</code>: 고객 서비스 티켓
+  - <code>campaign_responses</code>: 마케팅 캠페인 응답
+  - <code>product_reviews</code>: 제품 리뷰 및 평점</p>
+<p><strong>예상 시간</strong>: ~1초</p>
+<hr />
+<h4>2. 데이터 로딩</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-load.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 30M 고객 레코드 생성
+- 500M 거래 레코드 생성 (2회 분할)
+- 200M 이벤트 레코드 생성 (2회 분할)
+- 5M 서포트 티켓 생성
+- 100M 캠페인 응답 생성 (2회 분할)
+- 10M 제품 리뷰 생성</p>
+<p><strong>예상 시간</strong>: 30-60분 (시스템 사양에 따라 다름)</p>
+<p><strong>주의</strong>: 대용량 데이터 생성 작업입니다. 충분한 디스크 공간(최소 100GB)을 확보하세요.</p>
+<hr />
+<h4>3. 기본 분석</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-basic-queries.sql
+</code></pre>
+<p><strong>쿼리 시나리오</strong>:
+- <strong>고객 360 통합 뷰</strong>: 5-way JOIN으로 전체 고객 활동 조회
+- <strong>채널 분석</strong>: 채널별 매출 및 고객 행동 분석
+- <strong>세그먼트별 제품 선호도</strong>: 고객 세그먼트별 카테고리 선호도
+- <strong>월별 비즈니스 트렌드</strong>: 6개월간 매출 및 성장률 추이
+- <strong>채널 성장 추이</strong>: 채널별 월별 성과 분석
+- <strong>전환 퍼널</strong>: 방문에서 구매까지의 전환율 분석</p>
+<p><strong>예상 시간</strong>: 각 쿼리당 1-10초</p>
+<hr />
+<h4>4. 고급 분석</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-advanced-queries.sql
+</code></pre>
+<p><strong>분석 내용</strong>:
+- <strong>RFM 분석</strong>: Recency, Frequency, Monetary 기반 고객 세그먼테이션
+- <strong>코호트 분석</strong>: 등록 월별 리텐션율 계산
+- <strong>CLV 예측</strong>: 고객 생애 가치 예측 지표
+- <strong>LTV 분석</strong>: 6개월 기간 고객 생애 가치
+- <strong>이탈 위험 식별</strong>: 고객 이탈 위험 예측
+- <strong>멀티터치 어트리뷰션</strong>: 캠페인 효과 분석
+- <strong>고객 여정 매핑</strong>: 고객 상호작용 패턴 분석</p>
+<p><strong>예상 시간</strong>: 각 쿼리당 5-30초</p>
+<hr />
+<h4>5. 최적화</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-optimization.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- <strong>Materialized View 생성</strong>: 실시간 고객 KPI 집계
+- <strong>MV 쿼리 예제</strong>: 사전 집계 데이터 활용
+- <strong>스토리지 분석</strong>: 압축률 및 저장 공간 확인
+- <strong>쿼리 실행 계획</strong>: EXPLAIN ESTIMATE로 쿼리 비용 분석
+- <strong>테이블 최적화</strong>: OPTIMIZE TABLE 실행
+- <strong>파티션 관리</strong>: 파티션 목록 및 상태 확인
+- <strong>성능 모니터링</strong>: 쿼리 성능 지표 추적</p>
+<p><strong>예상 시간</strong>: 최적화 작업 5-10분</p>
+<hr />
+<h4>6. 관리 및 보안</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 06-management.sql
+</code></pre>
+<p><strong>다루는 내용</strong>:
+- <strong>파티션 관리</strong>: 오래된 파티션 삭제
+- <strong>TTL 설정</strong>: 자동 데이터 삭제 및 집계
+- <strong>RBAC</strong>: 역할 기반 접근 제어 설정
+- <strong>데이터 마스킹</strong>: 개인정보 마스킹 뷰
+- <strong>행 수준 보안</strong>: 행 수준 보안 정책
+- <strong>GDPR 준수</strong>: 개인정보 삭제 및 익명화
+- <strong>감사 로그</strong>: 접근 이력 추적
+- <strong>시스템 모니터링</strong>: 디스크 사용량 및 쿼리 통계</p>
+<p><strong>예상 시간</strong>: 대부분 즉시 실행</p>
+<h3>🔍 주요 학습 포인트</h3>
+<h4>1. 스키마 설계</h4>
+<ul>
+<li>MergeTree 엔진 활용</li>
+<li>파티션 키 설정 (<code>PARTITION BY toYYYYMM</code>)</li>
+<li>정렬 키 최적화 (<code>ORDER BY</code>)</li>
+<li>LowCardinality 타입 활용</li>
+</ul>
+<h4>2. 대용량 데이터 처리</h4>
+<ul>
+<li><code>numbers()</code> 함수로 테스트 데이터 생성</li>
+<li><code>max_insert_threads</code>로 병렬 INSERT</li>
+<li>배치 INSERT 전략</li>
+</ul>
+<h4>3. 복잡한 분석 쿼리</h4>
+<ul>
+<li>다중 테이블 JOIN</li>
+<li>Window Functions</li>
+<li>CTE (Common Table Expressions)</li>
+<li>집계 함수 활용</li>
+</ul>
+<h4>4. 성능 최적화</h4>
+<ul>
+<li>Materialized View</li>
+<li>AggregatingMergeTree</li>
+<li>쿼리 실행 계획 분석</li>
+<li>파티션 프루닝</li>
+</ul>
+<h4>5. 운영 관리</h4>
+<ul>
+<li>TTL 설정</li>
+<li>파티션 관리</li>
+<li>RBAC</li>
+<li>데이터 마스킹</li>
+<li>감사 로그</li>
+</ul>
+<h3>🛠 사전 요구사항</h3>
+<ul>
+<li><strong>CPU</strong>: 최소 4코어, 권장 8코어 이상</li>
+<li><strong>메모리</strong>: 최소 16GB, 권장 32GB 이상</li>
+<li><strong>디스크</strong>: 최소 100GB 여유 공간</li>
+<li><strong>ClickHouse 버전</strong>: 23.x 이상</li>
+</ul>
+<h3>💡 성능 팁</h3>
+<h4>데이터 로드 시</h4>
+<ul>
+<li><code>max_insert_threads</code> 설정 조정</li>
+<li>배치 크기 최적화</li>
+</ul>
+<h4>쿼리 실행 시</h4>
+<ul>
+<li>WHERE 절에서 파티션 키 활용</li>
+<li>샘플링 활용 (<code>WHERE customer_id % 100 = 0</code>)</li>
+<li>적절한 LIMIT 사용</li>
+</ul>
+<h4>모니터링</h4>
+<ul>
+<li><code>system.query_log</code> 테이블 활용</li>
+<li><code>system.parts</code>로 파티션 확인</li>
+<li><code>system.processes</code>로 실행 중인 쿼리 확인</li>
+</ul>
+<h3>🔧 트러블슈팅</h3>
+<h4>메모리 부족 오류</h4>
+<pre><code class="language-sql">SET max_memory_usage = 10000000000; -- 10GB
+</code></pre>
+<h4>쿼리 타임아웃</h4>
+<pre><code class="language-sql">SET max_execution_time = 300; -- 5분
+</code></pre>
+<h4>디스크 공간 부족</h4>
+<ul>
+<li>오래된 파티션 삭제</li>
+<li>TTL 설정으로 자동 정리</li>
+<li>불필요한 테이블 삭제</li>
+</ul>
+<h3>🧹 정리</h3>
+<p>테스트 완료 후 데이터베이스 삭제:</p>
+<pre><code class="language-sql">DROP DATABASE IF EXISTS customer360;
+</code></pre>
+<h3>📚 참고 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse Official Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/">MergeTree Engine Guide</a></li>
+<li><a href="https://clickhouse.com/docs/optimize/query-optimization">Query Optimization Guide</a></li>
+</ul>
+<h3>📝 라이선스</h3>
+<p>MIT License</p>
+<h3>👤 작성자</h3>
+<p>Ken (ClickHouse Solution Architect)
+작성일: 2025-12-06</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/customer360"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

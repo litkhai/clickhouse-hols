@@ -1,94 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClickHouse Hands-On Labs</title>
 <meta name="description" content="Hands-on ClickHouse labs: 19 per-release feature labs (25.1 to 26.7), Cloud integrations, workload benchmarks and workshops.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128202;</text></svg>">
-<style>
-  :root {
-    --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --line: #e4e4e7;
-    --card: #fafafa; --accent: #f5c518; --accent-fg: #1a1a1a;
-    --ok-bg: #e7f6ec; --ok-fg: #1a7f37; --unk-bg: #f3f4f6; --unk-fg: #6b7280;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #30363d;
-      --card: #161b22; --accent: #faff69; --accent-fg: #0d1117;
-      --ok-bg: #12261a; --ok-fg: #56d364; --unk-bg: #21262d; --unk-fg: #8b949e;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 16px/1.6 ui-sans-serif, -apple-system, "Segoe UI", "Apple SD Gothic Neo",
-          "Noto Sans KR", Roboto, sans-serif;
-  }
-  code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: .89em; }
-  a { color: inherit; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-
-  header { border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 10; }
-  .bar { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
-  .brand { font-weight: 700; letter-spacing: -.01em; text-decoration: none; }
-  .bar .spacer { flex: 1; }
-  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
-  .toggle button {
-    font: inherit; font-size: 13px; font-weight: 600; padding: 5px 14px;
-    border: 0; background: transparent; color: var(--muted); cursor: pointer;
-  }
-  .toggle button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
-  .ghlink { font-size: 14px; color: var(--muted); text-decoration: none; }
-  .ghlink:hover { color: var(--fg); }
-
-  .hero { padding: 56px 0 32px; }
-  .hero h1 { font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -.02em; }
-  .hero p { color: var(--muted); font-size: 17px; margin: 0 0 28px; max-width: 62ch; }
-  .stats { display: flex; flex-wrap: wrap; gap: 12px; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; }
-  .stat b { display: block; font-size: 24px; line-height: 1.2; }
-  .stat span { font-size: 13px; color: var(--muted); }
-
-  h2 { font-size: 22px; margin: 48px 0 6px; letter-spacing: -.01em; }
-  .lede { color: var(--muted); margin: 0 0 18px; font-size: 15px; max-width: 74ch; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
-  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-  td.num { white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
-  a.ver { font-weight: 700; text-decoration: none; border-bottom: 2px solid var(--accent); }
-  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-  .badge.ok { background: var(--ok-bg); color: var(--ok-fg); }
-  .badge.unknown { background: var(--unk-bg); color: var(--unk-fg); }
-
-  .note { border-left: 3px solid var(--accent); background: var(--card); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0 0; font-size: 14.5px; }
-
-  .area { margin-top: 34px; }
-  .area h3 { font-size: 17px; margin: 0 0 12px; }
-  ul.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-  ul.cards li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  ul.cards a { text-decoration: none; }
-  ul.cards a code { font-weight: 600; }
-  ul.cards a:hover code { border-bottom: 1px solid var(--accent); }
-  ul.cards p { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
-
-  pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; }
-
-  footer { margin-top: 64px; border-top: 1px solid var(--line); padding: 24px 0 48px; color: var(--muted); font-size: 14px; }
-
-  html[lang="en"] .ko, html[lang="ko"] .en { display: none; }
-  .scroll { overflow-x: auto; }
-</style>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer></script>
 </head>
 <body>
 <header>
   <div class="wrap bar">
-    <a class="brand" href="./">ClickHouse HOLs</a>
+    <a class="brand" href="index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
     <div class="spacer"></div>
-    <div class="toggle" role="group" aria-label="Language">
+    <div class="switch" role="group" aria-label="Language">
       <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
       <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
     </div>
     <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
   </div>
@@ -101,7 +37,7 @@
     <div class="stats">
       <div class="stat"><b>19</b><span><span class="en">release labs</span><span class="ko">릴리스 랩</span></span></div>
       <div class="stat"><b>25.1 → 26.7</b><span><span class="en">versions covered</span><span class="ko">다루는 버전</span></span></div>
-      <div class="stat"><b>19/19</b><span><span class="en">run against their own build</span><span class="ko">해당 빌드에서 실행 검증</span></span></div>
+      <div class="stat"><b>69</b><span><span class="en">runnable SQL labs</span><span class="ko">실행 가능한 SQL 랩</span></span></div>
     </div>
   </div>
 
@@ -110,152 +46,146 @@
   <div class="scroll">
   <table>
     <thead>
-      <tr>
-        <th><span class="en">Version</span><span class="ko">버전</span></th>
-        <th><span class="en">Released</span><span class="ko">출시일</span></th>
-        <th><span class="en">Labs</span><span class="ko">랩</span></th>
-        <th><span class="en">Verified</span><span class="ko">검증</span></th>
-        <th><span class="en">Features covered</span><span class="ko">다루는 기능</span></th>
-      </tr>
+      <tr><th><span class="en">Version</span><span class="ko">버전</span></th><th><span class="en">Released</span><span class="ko">출시일</span></th><th><span class="en">Labs</span><span class="ko">랩</span></th><th><span class="en">Verified</span><span class="ko">검증</span></th><th><span class="en">Features covered</span><span class="ko">다루는 기능</span></th></tr>
     </thead>
     <tbody>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7">26.7</a></td>
+          <td><a class="ver" href="labs/local/releases/26.7/index.html">26.7</a></td>
           <td class="num">2026-07-22</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.7.1">26.7.1</span></td>
+          <td><span class="badge ok">26.7.1</span></td>
           <td><span class="en"><code>EXPLAIN ANALYZE</code>, <code>AT TIME ZONE</code> / <code>AT LOCAL</code>, <code>groupFormat</code> + <code>-Tuple</code> combinator</span><span class="ko"><code>EXPLAIN ANALYZE</code>, <code>AT TIME ZONE</code> / <code>AT LOCAL</code>, <code>groupFormat</code> + <code>-Tuple</code> 조합자</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.6">26.6</a></td>
+          <td><a class="ver" href="labs/local/releases/26.6/index.html">26.6</a></td>
           <td class="num">2026-06-25</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.6.2">26.6.2</span></td>
+          <td><span class="badge ok">26.6.2</span></td>
           <td><span class="en">Hypothetical indexes + <code>EXPLAIN WHATIF</code>, <code>ADD ENUM VALUES</code>, SQL compatibility (<code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>, <code>ESCAPE</code>, <code>date_part</code>)</span><span class="ko">가상 인덱스 + <code>EXPLAIN WHATIF</code>, <code>ADD ENUM VALUES</code>, SQL 호환성 (<code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>, <code>ESCAPE</code>, <code>date_part</code>)</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.5">26.5</a></td>
+          <td><a class="ver" href="labs/local/releases/26.5/index.html">26.5</a></td>
           <td class="num">2026-05-21</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.5.1.882">26.5.1.882</span></td>
+          <td><span class="badge ok">26.5.1.882</span></td>
           <td><span class="en"><code>filesystem()</code> table function, bare function names + <code>isPrime</code>, <code>tokenizeQuery</code> / <code>highlightQuery</code></span><span class="ko"><code>filesystem()</code> 테이블 함수, 베어 함수 이름 + <code>isPrime</code>, <code>tokenizeQuery</code> / <code>highlightQuery</code></span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.4">26.4</a></td>
+          <td><a class="ver" href="labs/local/releases/26.4/index.html">26.4</a></td>
           <td class="num">2026-04-30</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.4.3.37">26.4.3.37</span></td>
+          <td><span class="badge ok">26.4.3.37</span></td>
           <td><span class="en"><code>NATURAL JOIN</code> on <code>VALUES</code>, array functions, string/text functions</span><span class="ko"><code>VALUES</code>에 대한 <code>NATURAL JOIN</code>, 배열 함수, 문자열/텍스트 함수</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.3">26.3</a></td>
+          <td><a class="ver" href="labs/local/releases/26.3/index.html">26.3</a></td>
           <td class="num">2026-03-26</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.3.12.3">26.3.12.3</span></td>
+          <td><span class="badge ok">26.3.12.3</span></td>
           <td><span class="en">Materialized CTE, natural sort key, Unicode functions</span><span class="ko">구체화 CTE, 자연 정렬 키, 유니코드 함수</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.2">26.2</a></td>
+          <td><a class="ver" href="labs/local/releases/26.2/index.html">26.2</a></td>
           <td class="num">2026-02-26</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.2.19.43">26.2.19.43</span></td>
+          <td><span class="badge ok">26.2.19.43</span></td>
           <td><span class="en"><code>primes()</code> function, XXH3-128 hash, <code>system.tokenizers</code></span><span class="ko"><code>primes()</code> 함수, XXH3-128 해시, <code>system.tokenizers</code></span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.1">26.1</a></td>
+          <td><a class="ver" href="labs/local/releases/26.1/index.html">26.1</a></td>
           <td class="num">2026-01-29</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 26.1.12.23">26.1.12.23</span></td>
+          <td><span class="badge ok">26.1.12.23</span></td>
           <td><span class="en"><code>reverseBySeparator</code>, text index for arrays, Keeper HTTP API</span><span class="ko"><code>reverseBySeparator</code>, 배열 텍스트 인덱스, Keeper HTTP API</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.12">25.12</a></td>
+          <td><a class="ver" href="labs/local/releases/25.12/index.html">25.12</a></td>
           <td class="num">2025-12-18</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 25.12.11.4">25.12.11.4</span></td>
+          <td><span class="badge ok">25.12.11.4</span></td>
           <td><span class="en">HMAC function, Naive Bayes classifier, JOIN order optimization (DPSize)</span><span class="ko">HMAC 함수, 나이브 베이즈 분류기, JOIN 순서 최적화 (DPSize)</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.11">25.11</a></td>
+          <td><a class="ver" href="labs/local/releases/25.11/index.html">25.11</a></td>
           <td class="num">2025-11-27</td>
           <td class="num">4</td>
-          <td><span class="badge ok" title="verified on 25.11.2.24">25.11.2.24</span></td>
+          <td><span class="badge ok">25.11.2.24</span></td>
           <td><span class="en"><code>HAVING</code> without <code>GROUP BY</code>, fractional <code>LIMIT</code>, Map aggregation, geometry functions</span><span class="ko"><code>GROUP BY</code> 없는 <code>HAVING</code>, 소수 <code>LIMIT</code>, Map 집계, 기하 함수</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.10">25.10</a></td>
+          <td><a class="ver" href="labs/local/releases/25.10/index.html">25.10</a></td>
           <td class="num">2025-10-30</td>
           <td class="num">5</td>
-          <td><span class="badge ok" title="verified on 25.10.7.6">25.10.7.6</span></td>
+          <td><span class="badge ok">25.10.7.6</span></td>
           <td><span class="en"><code>QBit</code> vector search, negative <code>LIMIT</code>/<code>OFFSET</code>, JOIN improvements, <code>LIMIT BY ALL</code>, auto statistics</span><span class="ko"><code>QBit</code> 벡터 검색, 음수 <code>LIMIT</code>/<code>OFFSET</code>, JOIN 개선, <code>LIMIT BY ALL</code>, 자동 통계</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.9">25.9</a></td>
+          <td><a class="ver" href="labs/local/releases/25.9/index.html">25.9</a></td>
           <td class="num">2025-09-25</td>
           <td class="num">4</td>
-          <td><span class="badge ok" title="verified on 25.9.7.56">25.9.7.56</span></td>
+          <td><span class="badge ok">25.9.7.56</span></td>
           <td><span class="en">Global join reordering, text index, streaming secondary indices, <code>arrayExcept</code></span><span class="ko">전역 조인 재정렬, 텍스트 인덱스, 스트리밍 보조 인덱스, <code>arrayExcept</code></span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8">25.8</a></td>
+          <td><a class="ver" href="labs/local/releases/25.8/index.html">25.8</a></td>
           <td class="num">2025-08-28</td>
           <td class="num">6</td>
-          <td><span class="badge ok" title="verified on 25.8.28.1">25.8.28.1</span></td>
+          <td><span class="badge ok">25.8.28.1</span></td>
           <td><span class="en">New Parquet reader, hive partitioning, temp data on S3, <code>UNION ALL</code> <code>_table</code>, data lake features, MinIO</span><span class="ko">신규 Parquet 리더, hive 파티셔닝, S3 임시 데이터, <code>UNION ALL</code> <code>_table</code>, 데이터 레이크, MinIO</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.7">25.7</a></td>
+          <td><a class="ver" href="labs/local/releases/25.7/index.html">25.7</a></td>
           <td class="num">2025-07-24</td>
           <td class="num">4</td>
-          <td><span class="badge ok" title="verified on 25.7.8.71">25.7.8.71</span></td>
+          <td><span class="badge ok">25.7.8.71</span></td>
           <td><span class="en">SQL <code>UPDATE</code>/<code>DELETE</code>, <code>count()</code> optimization, JOIN performance, bulk <code>UPDATE</code></span><span class="ko">SQL <code>UPDATE</code>/<code>DELETE</code>, <code>count()</code> 최적화, JOIN 성능, 대량 <code>UPDATE</code></span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.6">25.6</a></td>
+          <td><a class="ver" href="labs/local/releases/25.6/index.html">25.6</a></td>
           <td class="num">2025-06-26</td>
           <td class="num">5</td>
-          <td><span class="badge ok" title="verified on 25.6.13.41">25.6.13.41</span></td>
+          <td><span class="badge ok">25.6.13.41</span></td>
           <td><span class="en"><code>CoalescingMergeTree</code>, <code>Time</code>/<code>Time64</code> types, Bech32 encoding, <code>lag</code>/<code>lead</code>, consistent snapshot</span><span class="ko"><code>CoalescingMergeTree</code>, <code>Time</code>/<code>Time64</code> 타입, Bech32 인코딩, <code>lag</code>/<code>lead</code>, 일관된 스냅샷</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.5">25.5</a></td>
+          <td><a class="ver" href="labs/local/releases/25.5/index.html">25.5</a></td>
           <td class="num">2025-05-22</td>
           <td class="num">5</td>
-          <td><span class="badge ok" title="verified on 25.5.11.15">25.5.11.15</span></td>
+          <td><span class="badge ok">25.5.11.15</span></td>
           <td><span class="en">Vector similarity index, Hive Metastore catalog, implicit table, new functions, geo types in Parquet</span><span class="ko">벡터 유사도 인덱스, Hive Metastore 카탈로그, 암시적 테이블, 신규 함수, Parquet 지오 타입</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.4">25.4</a></td>
+          <td><a class="ver" href="labs/local/releases/25.4/index.html">25.4</a></td>
           <td class="num">2025-04-30</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 25.4.13.22">25.4.13.22</span></td>
+          <td><span class="badge ok">25.4.13.22</span></td>
           <td><span class="en">Array Levenshtein distance, <code>sparseGrams</code>, <code>toInterval</code> and editable database comments</span><span class="ko">배열 Levenshtein 거리, <code>sparseGrams</code>, <code>toInterval</code>과 수정 가능한 DB 코멘트</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.3">25.3</a></td>
+          <td><a class="ver" href="labs/local/releases/25.3/index.html">25.3</a></td>
           <td class="num">2025-03-20</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 25.3.14.14">25.3.14.14</span></td>
+          <td><span class="badge ok">25.3.14.14</span></td>
           <td><span class="en">New functions (<code>arraySymmetricDifference</code>, <code>keccak256</code>), query condition cache, <code>estimateCompressionRatio</code></span><span class="ko">신규 함수(<code>arraySymmetricDifference</code>, <code>keccak256</code>), 쿼리 조건 캐시, <code>estimateCompressionRatio</code></span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.2">25.2</a></td>
+          <td><a class="ver" href="labs/local/releases/25.2/index.html">25.2</a></td>
           <td class="num">2025-03-07</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 25.2.2.39">25.2.2.39</span></td>
+          <td><span class="badge ok">25.2.2.39</span></td>
           <td><span class="en">Parquet Bloom filters, <code>Backup</code> database engine, <code>stringCompare</code> and the progress formats</span><span class="ko">Parquet Bloom 필터, <code>Backup</code> 데이터베이스 엔진, <code>stringCompare</code>와 진행 포맷</span></td>
         </tr>
         <tr>
-          <td><a class="ver" href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.1">25.1</a></td>
+          <td><a class="ver" href="labs/local/releases/25.1/index.html">25.1</a></td>
           <td class="num">2025-02-07</td>
           <td class="num">3</td>
-          <td><span class="badge ok" title="verified on 25.1.8.25">25.1.8.25</span></td>
+          <td><span class="badge ok">25.1.8.25</span></td>
           <td><span class="en">Automatic minmax indices, <code>Merge</code> tables unifying schemas as <code>Variant</code>, <code>sequenceMatchEvents</code></span><span class="ko">자동 minmax 인덱스, <code>Merge</code> 테이블의 <code>Variant</code> 스키마 통합, <code>sequenceMatchEvents</code></span></td>
         </tr>
     </tbody>
   </table>
   </div>
-  <p class="note"><span class="en"><strong>Verified</strong> names the exact server build every lab in that directory was run against, end to end, with zero exceptions. <em>Not run</em> means the labs were written for that release but have not been executed here. Of the six directories that were re-run, four turned out to contain SQL that had never worked on the release it documents — so read <em>not run</em> as unknown, not as working.</span><span class="ko"><strong>검증</strong>은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버 빌드입니다. <em>미실행</em>은 해당 릴리스를 위해 작성됐지만 여기서 실행해 보지 않았다는 뜻입니다. 실제로 재실행한 6개 디렉토리 중 4개에서 해당 릴리스에서 한 번도 동작한 적 없는 SQL이 발견됐으므로, <em>미실행</em>은 '정상'이 아니라 '미상'으로 읽는 편이 안전합니다.</span></p>
+  <p class="note"><span class="en"><strong>Verified</strong> names the exact server build every lab in that directory was run against, end to end, with zero exceptions. Getting all nineteen there took fixing eleven of them: SQL referencing functions and settings that do not exist, arguments in the wrong order, aliases shadowing the column they aggregated. Re-run any of them with <code>.github/scripts/verify_release_lab.sh &lt;version&gt;</code>.</span><span class="ko"><strong>검증</strong>은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버 빌드입니다. 19개 전부를 그 상태로 만드는 데 11개를 고쳐야 했습니다 — 존재하지 않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은 문제였습니다. 직접 재현하려면 <code>.github/scripts/verify_release_lab.sh &lt;버전&gt;</code> 을 실행하세요.</span></p>
 
   <h2><span class="en">Everything else</span><span class="ko">그 외 실습</span></h2>
   <p class="lede"><span class="en">Cloud integrations, end-to-end use cases, focused workload experiments and multi-service workshops.</span><span class="ko">Cloud 연동, 엔드투엔드 활용 사례, 집중 워크로드 실험, 다중 서비스 워크숍입니다.</span></p>
@@ -263,35 +193,35 @@
         <h3><span class="en">🏠 Local Environments (`local/`)</span><span class="ko">🏠 로컬 환경 (`local/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><code>local/oss-mac-setup</code></a>
+            <a href="labs/local/oss-mac-setup/index.html"><code>local/oss-mac-setup</code></a>
             <p><span class="en">ClickHouse OSS on macOS via Docker; <code>set.sh &lt;version&gt;</code> switches versions and every release lab builds on it</span><span class="ko">macOS Docker 기반 ClickHouse OSS. <code>set.sh &lt;버전&gt;</code>으로 버전을 전환하며, 모든 릴리스 랩이 이 환경을 사용</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases"><code>local/releases</code></a>
-            <p><span class="en"><strong>19 per-release feature labs, 25.1 → 26.7</strong> — one directory per release, each with runnable SQL for that version&#x27;s new features. All 19 have been executed against their own server build; the <a href="local/releases/">index</a> records which</span><span class="ko"><strong>릴리스별 기능 랩 19개, 25.1 → 26.7</strong> — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 19개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 <a href="local/releases/">인덱스</a>에 표기</span></p>
+            <a href="labs/local/releases/index.html"><code>local/releases</code></a>
+            <p><span class="en"><strong>19 per-release feature labs, 25.1 → 26.7</strong> — one directory per release, each with runnable SQL for that version&#x27;s new features. All 19 have been executed against their own server build; the <a href="labs/local/releases/index.html">index</a> records which</span><span class="ko"><strong>릴리스별 기능 랩 19개, 25.1 → 26.7</strong> — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 19개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 <a href="labs/local/releases/index.html">인덱스</a>에 표기</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog"><code>local/datalake-minio-catalog</code></a>
+            <a href="labs/local/datalake-minio-catalog/index.html"><code>local/datalake-minio-catalog</code></a>
             <p><span class="en">Local data lake: MinIO plus Iceberg / Nessie / Unity / Delta catalogs, with Jupyter notebooks</span><span class="ko">로컬 데이터 레이크: MinIO + Iceberg / Nessie / Unity / Delta 카탈로그, Jupyter 노트북</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/kafka-mysql-table-engines"><code>local/kafka-mysql-table-engines</code></a>
+            <a href="labs/local/kafka-mysql-table-engines/index.html"><code>local/kafka-mysql-table-engines</code></a>
             <p><span class="en">Kafka and MySQL table engines, including materialized-view block-size testing</span><span class="ko">Kafka·MySQL 테이블 엔진, 구체화 뷰 블록 크기 테스트 포함</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/pg-clickhouse-lab"><code>local/pg-clickhouse-lab</code></a>
+            <a href="labs/local/pg-clickhouse-lab/index.html"><code>local/pg-clickhouse-lab</code></a>
             <p><span class="en"><code>pg_clickhouse</code>: querying ClickHouse from PostgreSQL</span><span class="ko"><code>pg_clickhouse</code>: PostgreSQL에서 ClickHouse 조회</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/mcp-server-clickhouse"><code>local/mcp-server-clickhouse</code></a>
+            <a href="labs/local/mcp-server-clickhouse/index.html"><code>local/mcp-server-clickhouse</code></a>
             <p><span class="en">ClickHouse MCP server for LLM tool access</span><span class="ko">LLM 도구 접근용 ClickHouse MCP 서버</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/llm-mac-librechat-with-clickhouse"><code>local/llm-mac-librechat-with-clickhouse</code></a>
+            <a href="labs/local/llm-mac-librechat-with-clickhouse/index.html"><code>local/llm-mac-librechat-with-clickhouse</code></a>
             <p><span class="en">LibreChat with a local LLM and the ClickHouse MCP server (macOS)</span><span class="ko">로컬 LLM + ClickHouse MCP 서버와 LibreChat (macOS)</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/llm-linux-librechat-sole"><code>local/llm-linux-librechat-sole</code></a>
+            <a href="labs/local/llm-linux-librechat-sole/index.html"><code>local/llm-linux-librechat-sole</code></a>
             <p><span class="en">LibreChat standalone (Linux)</span><span class="ko">LibreChat 단독 구성 (Linux)</span></p>
           </li>
         </ul>
@@ -300,59 +230,59 @@
         <h3><span class="en">☁️ ClickHouse Cloud (`chc/`)</span><span class="ko">☁️ ClickHouse Cloud (`chc/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/api/chc-api-test"><code>chc/api/chc-api-test</code></a>
+            <a href="labs/chc/api/chc-api-test/index.html"><code>chc/api/chc-api-test</code></a>
             <p><span class="en">ClickHouse Cloud API tester</span><span class="ko">ClickHouse Cloud API 테스터</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-mysql"><code>chc/clickpipes-mysql</code></a>
+            <a href="labs/chc/clickpipes-mysql/index.html"><code>chc/clickpipes-mysql</code></a>
             <p><span class="en">ClickPipes CDC from a MySQL source</span><span class="ko">MySQL 소스 ClickPipes CDC</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-s3"><code>chc/clickpipes-s3</code></a>
-            <p><span class="en">ClickPipes S3 checkpoint test suite (<a href="chc/clickpipes-s3/terraform/">Terraform</a>)</span><span class="ko">ClickPipes S3 체크포인트 테스트 (<a href="chc/clickpipes-s3/terraform/">Terraform</a>)</span></p>
+            <a href="labs/chc/clickpipes-s3/index.html"><code>chc/clickpipes-s3</code></a>
+            <p><span class="en">ClickPipes S3 checkpoint test suite (<a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-s3/terraform">Terraform</a>)</span><span class="ko">ClickPipes S3 체크포인트 테스트 (<a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-s3/terraform">Terraform</a>)</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws"><code>chc/kafka/terraform-confluent-aws</code></a>
+            <a href="labs/chc/kafka/terraform-confluent-aws/index.html"><code>chc/kafka/terraform-confluent-aws</code></a>
             <p><span class="en">Confluent Platform on AWS with Terraform</span><span class="ko">Terraform으로 AWS에 Confluent Platform 구성</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws-nlb-ssl"><code>chc/kafka/terraform-confluent-aws-nlb-ssl</code></a>
+            <a href="labs/chc/kafka/terraform-confluent-aws-nlb-ssl/index.html"><code>chc/kafka/terraform-confluent-aws-nlb-ssl</code></a>
             <p><span class="en">Confluent with NLB SSL termination</span><span class="ko">NLB SSL 종료를 적용한 Confluent</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws-connect-sink"><code>chc/kafka/terraform-confluent-aws-connect-sink</code></a>
+            <a href="labs/chc/kafka/terraform-confluent-aws-connect-sink/index.html"><code>chc/kafka/terraform-confluent-aws-connect-sink</code></a>
             <p><span class="en">Confluent with the ClickHouse sink connector</span><span class="ko">ClickHouse Sink Connector 연동</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/lake/terraform-minio-on-aws"><code>chc/lake/terraform-minio-on-aws</code></a>
+            <a href="labs/chc/lake/terraform-minio-on-aws/index.html"><code>chc/lake/terraform-minio-on-aws</code></a>
             <p><span class="en">MinIO on AWS via Terraform</span><span class="ko">Terraform으로 AWS에 MinIO 구성</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/lake/terraform-glue-s3-chc-integration"><code>chc/lake/terraform-glue-s3-chc-integration</code></a>
+            <a href="labs/chc/lake/terraform-glue-s3-chc-integration/index.html"><code>chc/lake/terraform-glue-s3-chc-integration</code></a>
             <p><span class="en">ClickHouse Cloud with the AWS Glue catalog</span><span class="ko">ClickHouse Cloud + AWS Glue 카탈로그</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/s3/terraform-chc-secures3-aws"><code>chc/s3/terraform-chc-secures3-aws</code></a>
+            <a href="labs/chc/s3/terraform-chc-secures3-aws/index.html"><code>chc/s3/terraform-chc-secures3-aws</code></a>
             <p><span class="en">Secure S3 integration with Terraform</span><span class="ko">Terraform 기반 보안 S3 통합</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/s3/terraform-chc-secures3-aws-direct-attach"><code>chc/s3/terraform-chc-secures3-aws-direct-attach</code></a>
+            <a href="labs/chc/s3/terraform-chc-secures3-aws-direct-attach/index.html"><code>chc/s3/terraform-chc-secures3-aws-direct-attach</code></a>
             <p><span class="en">S3 integration via direct bucket policy access</span><span class="ko">버킷 정책 직접 연결 방식 S3 통합</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/mysql-interface"><code>chc/mysql-interface</code></a>
+            <a href="labs/chc/mysql-interface/index.html"><code>chc/mysql-interface</code></a>
             <p><span class="en">Automated tests for the Cloud MySQL interface</span><span class="ko">Cloud MySQL 인터페이스 자동 테스트</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/tool/costkeeper"><code>chc/tool/costkeeper</code></a>
+            <a href="labs/chc/tool/costkeeper/index.html"><code>chc/tool/costkeeper</code></a>
             <p><span class="en">Service cost monitoring</span><span class="ko">서비스 비용 모니터링</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/tool/costkeeper-multi"><code>chc/tool/costkeeper-multi</code></a>
+            <a href="labs/chc/tool/costkeeper-multi/index.html"><code>chc/tool/costkeeper-multi</code></a>
             <p><span class="en">Cost monitoring across multiple services</span><span class="ko">다중 서비스 비용 모니터링</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/tool/ch2otel"><code>chc/tool/ch2otel</code></a>
+            <a href="labs/chc/tool/ch2otel/index.html"><code>chc/tool/ch2otel</code></a>
             <p><span class="en">ClickHouse system metrics to OpenTelemetry</span><span class="ko">ClickHouse 시스템 지표를 OpenTelemetry로 변환</span></p>
           </li>
         </ul>
@@ -361,8 +291,8 @@
         <h3><span class="en">📊 Benchmark (`tpcds/`)</span><span class="ko">📊 벤치마크 (`tpcds/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/tpcds"><code>tpcds</code></a>
-            <p><span class="en">TPC-DS schema, data load and the <a href="tpcds/queries/">query set</a></span><span class="ko">TPC-DS 스키마, 데이터 적재, <a href="tpcds/queries/">쿼리 세트</a></span></p>
+            <a href="labs/tpcds/index.html"><code>tpcds</code></a>
+            <p><span class="en">TPC-DS schema, data load and the <a href="https://github.com/litkhai/clickhouse-hols/tree/main/tpcds/queries">query set</a></span><span class="ko">TPC-DS 스키마, 데이터 적재, <a href="https://github.com/litkhai/clickhouse-hols/tree/main/tpcds/queries">쿼리 세트</a></span></p>
           </li>
         </ul>
       </section>
@@ -370,51 +300,51 @@
         <h3><span class="en">🧪 Use Cases (`usecase/`)</span><span class="ko">🧪 활용 사례 (`usecase/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/ads-analytics"><code>usecase/ads-analytics</code></a>
+            <a href="labs/usecase/ads-analytics/index.html"><code>usecase/ads-analytics</code></a>
             <p><span class="en">Ad performance analytics cube</span><span class="ko">광고 성과 분석 큐브</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/customer360"><code>usecase/customer360</code></a>
+            <a href="labs/usecase/customer360/index.html"><code>usecase/customer360</code></a>
             <p><span class="en">Customer 360 modelling</span><span class="ko">Customer 360 모델링</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/fulltext-search"><code>usecase/fulltext-search</code></a>
+            <a href="labs/usecase/fulltext-search/index.html"><code>usecase/fulltext-search</code></a>
             <p><span class="en">Bilingual (ko/en) full-text search over support tickets</span><span class="ko">한/영 이중 언어 지원 티켓 전문 검색</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/ch-geo-analytics"><code>usecase/ch-geo-analytics</code></a>
+            <a href="labs/usecase/ch-geo-analytics/index.html"><code>usecase/ch-geo-analytics</code></a>
             <p><span class="en">Geospatial analytics with H3 indexing</span><span class="ko">H3 인덱싱 기반 공간 분석</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/korea-geo"><code>usecase/korea-geo</code></a>
+            <a href="labs/usecase/korea-geo/index.html"><code>usecase/korea-geo</code></a>
             <p><span class="en">Korean administrative boundaries with Superset</span><span class="ko">한국 행정경계(시군구) + Superset</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/gnome-variants"><code>usecase/gnome-variants</code></a>
+            <a href="labs/usecase/gnome-variants/index.html"><code>usecase/gnome-variants</code></a>
             <p><span class="en">Genome variant analysis</span><span class="ko">유전체 변이 분석</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/security-traffic-analysis"><code>usecase/security-traffic-analysis</code></a>
+            <a href="labs/usecase/security-traffic-analysis/index.html"><code>usecase/security-traffic-analysis</code></a>
             <p><span class="en">Security traffic analysis platform</span><span class="ko">보안 트래픽 분석 플랫폼</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/json-explode-confluent-clickpipes"><code>usecase/json-explode-confluent-clickpipes</code></a>
+            <a href="labs/usecase/json-explode-confluent-clickpipes/index.html"><code>usecase/json-explode-confluent-clickpipes</code></a>
             <p><span class="en">Real-time JSON explode: Confluent → ClickPipes → ClickHouse</span><span class="ko">실시간 JSON explode: Confluent → ClickPipes → ClickHouse</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/langfuse-ee"><code>usecase/langfuse-ee</code></a>
+            <a href="labs/usecase/langfuse-ee/index.html"><code>usecase/langfuse-ee</code></a>
             <p><span class="en">Self-hosting Langfuse on ClickHouse (OSS + Enterprise)</span><span class="ko">ClickHouse 기반 Langfuse 자체 호스팅 (OSS + Enterprise)</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/langfuse-eval"><code>usecase/langfuse-eval</code></a>
+            <a href="labs/usecase/langfuse-eval/index.html"><code>usecase/langfuse-eval</code></a>
             <p><span class="en">Langfuse prompts, datasets, experiments and evals</span><span class="ko">Langfuse 프롬프트·데이터셋·실험·평가</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/mysql-prewhere"><code>usecase/mysql-prewhere</code></a>
+            <a href="labs/usecase/mysql-prewhere/index.html"><code>usecase/mysql-prewhere</code></a>
             <p><span class="en"><code>PREWHERE</code> behaviour over the MySQL protocol</span><span class="ko">MySQL 프로토콜에서의 <code>PREWHERE</code> 동작</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/mysql-protocol-benchmark"><code>usecase/mysql-protocol-benchmark</code></a>
+            <a href="labs/usecase/mysql-protocol-benchmark/index.html"><code>usecase/mysql-protocol-benchmark</code></a>
             <p><span class="en">MySQL vs ClickHouse point-query performance</span><span class="ko">MySQL vs ClickHouse 포인트 쿼리 성능</span></p>
           </li>
         </ul>
@@ -423,47 +353,47 @@
         <h3><span class="en">🔬 Workloads (`workload/`)</span><span class="ko">🔬 워크로드 (`workload/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree"><code>workload/replacingmergetree</code></a>
+            <a href="labs/workload/replacingmergetree/index.html"><code>workload/replacingmergetree</code></a>
             <p><span class="en"><code>FINAL</code>, merge timing and the <code>argMax</code> alternative</span><span class="ko"><code>FINAL</code>, 머지 시점, <code>argMax</code> 대안</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/dedup-engine"><code>workload/dedup-engine</code></a>
+            <a href="labs/workload/dedup-engine/index.html"><code>workload/dedup-engine</code></a>
             <p><span class="en">Deduplication engines compared</span><span class="ko">중복 제거 엔진 비교</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/delete-benchmark"><code>workload/delete-benchmark</code></a>
+            <a href="labs/workload/delete-benchmark/index.html"><code>workload/delete-benchmark</code></a>
             <p><span class="en">DELETE mechanisms and their costs</span><span class="ko">DELETE 메커니즘과 비용</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv"><code>workload/mv-vs-rmv</code></a>
+            <a href="labs/workload/mv-vs-rmv/index.html"><code>workload/mv-vs-rmv</code></a>
             <p><span class="en">Materialized vs refreshable materialized views</span><span class="ko">MV vs RMV(갱신 구체화 뷰)</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/projection"><code>workload/projection</code></a>
+            <a href="labs/workload/projection/index.html"><code>workload/projection</code></a>
             <p><span class="en">Projections for read patterns one sort key cannot serve</span><span class="ko">단일 정렬 키로 커버되지 않는 읽기 패턴용 프로젝션</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/projection-customsettings"><code>workload/projection-customsettings</code></a>
+            <a href="labs/workload/projection-customsettings/index.html"><code>workload/projection-customsettings</code></a>
             <p><span class="en">Projection behaviour under custom settings</span><span class="ko">커스텀 설정에서의 프로젝션 동작</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/index-granularity-point-query"><code>workload/index-granularity-point-query</code></a>
+            <a href="labs/workload/index-granularity-point-query/index.html"><code>workload/index-granularity-point-query</code></a>
             <p><span class="en">Index granularity versus point-query latency</span><span class="ko">인덱스 granularity와 포인트 쿼리 지연</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/async-insert-stress"><code>workload/async-insert-stress</code></a>
+            <a href="labs/workload/async-insert-stress/index.html"><code>workload/async-insert-stress</code></a>
             <p><span class="en">Async insert under stress</span><span class="ko">비동기 삽입 스트레스 테스트</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/json-stress-test"><code>workload/json-stress-test</code></a>
+            <a href="labs/workload/json-stress-test/index.html"><code>workload/json-stress-test</code></a>
             <p><span class="en"><code>JSON</code> type path limits: dynamic vs shared path cost</span><span class="ko"><code>JSON</code> 타입 경로 한계: dynamic vs shared path 비용</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/kafka-partitioning-ingestion"><code>workload/kafka-partitioning-ingestion</code></a>
+            <a href="labs/workload/kafka-partitioning-ingestion/index.html"><code>workload/kafka-partitioning-ingestion</code></a>
             <p><span class="en">Kafka partitioning aligned to the ClickHouse sort key</span><span class="ko">Kafka 파티셔닝과 ClickHouse 정렬 키 정합</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/rbac-workloadmanagement"><code>workload/rbac-workloadmanagement</code></a>
+            <a href="labs/workload/rbac-workloadmanagement/index.html"><code>workload/rbac-workloadmanagement</code></a>
             <p><span class="en">RBAC and workload management</span><span class="ko">RBAC 및 워크로드 관리</span></p>
           </li>
         </ul>
@@ -472,15 +402,15 @@
         <h3><span class="en">🎓 Workshops (`workshop/`)</span><span class="ko">🎓 워크숍 (`workshop/`)</span></h3>
         <ul class="cards">
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workshop/device-360"><code>workshop/device-360</code></a>
+            <a href="labs/workshop/device-360/index.html"><code>workshop/device-360</code></a>
             <p><span class="en">Device360 PoC: Cloud performance validation at billions of rows</span><span class="ko">Device360 PoC: 수십억 행 규모 Cloud 성능 검증</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workshop/o11y-vector-ai"><code>workshop/o11y-vector-ai</code></a>
+            <a href="labs/workshop/o11y-vector-ai/index.html"><code>workshop/o11y-vector-ai</code></a>
             <p><span class="en">Observability with ClickStack, Vector and OpenTelemetry</span><span class="ko">ClickStack·Vector·OpenTelemetry 기반 관측성</span></p>
           </li>
           <li>
-            <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workshop/observability-waf"><code>workshop/observability-waf</code></a>
+            <a href="labs/workshop/observability-waf/index.html"><code>workshop/observability-waf</code></a>
             <p><span class="en">WAF observability across a multi-cloud MSA</span><span class="ko">멀티 클라우드 MSA 환경의 WAF 관측성</span></p>
           </li>
         </ul>
@@ -494,29 +424,7 @@ cd clickhouse-hols/local/releases/26.7
 </main>
 
 <footer class="wrap">
-  <p><span class="en">Generated from the repository's own indexes by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소의 인덱스 문서에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
 </footer>
-
-<script>
-  (function () {
-    var KEY = 'chhols-lang';
-    function apply(lang) {
-      document.documentElement.lang = lang;
-      document.querySelectorAll('[data-set-lang]').forEach(function (b) {
-        b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
-      });
-    }
-    var saved = null;
-    try { saved = localStorage.getItem(KEY); } catch (e) {}
-    apply(saved || ((navigator.language || 'en').toLowerCase().startsWith('ko') ? 'ko' : 'en'));
-    document.querySelectorAll('[data-set-lang]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var lang = b.dataset.setLang;
-        apply(lang);
-        try { localStorage.setItem(KEY, lang); } catch (e) {}
-      });
-    });
-  })();
-</script>
 </body>
 </html>

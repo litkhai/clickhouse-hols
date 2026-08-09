@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kafka-MySQL-ClickHouse Integration with MView Block Size Testing · ClickHouse HOLs</title>
+<meta name="description" content="Kafka-MySQL-ClickHouse Integration with MView Block Size Testing — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/kafka-mysql-table-engines</code>
+    
+  </nav>
+  <div class="readme en"><h1>Kafka-MySQL-ClickHouse Integration with MView Block Size Testing</h1>
+<p>Kafka에서 ClickHouse로 데이터를 pull하고, Materialized View를 통해 MySQL로 자동 변환하는 통합 환경입니다. MView의 <code>min_insert_block_size_rows</code>, <code>max_block_size</code> 등의 설정이 실제로 적용되는지 검증할 수 있습니다.</p>
+<h2>📋 목차</h2>
+<ul>
+<li><a href="#아키텍처">아키텍처</a></li>
+<li><a href="#사전-요구사항">사전 요구사항</a></li>
+<li><a href="#빠른-시작">빠른 시작</a></li>
+<li><a href="#데이터-플로우">데이터 플로우</a></li>
+<li><a href="#block-size-설정-검증">Block Size 설정 검증</a></li>
+<li><a href="#스크립트-설명">스크립트 설명</a></li>
+<li><a href="#문제-해결">문제 해결</a></li>
+</ul>
+<hr />
+<h2>🏗️ 아키텍처</h2>
+<pre><code>Kafka Producer (Python)
+    │
+    ├─&gt; Kafka Topic: test-events
+    │
+    ├─&gt; ClickHouse Kafka Engine (kafka_events)
+    │
+    ├─&gt; MView: kafka_to_buffer_mv
+    │
+    ├─&gt; Buffer Table (events_buffer) - MergeTree
+    │
+    ├─&gt; MView: buffer_to_mysql_mv (WITH SETTINGS)
+    │       ├─ max_block_size = 1000
+    │       ├─ min_insert_block_size_rows = 5000
+    │       └─ min_insert_block_size_bytes = 268435456
+    │
+    └─&gt; MySQL Table Engine (mysql_aggregated_events)
+            │
+            └─&gt; MySQL Database (testdb.aggregated_events)
+</code></pre>
+<hr />
+<h2>📦 사전 요구사항</h2>
+<ul>
+<li>Docker &amp; Docker Compose</li>
+<li>Python 3.7+</li>
+<li>pip (Python package manager)</li>
+</ul>
+<hr />
+<h2>🚀 빠른 시작</h2>
+<h3>1. 환경 초기화</h3>
+<pre><code class="language-bash">chmod +x *.sh
+./setup.sh
+</code></pre>
+<p>이 명령은 다음을 수행합니다:
+- 필요한 디렉토리 생성 (<code>mysql-init</code>, <code>clickhouse-init</code>, <code>scripts</code>)
+- MySQL 초기화 SQL 생성
+- ClickHouse 초기화 SQL 생성
+- Kafka producer Python 스크립트 생성</p>
+<h3>2. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>다음 서비스들이 시작됩니다:
+- Zookeeper (포트: 2181)
+- Kafka (포트: 9092, 29092)
+- MySQL (포트: 3306)
+- ClickHouse (HTTP: 8123, Native: 9000)</p>
+<h3>3. Block Size 검증 테스트 실행</h3>
+<pre><code class="language-bash">./test-block-size.sh
+</code></pre>
+<p>이 스크립트는:
+1. MView 설정을 <code>system.tables</code>에서 확인
+2. 기존 데이터 초기화
+3. Kafka에 50,000개 이벤트 전송
+4. 데이터 처리 대기 (30초)
+5. ClickHouse 및 MySQL에서 결과 검증
+6. <code>query_log</code>에서 실제 적용된 block size 확인</p>
+<h3>4. 상태 확인</h3>
+<pre><code class="language-bash">./status.sh
+</code></pre>
+<p>현재 시스템 상태를 확인합니다:
+- Docker 컨테이너 상태
+- ClickHouse 테이블 목록 및 행 수
+- MySQL 테이블 상태
+- Kafka topic 및 consumer group 정보</p>
+<h3>5. 서비스 중지</h3>
+<pre><code class="language-bash">./stop.sh
+</code></pre>
+<p>모든 Docker 컨테이너를 중지합니다.</p>
+<hr />
+<h2>🔄 데이터 플로우</h2>
+<h3>1단계: Kafka → ClickHouse Kafka Engine</h3>
+<pre><code class="language-sql">CREATE TABLE default.kafka_events (
+    event_time DateTime DEFAULT now(),
+    query_kind String,
+    query_duration_ms UInt32
+) ENGINE = Kafka
+SETTINGS
+    kafka_broker_list = 'kafka:29092',
+    kafka_topic_list = 'test-events',
+    kafka_group_name = 'clickhouse_consumer',
+    kafka_format = 'JSONEachRow';
+</code></pre>
+<h3>2단계: Kafka Engine → Buffer Table (MView)</h3>
+<pre><code class="language-sql">CREATE MATERIALIZED VIEW default.kafka_to_buffer_mv
+TO default.events_buffer
+AS
+SELECT
+    event_time,
+    query_kind,
+    query_duration_ms
+FROM default.kafka_events;
+</code></pre>
+<h3>3단계: Buffer → MySQL (MView with SETTINGS)</h3>
+<pre><code class="language-sql">CREATE MATERIALIZED VIEW default.buffer_to_mysql_mv
+TO default.mysql_aggregated_events
+AS
+SELECT
+    toDate(event_time) AS event_date,
+    query_kind,
+    count() AS query_count,
+    sum(query_duration_ms) AS total_duration_ms
+FROM default.events_buffer
+GROUP BY event_date, query_kind
+SETTINGS
+    max_block_size = 1000,
+    min_insert_block_size_rows = 5000,
+    min_insert_block_size_bytes = 268435456;
+</code></pre>
+<hr />
+<h2>🔍 Block Size 설정 검증</h2>
+<h3>설정 값 의미</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>기본값</th>
+<th>테스트 값</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_block_size</code></td>
+<td>65536</td>
+<td>1000</td>
+<td>소스 테이블에서 읽는 블록 크기</td>
+</tr>
+<tr>
+<td><code>min_insert_block_size_rows</code></td>
+<td>1048576</td>
+<td>5000</td>
+<td>타겟 테이블에 쓰는 최소 행 수</td>
+</tr>
+<tr>
+<td><code>min_insert_block_size_bytes</code></td>
+<td>268435456</td>
+<td>268435456</td>
+<td>타겟 테이블에 쓰는 최소 바이트 수</td>
+</tr>
+</tbody>
+</table>
+<h3>검증 방법</h3>
+<h4>1. system.tables에서 설정 확인</h4>
+<pre><code class="language-bash">docker exec clickhouse clickhouse-client --query &quot;
+SELECT
+    name,
+    create_table_query
+FROM system.tables
+WHERE name = 'buffer_to_mysql_mv'
+FORMAT Vertical
+&quot;
+</code></pre>
+<p>출력 예시:</p>
+<pre><code>name:              buffer_to_mysql_mv
+create_table_query: CREATE MATERIALIZED VIEW default.buffer_to_mysql_mv ...
+                    SETTINGS max_block_size = 1000,
+                            min_insert_block_size_rows = 5000,
+                            min_insert_block_size_bytes = 268435456
+</code></pre>
+<h4>2. query_log에서 실행 시 적용 확인</h4>
+<pre><code class="language-bash">docker exec clickhouse clickhouse-client --query &quot;
+SELECT
+    event_time,
+    query_kind,
+    Settings['max_block_size'] AS max_block_size,
+    Settings['min_insert_block_size_rows'] AS min_insert_block_size_rows,
+    read_rows,
+    written_rows
+FROM system.query_log
+WHERE query LIKE '%buffer_to_mysql_mv%'
+    AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 5
+FORMAT Vertical
+&quot;
+</code></pre>
+<h4>3. 데이터 검증</h4>
+<pre><code class="language-bash"># ClickHouse에서 확인
+docker exec clickhouse clickhouse-client --query &quot;
+SELECT * FROM default.mysql_aggregated_events
+FORMAT PrettyCompact
+&quot;
+
+# MySQL에서 직접 확인
+docker exec mysql mysql -u clickhouse -pclickhouse testdb -e &quot;
+SELECT * FROM aggregated_events;
+&quot;
+</code></pre>
+<hr />
+<h2>📜 스크립트 설명</h2>
+<h3>setup.sh</h3>
+<ul>
+<li>환경 초기화 및 필요한 파일 생성</li>
+<li>MySQL/ClickHouse 초기화 SQL 작성</li>
+<li>Kafka producer Python 스크립트 생성</li>
+</ul>
+<h3>start.sh</h3>
+<ul>
+<li>Docker Compose로 모든 서비스 시작</li>
+<li>각 서비스의 health check 수행</li>
+<li>Kafka topic 생성 (test-events)</li>
+</ul>
+<h3>stop.sh</h3>
+<ul>
+<li>모든 Docker 컨테이너 중지</li>
+<li>데이터 볼륨은 유지 (삭제하려면 <code>docker-compose down -v</code>)</li>
+</ul>
+<h3>reset-tables.sh</h3>
+<ul>
+<li>ClickHouse의 모든 테이블/MView를 DROP하고 재생성</li>
+<li>테스트 환경을 초기 상태로 리셋</li>
+</ul>
+<h3>test-block-size.sh</h3>
+<ul>
+<li>Block size 설정을 포괄적으로 검증</li>
+<li>Kafka producer를 통해 테스트 데이터 생성</li>
+<li>ClickHouse 및 MySQL에서 결과 확인</li>
+</ul>
+<h3>status.sh</h3>
+<ul>
+<li>전체 시스템 상태를 한눈에 확인</li>
+<li>Docker 컨테이너, 테이블, 데이터 카운트, Kafka 정보 표시</li>
+</ul>
+<h3>scripts/kafka_producer.py</h3>
+<ul>
+<li>Kafka에 테스트 이벤트를 전송하는 Python 스크립트</li>
+<li>JSONEachRow 형식으로 데이터 전송</li>
+<li>사전 준비: <code>pip3 install kafka-python</code></li>
+<li>사용 예시:
+  <code>bash
+  python3 scripts/kafka_producer.py \
+      --bootstrap-servers localhost:9092 \
+      --topic test-events \
+      --num-events 10000 \
+      --batch-size 100</code></li>
+</ul>
+<hr />
+<h2>🔧 문제 해결</h2>
+<h3>Kafka 연결 실패</h3>
+<pre><code class="language-bash"># Kafka 로그 확인
+docker-compose logs kafka
+
+# Kafka topics 확인
+docker exec kafka kafka-topics --list --bootstrap-server localhost:29092
+</code></pre>
+<h3>MySQL 연결 실패</h3>
+<pre><code class="language-bash"># MySQL 로그 확인
+docker-compose logs mysql
+
+# MySQL 연결 테스트
+docker exec mysql mysql -u clickhouse -pclickhouse -e &quot;SELECT 1;&quot;
+</code></pre>
+<h3>ClickHouse에서 Kafka 소비 안 됨</h3>
+<pre><code class="language-bash"># ClickHouse 로그 확인
+docker-compose logs clickhouse
+
+# Kafka consumer group 확인
+docker exec kafka kafka-consumer-groups \
+    --bootstrap-server localhost:29092 \
+    --group clickhouse_consumer \
+    --describe
+</code></pre>
+<h3>MView 동작 확인</h3>
+<pre><code class="language-bash"># MView 존재 확인
+docker exec clickhouse clickhouse-client --query &quot;
+SELECT name, engine, create_table_query
+FROM system.tables
+WHERE engine = 'MaterializedView'
+&quot;
+
+# MView 재생성
+./reset-tables.sh
+</code></pre>
+<h3>데이터가 MySQL로 전달되지 않음</h3>
+<ol>
+<li>
+<p>ClickHouse buffer에 데이터가 있는지 확인:
+   <code>bash
+   docker exec clickhouse clickhouse-client --query "
+   SELECT count() FROM default.events_buffer
+   "</code></p>
+</li>
+<li>
+<p>MySQL Table Engine 연결 확인:
+   <code>bash
+   docker exec clickhouse clickhouse-client --query "
+   SELECT * FROM default.mysql_aggregated_events LIMIT 10
+   "</code></p>
+</li>
+<li>
+<p>MySQL에서 직접 확인:
+   <code>bash
+   docker exec mysql mysql -u clickhouse -pclickhouse testdb -e "
+   SELECT * FROM aggregated_events LIMIT 10;
+   "</code></p>
+</li>
+</ol>
+<hr />
+<h2>📊 테스트 시나리오</h2>
+<h3>시나리오 1: 소량 데이터 (1,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 1000
+</code></pre>
+<p>예상: <code>min_insert_block_size_rows=5000</code>이므로 MySQL로 즉시 전달되지 않을 수 있음</p>
+<h3>시나리오 2: 중량 데이터 (10,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 10000
+</code></pre>
+<p>예상: 5000건 이상 누적되면 MySQL로 batch INSERT</p>
+<h3>시나리오 3: 대량 데이터 (100,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 100000
+</code></pre>
+<p>예상: 여러 번의 batch INSERT가 발생하며, <code>query_log</code>에서 block size 확인 가능</p>
+<hr />
+<h2>🎯 기대 결과</h2>
+<h3>✅ 성공 시나리오</h3>
+<ol>
+<li>
+<p><strong>MView 설정 저장 확인</strong>
+   - <code>system.tables</code>의 <code>create_table_query</code>에 SETTINGS 포함</p>
+</li>
+<li>
+<p><strong>Block Size 적용 확인</strong>
+   - <code>query_log</code>에서 설정한 값 확인 가능</p>
+</li>
+<li>
+<p><strong>데이터 플로우 정상 동작</strong>
+   - Kafka → ClickHouse Buffer → MySQL 순차 전달
+   - MySQL에서 집계된 데이터 확인 가능</p>
+</li>
+</ol>
+<h3>⚠️ 주의사항</h3>
+<ul>
+<li><code>min_insert_block_size_rows=5000</code>이므로 5000건 미만 데이터는 바로 MySQL로 전달되지 않을 수 있음</li>
+<li>ClickHouse의 background merge 및 MySQL polling 주기에 따라 지연 발생 가능</li>
+<li>실제 운영 환경에서는 네트워크 I/O를 고려하여 block size 조정 필요</li>
+</ul>
+<hr />
+<h2>📚 참고 자료</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/kafka">ClickHouse Kafka Engine</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/mysql">ClickHouse MySQL Engine</a></li>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views">ClickHouse Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/operations/settings/settings">ClickHouse Settings</a></li>
+</ul>
+<hr />
+<h2>📝 라이선스</h2>
+<p>이 프로젝트는 학습 및 테스트 목적으로 제공됩니다.</p>
+<hr />
+<p><strong>작성일</strong>: 2025-12-13
+<strong>테스트 환경</strong>: Docker Desktop, ClickHouse latest, MySQL 8.0, Kafka 7.5.0</p></div>
+  <div class="readme ko"><h1>Kafka-MySQL-ClickHouse Integration with MView Block Size Testing</h1>
+<p>Kafka에서 ClickHouse로 데이터를 pull하고, Materialized View를 통해 MySQL로 자동 변환하는 통합 환경입니다. MView의 <code>min_insert_block_size_rows</code>, <code>max_block_size</code> 등의 설정이 실제로 적용되는지 검증할 수 있습니다.</p>
+<h2>📋 목차</h2>
+<ul>
+<li><a href="#아키텍처">아키텍처</a></li>
+<li><a href="#사전-요구사항">사전 요구사항</a></li>
+<li><a href="#빠른-시작">빠른 시작</a></li>
+<li><a href="#데이터-플로우">데이터 플로우</a></li>
+<li><a href="#block-size-설정-검증">Block Size 설정 검증</a></li>
+<li><a href="#스크립트-설명">스크립트 설명</a></li>
+<li><a href="#문제-해결">문제 해결</a></li>
+</ul>
+<hr />
+<h2>🏗️ 아키텍처</h2>
+<pre><code>Kafka Producer (Python)
+    │
+    ├─&gt; Kafka Topic: test-events
+    │
+    ├─&gt; ClickHouse Kafka Engine (kafka_events)
+    │
+    ├─&gt; MView: kafka_to_buffer_mv
+    │
+    ├─&gt; Buffer Table (events_buffer) - MergeTree
+    │
+    ├─&gt; MView: buffer_to_mysql_mv (WITH SETTINGS)
+    │       ├─ max_block_size = 1000
+    │       ├─ min_insert_block_size_rows = 5000
+    │       └─ min_insert_block_size_bytes = 268435456
+    │
+    └─&gt; MySQL Table Engine (mysql_aggregated_events)
+            │
+            └─&gt; MySQL Database (testdb.aggregated_events)
+</code></pre>
+<hr />
+<h2>📦 사전 요구사항</h2>
+<ul>
+<li>Docker &amp; Docker Compose</li>
+<li>Python 3.7+</li>
+<li>pip (Python package manager)</li>
+</ul>
+<hr />
+<h2>🚀 빠른 시작</h2>
+<h3>1. 환경 초기화</h3>
+<pre><code class="language-bash">chmod +x *.sh
+./setup.sh
+</code></pre>
+<p>이 명령은 다음을 수행합니다:
+- 필요한 디렉토리 생성 (<code>mysql-init</code>, <code>clickhouse-init</code>, <code>scripts</code>)
+- MySQL 초기화 SQL 생성
+- ClickHouse 초기화 SQL 생성
+- Kafka producer Python 스크립트 생성</p>
+<h3>2. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>다음 서비스들이 시작됩니다:
+- Zookeeper (포트: 2181)
+- Kafka (포트: 9092, 29092)
+- MySQL (포트: 3306)
+- ClickHouse (HTTP: 8123, Native: 9000)</p>
+<h3>3. Block Size 검증 테스트 실행</h3>
+<pre><code class="language-bash">./test-block-size.sh
+</code></pre>
+<p>이 스크립트는:
+1. MView 설정을 <code>system.tables</code>에서 확인
+2. 기존 데이터 초기화
+3. Kafka에 50,000개 이벤트 전송
+4. 데이터 처리 대기 (30초)
+5. ClickHouse 및 MySQL에서 결과 검증
+6. <code>query_log</code>에서 실제 적용된 block size 확인</p>
+<h3>4. 상태 확인</h3>
+<pre><code class="language-bash">./status.sh
+</code></pre>
+<p>현재 시스템 상태를 확인합니다:
+- Docker 컨테이너 상태
+- ClickHouse 테이블 목록 및 행 수
+- MySQL 테이블 상태
+- Kafka topic 및 consumer group 정보</p>
+<h3>5. 서비스 중지</h3>
+<pre><code class="language-bash">./stop.sh
+</code></pre>
+<p>모든 Docker 컨테이너를 중지합니다.</p>
+<hr />
+<h2>🔄 데이터 플로우</h2>
+<h3>1단계: Kafka → ClickHouse Kafka Engine</h3>
+<pre><code class="language-sql">CREATE TABLE default.kafka_events (
+    event_time DateTime DEFAULT now(),
+    query_kind String,
+    query_duration_ms UInt32
+) ENGINE = Kafka
+SETTINGS
+    kafka_broker_list = 'kafka:29092',
+    kafka_topic_list = 'test-events',
+    kafka_group_name = 'clickhouse_consumer',
+    kafka_format = 'JSONEachRow';
+</code></pre>
+<h3>2단계: Kafka Engine → Buffer Table (MView)</h3>
+<pre><code class="language-sql">CREATE MATERIALIZED VIEW default.kafka_to_buffer_mv
+TO default.events_buffer
+AS
+SELECT
+    event_time,
+    query_kind,
+    query_duration_ms
+FROM default.kafka_events;
+</code></pre>
+<h3>3단계: Buffer → MySQL (MView with SETTINGS)</h3>
+<pre><code class="language-sql">CREATE MATERIALIZED VIEW default.buffer_to_mysql_mv
+TO default.mysql_aggregated_events
+AS
+SELECT
+    toDate(event_time) AS event_date,
+    query_kind,
+    count() AS query_count,
+    sum(query_duration_ms) AS total_duration_ms
+FROM default.events_buffer
+GROUP BY event_date, query_kind
+SETTINGS
+    max_block_size = 1000,
+    min_insert_block_size_rows = 5000,
+    min_insert_block_size_bytes = 268435456;
+</code></pre>
+<hr />
+<h2>🔍 Block Size 설정 검증</h2>
+<h3>설정 값 의미</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>기본값</th>
+<th>테스트 값</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_block_size</code></td>
+<td>65536</td>
+<td>1000</td>
+<td>소스 테이블에서 읽는 블록 크기</td>
+</tr>
+<tr>
+<td><code>min_insert_block_size_rows</code></td>
+<td>1048576</td>
+<td>5000</td>
+<td>타겟 테이블에 쓰는 최소 행 수</td>
+</tr>
+<tr>
+<td><code>min_insert_block_size_bytes</code></td>
+<td>268435456</td>
+<td>268435456</td>
+<td>타겟 테이블에 쓰는 최소 바이트 수</td>
+</tr>
+</tbody>
+</table>
+<h3>검증 방법</h3>
+<h4>1. system.tables에서 설정 확인</h4>
+<pre><code class="language-bash">docker exec clickhouse clickhouse-client --query &quot;
+SELECT
+    name,
+    create_table_query
+FROM system.tables
+WHERE name = 'buffer_to_mysql_mv'
+FORMAT Vertical
+&quot;
+</code></pre>
+<p>출력 예시:</p>
+<pre><code>name:              buffer_to_mysql_mv
+create_table_query: CREATE MATERIALIZED VIEW default.buffer_to_mysql_mv ...
+                    SETTINGS max_block_size = 1000,
+                            min_insert_block_size_rows = 5000,
+                            min_insert_block_size_bytes = 268435456
+</code></pre>
+<h4>2. query_log에서 실행 시 적용 확인</h4>
+<pre><code class="language-bash">docker exec clickhouse clickhouse-client --query &quot;
+SELECT
+    event_time,
+    query_kind,
+    Settings['max_block_size'] AS max_block_size,
+    Settings['min_insert_block_size_rows'] AS min_insert_block_size_rows,
+    read_rows,
+    written_rows
+FROM system.query_log
+WHERE query LIKE '%buffer_to_mysql_mv%'
+    AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 5
+FORMAT Vertical
+&quot;
+</code></pre>
+<h4>3. 데이터 검증</h4>
+<pre><code class="language-bash"># ClickHouse에서 확인
+docker exec clickhouse clickhouse-client --query &quot;
+SELECT * FROM default.mysql_aggregated_events
+FORMAT PrettyCompact
+&quot;
+
+# MySQL에서 직접 확인
+docker exec mysql mysql -u clickhouse -pclickhouse testdb -e &quot;
+SELECT * FROM aggregated_events;
+&quot;
+</code></pre>
+<hr />
+<h2>📜 스크립트 설명</h2>
+<h3>setup.sh</h3>
+<ul>
+<li>환경 초기화 및 필요한 파일 생성</li>
+<li>MySQL/ClickHouse 초기화 SQL 작성</li>
+<li>Kafka producer Python 스크립트 생성</li>
+</ul>
+<h3>start.sh</h3>
+<ul>
+<li>Docker Compose로 모든 서비스 시작</li>
+<li>각 서비스의 health check 수행</li>
+<li>Kafka topic 생성 (test-events)</li>
+</ul>
+<h3>stop.sh</h3>
+<ul>
+<li>모든 Docker 컨테이너 중지</li>
+<li>데이터 볼륨은 유지 (삭제하려면 <code>docker-compose down -v</code>)</li>
+</ul>
+<h3>reset-tables.sh</h3>
+<ul>
+<li>ClickHouse의 모든 테이블/MView를 DROP하고 재생성</li>
+<li>테스트 환경을 초기 상태로 리셋</li>
+</ul>
+<h3>test-block-size.sh</h3>
+<ul>
+<li>Block size 설정을 포괄적으로 검증</li>
+<li>Kafka producer를 통해 테스트 데이터 생성</li>
+<li>ClickHouse 및 MySQL에서 결과 확인</li>
+</ul>
+<h3>status.sh</h3>
+<ul>
+<li>전체 시스템 상태를 한눈에 확인</li>
+<li>Docker 컨테이너, 테이블, 데이터 카운트, Kafka 정보 표시</li>
+</ul>
+<h3>scripts/kafka_producer.py</h3>
+<ul>
+<li>Kafka에 테스트 이벤트를 전송하는 Python 스크립트</li>
+<li>JSONEachRow 형식으로 데이터 전송</li>
+<li>사전 준비: <code>pip3 install kafka-python</code></li>
+<li>사용 예시:
+  <code>bash
+  python3 scripts/kafka_producer.py \
+      --bootstrap-servers localhost:9092 \
+      --topic test-events \
+      --num-events 10000 \
+      --batch-size 100</code></li>
+</ul>
+<hr />
+<h2>🔧 문제 해결</h2>
+<h3>Kafka 연결 실패</h3>
+<pre><code class="language-bash"># Kafka 로그 확인
+docker-compose logs kafka
+
+# Kafka topics 확인
+docker exec kafka kafka-topics --list --bootstrap-server localhost:29092
+</code></pre>
+<h3>MySQL 연결 실패</h3>
+<pre><code class="language-bash"># MySQL 로그 확인
+docker-compose logs mysql
+
+# MySQL 연결 테스트
+docker exec mysql mysql -u clickhouse -pclickhouse -e &quot;SELECT 1;&quot;
+</code></pre>
+<h3>ClickHouse에서 Kafka 소비 안 됨</h3>
+<pre><code class="language-bash"># ClickHouse 로그 확인
+docker-compose logs clickhouse
+
+# Kafka consumer group 확인
+docker exec kafka kafka-consumer-groups \
+    --bootstrap-server localhost:29092 \
+    --group clickhouse_consumer \
+    --describe
+</code></pre>
+<h3>MView 동작 확인</h3>
+<pre><code class="language-bash"># MView 존재 확인
+docker exec clickhouse clickhouse-client --query &quot;
+SELECT name, engine, create_table_query
+FROM system.tables
+WHERE engine = 'MaterializedView'
+&quot;
+
+# MView 재생성
+./reset-tables.sh
+</code></pre>
+<h3>데이터가 MySQL로 전달되지 않음</h3>
+<ol>
+<li>
+<p>ClickHouse buffer에 데이터가 있는지 확인:
+   <code>bash
+   docker exec clickhouse clickhouse-client --query "
+   SELECT count() FROM default.events_buffer
+   "</code></p>
+</li>
+<li>
+<p>MySQL Table Engine 연결 확인:
+   <code>bash
+   docker exec clickhouse clickhouse-client --query "
+   SELECT * FROM default.mysql_aggregated_events LIMIT 10
+   "</code></p>
+</li>
+<li>
+<p>MySQL에서 직접 확인:
+   <code>bash
+   docker exec mysql mysql -u clickhouse -pclickhouse testdb -e "
+   SELECT * FROM aggregated_events LIMIT 10;
+   "</code></p>
+</li>
+</ol>
+<hr />
+<h2>📊 테스트 시나리오</h2>
+<h3>시나리오 1: 소량 데이터 (1,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 1000
+</code></pre>
+<p>예상: <code>min_insert_block_size_rows=5000</code>이므로 MySQL로 즉시 전달되지 않을 수 있음</p>
+<h3>시나리오 2: 중량 데이터 (10,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 10000
+</code></pre>
+<p>예상: 5000건 이상 누적되면 MySQL로 batch INSERT</p>
+<h3>시나리오 3: 대량 데이터 (100,000건)</h3>
+<pre><code class="language-bash">python3 scripts/kafka_producer.py --num-events 100000
+</code></pre>
+<p>예상: 여러 번의 batch INSERT가 발생하며, <code>query_log</code>에서 block size 확인 가능</p>
+<hr />
+<h2>🎯 기대 결과</h2>
+<h3>✅ 성공 시나리오</h3>
+<ol>
+<li>
+<p><strong>MView 설정 저장 확인</strong>
+   - <code>system.tables</code>의 <code>create_table_query</code>에 SETTINGS 포함</p>
+</li>
+<li>
+<p><strong>Block Size 적용 확인</strong>
+   - <code>query_log</code>에서 설정한 값 확인 가능</p>
+</li>
+<li>
+<p><strong>데이터 플로우 정상 동작</strong>
+   - Kafka → ClickHouse Buffer → MySQL 순차 전달
+   - MySQL에서 집계된 데이터 확인 가능</p>
+</li>
+</ol>
+<h3>⚠️ 주의사항</h3>
+<ul>
+<li><code>min_insert_block_size_rows=5000</code>이므로 5000건 미만 데이터는 바로 MySQL로 전달되지 않을 수 있음</li>
+<li>ClickHouse의 background merge 및 MySQL polling 주기에 따라 지연 발생 가능</li>
+<li>실제 운영 환경에서는 네트워크 I/O를 고려하여 block size 조정 필요</li>
+</ul>
+<hr />
+<h2>📚 참고 자료</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/kafka">ClickHouse Kafka Engine</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/mysql">ClickHouse MySQL Engine</a></li>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views">ClickHouse Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/operations/settings/settings">ClickHouse Settings</a></li>
+</ul>
+<hr />
+<h2>📝 라이선스</h2>
+<p>이 프로젝트는 학습 및 테스트 목적으로 제공됩니다.</p>
+<hr />
+<p><strong>작성일</strong>: 2025-12-13
+<strong>테스트 환경</strong>: Docker Desktop, ClickHouse latest, MySQL 8.0, Kafka 7.5.0</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/kafka-mysql-table-engines"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

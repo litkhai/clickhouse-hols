@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluent Platform on AWS with Terraform · ClickHouse HOLs</title>
+<meta name="description" content="Confluent Platform on AWS with Terraform — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/kafka/terraform-confluent-aws</code>
+    
+  </nav>
+  <div class="readme en"><h1>Confluent Platform on AWS with Terraform</h1>
+<p>This Terraform configuration deploys a complete Confluent Platform stack on AWS EC2, including Kafka, Schema Registry, Kafka Connect, ksqlDB, Control Center, and REST Proxy.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Complete Confluent Platform</strong>: All core components (Kafka, ZooKeeper, Schema Registry, Connect, ksqlDB, Control Center, REST Proxy)</li>
+<li><strong>Automated Setup</strong>: One-command deployment with Docker Compose</li>
+<li><strong>Sample Data Producer</strong>: Automatically generates sample data to a Kafka topic</li>
+<li><strong>Production-Ready</strong>: Configurable instance types, EBS volumes, and security groups</li>
+<li><strong>Easy Management</strong>: Scripts for start, stop, and status checking</li>
+</ul>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>(Optional) SSH key pair for remote access</li>
+</ul>
+<h2>AWS Credentials Setup</h2>
+<p>Set your AWS credentials as environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # If using temporary credentials
+export AWS_REGION=&quot;us-east-1&quot;  # Optional: Set default region
+</code></pre>
+<h2>Quick Start</h2>
+<h3>1. Clone and Navigate</h3>
+<pre><code class="language-bash">cd terraform-confluent-aws
+</code></pre>
+<h3>2. Configure Variables</h3>
+<p>Copy the example configuration:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code> to customize your deployment:</p>
+<pre><code class="language-hcl">aws_region = &quot;us-east-1&quot;
+instance_name = &quot;my-confluent-server&quot;
+instance_type = &quot;r5.xlarge&quot;
+key_pair_name = &quot;my-key-pair&quot;  # Optional: for SSH access
+use_elastic_ip = false
+</code></pre>
+<h3>3. Deploy</h3>
+<pre><code class="language-bash"># Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 5-10 minutes. Terraform will output all important URLs and connection information.</p>
+<h3>4. Access Confluent Platform</h3>
+<p>After deployment completes, access the Control Center:</p>
+<pre><code class="language-bash"># Get the Control Center URL from outputs
+terraform output control_center_url
+</code></pre>
+<p>Open the URL in your browser to access the Confluent Control Center Web UI.</p>
+<h2>Architecture</h2>
+<h3>Components Deployed</h3>
+<ol>
+<li><strong>EC2 Instance</strong>: Ubuntu 22.04 LTS with Docker</li>
+<li><strong>ZooKeeper</strong>: Cluster coordination (port 2181)</li>
+<li><strong>Kafka Broker</strong>: Message streaming (port 9092)</li>
+<li><strong>Schema Registry</strong>: Schema management (port 8081)</li>
+<li><strong>Kafka Connect</strong>: Data integration (port 8083)</li>
+<li><strong>ksqlDB</strong>: Stream processing (port 8088)</li>
+<li><strong>Control Center</strong>: Web UI for management (port 9021)</li>
+<li><strong>REST Proxy</strong>: HTTP REST API (port 8082)</li>
+<li><strong>Data Producer</strong>: Systemd service generating sample data</li>
+</ol>
+<h3>Network Configuration</h3>
+<p>The deployment creates a security group with the following ingress rules:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Service</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2181</td>
+<td>ZooKeeper</td>
+<td>Cluster coordination</td>
+</tr>
+<tr>
+<td>9092</td>
+<td>Kafka</td>
+<td>Broker access (internal and external)</td>
+</tr>
+<tr>
+<td>8081</td>
+<td>Schema Registry</td>
+<td>Schema management API</td>
+</tr>
+<tr>
+<td>8083</td>
+<td>Kafka Connect</td>
+<td>Connect API</td>
+</tr>
+<tr>
+<td>8088</td>
+<td>ksqlDB</td>
+<td>ksqlDB API</td>
+</tr>
+<tr>
+<td>8082</td>
+<td>REST Proxy</td>
+<td>Kafka REST API</td>
+</tr>
+<tr>
+<td>9021</td>
+<td>Control Center</td>
+<td>Web UI</td>
+</tr>
+<tr>
+<td>22</td>
+<td>SSH</td>
+<td>Remote access (if key configured)</td>
+</tr>
+</tbody>
+</table>
+<h3>SASL Authentication</h3>
+<p>The Kafka broker is configured with <strong>SASL/PLAIN authentication</strong> on port <strong>9092</strong> for external clients.</p>
+<p><strong>Authentication Details:</strong>
+- <strong>Security Protocol</strong>: <code>SASL_PLAINTEXT</code>
+- <strong>SASL Mechanism</strong>: <code>PLAIN</code>
+- <strong>Default Credentials</strong>: Configured via <code>kafka_sasl_username</code> and <code>kafka_sasl_password</code> variables</p>
+<p><strong>Listener Architecture:</strong>
+- <strong>Internal (PLAINTEXT)</strong>: <code>broker:29092</code> - Used by Control Center, Schema Registry, Connect (no authentication)
+- <strong>External (SASL_PLAINTEXT)</strong>: <code>&lt;PUBLIC_IP&gt;:9092</code> - Used by external clients (requires SASL authentication)</p>
+<p>This architecture mirrors <strong>Confluent Cloud's authentication model</strong>, making it ideal for ClickHouse integration workshops and hands-on labs.</p>
+<h4>Testing SASL Connection</h4>
+<p>After deployment, a Python test script is automatically generated on the EC2 instance with the correct IP address:</p>
+<pre><code class="language-bash"># Get the test command from Terraform outputs
+terraform output -raw test_sasl_connection
+
+# Download the test script (already configured with correct IP and credentials)
+scp -i /path/to/key.pem ubuntu@&lt;instance-ip&gt;:/opt/confluent/test_kafka_sasl.py .
+
+# Install Python package
+pip3 install confluent-kafka
+
+# Run the test
+python3 test_kafka_sasl.py
+</code></pre>
+<p>The test script automatically verifies:
+- ✓ Admin client connectivity and topic listing
+- ✓ Producer sending messages with SASL authentication
+- ✓ Consumer reading messages with SASL authentication</p>
+<p>For detailed connection examples in Python, Java, Go, Node.js, and ClickHouse, see <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws/SASL_CONNECTION_GUIDE.md">SASL_CONNECTION_GUIDE.md</a>.</p>
+<h2>Configuration</h2>
+<h3>Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>Name tag for EC2 instance</td>
+<td>"confluent-server"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td>"r5.xlarge"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>ebs_volume_size</code></td>
+<td>EBS volume size in GB</td>
+<td>100</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>SSH key pair name</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>allowed_cidr_blocks</code></td>
+<td>CIDR blocks for access</td>
+<td>["0.0.0.0/0"]</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>use_elastic_ip</code></td>
+<td>Allocate Elastic IP</td>
+<td>false</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>confluent_version</code></td>
+<td>Confluent Platform version</td>
+<td>"7.5.0"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>sample_topic_name</code></td>
+<td>Sample topic name</td>
+<td>"sample-data-topic"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>data_producer_interval</code></td>
+<td>Data production interval (seconds)</td>
+<td>5</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>kafka_sasl_username</code></td>
+<td>Kafka SASL username</td>
+<td>"admin"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>kafka_sasl_password</code></td>
+<td>Kafka SASL password</td>
+<td>"admin-secret"</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h3>Instance Type Recommendations</h3>
+<ul>
+<li><strong>Development</strong>: <code>t3.xlarge</code> (4 vCPU, 16 GB RAM)</li>
+<li><strong>Testing</strong>: <code>r5.xlarge</code> (4 vCPU, 32 GB RAM) - <strong>Default</strong></li>
+<li><strong>Production</strong>: <code>r5.2xlarge</code> or larger (8+ vCPU, 64+ GB RAM)</li>
+</ul>
+<h2>Management</h2>
+<h3>SSH Access</h3>
+<p>If you configured a key pair:</p>
+<pre><code class="language-bash"># Get SSH command from outputs
+terraform output ssh_command
+
+# Or manually connect
+ssh -i /path/to/your-key.pem ubuntu@&lt;instance-ip&gt;
+</code></pre>
+<h3>Management Scripts</h3>
+<p>Once connected via SSH, use these scripts:</p>
+<pre><code class="language-bash"># Check status of all services
+sudo /opt/confluent/status.sh
+
+# Stop Confluent Platform
+sudo /opt/confluent/stop.sh
+
+# Start Confluent Platform
+sudo /opt/confluent/start.sh
+
+# View data producer logs
+sudo journalctl -u confluent-producer -f
+</code></pre>
+<h3>Using Kafka</h3>
+<h4>Understanding Kafka Listeners</h4>
+<p>Kafka is configured with <strong>two listeners</strong>:</p>
+<ul>
+<li><strong>PLAINTEXT (port 29092)</strong>: Internal Docker network communication</li>
+<li><strong>EXTERNAL (port 9092)</strong>: External client access (from anywhere, including localhost)</li>
+</ul>
+<h4>List Topics (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec broker kafka-topics --list --bootstrap-server localhost:9092
+</code></pre>
+<h4>Consume Messages (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic sample-data-topic \
+  --from-beginning
+</code></pre>
+<h4>Produce Messages (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec -i broker kafka-console-producer \
+  --broker-list localhost:9092 \
+  --topic sample-data-topic
+</code></pre>
+<h3>Connecting from External Applications</h3>
+<p>External clients connect using port <strong>9092</strong> (same as Confluent Cloud):</p>
+<pre><code class="language-bash"># Get the external bootstrap server
+terraform output kafka_bootstrap_servers
+
+# Example output: 3.34.185.27:9092
+</code></pre>
+<h4>Test External Connection</h4>
+<pre><code class="language-bash"># Test connectivity
+nc -zv &lt;public-ip&gt; 9092
+
+# Test Kafka API from local machine (requires kafka tools)
+kafka-broker-api-versions --bootstrap-server &lt;public-ip&gt;:9092
+</code></pre>
+<h4>Example: External Python Client (with SASL Authentication)</h4>
+<pre><code class="language-python">from kafka import KafkaProducer, KafkaConsumer
+
+# Get credentials from Terraform outputs
+# terraform output kafka_sasl_username
+# terraform output -raw kafka_sasl_password
+
+# Producer
+producer = KafkaProducer(
+    bootstrap_servers=['&lt;public-ip&gt;:9092'],
+    security_protocol='SASL_PLAINTEXT',
+    sasl_mechanism='PLAIN',
+    sasl_plain_username='admin',  # Your kafka_sasl_username
+    sasl_plain_password='admin-secret'  # Your kafka_sasl_password
+)
+producer.send('sample-data-topic', b'Hello from external client')
+producer.flush()
+
+# Consumer
+consumer = KafkaConsumer(
+    'sample-data-topic',
+    bootstrap_servers=['&lt;public-ip&gt;:9092'],
+    security_protocol='SASL_PLAINTEXT',
+    sasl_mechanism='PLAIN',
+    sasl_plain_username='admin',  # Your kafka_sasl_username
+    sasl_plain_password='admin-secret',  # Your kafka_sasl_password
+    auto_offset_reset='earliest'
+)
+for message in consumer:
+    print(message.value)
+</code></pre>
+<h4>Port Summary</h4>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Listener</th>
+<th>Access From</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>29092</td>
+<td>PLAINTEXT</td>
+<td>Docker containers</td>
+<td>Internal service communication</td>
+</tr>
+<tr>
+<td><strong>9092</strong></td>
+<td><strong>SASL_PLAINTEXT</strong></td>
+<td><strong>Anywhere (including SSH)</strong></td>
+<td><strong>External clients with SASL auth</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>SASL Authentication</h3>
+<p>The Kafka broker is configured with <strong>SASL/PLAIN authentication</strong> (like Confluent Cloud's API Key/Secret model).</p>
+<h4>Get Credentials</h4>
+<pre><code class="language-bash"># Get username (API Key)
+terraform output kafka_sasl_username
+
+# Get password (API Secret)
+terraform output -raw kafka_sasl_password
+</code></pre>
+<p>Default credentials:
+- <strong>Username (API Key)</strong>: <code>admin</code>
+- <strong>Password (API Secret)</strong>: <code>admin-secret</code></p>
+<p>⚠️ <strong>Security Warning</strong>: Change these default credentials in production! Edit <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">kafka_sasl_username = &quot;your-api-key&quot;
+kafka_sasl_password = &quot;your-secret-key&quot;
+</code></pre>
+<h4>Command-line Tools with SASL</h4>
+<pre><code class="language-bash"># List topics (from inside instance)
+docker exec broker kafka-topics --list \
+  --bootstrap-server localhost:9092 \
+  --command-config /opt/confluent/client.properties
+
+# Consume messages (from inside instance)
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic sample-data-topic \
+  --from-beginning \
+  --consumer.config /opt/confluent/client.properties
+
+# Produce messages (from inside instance)
+docker exec -i broker kafka-console-producer \
+  --broker-list localhost:9092 \
+  --topic sample-data-topic \
+  --producer.config /opt/confluent/client.properties
+</code></pre>
+<h4>Java Client Configuration</h4>
+<pre><code class="language-java">Properties props = new Properties();
+props.put(&quot;bootstrap.servers&quot;, &quot;&lt;public-ip&gt;:9092&quot;);
+props.put(&quot;security.protocol&quot;, &quot;SASL_PLAINTEXT&quot;);
+props.put(&quot;sasl.mechanism&quot;, &quot;PLAIN&quot;);
+props.put(&quot;sasl.jaas.config&quot;,
+  &quot;org.apache.kafka.common.security.plain.PlainLoginModule required &quot; +
+  &quot;username=\&quot;admin\&quot; password=\&quot;admin-secret\&quot;;&quot;);
+
+KafkaProducer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
+</code></pre>
+<h4>Node.js Client Configuration</h4>
+<pre><code class="language-javascript">const { Kafka } = require('kafkajs');
+
+const kafka = new Kafka({
+  brokers: ['&lt;public-ip&gt;:9092'],
+  sasl: {
+    mechanism: 'plain',
+    username: 'admin',
+    password: 'admin-secret'
+  }
+});
+
+const producer = kafka.producer();
+const consumer = kafka.consumer({ groupId: 'my-group' });
+</code></pre>
+<h2>Sample Data Format</h2>
+<p>The data producer generates JSON messages with the following structure:</p>
+<pre><code class="language-json">{
+  &quot;event_id&quot;: 1,
+  &quot;timestamp&quot;: &quot;2025-01-15T10:30:00Z&quot;,
+  &quot;user_id&quot;: 123,
+  &quot;event_type&quot;: &quot;page_view&quot;,
+  &quot;value&quot;: 456,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;web&quot;,
+    &quot;version&quot;: &quot;1.0&quot;
+  }
+}
+</code></pre>
+<p>Event types include: <code>page_view</code>, <code>click</code>, <code>purchase</code>, <code>signup</code>, <code>logout</code></p>
+<h2>Monitoring</h2>
+<h3>Control Center</h3>
+<p>Access the Confluent Control Center at port 9021:</p>
+<ul>
+<li>View cluster health</li>
+<li>Monitor topics and consumers</li>
+<li>Manage connectors</li>
+<li>Execute ksqlDB queries</li>
+<li>View metrics and alerts</li>
+</ul>
+<h3>Docker Compose</h3>
+<pre><code class="language-bash"># View all container status
+docker compose ps
+
+# View specific container logs
+docker logs broker -f
+docker logs control-center -f
+
+# View resource usage
+docker stats
+</code></pre>
+<h2>Outputs</h2>
+<p>After deployment, Terraform provides:</p>
+<ul>
+<li><code>instance_id</code>: EC2 instance ID</li>
+<li><code>instance_public_ip</code>: Public IP address</li>
+<li><code>control_center_url</code>: Control Center web UI URL</li>
+<li><code>schema_registry_url</code>: Schema Registry API URL</li>
+<li><code>kafka_connect_url</code>: Kafka Connect API URL</li>
+<li><code>ksqldb_url</code>: ksqlDB Server API URL</li>
+<li><code>rest_proxy_url</code>: REST Proxy API URL</li>
+<li><code>kafka_bootstrap_servers</code>: Kafka bootstrap servers for external connections</li>
+<li><code>ssh_command</code>: SSH connection command</li>
+<li><code>useful_commands</code>: Quick reference commands</li>
+</ul>
+<h2>Troubleshooting</h2>
+<h3>Services Not Starting</h3>
+<p>Check Docker container status:</p>
+<pre><code class="language-bash">docker compose ps
+docker compose logs
+</code></pre>
+<h3>Cannot Access Control Center</h3>
+<ol>
+<li>Verify security group allows access from your IP</li>
+<li>Check if Docker containers are running</li>
+<li>Wait 2-3 minutes after deployment for services to fully start</li>
+</ol>
+<h3>Data Producer Not Running</h3>
+<pre><code class="language-bash"># Check service status
+sudo systemctl status confluent-producer
+
+# Restart service
+sudo systemctl restart confluent-producer
+
+# View logs
+sudo journalctl -u confluent-producer -f
+</code></pre>
+<h3>Kafka Connection Issues</h3>
+<p>Verify the external listener is properly configured:</p>
+<pre><code class="language-bash">docker exec broker kafka-broker-api-versions --bootstrap-server localhost:9092
+</code></pre>
+<h2>Cost Considerations</h2>
+<p>Estimated AWS costs (us-east-1 region):</p>
+<ul>
+<li><strong>r5.xlarge instance</strong>: ~$0.25/hour (~$180/month)</li>
+<li><strong>EBS gp3 volume (100 GB)</strong>: ~$8/month</li>
+<li><strong>Data transfer</strong>: Variable based on usage</li>
+<li><strong>Elastic IP</strong> (if enabled): $0.005/hour when instance stopped</li>
+</ul>
+<p><strong>Total estimated cost</strong>: ~$190-200/month for 24/7 operation</p>
+<h3>Cost Optimization</h3>
+<ol>
+<li><strong>Stop when not in use</strong>: <code>terraform destroy</code> when done</li>
+<li><strong>Use smaller instance</strong>: Change to <code>t3.xlarge</code> for development</li>
+<li><strong>Reduce EBS volume</strong>: Adjust <code>ebs_volume_size</code> if less storage needed</li>
+<li><strong>Disable Elastic IP</strong>: Set <code>use_elastic_ip = false</code></li>
+</ol>
+<h2>Security Best Practices</h2>
+<h3>For Production Use</h3>
+<ol>
+<li><strong>Restrict CIDR blocks</strong>: Limit <code>allowed_cidr_blocks</code> to your IP ranges</li>
+<li><strong>Enable encryption</strong>: Add SSL/TLS for Kafka listeners</li>
+<li><strong>Enable authentication</strong>: Configure SASL for Kafka</li>
+<li><strong>Use private subnets</strong>: Deploy in private subnet with bastion host</li>
+<li><strong>Enable CloudWatch</strong>: Add monitoring and alerting</li>
+<li><strong>Backup data</strong>: Configure EBS snapshots</li>
+<li><strong>Use secrets manager</strong>: Store credentials in AWS Secrets Manager</li>
+</ol>
+<h3>Current Security Posture</h3>
+<p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
+<ul>
+<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>No authentication enabled</li>
+<li>No encryption in transit</li>
+<li>Public IP with direct access</li>
+</ul>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<p>This will:
+- Terminate the EC2 instance
+- Delete the security group
+- Release the Elastic IP (if allocated)
+- Remove all associated resources</p>
+<p><strong>Note</strong>: This is irreversible and will delete all data on the instance.</p>
+<h2>Integration with ClickHouse</h2>
+<p>This Confluent Platform deployment can be integrated with ClickHouse using Kafka Connect:</p>
+<ol>
+<li>Access the Connect API:</li>
+</ol>
+<pre><code class="language-bash">terraform output kafka_connect_url
+</code></pre>
+<ol start="2">
+<li>
+<p>Install the ClickHouse Sink Connector (if not already included)</p>
+</li>
+<li>
+<p>Configure the connector to stream data from Kafka topics to ClickHouse tables</p>
+</li>
+</ol>
+<p>See the main repository for ClickHouse integration examples.</p>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>Confluent Documentation: https://docs.confluent.io/</li>
+<li>Terraform AWS Provider: https://registry.terraform.io/providers/hashicorp/aws/</li>
+<li>Apache Kafka Documentation: https://kafka.apache.org/documentation/</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <div class="readme ko"><h1>Confluent Platform on AWS with Terraform</h1>
+<p>This Terraform configuration deploys a complete Confluent Platform stack on AWS EC2, including Kafka, Schema Registry, Kafka Connect, ksqlDB, Control Center, and REST Proxy.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Complete Confluent Platform</strong>: All core components (Kafka, ZooKeeper, Schema Registry, Connect, ksqlDB, Control Center, REST Proxy)</li>
+<li><strong>Automated Setup</strong>: One-command deployment with Docker Compose</li>
+<li><strong>Sample Data Producer</strong>: Automatically generates sample data to a Kafka topic</li>
+<li><strong>Production-Ready</strong>: Configurable instance types, EBS volumes, and security groups</li>
+<li><strong>Easy Management</strong>: Scripts for start, stop, and status checking</li>
+</ul>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>(Optional) SSH key pair for remote access</li>
+</ul>
+<h2>AWS Credentials Setup</h2>
+<p>Set your AWS credentials as environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # If using temporary credentials
+export AWS_REGION=&quot;us-east-1&quot;  # Optional: Set default region
+</code></pre>
+<h2>Quick Start</h2>
+<h3>1. Clone and Navigate</h3>
+<pre><code class="language-bash">cd terraform-confluent-aws
+</code></pre>
+<h3>2. Configure Variables</h3>
+<p>Copy the example configuration:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code> to customize your deployment:</p>
+<pre><code class="language-hcl">aws_region = &quot;us-east-1&quot;
+instance_name = &quot;my-confluent-server&quot;
+instance_type = &quot;r5.xlarge&quot;
+key_pair_name = &quot;my-key-pair&quot;  # Optional: for SSH access
+use_elastic_ip = false
+</code></pre>
+<h3>3. Deploy</h3>
+<pre><code class="language-bash"># Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 5-10 minutes. Terraform will output all important URLs and connection information.</p>
+<h3>4. Access Confluent Platform</h3>
+<p>After deployment completes, access the Control Center:</p>
+<pre><code class="language-bash"># Get the Control Center URL from outputs
+terraform output control_center_url
+</code></pre>
+<p>Open the URL in your browser to access the Confluent Control Center Web UI.</p>
+<h2>Architecture</h2>
+<h3>Components Deployed</h3>
+<ol>
+<li><strong>EC2 Instance</strong>: Ubuntu 22.04 LTS with Docker</li>
+<li><strong>ZooKeeper</strong>: Cluster coordination (port 2181)</li>
+<li><strong>Kafka Broker</strong>: Message streaming (port 9092)</li>
+<li><strong>Schema Registry</strong>: Schema management (port 8081)</li>
+<li><strong>Kafka Connect</strong>: Data integration (port 8083)</li>
+<li><strong>ksqlDB</strong>: Stream processing (port 8088)</li>
+<li><strong>Control Center</strong>: Web UI for management (port 9021)</li>
+<li><strong>REST Proxy</strong>: HTTP REST API (port 8082)</li>
+<li><strong>Data Producer</strong>: Systemd service generating sample data</li>
+</ol>
+<h3>Network Configuration</h3>
+<p>The deployment creates a security group with the following ingress rules:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Service</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2181</td>
+<td>ZooKeeper</td>
+<td>Cluster coordination</td>
+</tr>
+<tr>
+<td>9092</td>
+<td>Kafka</td>
+<td>Broker access (internal and external)</td>
+</tr>
+<tr>
+<td>8081</td>
+<td>Schema Registry</td>
+<td>Schema management API</td>
+</tr>
+<tr>
+<td>8083</td>
+<td>Kafka Connect</td>
+<td>Connect API</td>
+</tr>
+<tr>
+<td>8088</td>
+<td>ksqlDB</td>
+<td>ksqlDB API</td>
+</tr>
+<tr>
+<td>8082</td>
+<td>REST Proxy</td>
+<td>Kafka REST API</td>
+</tr>
+<tr>
+<td>9021</td>
+<td>Control Center</td>
+<td>Web UI</td>
+</tr>
+<tr>
+<td>22</td>
+<td>SSH</td>
+<td>Remote access (if key configured)</td>
+</tr>
+</tbody>
+</table>
+<h3>SASL Authentication</h3>
+<p>The Kafka broker is configured with <strong>SASL/PLAIN authentication</strong> on port <strong>9092</strong> for external clients.</p>
+<p><strong>Authentication Details:</strong>
+- <strong>Security Protocol</strong>: <code>SASL_PLAINTEXT</code>
+- <strong>SASL Mechanism</strong>: <code>PLAIN</code>
+- <strong>Default Credentials</strong>: Configured via <code>kafka_sasl_username</code> and <code>kafka_sasl_password</code> variables</p>
+<p><strong>Listener Architecture:</strong>
+- <strong>Internal (PLAINTEXT)</strong>: <code>broker:29092</code> - Used by Control Center, Schema Registry, Connect (no authentication)
+- <strong>External (SASL_PLAINTEXT)</strong>: <code>&lt;PUBLIC_IP&gt;:9092</code> - Used by external clients (requires SASL authentication)</p>
+<p>This architecture mirrors <strong>Confluent Cloud's authentication model</strong>, making it ideal for ClickHouse integration workshops and hands-on labs.</p>
+<h4>Testing SASL Connection</h4>
+<p>After deployment, a Python test script is automatically generated on the EC2 instance with the correct IP address:</p>
+<pre><code class="language-bash"># Get the test command from Terraform outputs
+terraform output -raw test_sasl_connection
+
+# Download the test script (already configured with correct IP and credentials)
+scp -i /path/to/key.pem ubuntu@&lt;instance-ip&gt;:/opt/confluent/test_kafka_sasl.py .
+
+# Install Python package
+pip3 install confluent-kafka
+
+# Run the test
+python3 test_kafka_sasl.py
+</code></pre>
+<p>The test script automatically verifies:
+- ✓ Admin client connectivity and topic listing
+- ✓ Producer sending messages with SASL authentication
+- ✓ Consumer reading messages with SASL authentication</p>
+<p>For detailed connection examples in Python, Java, Go, Node.js, and ClickHouse, see <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws/SASL_CONNECTION_GUIDE.md">SASL_CONNECTION_GUIDE.md</a>.</p>
+<h2>Configuration</h2>
+<h3>Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>Name tag for EC2 instance</td>
+<td>"confluent-server"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td>"r5.xlarge"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>ebs_volume_size</code></td>
+<td>EBS volume size in GB</td>
+<td>100</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>SSH key pair name</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>allowed_cidr_blocks</code></td>
+<td>CIDR blocks for access</td>
+<td>["0.0.0.0/0"]</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>use_elastic_ip</code></td>
+<td>Allocate Elastic IP</td>
+<td>false</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>confluent_version</code></td>
+<td>Confluent Platform version</td>
+<td>"7.5.0"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>sample_topic_name</code></td>
+<td>Sample topic name</td>
+<td>"sample-data-topic"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>data_producer_interval</code></td>
+<td>Data production interval (seconds)</td>
+<td>5</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>kafka_sasl_username</code></td>
+<td>Kafka SASL username</td>
+<td>"admin"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>kafka_sasl_password</code></td>
+<td>Kafka SASL password</td>
+<td>"admin-secret"</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h3>Instance Type Recommendations</h3>
+<ul>
+<li><strong>Development</strong>: <code>t3.xlarge</code> (4 vCPU, 16 GB RAM)</li>
+<li><strong>Testing</strong>: <code>r5.xlarge</code> (4 vCPU, 32 GB RAM) - <strong>Default</strong></li>
+<li><strong>Production</strong>: <code>r5.2xlarge</code> or larger (8+ vCPU, 64+ GB RAM)</li>
+</ul>
+<h2>Management</h2>
+<h3>SSH Access</h3>
+<p>If you configured a key pair:</p>
+<pre><code class="language-bash"># Get SSH command from outputs
+terraform output ssh_command
+
+# Or manually connect
+ssh -i /path/to/your-key.pem ubuntu@&lt;instance-ip&gt;
+</code></pre>
+<h3>Management Scripts</h3>
+<p>Once connected via SSH, use these scripts:</p>
+<pre><code class="language-bash"># Check status of all services
+sudo /opt/confluent/status.sh
+
+# Stop Confluent Platform
+sudo /opt/confluent/stop.sh
+
+# Start Confluent Platform
+sudo /opt/confluent/start.sh
+
+# View data producer logs
+sudo journalctl -u confluent-producer -f
+</code></pre>
+<h3>Using Kafka</h3>
+<h4>Understanding Kafka Listeners</h4>
+<p>Kafka is configured with <strong>two listeners</strong>:</p>
+<ul>
+<li><strong>PLAINTEXT (port 29092)</strong>: Internal Docker network communication</li>
+<li><strong>EXTERNAL (port 9092)</strong>: External client access (from anywhere, including localhost)</li>
+</ul>
+<h4>List Topics (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec broker kafka-topics --list --bootstrap-server localhost:9092
+</code></pre>
+<h4>Consume Messages (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic sample-data-topic \
+  --from-beginning
+</code></pre>
+<h4>Produce Messages (from SSH)</h4>
+<pre><code class="language-bash"># From inside the instance
+docker exec -i broker kafka-console-producer \
+  --broker-list localhost:9092 \
+  --topic sample-data-topic
+</code></pre>
+<h3>Connecting from External Applications</h3>
+<p>External clients connect using port <strong>9092</strong> (same as Confluent Cloud):</p>
+<pre><code class="language-bash"># Get the external bootstrap server
+terraform output kafka_bootstrap_servers
+
+# Example output: 3.34.185.27:9092
+</code></pre>
+<h4>Test External Connection</h4>
+<pre><code class="language-bash"># Test connectivity
+nc -zv &lt;public-ip&gt; 9092
+
+# Test Kafka API from local machine (requires kafka tools)
+kafka-broker-api-versions --bootstrap-server &lt;public-ip&gt;:9092
+</code></pre>
+<h4>Example: External Python Client (with SASL Authentication)</h4>
+<pre><code class="language-python">from kafka import KafkaProducer, KafkaConsumer
+
+# Get credentials from Terraform outputs
+# terraform output kafka_sasl_username
+# terraform output -raw kafka_sasl_password
+
+# Producer
+producer = KafkaProducer(
+    bootstrap_servers=['&lt;public-ip&gt;:9092'],
+    security_protocol='SASL_PLAINTEXT',
+    sasl_mechanism='PLAIN',
+    sasl_plain_username='admin',  # Your kafka_sasl_username
+    sasl_plain_password='admin-secret'  # Your kafka_sasl_password
+)
+producer.send('sample-data-topic', b'Hello from external client')
+producer.flush()
+
+# Consumer
+consumer = KafkaConsumer(
+    'sample-data-topic',
+    bootstrap_servers=['&lt;public-ip&gt;:9092'],
+    security_protocol='SASL_PLAINTEXT',
+    sasl_mechanism='PLAIN',
+    sasl_plain_username='admin',  # Your kafka_sasl_username
+    sasl_plain_password='admin-secret',  # Your kafka_sasl_password
+    auto_offset_reset='earliest'
+)
+for message in consumer:
+    print(message.value)
+</code></pre>
+<h4>Port Summary</h4>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Listener</th>
+<th>Access From</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>29092</td>
+<td>PLAINTEXT</td>
+<td>Docker containers</td>
+<td>Internal service communication</td>
+</tr>
+<tr>
+<td><strong>9092</strong></td>
+<td><strong>SASL_PLAINTEXT</strong></td>
+<td><strong>Anywhere (including SSH)</strong></td>
+<td><strong>External clients with SASL auth</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>SASL Authentication</h3>
+<p>The Kafka broker is configured with <strong>SASL/PLAIN authentication</strong> (like Confluent Cloud's API Key/Secret model).</p>
+<h4>Get Credentials</h4>
+<pre><code class="language-bash"># Get username (API Key)
+terraform output kafka_sasl_username
+
+# Get password (API Secret)
+terraform output -raw kafka_sasl_password
+</code></pre>
+<p>Default credentials:
+- <strong>Username (API Key)</strong>: <code>admin</code>
+- <strong>Password (API Secret)</strong>: <code>admin-secret</code></p>
+<p>⚠️ <strong>Security Warning</strong>: Change these default credentials in production! Edit <code>terraform.tfvars</code>:</p>
+<pre><code class="language-hcl">kafka_sasl_username = &quot;your-api-key&quot;
+kafka_sasl_password = &quot;your-secret-key&quot;
+</code></pre>
+<h4>Command-line Tools with SASL</h4>
+<pre><code class="language-bash"># List topics (from inside instance)
+docker exec broker kafka-topics --list \
+  --bootstrap-server localhost:9092 \
+  --command-config /opt/confluent/client.properties
+
+# Consume messages (from inside instance)
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic sample-data-topic \
+  --from-beginning \
+  --consumer.config /opt/confluent/client.properties
+
+# Produce messages (from inside instance)
+docker exec -i broker kafka-console-producer \
+  --broker-list localhost:9092 \
+  --topic sample-data-topic \
+  --producer.config /opt/confluent/client.properties
+</code></pre>
+<h4>Java Client Configuration</h4>
+<pre><code class="language-java">Properties props = new Properties();
+props.put(&quot;bootstrap.servers&quot;, &quot;&lt;public-ip&gt;:9092&quot;);
+props.put(&quot;security.protocol&quot;, &quot;SASL_PLAINTEXT&quot;);
+props.put(&quot;sasl.mechanism&quot;, &quot;PLAIN&quot;);
+props.put(&quot;sasl.jaas.config&quot;,
+  &quot;org.apache.kafka.common.security.plain.PlainLoginModule required &quot; +
+  &quot;username=\&quot;admin\&quot; password=\&quot;admin-secret\&quot;;&quot;);
+
+KafkaProducer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
+</code></pre>
+<h4>Node.js Client Configuration</h4>
+<pre><code class="language-javascript">const { Kafka } = require('kafkajs');
+
+const kafka = new Kafka({
+  brokers: ['&lt;public-ip&gt;:9092'],
+  sasl: {
+    mechanism: 'plain',
+    username: 'admin',
+    password: 'admin-secret'
+  }
+});
+
+const producer = kafka.producer();
+const consumer = kafka.consumer({ groupId: 'my-group' });
+</code></pre>
+<h2>Sample Data Format</h2>
+<p>The data producer generates JSON messages with the following structure:</p>
+<pre><code class="language-json">{
+  &quot;event_id&quot;: 1,
+  &quot;timestamp&quot;: &quot;2025-01-15T10:30:00Z&quot;,
+  &quot;user_id&quot;: 123,
+  &quot;event_type&quot;: &quot;page_view&quot;,
+  &quot;value&quot;: 456,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;web&quot;,
+    &quot;version&quot;: &quot;1.0&quot;
+  }
+}
+</code></pre>
+<p>Event types include: <code>page_view</code>, <code>click</code>, <code>purchase</code>, <code>signup</code>, <code>logout</code></p>
+<h2>Monitoring</h2>
+<h3>Control Center</h3>
+<p>Access the Confluent Control Center at port 9021:</p>
+<ul>
+<li>View cluster health</li>
+<li>Monitor topics and consumers</li>
+<li>Manage connectors</li>
+<li>Execute ksqlDB queries</li>
+<li>View metrics and alerts</li>
+</ul>
+<h3>Docker Compose</h3>
+<pre><code class="language-bash"># View all container status
+docker compose ps
+
+# View specific container logs
+docker logs broker -f
+docker logs control-center -f
+
+# View resource usage
+docker stats
+</code></pre>
+<h2>Outputs</h2>
+<p>After deployment, Terraform provides:</p>
+<ul>
+<li><code>instance_id</code>: EC2 instance ID</li>
+<li><code>instance_public_ip</code>: Public IP address</li>
+<li><code>control_center_url</code>: Control Center web UI URL</li>
+<li><code>schema_registry_url</code>: Schema Registry API URL</li>
+<li><code>kafka_connect_url</code>: Kafka Connect API URL</li>
+<li><code>ksqldb_url</code>: ksqlDB Server API URL</li>
+<li><code>rest_proxy_url</code>: REST Proxy API URL</li>
+<li><code>kafka_bootstrap_servers</code>: Kafka bootstrap servers for external connections</li>
+<li><code>ssh_command</code>: SSH connection command</li>
+<li><code>useful_commands</code>: Quick reference commands</li>
+</ul>
+<h2>Troubleshooting</h2>
+<h3>Services Not Starting</h3>
+<p>Check Docker container status:</p>
+<pre><code class="language-bash">docker compose ps
+docker compose logs
+</code></pre>
+<h3>Cannot Access Control Center</h3>
+<ol>
+<li>Verify security group allows access from your IP</li>
+<li>Check if Docker containers are running</li>
+<li>Wait 2-3 minutes after deployment for services to fully start</li>
+</ol>
+<h3>Data Producer Not Running</h3>
+<pre><code class="language-bash"># Check service status
+sudo systemctl status confluent-producer
+
+# Restart service
+sudo systemctl restart confluent-producer
+
+# View logs
+sudo journalctl -u confluent-producer -f
+</code></pre>
+<h3>Kafka Connection Issues</h3>
+<p>Verify the external listener is properly configured:</p>
+<pre><code class="language-bash">docker exec broker kafka-broker-api-versions --bootstrap-server localhost:9092
+</code></pre>
+<h2>Cost Considerations</h2>
+<p>Estimated AWS costs (us-east-1 region):</p>
+<ul>
+<li><strong>r5.xlarge instance</strong>: ~$0.25/hour (~$180/month)</li>
+<li><strong>EBS gp3 volume (100 GB)</strong>: ~$8/month</li>
+<li><strong>Data transfer</strong>: Variable based on usage</li>
+<li><strong>Elastic IP</strong> (if enabled): $0.005/hour when instance stopped</li>
+</ul>
+<p><strong>Total estimated cost</strong>: ~$190-200/month for 24/7 operation</p>
+<h3>Cost Optimization</h3>
+<ol>
+<li><strong>Stop when not in use</strong>: <code>terraform destroy</code> when done</li>
+<li><strong>Use smaller instance</strong>: Change to <code>t3.xlarge</code> for development</li>
+<li><strong>Reduce EBS volume</strong>: Adjust <code>ebs_volume_size</code> if less storage needed</li>
+<li><strong>Disable Elastic IP</strong>: Set <code>use_elastic_ip = false</code></li>
+</ol>
+<h2>Security Best Practices</h2>
+<h3>For Production Use</h3>
+<ol>
+<li><strong>Restrict CIDR blocks</strong>: Limit <code>allowed_cidr_blocks</code> to your IP ranges</li>
+<li><strong>Enable encryption</strong>: Add SSL/TLS for Kafka listeners</li>
+<li><strong>Enable authentication</strong>: Configure SASL for Kafka</li>
+<li><strong>Use private subnets</strong>: Deploy in private subnet with bastion host</li>
+<li><strong>Enable CloudWatch</strong>: Add monitoring and alerting</li>
+<li><strong>Backup data</strong>: Configure EBS snapshots</li>
+<li><strong>Use secrets manager</strong>: Store credentials in AWS Secrets Manager</li>
+</ol>
+<h3>Current Security Posture</h3>
+<p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
+<ul>
+<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>No authentication enabled</li>
+<li>No encryption in transit</li>
+<li>Public IP with direct access</li>
+</ul>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<p>This will:
+- Terminate the EC2 instance
+- Delete the security group
+- Release the Elastic IP (if allocated)
+- Remove all associated resources</p>
+<p><strong>Note</strong>: This is irreversible and will delete all data on the instance.</p>
+<h2>Integration with ClickHouse</h2>
+<p>This Confluent Platform deployment can be integrated with ClickHouse using Kafka Connect:</p>
+<ol>
+<li>Access the Connect API:</li>
+</ol>
+<pre><code class="language-bash">terraform output kafka_connect_url
+</code></pre>
+<ol start="2">
+<li>
+<p>Install the ClickHouse Sink Connector (if not already included)</p>
+</li>
+<li>
+<p>Configure the connector to stream data from Kafka topics to ClickHouse tables</p>
+</li>
+</ol>
+<p>See the main repository for ClickHouse integration examples.</p>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>Confluent Documentation: https://docs.confluent.io/</li>
+<li>Terraform AWS Provider: https://registry.terraform.io/providers/hashicorp/aws/</li>
+<li>Apache Kafka Documentation: https://kafka.apache.org/documentation/</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

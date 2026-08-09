@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.8 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.8 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.8</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.8.28.1</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.8 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.8 new features (released 2025-08-28). This directory is designed for practical exercises with <strong>integrated MinIO-based Data Lake environment</strong>.</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.8 includes a new Parquet Reader (1.81x faster), enhanced Data Lake integration, Hive-style partitioning, S3 temporary data storage, and improved UNION ALL functionality.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>New Parquet Reader</strong> - 1.81x faster performance, 99.98% less data scanning</li>
+<li><strong>MinIO Integration</strong> - Data Lake implementation via S3-compatible storage</li>
+<li><strong>Data Lake Enhancements</strong> - Iceberg CREATE/DROP, Delta Lake writes, time travel</li>
+<li><strong>Hive-Style Partitioning</strong> - partition_strategy parameter, directory-based partitioning</li>
+<li><strong>Temporary Data on S3</strong> - Use S3 instead of local disk for temporary data storage</li>
+<li><strong>Enhanced UNION ALL</strong> - _table virtual column support</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog">datalake-minio-catalog</a> auto-deployment (handled by setup script)</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install ClickHouse 25.8 + MinIO Data Lake and start
+cd local/releases/25.8
+./00-setup.sh   # Deploys ClickHouse 25.8, MinIO, and Nessie
+
+# 2. Run tests for each feature
+./01-new-parquet-reader.sh      # Local file-based Parquet Reader test
+./06-minio-integration.sh       # MinIO S3 integration test (★ Recommended)
+./02-hive-partitioning.sh
+./03-temp-data-s3.sh
+./04-union-all-table.sh
+./05-data-lake-features.sh
+</code></pre>
+<h4>What Gets Deployed</h4>
+<p>When running <code>./00-setup.sh</code>, the following are automatically deployed:</p>
+<ol>
+<li>
+<p><strong>MinIO</strong> (ports 19000, 19001)
+   - S3-compatible object storage
+   - Web console: http://localhost:19001
+   - Credentials: admin / password123</p>
+</li>
+<li>
+<p><strong>Nessie</strong> (port 19120)
+   - Git-like data catalog
+   - REST API: http://localhost:19120</p>
+</li>
+<li>
+<p><strong>ClickHouse 25.8</strong> (ports 2508, 25081)
+   - Web UI: http://localhost:8123/play
+   - TCP port: 25081</p>
+</li>
+</ol>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../releases/25.8
+source 01-new-parquet-reader.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>0. MinIO Integration (06-minio-integration) ★ Recommended</h4>
+<p><strong>New Feature:</strong> Real-world Data Lake implementation with ClickHouse 25.8 + MinIO S3-compatible storage</p>
+<p><strong>Test Content:</strong>
+- Generate 50,000 e-commerce order data
+- Export data to MinIO in Parquet format
+- Read data from MinIO using S3 functions
+- Column pruning optimization (99.98% less data scanning)
+- Split files by country and wildcard queries
+- Daily revenue analysis (14 days)
+- Product category performance analysis
+- Customer segmentation analysis (VIP, Premium)</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./06-minio-integration.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Integration of S3-compatible storage (MinIO) with ClickHouse
+- Data read/write via <code>s3()</code> function
+- Real-world performance of new Parquet Reader (1.81x faster)
+- Minimal data scanning through column pruning
+- Multi-file queries using wildcards
+- Data Lake implementation in local development environment</p>
+<p><strong>Real-World Use Cases:</strong>
+- Local Data Lake development and testing
+- Local validation before S3 migration
+- Cost-effective data storage
+- Data analytics pipeline prototyping
+- E-commerce revenue analysis dashboard
+- Customer behavior analysis and segmentation</p>
+<p><strong>Dataset:</strong>
+- 50,000 orders (8 countries, 5,000 customers)
+- 8 product categories
+- 4 order statuses
+- 38M+ total revenue</p>
+<hr />
+<h4>1. New Parquet Reader (01-new-parquet-reader)</h4>
+<p><strong>New Feature:</strong> New Parquet Reader with 1.81x faster performance and 99.98% less data scanning</p>
+<p><strong>Test Content:</strong>
+- E-commerce event dataset generation (100,000 rows)
+- Parquet file export
+- Reading with new Parquet Reader
+- Column pruning optimization (read only necessary columns)
+- Complex analytical query performance
+- Conversion funnel analysis
+- User behavior analysis
+- Device and channel performance analysis
+- Geographic analysis
+- Product category performance
+- Time-based activity patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-new-parquet-reader.sh
+# Or
+cat 01-new-parquet-reader.sql | docker exec -i clickhouse-25-8 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- New Parquet Reader is 1.81x faster than previous version
+- Column pruning scans 99.98% less data
+- Improved memory efficiency by reading only necessary columns
+- Full support for Parquet v2 format
+- Reduced memory usage for large Parquet files
+- Improved support for nested structures and arrays</p>
+<p><strong>Real-World Use Cases:</strong>
+- Data Lake query acceleration
+- Direct analysis of Parquet files on S3/GCS/Azure
+- ETL pipeline optimization
+- Large-scale log file analysis
+- Data warehouse federated queries
+- Machine learning feature engineering
+- Real-time analytics dashboards
+- Cost-effective cold storage queries</p>
+<p><strong>Performance Comparison:</strong>
+| Task | Previous Version | ClickHouse 25.8 | Improvement |
+|------|-----------------|-----------------|-------------|
+| Full Parquet scan | Baseline | 1.81x faster | 81% improvement |
+| Selective column read | Scans much data | 99.98% less scan | Scans only 0.02% |
+| Memory usage | High | Significantly reduced | Improved efficiency |</p>
+<hr />
+<h4>2. Hive-Style Partitioning (02-hive-partitioning)</h4>
+<p><strong>New Feature:</strong> Hive-style directory structure support with partition_strategy parameter</p>
+<p><strong>Test Content:</strong>
+- Sales transaction data generation (100,000 rows)
+- Export data with Hive-style partitioning (year=YYYY/month=MM/)
+- Read partitioned data
+- Partition pruning (scan only specific partitions)
+- Regional sales analysis
+- Product category performance
+- Store performance ranking
+- Payment method analysis
+- Daily sales trends
+- High-value customer analysis
+- Partition efficiency comparison
+- Monthly growth rate analysis</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-hive-partitioning.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Hive partitioning: key=value directory structure
+- Avoid unnecessary directory scans with partition pruning
+- Standard approach compatible with Spark, Presto, Athena
+- Multi-level partitioning support (year/month/day)
+- Automatic partition column detection
+- Add partitions without schema changes
+- Data organization and query optimization</p>
+<p><strong>Real-World Use Cases:</strong>
+- Data Lake organization (S3, HDFS, GCS)
+- Multi-engine data sharing (Spark + ClickHouse)
+- Time-series data management
+- Geographic data partitioning
+- Multi-tenant data isolation
+- ETL pipeline optimization
+- Compliance data retention
+- Cost-effective data archiving</p>
+<p><strong>Partition Pattern Examples:</strong></p>
+<pre><code>/data/year=2024/month=12/day=01/
+/data/country=US/region=West/
+/data/tenant_id=123/date=2024-12-01/
+/data/event_type=purchase/hour=14/
+</code></pre>
+<p><strong>Performance Benefits:</strong>
+- <strong>Reduced I/O:</strong> Skip irrelevant partitions
+- <strong>Query speed:</strong> Read only necessary data
+- <strong>Organization:</strong> Intuitive directory structure
+- <strong>Scalability:</strong> Efficiently handle petabyte-scale data</p>
+<hr />
+<h4>3. Temporary Data on S3 (03-temp-data-s3)</h4>
+<p><strong>New Feature:</strong> Use S3 instead of local disk for temporary data storage</p>
+<p><strong>Test Content:</strong>
+- Understanding temporary data concept
+- S3 temporary data configuration methods
+- Large dataset generation (500,000 events)
+- Large JOIN operations (using temporary storage)
+- High cardinality GROUP BY aggregation
+- Large-scale DISTINCT operations
+- Complex window functions
+- Large-scale ORDER BY sorting
+- Session analysis (complex queries)
+- Product performance analysis (multi-JOIN)
+- User cohort analysis</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-temp-data-s3.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Temporary data is generated during query execution (JOIN, GROUP BY, ORDER BY, etc.)
+- Before 25.8: Local disk only, space constraints
+- After 25.8: S3 available, unlimited capacity
+- Automatic spillover when memory exceeds
+- Transparent operation to queries
+- S3-optimized I/O patterns
+- Automatic temporary data cleanup</p>
+<p><strong>Operations Requiring Temporary Data:</strong>
+1. Large JOINs (hash tables)
+2. High cardinality GROUP BY
+3. Large data sorting (ORDER BY)
+4. Window functions
+5. DISTINCT operations
+6. Aggregations exceeding memory limits</p>
+<p><strong>Configuration Example:</strong></p>
+<pre><code class="language-xml">&lt;storage_configuration&gt;
+    &lt;disks&gt;
+        &lt;s3_disk&gt;
+            &lt;type&gt;s3&lt;/type&gt;
+            &lt;endpoint&gt;https://bucket.s3.amazonaws.com/temp/&lt;/endpoint&gt;
+        &lt;/s3_disk&gt;
+    &lt;/disks&gt;
+&lt;/storage_configuration&gt;
+</code></pre>
+<pre><code class="language-sql">SET max_bytes_before_external_group_by = 10000000000;  -- 10GB
+SET max_bytes_before_external_sort = 10000000000;       -- 10GB
+SET temporary_data_policy = 'temp_policy';
+</code></pre>
+<p><strong>Real-World Use Cases:</strong>
+- Ad-hoc analysis of large datasets
+- Complex multi-table JOINs
+- High cardinality aggregations
+- Data exploration and discovery
+- Machine learning feature engineering
+- Full dataset quality checks
+- Overcome local disk constraints
+- Cost-effective large-scale processing</p>
+<p><strong>Benefits:</strong>
+- Can exceed local disk limits
+- Better resource utilization
+- Cost efficiency (S3 cheaper than local SSD)
+- No manual temporary data management
+- Improved query success rate</p>
+<hr />
+<h4>4. Enhanced UNION ALL with _table Virtual Column (04-union-all-table)</h4>
+<p><strong>New Feature:</strong> _table virtual column for source table identification in UNION ALL</p>
+<p><strong>Test Content:</strong>
+- Create multi-region sales tables (US, EU, Asia, LATAM)
+- Insert regional sales data
+- Use UNION ALL with _table column
+- Global sales analysis
+- Regional daily sales trends
+- Regional product performance
+- Customer distribution analysis
+- Filter by source table
+- Cross-region performance comparison
+- Weekly trend analysis
+- Data lineage tracking
+- Multi-currency aggregation</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./04-union-all-table.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- _table virtual column identifies source table in UNION ALL results
+- Can use _table in WHERE, GROUP BY, ORDER BY
+- Enable data lineage tracking
+- Source-based aggregation and filtering
+- Multi-table query audit trails
+- Minimal overhead</p>
+<p><strong>Syntax Examples:</strong></p>
+<pre><code class="language-sql">SELECT *, 'table1' AS _table FROM table1
+UNION ALL
+SELECT *, 'table2' AS _table FROM table2
+
+-- Filter by _table
+WHERE _table = 'table1'
+
+-- Group by _table
+GROUP BY _table
+
+-- Order by _table
+ORDER BY _table, revenue DESC
+</code></pre>
+<p><strong>Real-World Use Cases:</strong>
+- Multi-region data integration
+- Year-based table union (historical data)
+- Multi-tenant data queries
+- Federated query results
+- Data migration validation
+- Cross-shard analysis
+- Audit and compliance
+- Data governance</p>
+<p><strong>Key Benefits:</strong>
+- Data lineage tracking
+- Source identification in merged results
+- Filter by source table
+- Source-based aggregation
+- Multi-table query audit trails
+- Debugging and troubleshooting</p>
+<hr />
+<h4>5. Data Lake Enhancements (05-data-lake-features)</h4>
+<p><strong>New Feature:</strong> Iceberg CREATE/DROP, Delta Lake writes, time travel</p>
+<p><strong>Test Content:</strong>
+- Data Lake overview and feature description
+- Product catalog data generation (10,000 products)
+- Export to Data Lake in Parquet format
+- Read data from Data Lake
+- Version management simulation (v1, v2, v3)
+- Time travel - version comparison
+- Delta Lake style incremental updates
+- Iceberg style partitioning
+- Schema evolution simulation
+- Multi-version queries
+- Data Lake metadata queries
+- Point-in-time queries
+- Version-based audit trails</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./05-data-lake-features.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Apache Iceberg table CREATE/DROP
+- Delta Lake write support
+- ACID transaction guarantees
+- Schema evolution (without rewriting)
+- Query historical versions with time travel
+- Version comparison and auditing
+- Metadata optimization
+- Multi-format integration (Parquet, Iceberg, Delta)</p>
+<p><strong>Time Travel Examples:</strong></p>
+<pre><code class="language-sql">-- Iceberg: Point-in-time query
+SELECT * FROM iceberg_table
+FOR SYSTEM_TIME AS OF '2024-12-01';
+
+-- Delta Lake: Specific version query
+SELECT * FROM delta_table
+VERSION AS OF 42;
+
+-- Timestamp-based query
+SELECT * FROM delta_table
+TIMESTAMP AS OF '2024-12-01 00:00:00';
+</code></pre>
+<p><strong>Real-World Use Cases:</strong>
+- Data Lake analytics
+  - Direct S3/HDFS queries
+  - Multi-format support
+  - Partition pruning</p>
+<ul>
+<li>Data engineering:</li>
+<li>ETL pipelines</li>
+<li>Data quality checks</li>
+<li>
+<p>Schema evolution</p>
+</li>
+<li>
+<p>Data science:</p>
+</li>
+<li>Feature engineering</li>
+<li>Historical analysis</li>
+<li>
+<p>Experiment tracking</p>
+</li>
+<li>
+<p>Compliance and auditing:</p>
+</li>
+<li>Regulatory compliance with time travel</li>
+<li>Audit trails</li>
+<li>
+<p>Data lineage</p>
+</li>
+<li>
+<p>Real-time analytics:</p>
+</li>
+<li>Streaming + batch</li>
+<li>Incremental updates</li>
+<li>ACID guarantees</li>
+</ul>
+<p><strong>Integration Examples:</strong>
+- <strong>ClickHouse + Spark:</strong> Share Iceberg tables
+- <strong>ClickHouse + Presto:</strong> Federated queries
+- <strong>ClickHouse + Airflow:</strong> ETL orchestration
+- <strong>ClickHouse + dbt:</strong> Data transformation
+- <strong>ClickHouse + Kafka:</strong> Streaming ingestion</p>
+<p><strong>Performance Tips:</strong>
+- Use partitioning for large datasets
+- Leverage time travel for debugging
+- Implement schema evolution carefully
+- Monitor metadata operations
+- Optimize partition strategy
+- Improve storage efficiency with compression
+- Optimize file size (128MB-1GB)</p>
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-25-8
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.8/
+├── README.md                      # This document
+├── 00-setup.sh                    # ClickHouse 25.8 installation script
+├── 01-new-parquet-reader.sh       # New Parquet Reader test execution
+├── 01-new-parquet-reader.sql      # New Parquet Reader SQL
+├── 02-hive-partitioning.sh        # Hive-style partitioning test execution
+├── 02-hive-partitioning.sql       # Hive-style partitioning SQL
+├── 03-temp-data-s3.sh             # S3 temporary data test execution
+├── 03-temp-data-s3.sql            # S3 temporary data SQL
+├── 04-union-all-table.sh          # UNION ALL test execution
+├── 04-union-all-table.sql         # UNION ALL SQL
+├── 05-data-lake-features.sh       # Data Lake features test execution
+├── 05-data-lake-features.sql      # Data Lake features SQL
+├── 06-minio-integration.sh        # MinIO integration test execution
+└── 06-minio-integration.sql       # MinIO integration SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>01-new-parquet-reader</strong> - Learn Parquet file reading and performance improvements</li>
+<li><strong>04-union-all-table</strong> - Basics of multi-table integration</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>02-hive-partitioning</strong> - Understand partitioning strategies</li>
+<li><strong>03-temp-data-s3</strong> - Learn large-scale query optimization</li>
+<li><strong>05-data-lake-features</strong> - Explore Data Lake integration</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Combine all features to implement end-to-end Data Lake pipelines</li>
+<li>Design real production scenarios</li>
+<li>Performance benchmarking and optimization</li>
+<li>Multi-engine integration (Spark, Presto, ClickHouse)</li>
+</ul>
+<h3>💡 Feature Comparison</h3>
+<h4>ClickHouse 25.8 vs Previous Versions</h4>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Before 25.8</th>
+<th>ClickHouse 25.8</th>
+<th>Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parquet Reader</td>
+<td>Standard</td>
+<td>1.81x faster</td>
+<td>81% faster</td>
+</tr>
+<tr>
+<td>Parquet Column Pruning</td>
+<td>Basic</td>
+<td>99.98% less scan</td>
+<td>Drastically reduced I/O</td>
+</tr>
+<tr>
+<td>Hive Partitioning</td>
+<td>Manual</td>
+<td>Native support</td>
+<td>Standard compatibility</td>
+</tr>
+<tr>
+<td>Temporary Data</td>
+<td>Local disk only</td>
+<td>S3 support</td>
+<td>Unlimited capacity</td>
+</tr>
+<tr>
+<td>UNION ALL</td>
+<td>Basic</td>
+<td>_table column</td>
+<td>Source tracking</td>
+</tr>
+<tr>
+<td>Iceberg Tables</td>
+<td>Read-only</td>
+<td>CREATE/DROP</td>
+<td>Full management</td>
+</tr>
+<tr>
+<td>Delta Lake</td>
+<td>Read-only</td>
+<td>Write support</td>
+<td>Bidirectional</td>
+</tr>
+<tr>
+<td>Time Travel</td>
+<td>Limited</td>
+<td>Full support</td>
+<td>Historical queries</td>
+</tr>
+</tbody>
+</table>
+<h4>Performance Comparison</h4>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Previous</th>
+<th>ClickHouse 25.8</th>
+<th>Benefit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parquet full scan</td>
+<td>Baseline</td>
+<td>1.81x faster</td>
+<td>Speed</td>
+</tr>
+<tr>
+<td>Parquet selective columns</td>
+<td>Many bytes</td>
+<td>0.02% of data</td>
+<td>I/O efficiency</td>
+</tr>
+<tr>
+<td>Hive partition query</td>
+<td>Full scan</td>
+<td>Partition pruning</td>
+<td>Reduced scanning</td>
+</tr>
+<tr>
+<td>Large JOIN</td>
+<td>Memory limited</td>
+<td>S3 spillover</td>
+<td>Unlimited capacity</td>
+</tr>
+<tr>
+<td>Multi-table union</td>
+<td>No tracking</td>
+<td>Source identification</td>
+<td>Data lineage</td>
+</tr>
+<tr>
+<td>Data Lake writes</td>
+<td>Limited</td>
+<td>Full ACID</td>
+<td>Data integrity</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 What's New in 25.8</h3>
+<ul>
+<li><strong><code>_table</code> virtual column on every table</strong> — not just <code>Merge</code> tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/63665">#63665</a>)</li>
+<li><strong>Hive-style partitioned writes</strong> — plus a refactored read implementation (<a href="https://github.com/ClickHouse/ClickHouse/pull/76802">#76802</a>)</li>
+<li><strong>Iceberg writes</strong> — create operations, Glue and REST catalogs (<a href="https://github.com/ClickHouse/ClickHouse/pull/83983">#83983</a>)</li>
+<li><strong>DeltaLake write support</strong> — write to Delta tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/85564">#85564</a>)</li>
+<li><strong>PromQL dialect</strong> — basic <code>rate</code>, <code>delta</code> and <code>increase</code> support (<a href="https://github.com/ClickHouse/ClickHouse/pull/75036">#75036</a>)</li>
+<li><strong>ArrowFlight RPC</strong> — new <code>arrowflight()</code> table function (<a href="https://github.com/ClickHouse/ClickHouse/pull/74184">#74184</a>)</li>
+<li><strong>PostgreSQL <code>COPY</code></strong> — COPY command over the PostgreSQL protocol (<a href="https://github.com/ClickHouse/ClickHouse/pull/74344">#74344</a>)</li>
+<li><strong>Iceberg position deletes</strong> — merge-on-read deletes, merged by <code>OPTIMIZE</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/83094">#83094</a>)</li>
+<li><strong><code>JSONExtractCaseInsensitive</code></strong> — case-insensitive JSON key lookup (<a href="https://github.com/ClickHouse/ClickHouse/pull/83770">#83770</a>)</li>
+<li><strong><code>zookeeper_connection_log</code></strong> — historical ZooKeeper connections (<a href="https://github.com/ClickHouse/ClickHouse/pull/79494">#79494</a>)</li>
+<li><strong>CPU preemption scheduling</strong> — workload settings for CPU throttling (<a href="https://github.com/ClickHouse/ClickHouse/pull/80879">#80879</a>)</li>
+<li><strong><code>DESCRIBE SELECT</code></strong> — in addition to <code>DESCRIBE (SELECT ...)</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/82947">#82947</a>)</li>
+<li><strong><code>nowInBlock64()</code></strong> — block-level <code>DateTime64</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/84178">#84178</a>)</li>
+<li><strong><code>dateTimeToUUIDv7()</code></strong> — derive a UUIDv7 from a DateTime (<a href="https://github.com/ClickHouse/ClickHouse/pull/84319">#84319</a>)</li>
+<li><strong><code>Hash</code> output format</strong> — fingerprint a query result (<a href="https://github.com/ClickHouse/ClickHouse/pull/84607">#84607</a>)</li>
+<li><strong>S3 permission grants</strong> — <code>GRANT READ ON S3('s3://foo/.*')</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/84503">#84503</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-08">ClickHouse 25.8 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>GitHub Repository</strong>: <a href="https://github.com/ClickHouse/ClickHouse">ClickHouse GitHub</a></li>
+<li><strong>Data Lake Formats</strong>:</li>
+<li><a href="https://iceberg.apache.org/">Apache Iceberg</a></li>
+<li><a href="https://delta.io/">Delta Lake</a></li>
+<li><a href="https://parquet.apache.org/">Apache Parquet</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.8.28.1</li>
+<li><code>06-minio-integration</code> needs the companion MinIO stack and is not covered by that run</li>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default</li>
+<li>Thorough testing recommended before production use</li>
+<li>Data Lake features may require appropriate storage configuration</li>
+</ul>
+<h3>🔒 Security Considerations</h3>
+<p><strong>When accessing Data Lake:</strong>
+- Manage S3/GCS/Azure credentials securely
+- Use environment variables or IAM roles
+- Data encryption (in transit and at rest)
+- Access control and permission management
+- Enable audit logging</p>
+<p><strong>When using temporary data:</strong>
+- S3 bucket access control
+- Set up automatic temporary data cleanup
+- Cost monitoring
+- Consider network bandwidth</p>
+<h3>⚡ Performance Tips</h3>
+<p><strong>Parquet Reader optimization:</strong>
+- SELECT only necessary columns
+- Filter rows with WHERE conditions
+- Maintain appropriate file size (128MB-1GB)
+- Choose compression algorithm (Snappy, ZSTD)</p>
+<p><strong>Hive Partitioning optimization:</strong>
+- Choose partition keys matching query patterns
+- Maintain appropriate partition count (not too many or too few)
+- Include partition keys in WHERE conditions
+- Leverage partition pruning</p>
+<p><strong>Temporary data optimization:</strong>
+- Set appropriate memory thresholds
+- Perform large operations during off-peak hours
+- Monitor S3 usage costs
+- Leverage local cache</p>
+<p><strong>UNION ALL optimization:</strong>
+- Partition pruning with _table column
+- Exclude unnecessary tables
+- Leverage index keys</p>
+<p><strong>Data Lake optimization:</strong>
+- Partition time-series data by date
+- Leverage metadata caching
+- Optimize file size
+- Utilize predicate pushdown</p>
+<h3>🚀 Production Deployment</h3>
+<h4>Best Practices</h4>
+<pre><code class="language-sql">-- Check partition information
+SELECT
+    partition,
+    name,
+    rows,
+    bytes_on_disk
+FROM system.parts
+WHERE table = 'your_table'
+  AND active = 1;
+
+-- Monitor running queries
+SELECT
+    query_id,
+    user,
+    query,
+    elapsed,
+    memory_usage
+FROM system.processes
+WHERE query NOT LIKE '%system.processes%';
+
+-- Check disk usage
+SELECT
+    name,
+    path,
+    formatReadableSize(free_space) AS free,
+    formatReadableSize(total_space) AS total
+FROM system.disks;
+</code></pre>
+<h3>🛠 Management Commands</h3>
+<h4>ClickHouse Management</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to ClickHouse CLI
+./client.sh 8123
+
+# Stop ClickHouse
+./stop.sh
+
+# Restart ClickHouse
+./start.sh
+</code></pre>
+<h4>Data Lake (MinIO + Nessie) Management</h4>
+<pre><code class="language-bash"># Access MinIO web console
+# In browser: http://localhost:19001
+# Credentials: admin / password123
+
+# Stop MinIO and Nessie
+cd ../datalake-minio-catalog
+docker-compose down
+
+# Restart MinIO and Nessie
+docker-compose up -d minio nessie minio-setup
+
+# Complete MinIO data removal
+docker-compose down -v
+
+# Check container logs
+docker-compose logs -f minio
+docker-compose logs -f nessie
+</code></pre>
+<h4>Full Environment Reconfiguration</h4>
+<pre><code class="language-bash"># 1. Stop and clean all services
+cd ../../oss-mac-setup
+./stop.sh
+
+cd ../datalake-minio-catalog
+docker-compose down -v
+
+# 2. Full restart
+cd ../releases/25.8
+./00-setup.sh
+</code></pre>
+<h4>Data Verification</h4>
+<pre><code class="language-bash"># Check files stored in MinIO
+docker exec -it minio mc ls myminio/warehouse/
+
+# Check ClickHouse tables
+docker exec -it clickhouse-25-8 clickhouse-client -q &quot;SHOW TABLES&quot;
+
+# Check ClickHouse database size
+docker exec -it clickhouse-25-8 clickhouse-client -q &quot;SELECT database, formatReadableSize(sum(bytes)) as size FROM system.parts GROUP BY database&quot;
+</code></pre>
+<h4>Migration Strategy</h4>
+<ol>
+<li>
+<p><strong>Validate in test environment</strong>
+   - Test all new features
+   - Performance benchmarking
+   - Establish rollback plan</p>
+</li>
+<li>
+<p><strong>Gradual rollout</strong>
+   - Start with small datasets
+   - Monitor and measure performance
+   - Immediate response on issues</p>
+</li>
+<li>
+<p><strong>Monitoring</strong>
+   - Track query performance
+   - Monitor resource usage
+   - Check errors and warnings</p>
+</li>
+</ol>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.8 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 8월 28일 출시된 ClickHouse 25.8에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있으며, <strong>MinIO 기반 Data Lake 환경이 통합</strong>되어 있습니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake 통합 강화, Hive-style 파티셔닝, S3 임시 데이터 저장, 그리고 향상된 UNION ALL 기능을 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>New Parquet Reader</strong> - 1.81배 빠른 성능, 99.98% 적은 데이터 스캔</li>
+<li><strong>MinIO Integration</strong> - S3 호환 스토리지를 통한 Data Lake 구현</li>
+<li><strong>Data Lake Enhancements</strong> - Iceberg CREATE/DROP, Delta Lake 쓰기, 시간 여행</li>
+<li><strong>Hive-Style Partitioning</strong> - partition_strategy 파라미터, 디렉토리 기반 파티셔닝</li>
+<li><strong>Temporary Data on S3</strong> - 로컬 디스크 대신 S3를 임시 데이터 저장소로 활용</li>
+<li><strong>Enhanced UNION ALL</strong> - _table 가상 컬럼 지원</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog">datalake-minio-catalog</a> 자동 배포 (setup 스크립트가 처리)</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.8 + MinIO Data Lake 설치 및 시작
+cd local/releases/25.8
+./00-setup.sh   # ClickHouse 25.8, MinIO, Nessie를 모두 배포합니다
+
+# 2. 각 기능별 테스트 실행
+./01-new-parquet-reader.sh      # 로컬 파일 기반 Parquet Reader 테스트
+./06-minio-integration.sh       # MinIO S3 통합 테스트 (★ 추천)
+./02-hive-partitioning.sh
+./03-temp-data-s3.sh
+./04-union-all-table.sh
+./05-data-lake-features.sh
+</code></pre>
+<h4>배포되는 항목</h4>
+<p><code>./00-setup.sh</code> 실행 시 다음이 자동으로 배포됩니다:</p>
+<ol>
+<li>
+<p><strong>MinIO</strong> (포트 19000, 19001)
+   - S3 호환 객체 스토리지
+   - 웹 콘솔: http://localhost:19001
+   - 자격증명: admin / password123</p>
+</li>
+<li>
+<p><strong>Nessie</strong> (포트 19120)
+   - Git-like 데이터 카탈로그
+   - REST API: http://localhost:19120</p>
+</li>
+<li>
+<p><strong>ClickHouse 25.8</strong> (포트 2508, 25081)
+   - 웹 UI: http://localhost:8123/play
+   - TCP 포트: 25081</p>
+</li>
+</ol>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../releases/25.8
+source 01-new-parquet-reader.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>0. MinIO Integration (06-minio-integration) ★ 추천</h4>
+<p><strong>새로운 기능:</strong> ClickHouse 25.8 + MinIO S3 호환 스토리지를 통한 실전 Data Lake 구현</p>
+<p><strong>테스트 내용:</strong>
+- 50,000개 이커머스 주문 데이터 생성
+- MinIO로 Parquet 형식 데이터 내보내기
+- S3 함수로 MinIO에서 데이터 읽기
+- 컬럼 프루닝 최적화 (99.98% 적은 데이터 스캔)
+- 국가별 파일 분할 및 와일드카드 쿼리
+- 일일 매출 분석 (14일)
+- 제품 카테고리 성능 분석
+- 고객 세분화 분석 (VIP, Premium)</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./06-minio-integration.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- S3 호환 스토리지 (MinIO)와 ClickHouse 통합
+- <code>s3()</code> 함수를 통한 데이터 읽기/쓰기
+- 새로운 Parquet Reader의 실제 성능 (1.81배 빠름)
+- 컬럼 프루닝을 통한 최소 데이터 스캔
+- 와일드카드를 사용한 다중 파일 쿼리
+- 로컬 개발 환경에서의 Data Lake 구현</p>
+<p><strong>실무 활용:</strong>
+- 로컬 Data Lake 개발 및 테스트
+- S3 마이그레이션 전 로컬 검증
+- 비용 효율적인 데이터 저장소
+- 데이터 분석 파이프라인 프로토타입
+- 이커머스 매출 분석 대시보드
+- 고객 행동 분석 및 세분화</p>
+<p><strong>데이터셋:</strong>
+- 50,000개 주문 (8개 국가, 5,000명 고객)
+- 8개 제품 카테고리
+- 4가지 주문 상태
+- 38M+ 총 매출</p>
+<hr />
+<h4>1. New Parquet Reader (01-new-parquet-reader)</h4>
+<p><strong>새로운 기능:</strong> 1.81배 빠른 성능과 99.98% 적은 데이터 스캔을 제공하는 새로운 Parquet Reader</p>
+<p><strong>테스트 내용:</strong>
+- E-commerce 이벤트 데이터셋 생성 (100,000 행)
+- Parquet 파일 내보내기
+- 새로운 Parquet Reader로 읽기
+- Column pruning 최적화 (필요한 컬럼만 읽기)
+- 복잡한 분석 쿼리 성능
+- 변환율 퍼널 분석
+- 사용자 행동 분석
+- 디바이스 및 채널 성능 분석
+- 지리적 분석
+- 제품 카테고리 성능
+- 시간대별 활동 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-new-parquet-reader.sh
+# 또는
+cat 01-new-parquet-reader.sql | docker exec -i clickhouse-25-8 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 새로운 Parquet Reader는 기존 대비 1.81배 빠른 성능
+- Column pruning으로 99.98% 적은 데이터 스캔
+- 필요한 컬럼만 읽어 메모리 효율성 향상
+- Parquet v2 포맷 완전 지원
+- 대규모 Parquet 파일의 메모리 사용량 감소
+- 중첩된 구조체 및 배열 지원 개선</p>
+<p><strong>실무 활용:</strong>
+- Data Lake 쿼리 가속화
+- S3/GCS/Azure의 Parquet 파일 직접 분석
+- ETL 파이프라인 최적화
+- 대용량 로그 파일 분석
+- 데이터 웨어하우스 연합 쿼리
+- 기계 학습 특성 엔지니어링
+- 실시간 분석 대시보드
+- 비용 효율적인 cold storage 쿼리</p>
+<p><strong>성능 비교:</strong>
+| 작업 | 이전 버전 | ClickHouse 25.8 | 개선 |
+|------|----------|-----------------|------|
+| 전체 Parquet 스캔 | 기준 | 1.81배 빠름 | 81% 향상 |
+| 선택적 컬럼 읽기 | 많은 데이터 스캔 | 99.98% 적은 스캔 | 거의 0.02%만 스캔 |
+| 메모리 사용량 | 높음 | 대폭 감소 | 효율성 향상 |</p>
+<hr />
+<h4>2. Hive-Style Partitioning (02-hive-partitioning)</h4>
+<p><strong>새로운 기능:</strong> partition_strategy 파라미터로 Hive-style 디렉토리 구조 지원</p>
+<p><strong>테스트 내용:</strong>
+- 판매 트랜잭션 데이터 생성 (100,000 행)
+- Hive-style 파티셔닝으로 데이터 내보내기 (year=YYYY/month=MM/)
+- 파티션된 데이터 읽기
+- 파티션 프루닝 (특정 파티션만 스캔)
+- 지역별 판매 분석
+- 제품 카테고리 성능
+- 매장 성능 순위
+- 결제 방법 분석
+- 일별 판매 트렌드
+- 고가치 고객 분석
+- 파티션 효율성 비교
+- 월별 성장률 분석</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-hive-partitioning.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- Hive partitioning: key=value 디렉토리 구조
+- 파티션 프루닝으로 불필요한 디렉토리 스캔 회피
+- Spark, Presto, Athena와 호환되는 표준 방식
+- 다단계 파티셔닝 지원 (year/month/day)
+- 자동 파티션 컬럼 감지
+- 스키마 변경 없이 파티션 추가 가능
+- 데이터 조직화 및 쿼리 최적화</p>
+<p><strong>실무 활용:</strong>
+- Data Lake 조직화 (S3, HDFS, GCS)
+- 다중 엔진 데이터 공유 (Spark + ClickHouse)
+- 시계열 데이터 관리
+- 지리적 데이터 파티셔닝
+- 멀티 테넌트 데이터 격리
+- ETL 파이프라인 최적화
+- 규정 준수 데이터 보관
+- 비용 효율적인 데이터 아카이빙</p>
+<p><strong>파티션 패턴 예시:</strong></p>
+<pre><code>/data/year=2024/month=12/day=01/
+/data/country=US/region=West/
+/data/tenant_id=123/date=2024-12-01/
+/data/event_type=purchase/hour=14/
+</code></pre>
+<p><strong>성능 이점:</strong>
+- <strong>I/O 감소:</strong> 관련 없는 파티션 건너뛰기
+- <strong>쿼리 속도:</strong> 필요한 데이터만 읽기
+- <strong>조직화:</strong> 직관적인 디렉토리 구조
+- <strong>확장성:</strong> 페타바이트급 데이터 효율적 처리</p>
+<hr />
+<h4>3. Temporary Data on S3 (03-temp-data-s3)</h4>
+<p><strong>새로운 기능:</strong> 로컬 디스크 대신 S3를 임시 데이터 저장소로 사용 가능</p>
+<p><strong>테스트 내용:</strong>
+- 임시 데이터 개념 이해
+- S3 임시 데이터 구성 방법
+- 대규모 데이터셋 생성 (500,000 이벤트)
+- 대규모 JOIN 연산 (임시 저장소 사용)
+- 높은 카디널리티 GROUP BY 집계
+- 대규모 DISTINCT 연산
+- 복잡한 윈도우 함수
+- 대규모 ORDER BY 정렬
+- 세션 분석 (복잡한 쿼리)
+- 제품 성능 분석 (다중 JOIN)
+- 사용자 코호트 분석</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-temp-data-s3.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 임시 데이터는 쿼리 실행 중 생성됨 (JOIN, GROUP BY, ORDER BY 등)
+- 25.8 이전: 로컬 디스크만 사용, 공간 제약
+- 25.8 이후: S3 사용 가능, 무제한 용량
+- 메모리 초과 시 자동 spillover
+- 쿼리에 투명하게 동작
+- S3에 최적화된 I/O 패턴
+- 임시 데이터 자동 정리</p>
+<p><strong>임시 데이터가 필요한 작업:</strong>
+1. 대규모 JOIN (해시 테이블)
+2. 높은 카디널리티 GROUP BY
+3. 대용량 데이터 정렬 (ORDER BY)
+4. 윈도우 함수
+5. DISTINCT 연산
+6. 메모리 제한 초과 집계</p>
+<p><strong>설정 예시:</strong></p>
+<pre><code class="language-xml">&lt;storage_configuration&gt;
+    &lt;disks&gt;
+        &lt;s3_disk&gt;
+            &lt;type&gt;s3&lt;/type&gt;
+            &lt;endpoint&gt;https://bucket.s3.amazonaws.com/temp/&lt;/endpoint&gt;
+        &lt;/s3_disk&gt;
+    &lt;/disks&gt;
+&lt;/storage_configuration&gt;
+</code></pre>
+<pre><code class="language-sql">SET max_bytes_before_external_group_by = 10000000000;  -- 10GB
+SET max_bytes_before_external_sort = 10000000000;       -- 10GB
+SET temporary_data_policy = 'temp_policy';
+</code></pre>
+<p><strong>실무 활용:</strong>
+- 대규모 데이터셋 애드혹 분석
+- 복잡한 다중 테이블 JOIN
+- 높은 카디널리티 집계
+- 데이터 탐색 및 발견
+- 기계 학습 특성 엔지니어링
+- 전체 데이터셋 품질 검사
+- 로컬 디스크 제약 극복
+- 비용 효율적인 대용량 처리</p>
+<p><strong>이점:</strong>
+- 로컬 디스크 한계 초과 가능
+- 더 나은 리소스 활용
+- 비용 효율성 (S3가 로컬 SSD보다 저렴)
+- 수동 임시 데이터 관리 불필요
+- 쿼리 성공률 향상</p>
+<hr />
+<h4>4. Enhanced UNION ALL with _table Virtual Column (04-union-all-table)</h4>
+<p><strong>새로운 기능:</strong> UNION ALL에서 _table 가상 컬럼으로 소스 테이블 식별 가능</p>
+<p><strong>테스트 내용:</strong>
+- 다중 지역 판매 테이블 생성 (US, EU, Asia, LATAM)
+- 지역별 판매 데이터 삽입
+- UNION ALL과 _table 컬럼 사용
+- 글로벌 판매 분석
+- 지역별 일별 판매 트렌드
+- 지역별 제품 성능
+- 고객 분포 분석
+- 소스 테이블별 필터링
+- 지역 간 성능 비교
+- 주간 트렌드 분석
+- 데이터 계보 추적
+- 다중 통화 집계</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./04-union-all-table.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- _table 가상 컬럼이 UNION ALL 결과에서 소스 테이블 식별
+- WHERE, GROUP BY, ORDER BY에서 _table 사용 가능
+- 데이터 계보 추적 가능
+- 소스별 집계 및 필터링
+- 다중 테이블 쿼리 감사 추적
+- 최소한의 오버헤드</p>
+<p><strong>구문 예시:</strong></p>
+<pre><code class="language-sql">SELECT *, 'table1' AS _table FROM table1
+UNION ALL
+SELECT *, 'table2' AS _table FROM table2
+
+-- _table로 필터링
+WHERE _table = 'table1'
+
+-- _table로 그룹화
+GROUP BY _table
+
+-- _table로 정렬
+ORDER BY _table, revenue DESC
+</code></pre>
+<p><strong>실무 활용:</strong>
+- 다중 지역 데이터 통합
+- 연도별 테이블 union (히스토리컬 데이터)
+- 멀티 테넌트 데이터 쿼리
+- 연합 쿼리 결과
+- 데이터 마이그레이션 검증
+- 샤드 간 분석
+- 감사 및 규정 준수
+- 데이터 거버넌스</p>
+<p><strong>주요 이점:</strong>
+- 데이터 계보 추적
+- 병합된 결과에서 소스 식별
+- 소스 테이블별 필터링
+- 소스별 집계
+- 다중 테이블 쿼리 감사 추적
+- 디버깅 및 문제 해결</p>
+<hr />
+<h4>5. Data Lake Enhancements (05-data-lake-features)</h4>
+<p><strong>새로운 기능:</strong> Iceberg CREATE/DROP, Delta Lake 쓰기, 시간 여행 (time travel)</p>
+<p><strong>테스트 내용:</strong>
+- Data Lake 개요 및 기능 설명
+- 제품 카탈로그 데이터 생성 (10,000 제품)
+- Parquet 형식으로 Data Lake 내보내기
+- Data Lake에서 데이터 읽기
+- 버전 관리 시뮬레이션 (v1, v2, v3)
+- 시간 여행 - 버전 비교
+- Delta Lake 스타일 증분 업데이트
+- Iceberg 스타일 파티셔닝
+- 스키마 진화 시뮬레이션
+- 다중 버전 쿼리
+- Data Lake 메타데이터 쿼리
+- 특정 시점 쿼리 (Point-in-Time)
+- 버전별 감사 추적</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./05-data-lake-features.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- Apache Iceberg 테이블 생성/삭제
+- Delta Lake 쓰기 지원
+- ACID 트랜잭션 보장
+- 스키마 진화 (재작성 없이)
+- 시간 여행로 히스토리컬 버전 쿼리
+- 버전 비교 및 감사
+- 메타데이터 최적화
+- 다중 포맷 통합 (Parquet, Iceberg, Delta)</p>
+<p><strong>시간 여행 예시:</strong></p>
+<pre><code class="language-sql">-- Iceberg: 특정 시점 쿼리
+SELECT * FROM iceberg_table
+FOR SYSTEM_TIME AS OF '2024-12-01';
+
+-- Delta Lake: 특정 버전 쿼리
+SELECT * FROM delta_table
+VERSION AS OF 42;
+
+-- 타임스탬프 기반 쿼리
+SELECT * FROM delta_table
+TIMESTAMP AS OF '2024-12-01 00:00:00';
+</code></pre>
+<p><strong>실무 활용:</strong>
+- Data Lake 분석
+  - S3/HDFS 직접 쿼리
+  - 다중 포맷 지원
+  - 파티션 프루닝</p>
+<ul>
+<li>데이터 엔지니어링:</li>
+<li>ETL 파이프라인</li>
+<li>데이터 품질 검사</li>
+<li>
+<p>스키마 진화</p>
+</li>
+<li>
+<p>데이터 과학:</p>
+</li>
+<li>특성 엔지니어링</li>
+<li>히스토리컬 분석</li>
+<li>
+<p>실험 추적</p>
+</li>
+<li>
+<p>규정 준수 및 감사:</p>
+</li>
+<li>시간 여행로 규정 준수</li>
+<li>감사 추적</li>
+<li>
+<p>데이터 계보</p>
+</li>
+<li>
+<p>실시간 분석:</p>
+</li>
+<li>스트리밍 + 배치</li>
+<li>증분 업데이트</li>
+<li>ACID 보장</li>
+</ul>
+<p><strong>통합 예시:</strong>
+- <strong>ClickHouse + Spark:</strong> Iceberg 테이블 공유
+- <strong>ClickHouse + Presto:</strong> 연합 쿼리
+- <strong>ClickHouse + Airflow:</strong> ETL 오케스트레이션
+- <strong>ClickHouse + dbt:</strong> 데이터 변환
+- <strong>ClickHouse + Kafka:</strong> 스트리밍 수집</p>
+<p><strong>성능 팁:</strong>
+- 대규모 데이터셋에 파티셔닝 사용
+- 시간 여행을 디버깅에 활용
+- 스키마 진화를 신중하게 구현
+- 메타데이터 작업 모니터링
+- 파티션 전략 최적화
+- 압축으로 저장 효율성 향상
+- 파일 크기 최적화 (128MB-1GB)</p>
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-25-8
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.8/
+├── README.md                      # 이 문서
+├── 00-setup.sh                    # ClickHouse 25.8 설치 스크립트
+├── 01-new-parquet-reader.sh       # New Parquet Reader 테스트 실행
+├── 01-new-parquet-reader.sql      # New Parquet Reader SQL
+├── 02-hive-partitioning.sh        # Hive-style 파티셔닝 테스트 실행
+├── 02-hive-partitioning.sql       # Hive-style 파티셔닝 SQL
+├── 03-temp-data-s3.sh             # S3 임시 데이터 테스트 실행
+├── 03-temp-data-s3.sql            # S3 임시 데이터 SQL
+├── 04-union-all-table.sh          # UNION ALL 테스트 실행
+├── 04-union-all-table.sql         # UNION ALL SQL
+├── 05-data-lake-features.sh       # Data Lake 기능 테스트 실행
+├── 05-data-lake-features.sql      # Data Lake 기능 SQL
+├── 06-minio-integration.sh        # MinIO 통합 테스트 실행
+└── 06-minio-integration.sql       # MinIO 통합 SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>01-new-parquet-reader</strong> - Parquet 파일 읽기와 성능 개선 학습</li>
+<li><strong>04-union-all-table</strong> - 다중 테이블 통합 기초</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>02-hive-partitioning</strong> - 파티셔닝 전략 이해</li>
+<li><strong>03-temp-data-s3</strong> - 대용량 쿼리 최적화 학습</li>
+<li><strong>05-data-lake-features</strong> - Data Lake 통합 탐색</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>모든 기능을 조합하여 엔드투엔드 Data Lake 파이프라인 구현</li>
+<li>실제 프로덕션 시나리오 설계</li>
+<li>성능 벤치마킹 및 최적화</li>
+<li>다중 엔진 통합 (Spark, Presto, ClickHouse)</li>
+</ul>
+<h3>💡 기능 비교</h3>
+<h4>ClickHouse 25.8 vs Previous Versions</h4>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Before 25.8</th>
+<th>ClickHouse 25.8</th>
+<th>Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parquet Reader</td>
+<td>Standard</td>
+<td>1.81x faster</td>
+<td>81% faster</td>
+</tr>
+<tr>
+<td>Parquet Column Pruning</td>
+<td>Basic</td>
+<td>99.98% less scan</td>
+<td>Drastically reduced I/O</td>
+</tr>
+<tr>
+<td>Hive Partitioning</td>
+<td>Manual</td>
+<td>Native support</td>
+<td>Standard compatibility</td>
+</tr>
+<tr>
+<td>Temporary Data</td>
+<td>Local disk only</td>
+<td>S3 support</td>
+<td>Unlimited capacity</td>
+</tr>
+<tr>
+<td>UNION ALL</td>
+<td>Basic</td>
+<td>_table column</td>
+<td>Source tracking</td>
+</tr>
+<tr>
+<td>Iceberg Tables</td>
+<td>Read-only</td>
+<td>CREATE/DROP</td>
+<td>Full management</td>
+</tr>
+<tr>
+<td>Delta Lake</td>
+<td>Read-only</td>
+<td>Write support</td>
+<td>Bidirectional</td>
+</tr>
+<tr>
+<td>Time Travel</td>
+<td>Limited</td>
+<td>Full support</td>
+<td>Historical queries</td>
+</tr>
+</tbody>
+</table>
+<h4>Performance Comparison</h4>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Previous</th>
+<th>ClickHouse 25.8</th>
+<th>Benefit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parquet full scan</td>
+<td>Baseline</td>
+<td>1.81x faster</td>
+<td>Speed</td>
+</tr>
+<tr>
+<td>Parquet selective columns</td>
+<td>Many bytes</td>
+<td>0.02% of data</td>
+<td>I/O efficiency</td>
+</tr>
+<tr>
+<td>Hive partition query</td>
+<td>Full scan</td>
+<td>Partition pruning</td>
+<td>Reduced scanning</td>
+</tr>
+<tr>
+<td>Large JOIN</td>
+<td>Memory limited</td>
+<td>S3 spillover</td>
+<td>Unlimited capacity</td>
+</tr>
+<tr>
+<td>Multi-table union</td>
+<td>No tracking</td>
+<td>Source identification</td>
+<td>Data lineage</td>
+</tr>
+<tr>
+<td>Data Lake writes</td>
+<td>Limited</td>
+<td>Full ACID</td>
+<td>Data integrity</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 25.8의 새로운 기능</h3>
+<ul>
+<li><strong><code>_table</code> virtual column on every table</strong> — not just <code>Merge</code> tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/63665">#63665</a>)</li>
+<li><strong>Hive-style partitioned writes</strong> — plus a refactored read implementation (<a href="https://github.com/ClickHouse/ClickHouse/pull/76802">#76802</a>)</li>
+<li><strong>Iceberg writes</strong> — create operations, Glue and REST catalogs (<a href="https://github.com/ClickHouse/ClickHouse/pull/83983">#83983</a>)</li>
+<li><strong>DeltaLake write support</strong> — write to Delta tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/85564">#85564</a>)</li>
+<li><strong>PromQL dialect</strong> — basic <code>rate</code>, <code>delta</code> and <code>increase</code> support (<a href="https://github.com/ClickHouse/ClickHouse/pull/75036">#75036</a>)</li>
+<li><strong>ArrowFlight RPC</strong> — new <code>arrowflight()</code> table function (<a href="https://github.com/ClickHouse/ClickHouse/pull/74184">#74184</a>)</li>
+<li><strong>PostgreSQL <code>COPY</code></strong> — COPY command over the PostgreSQL protocol (<a href="https://github.com/ClickHouse/ClickHouse/pull/74344">#74344</a>)</li>
+<li><strong>Iceberg position deletes</strong> — merge-on-read deletes, merged by <code>OPTIMIZE</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/83094">#83094</a>)</li>
+<li><strong><code>JSONExtractCaseInsensitive</code></strong> — case-insensitive JSON key lookup (<a href="https://github.com/ClickHouse/ClickHouse/pull/83770">#83770</a>)</li>
+<li><strong><code>zookeeper_connection_log</code></strong> — historical ZooKeeper connections (<a href="https://github.com/ClickHouse/ClickHouse/pull/79494">#79494</a>)</li>
+<li><strong>CPU preemption scheduling</strong> — workload settings for CPU throttling (<a href="https://github.com/ClickHouse/ClickHouse/pull/80879">#80879</a>)</li>
+<li><strong><code>DESCRIBE SELECT</code></strong> — in addition to <code>DESCRIBE (SELECT ...)</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/82947">#82947</a>)</li>
+<li><strong><code>nowInBlock64()</code></strong> — block-level <code>DateTime64</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/84178">#84178</a>)</li>
+<li><strong><code>dateTimeToUUIDv7()</code></strong> — derive a UUIDv7 from a DateTime (<a href="https://github.com/ClickHouse/ClickHouse/pull/84319">#84319</a>)</li>
+<li><strong><code>Hash</code> output format</strong> — fingerprint a query result (<a href="https://github.com/ClickHouse/ClickHouse/pull/84607">#84607</a>)</li>
+<li><strong>S3 permission grants</strong> — <code>GRANT READ ON S3('s3://foo/.*')</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/84503">#84503</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-08">ClickHouse 25.8 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>GitHub Repository</strong>: <a href="https://github.com/ClickHouse/ClickHouse">ClickHouse GitHub</a></li>
+<li><strong>Data Lake Formats</strong>:</li>
+<li><a href="https://iceberg.apache.org/">Apache Iceberg</a></li>
+<li><a href="https://delta.io/">Delta Lake</a></li>
+<li><a href="https://parquet.apache.org/">Apache Parquet</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 있습니다</li>
+<li>프로덕션 환경 적용 전 충분한 테스트를 권장합니다</li>
+<li>Data Lake 기능은 적절한 스토리지 구성이 필요할 수 있습니다</li>
+</ul>
+<h3>🔒 보안 고려사항</h3>
+<p><strong>Data Lake 접근 시:</strong>
+- S3/GCS/Azure 자격 증명을 안전하게 관리
+- 환경 변수 또는 IAM 역할 사용
+- 데이터 암호화 (전송 중 및 저장 시)
+- 접근 제어 및 권한 관리
+- 감사 로깅 활성화</p>
+<p><strong>임시 데이터 사용 시:</strong>
+- S3 버킷 액세스 제어
+- 임시 데이터 자동 정리 설정
+- 비용 모니터링
+- 네트워크 대역폭 고려</p>
+<h3>⚡ 성능 팁</h3>
+<p><strong>Parquet Reader 최적화:</strong>
+- 필요한 컬럼만 SELECT
+- WHERE 조건으로 행 필터링
+- 적절한 파일 크기 유지 (128MB-1GB)
+- 압축 알고리즘 선택 (Snappy, ZSTD)</p>
+<p><strong>Hive Partitioning 최적화:</strong>
+- 쿼리 패턴에 맞는 파티션 키 선택
+- 파티션 수를 적절히 유지 (너무 많거나 적지 않게)
+- 파티션 키를 WHERE 조건에 포함
+- 파티션 프루닝 활용</p>
+<p><strong>임시 데이터 최적화:</strong>
+- 적절한 메모리 임계값 설정
+- 오프피크 시간에 대용량 작업 수행
+- S3 사용 비용 모니터링
+- 로컬 캐시 활용</p>
+<p><strong>UNION ALL 최적화:</strong>
+- _table 컬럼으로 파티션 프루닝
+- 불필요한 테이블 제외
+- 인덱스 키 활용</p>
+<p><strong>Data Lake 최적화:</strong>
+- 시계열 데이터는 날짜로 파티셔닝
+- 메타데이터 캐싱 활용
+- 파일 크기 최적화
+- Predicate pushdown 활용</p>
+<h3>🚀 프로덕션 배포</h3>
+<h4>Best Practices</h4>
+<pre><code class="language-sql">-- 파티션 정보 확인
+SELECT
+    partition,
+    name,
+    rows,
+    bytes_on_disk
+FROM system.parts
+WHERE table = 'your_table'
+  AND active = 1;
+
+-- 실행 중인 쿼리 모니터링
+SELECT
+    query_id,
+    user,
+    query,
+    elapsed,
+    memory_usage
+FROM system.processes
+WHERE query NOT LIKE '%system.processes%';
+
+-- 디스크 사용량 확인
+SELECT
+    name,
+    path,
+    formatReadableSize(free_space) AS free,
+    formatReadableSize(total_space) AS total
+FROM system.disks;
+</code></pre>
+<h3>🛠 관리 명령어</h3>
+<h4>ClickHouse 관리</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# ClickHouse CLI 접속
+./client.sh 8123
+
+# ClickHouse 중지
+./stop.sh
+
+# ClickHouse 재시작
+./start.sh
+</code></pre>
+<h4>Data Lake (MinIO + Nessie) 관리</h4>
+<pre><code class="language-bash"># MinIO 웹 콘솔 접속
+# 브라우저에서: http://localhost:19001
+# 자격증명: admin / password123
+
+# MinIO 및 Nessie 중지
+cd ../datalake-minio-catalog
+docker-compose down
+
+# MinIO 및 Nessie 재시작
+docker-compose up -d minio nessie minio-setup
+
+# MinIO 데이터 완전 삭제
+docker-compose down -v
+
+# 컨테이너 로그 확인
+docker-compose logs -f minio
+docker-compose logs -f nessie
+</code></pre>
+<h4>전체 환경 재구성</h4>
+<pre><code class="language-bash"># 1. 모든 서비스 중지 및 정리
+cd ../../oss-mac-setup
+./stop.sh
+
+cd ../datalake-minio-catalog
+docker-compose down -v
+
+# 2. 전체 재시작
+cd ../releases/25.8
+./00-setup.sh
+</code></pre>
+<h4>데이터 확인</h4>
+<pre><code class="language-bash"># MinIO에 저장된 파일 확인
+docker exec -it minio mc ls myminio/warehouse/
+
+# ClickHouse 테이블 확인
+docker exec -it clickhouse-25-8 clickhouse-client -q &quot;SHOW TABLES&quot;
+
+# ClickHouse 데이터베이스 크기 확인
+docker exec -it clickhouse-25-8 clickhouse-client -q &quot;SELECT database, formatReadableSize(sum(bytes)) as size FROM system.parts GROUP BY database&quot;
+</code></pre>
+<h4>마이그레이션 전략</h4>
+<ol>
+<li>
+<p><strong>테스트 환경에서 검증</strong>
+   - 모든 새 기능 테스트
+   - 성능 벤치마킹
+   - 롤백 계획 수립</p>
+</li>
+<li>
+<p><strong>점진적 롤아웃</strong>
+   - 작은 데이터셋부터 시작
+   - 모니터링 및 성능 측정
+   - 문제 발생 시 즉시 대응</p>
+</li>
+<li>
+<p><strong>모니터링</strong>
+   - 쿼리 성능 추적
+   - 리소스 사용량 모니터링
+   - 에러 및 경고 확인</p>
+</li>
+</ol>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

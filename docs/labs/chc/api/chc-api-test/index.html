@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Cloud API Tester · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Cloud API Tester — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/api/chc-api-test</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Cloud API Tester</h1>
+<p>ClickHouse Cloud API를 테스트하고 상세한 리포트를 생성하는 Python 도구입니다.</p>
+<h2>주요 기능</h2>
+<ul>
+<li>✅ <strong>자동 인증 관리</strong>: .env 파일을 통한 안전한 인증 정보 관리</li>
+<li>📊 <strong>포괄적인 API 테스트</strong>: Billing, Services, Management API 테스트</li>
+<li>📝 <strong>상세한 리포트</strong>: Swagger 문서 기반의 상세한 API 정보 포함</li>
+<li>🗂️ <strong>자동 파일 관리</strong>: 최신 리포트만 유지하고 이전 리포트는 old 폴더로 이동</li>
+<li>🔐 <strong>보안</strong>: .env 파일은 .gitignore에 포함되어 Git에 커밋되지 않음</li>
+</ul>
+<h2>설치</h2>
+<h3>필수 요구사항</h3>
+<ul>
+<li>Python 3.7 이상</li>
+<li>pip</li>
+</ul>
+<h3>의존성 설치</h3>
+<pre><code class="language-bash">pip3 install requests python-dotenv
+</code></pre>
+<h2>사용 방법</h2>
+<h3>1. 초기 설정</h3>
+<p>처음 실행 시 API 인증 정보를 입력하라는 메시지가 나타납니다:</p>
+<pre><code class="language-bash">python3 apitest.py
+</code></pre>
+<p>프롬프트에서 다음 정보를 입력:
+- API Key
+- API Secret (Password)
+- Organization ID
+- Service ID</p>
+<p>입력한 정보는 <code>.env</code> 파일에 자동으로 저장되며, 다음 실행부터는 자동으로 사용됩니다.</p>
+<h3>2. .env 파일 수동 생성 (선택사항)</h3>
+<p><code>.env.example</code> 파일을 복사하여 <code>.env</code>를 생성할 수도 있습니다:</p>
+<pre><code class="language-bash">cp .env.example .env
+</code></pre>
+<p>그 후 <code>.env</code> 파일을 편집하여 실제 값을 입력합니다:</p>
+<pre><code class="language-bash">API_KEY=your_api_key_here
+API_SECRET=your_api_secret_here
+ORG_ID=your_organization_id_here
+SERVICE_ID=your_service_id_here
+</code></pre>
+<h3>3. 테스트 실행</h3>
+<pre><code class="language-bash">python3 apitest.py
+</code></pre>
+<h2>출력 파일</h2>
+<p>실행 후 다음과 같은 구조로 파일이 생성됩니다:</p>
+<pre><code>chc-api-test/
+├── .env                    # 인증 정보 (Git에 커밋되지 않음)
+├── .env.example            # .env 템플릿
+├── apitest.py              # 메인 스크립트
+├── result/
+│   ├── clickhouse_api_report_YYYYMMDD_HHMMSS.md    # 최신 마크다운 리포트
+│   ├── clickhouse_api_results_YYYYMMDD_HHMMSS.json # 최신 JSON 결과
+│   └── old/                # 이전 리포트들
+│       ├── clickhouse_api_report_*.md
+│       └── clickhouse_api_results_*.json
+</code></pre>
+<h2>테스트되는 API 엔드포인트</h2>
+<h3>Billing API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/usageCost</code> - 사용량 비용 조회</li>
+<li>최근 30일</li>
+<li>최근 7일</li>
+<li>어제</li>
+<li><code>GET /organizations/{organizationId}</code> - 조직 정보</li>
+</ul>
+<h3>Services API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/services/{serviceId}</code> - 서비스 상세 정보</li>
+<li><code>GET /organizations/{organizationId}/services</code> - 서비스 목록</li>
+</ul>
+<h3>Management API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/services/{serviceId}/backups</code> - 백업 목록</li>
+<li><code>GET /organizations/{organizationId}/keys</code> - API 키 목록</li>
+<li><code>GET /organizations/{organizationId}/members</code> - 멤버 목록</li>
+</ul>
+<h2>리포트 내용</h2>
+<p>생성되는 마크다운 리포트에는 다음 정보가 포함됩니다:</p>
+<ol>
+<li><strong>테스트 요약</strong>: 성공/실패 통계</li>
+<li><strong>API 엔드포인트 상세 정보</strong>: Swagger 문서 기반 설명
+   - 메서드, 경로, 설명
+   - 파라미터 정보
+   - 응답 필드 설명</li>
+<li><strong>테스트 실행 결과</strong>: 각 API 호출의 상세 결과
+   - 상태 코드, 응답 시간
+   - 요청 파라미터
+   - 응답 데이터 샘플</li>
+<li><strong>활용 권장사항</strong>: 실제 사용 예제 코드
+   - 비용 모니터링 자동화
+   - 서비스 헬스 체크
+   - 백업 모니터링
+   - Cron 스케줄링 예제</li>
+</ol>
+<h2>활용 예제</h2>
+<h3>일일 비용 모니터링</h3>
+<pre><code class="language-python">from datetime import datetime, timedelta
+from apitest import ClickHouseCloudAPITester
+
+# 테스터 초기화
+tester = ClickHouseCloudAPITester(api_key, api_secret, org_id, service_id)
+
+# 어제 비용 확인
+yesterday = datetime.now() - timedelta(days=1)
+result = tester.make_request(
+    &quot;GET&quot;,
+    f&quot;/organizations/{org_id}/usageCost&quot;,
+    params={
+        &quot;from_date&quot;: yesterday.strftime(&quot;%Y-%m-%d&quot;),
+        &quot;to_date&quot;: yesterday.strftime(&quot;%Y-%m-%d&quot;)
+    }
+)
+
+if result['success']:
+    cost = result['response']['result']['grandTotalCHC']
+    print(f&quot;어제 비용: {cost} CHC&quot;)
+</code></pre>
+<h3>Cron으로 자동화</h3>
+<pre><code class="language-bash"># 매일 오전 9시에 API 테스트 실행
+0 9 * * * cd /path/to/chc-api-test &amp;&amp; python3 apitest.py &gt;&gt; /var/log/clickhouse-api-test.log 2&gt;&amp;1
+</code></pre>
+<h2>API 인증 정보 얻기</h2>
+<ol>
+<li><a href="https://console.clickhouse.cloud">ClickHouse Cloud Console</a>에 로그인</li>
+<li><strong>Settings</strong> &gt; <strong>API Keys</strong>로 이동</li>
+<li><strong>Create new key</strong> 클릭하여 새 API 키 생성</li>
+<li>Organization ID와 Service ID는 Console URL에서 확인 가능</li>
+</ol>
+<h2>보안 고려사항</h2>
+<ul>
+<li><code>.env</code> 파일은 절대 Git에 커밋하지 마세요</li>
+<li>API 키는 정기적으로 로테이션하세요</li>
+<li>최소 권한 원칙을 적용하여 필요한 권한만 부여하세요</li>
+<li>프로덕션 환경에서는 환경 변수나 비밀 관리 서비스를 사용하세요</li>
+</ul>
+<h2>문제 해결</h2>
+<h3>ModuleNotFoundError: No module named 'dotenv'</h3>
+<pre><code class="language-bash">pip3 install python-dotenv
+</code></pre>
+<h3>ModuleNotFoundError: No module named 'requests'</h3>
+<pre><code class="language-bash">pip3 install requests
+</code></pre>
+<h3>API 인증 실패 (401 Unauthorized)</h3>
+<ul>
+<li><code>.env</code> 파일의 API 키와 시크릿이 정확한지 확인</li>
+<li>API 키가 활성화 상태인지 ClickHouse Cloud Console에서 확인</li>
+<li>API 키에 필요한 권한이 부여되어 있는지 확인</li>
+</ul>
+<h2>참고 링크</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/cloud/manage/api/api-overview">ClickHouse Cloud API 공식 문서</a></li>
+<li><a href="https://clickhouse.com/docs/cloud/manage/api/swagger">OpenAPI Specification (Swagger)</a></li>
+<li><a href="https://clickhouse.com/blog/announcing-billing-api-for-clickhouse-cloud-with-vantage-support">Billing API 가이드</a></li>
+</ul>
+<h2>라이선스</h2>
+<p>MIT License</p>
+<h2>기여</h2>
+<p>이슈나 풀 리퀘스트는 언제든 환영합니다!</p></div>
+  <div class="readme ko"><h1>ClickHouse Cloud API Tester</h1>
+<p>ClickHouse Cloud API를 테스트하고 상세한 리포트를 생성하는 Python 도구입니다.</p>
+<h2>주요 기능</h2>
+<ul>
+<li>✅ <strong>자동 인증 관리</strong>: .env 파일을 통한 안전한 인증 정보 관리</li>
+<li>📊 <strong>포괄적인 API 테스트</strong>: Billing, Services, Management API 테스트</li>
+<li>📝 <strong>상세한 리포트</strong>: Swagger 문서 기반의 상세한 API 정보 포함</li>
+<li>🗂️ <strong>자동 파일 관리</strong>: 최신 리포트만 유지하고 이전 리포트는 old 폴더로 이동</li>
+<li>🔐 <strong>보안</strong>: .env 파일은 .gitignore에 포함되어 Git에 커밋되지 않음</li>
+</ul>
+<h2>설치</h2>
+<h3>필수 요구사항</h3>
+<ul>
+<li>Python 3.7 이상</li>
+<li>pip</li>
+</ul>
+<h3>의존성 설치</h3>
+<pre><code class="language-bash">pip3 install requests python-dotenv
+</code></pre>
+<h2>사용 방법</h2>
+<h3>1. 초기 설정</h3>
+<p>처음 실행 시 API 인증 정보를 입력하라는 메시지가 나타납니다:</p>
+<pre><code class="language-bash">python3 apitest.py
+</code></pre>
+<p>프롬프트에서 다음 정보를 입력:
+- API Key
+- API Secret (Password)
+- Organization ID
+- Service ID</p>
+<p>입력한 정보는 <code>.env</code> 파일에 자동으로 저장되며, 다음 실행부터는 자동으로 사용됩니다.</p>
+<h3>2. .env 파일 수동 생성 (선택사항)</h3>
+<p><code>.env.example</code> 파일을 복사하여 <code>.env</code>를 생성할 수도 있습니다:</p>
+<pre><code class="language-bash">cp .env.example .env
+</code></pre>
+<p>그 후 <code>.env</code> 파일을 편집하여 실제 값을 입력합니다:</p>
+<pre><code class="language-bash">API_KEY=your_api_key_here
+API_SECRET=your_api_secret_here
+ORG_ID=your_organization_id_here
+SERVICE_ID=your_service_id_here
+</code></pre>
+<h3>3. 테스트 실행</h3>
+<pre><code class="language-bash">python3 apitest.py
+</code></pre>
+<h2>출력 파일</h2>
+<p>실행 후 다음과 같은 구조로 파일이 생성됩니다:</p>
+<pre><code>chc-api-test/
+├── .env                    # 인증 정보 (Git에 커밋되지 않음)
+├── .env.example            # .env 템플릿
+├── apitest.py              # 메인 스크립트
+├── result/
+│   ├── clickhouse_api_report_YYYYMMDD_HHMMSS.md    # 최신 마크다운 리포트
+│   ├── clickhouse_api_results_YYYYMMDD_HHMMSS.json # 최신 JSON 결과
+│   └── old/                # 이전 리포트들
+│       ├── clickhouse_api_report_*.md
+│       └── clickhouse_api_results_*.json
+</code></pre>
+<h2>테스트되는 API 엔드포인트</h2>
+<h3>Billing API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/usageCost</code> - 사용량 비용 조회</li>
+<li>최근 30일</li>
+<li>최근 7일</li>
+<li>어제</li>
+<li><code>GET /organizations/{organizationId}</code> - 조직 정보</li>
+</ul>
+<h3>Services API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/services/{serviceId}</code> - 서비스 상세 정보</li>
+<li><code>GET /organizations/{organizationId}/services</code> - 서비스 목록</li>
+</ul>
+<h3>Management API</h3>
+<ul>
+<li><code>GET /organizations/{organizationId}/services/{serviceId}/backups</code> - 백업 목록</li>
+<li><code>GET /organizations/{organizationId}/keys</code> - API 키 목록</li>
+<li><code>GET /organizations/{organizationId}/members</code> - 멤버 목록</li>
+</ul>
+<h2>리포트 내용</h2>
+<p>생성되는 마크다운 리포트에는 다음 정보가 포함됩니다:</p>
+<ol>
+<li><strong>테스트 요약</strong>: 성공/실패 통계</li>
+<li><strong>API 엔드포인트 상세 정보</strong>: Swagger 문서 기반 설명
+   - 메서드, 경로, 설명
+   - 파라미터 정보
+   - 응답 필드 설명</li>
+<li><strong>테스트 실행 결과</strong>: 각 API 호출의 상세 결과
+   - 상태 코드, 응답 시간
+   - 요청 파라미터
+   - 응답 데이터 샘플</li>
+<li><strong>활용 권장사항</strong>: 실제 사용 예제 코드
+   - 비용 모니터링 자동화
+   - 서비스 헬스 체크
+   - 백업 모니터링
+   - Cron 스케줄링 예제</li>
+</ol>
+<h2>활용 예제</h2>
+<h3>일일 비용 모니터링</h3>
+<pre><code class="language-python">from datetime import datetime, timedelta
+from apitest import ClickHouseCloudAPITester
+
+# 테스터 초기화
+tester = ClickHouseCloudAPITester(api_key, api_secret, org_id, service_id)
+
+# 어제 비용 확인
+yesterday = datetime.now() - timedelta(days=1)
+result = tester.make_request(
+    &quot;GET&quot;,
+    f&quot;/organizations/{org_id}/usageCost&quot;,
+    params={
+        &quot;from_date&quot;: yesterday.strftime(&quot;%Y-%m-%d&quot;),
+        &quot;to_date&quot;: yesterday.strftime(&quot;%Y-%m-%d&quot;)
+    }
+)
+
+if result['success']:
+    cost = result['response']['result']['grandTotalCHC']
+    print(f&quot;어제 비용: {cost} CHC&quot;)
+</code></pre>
+<h3>Cron으로 자동화</h3>
+<pre><code class="language-bash"># 매일 오전 9시에 API 테스트 실행
+0 9 * * * cd /path/to/chc-api-test &amp;&amp; python3 apitest.py &gt;&gt; /var/log/clickhouse-api-test.log 2&gt;&amp;1
+</code></pre>
+<h2>API 인증 정보 얻기</h2>
+<ol>
+<li><a href="https://console.clickhouse.cloud">ClickHouse Cloud Console</a>에 로그인</li>
+<li><strong>Settings</strong> &gt; <strong>API Keys</strong>로 이동</li>
+<li><strong>Create new key</strong> 클릭하여 새 API 키 생성</li>
+<li>Organization ID와 Service ID는 Console URL에서 확인 가능</li>
+</ol>
+<h2>보안 고려사항</h2>
+<ul>
+<li><code>.env</code> 파일은 절대 Git에 커밋하지 마세요</li>
+<li>API 키는 정기적으로 로테이션하세요</li>
+<li>최소 권한 원칙을 적용하여 필요한 권한만 부여하세요</li>
+<li>프로덕션 환경에서는 환경 변수나 비밀 관리 서비스를 사용하세요</li>
+</ul>
+<h2>문제 해결</h2>
+<h3>ModuleNotFoundError: No module named 'dotenv'</h3>
+<pre><code class="language-bash">pip3 install python-dotenv
+</code></pre>
+<h3>ModuleNotFoundError: No module named 'requests'</h3>
+<pre><code class="language-bash">pip3 install requests
+</code></pre>
+<h3>API 인증 실패 (401 Unauthorized)</h3>
+<ul>
+<li><code>.env</code> 파일의 API 키와 시크릿이 정확한지 확인</li>
+<li>API 키가 활성화 상태인지 ClickHouse Cloud Console에서 확인</li>
+<li>API 키에 필요한 권한이 부여되어 있는지 확인</li>
+</ul>
+<h2>참고 링크</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/cloud/manage/api/api-overview">ClickHouse Cloud API 공식 문서</a></li>
+<li><a href="https://clickhouse.com/docs/cloud/manage/api/swagger">OpenAPI Specification (Swagger)</a></li>
+<li><a href="https://clickhouse.com/blog/announcing-billing-api-for-clickhouse-cloud-with-vantage-support">Billing API 가이드</a></li>
+</ul>
+<h2>라이선스</h2>
+<p>MIT License</p>
+<h2>기여</h2>
+<p>이슈나 풀 리퀘스트는 언제든 환영합니다!</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/api/chc-api-test"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

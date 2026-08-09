@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Traffic Analysis Platform with ClickHouse · ClickHouse HOLs</title>
+<meta name="description" content="Security Traffic Analysis Platform with ClickHouse — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/security-traffic-analysis</code>
+    
+  </nav>
+  <div class="readme en"><h1>Security Traffic Analysis Platform with ClickHouse</h1>
+<hr />
+<p>A comprehensive platform for security traffic analysis using ClickHouse, featuring real-time PII anonymization, automated attack detection, and vulnerability reproduction validation.</p>
+<h3>🎯 Purpose</h3>
+<p>This lab provides practical experience with ClickHouse for security operations and traffic analysis:
+- HTTP packet data capture and analysis
+- Real-time PII (Personally Identifiable Information) detection and anonymization
+- Automated attack pattern detection (Bruteforce, Scanner, Enumeration, EDoS)
+- Vulnerability reproduction validation and regression testing
+- Automated triage and severity classification
+- AI-ready anonymized dataset generation</p>
+<p>Whether you're building a security operations platform or analyzing traffic patterns, this lab demonstrates production-ready patterns for handling sensitive packet data at scale.</p>
+<h3>📊 Dataset Scale</h3>
+<ul>
+<li><strong>Normal Traffic</strong>: 5,000 HTTP requests</li>
+<li><strong>Attack Scenarios</strong>: SQL Injection, JWT exposure, API key leaks</li>
+<li><strong>PII Types Detected</strong>: JWT tokens, API keys, emails, phone numbers, credit cards</li>
+<li><strong>Time Window</strong>: Real-time + historical (configurable TTL)</li>
+<li><strong>Demo Data</strong>: Realistic security traffic analysis scenarios with before/after patch validation</li>
+</ul>
+<h3>📁 File Structure</h3>
+<pre><code>security-traffic-analysis/
+├── README.md                                   # This file
+├── 01-create-database.sql                      # Database setup
+├── 02-create-tables.sql                        # Core tables (packets, anonymized, detection)
+├── 03-create-materialized-views-realtime.sql   # Real-time MVs (anonymization, PII logging)
+├── 04-create-refreshable-mvs.sql               # Refreshable MVs (attack detection, triage)
+├── 05-generate-demo-data.sql                   # Demo data generation
+├── 06-demo-queries.sql                         # Demo analysis queries
+├── 07-utility-functions.sql                    # Utility functions and views
+├── 08-vector-search-setup.sql                  # Vector Search setup (attack signatures)
+├── 09-vector-embeddings-tables.sql             # Embeddings tables (requests, reports)
+├── 10-vector-demo-data.sql                     # Vector demo data generation
+├── 11-vector-search-queries.sql                # Vector Search query practice
+├── 12-vector-integration.sql                   # Python/API integration guide
+└── 99-cleanup.sql                              # Cleanup script
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<p>Execute core labs in sequence:</p>
+<pre><code class="language-bash">cd usecase/security-traffic-analysis
+
+# Core Lab (Required)
+clickhouse-client --queries-file 01-create-database.sql
+clickhouse-client --queries-file 02-create-tables.sql
+clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
+clickhouse-client --queries-file 04-create-refreshable-mvs.sql
+clickhouse-client --queries-file 05-generate-demo-data.sql
+clickhouse-client --queries-file 07-utility-functions.sql
+
+# Advanced Lab: Vector Search (Optional, requires ClickHouse 24.8+)
+clickhouse-client --queries-file 08-vector-search-setup.sql
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+clickhouse-client --queries-file 10-vector-demo-data.sql
+clickhouse-client --queries-file 11-vector-search-queries.sql
+</code></pre>
+<p>Or execute core labs in a loop:</p>
+<pre><code class="language-bash">for file in 01-create-database.sql 02-create-tables.sql 03-create-materialized-views-realtime.sql 04-create-refreshable-mvs.sql 05-generate-demo-data.sql 07-utility-functions.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<p>For Vector Search labs:</p>
+<pre><code class="language-bash">for file in 08-vector-search-setup.sql 09-vector-embeddings-tables.sql 10-vector-demo-data.sql 11-vector-search-queries.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 Detailed Lab Steps</h3>
+<h4>1. Database Setup</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-create-database.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates <code>security_traffic_analysis</code> database
+- Sets up USE context</p>
+<p><strong>Expected time</strong>: ~1 second</p>
+<hr />
+<h4>2. Core Tables Creation</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-create-tables.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates 6 core tables:
+  - <code>http_packets</code>: Raw HTTP request/response packets (TTL: 90 days)
+  - <code>http_packets_anonymized</code>: Anonymized packets for AI training (TTL: 365 days)
+  - <code>attack_detection_agg</code>: Attack pattern aggregates (1-minute windows)
+  - <code>triage_results</code>: Automated triage classification
+  - <code>block_list</code>: Real-time block targets
+  - <code>pii_exposure_log</code>: Detailed PII exposure events (TTL: 180 days)
+- Adds secondary indexes for efficient queries</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h4>3. Real-time Materialized Views</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates real-time data processing pipelines:
+  - <code>mv_anonymize_packets</code>: Auto-anonymize incoming packets
+    - Masks JWT tokens, API keys, emails, phone numbers, credit cards
+    - Generates SHA256 hashes for IPs and participant IDs
+    - Records PII types detected as metadata
+  - <code>mv_pii_exposure_log</code>: Logs PII exposure incidents
+    - Severity classification (CRITICAL/HIGH/MEDIUM/LOW)
+    - Context snippets (masked)</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h4>4. Refreshable Materialized Views</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-create-refreshable-mvs.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates periodically refreshed analysis views:
+  - <code>mv_attack_detection</code>: Attack pattern detection (refresh: 1 minute)
+    - Bruteforce: Repeated requests to same endpoint
+    - Scanner: Wide endpoint exploration
+    - Enumeration: Sequential ID access patterns
+    - EDoS: High-cost resource consumption
+  - <code>mv_auto_triage</code>: Automated severity classification (refresh: 5 minutes)
+  - <code>mv_auto_block</code>: Automatic blocking for threats &gt; 0.7 score (refresh: 1 minute)</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<p><strong>Note</strong>: Refreshable MVs require ClickHouse Cloud or recent self-managed versions</p>
+<hr />
+<h4>5. Demo Data Generation</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-generate-demo-data.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Generates 5,000 normal HTTP requests
+- Creates vulnerability scenarios:
+  - SQL Injection attack sequence (before patch)
+  - JWT token exposure
+  - API key leaks in responses
+  - Post-patch validation data
+- Generates various PII patterns for testing</p>
+<p><strong>Expected time</strong>: ~5-10 seconds</p>
+<hr />
+<h4>6. Demo Queries</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 06-demo-queries.sql
+</code></pre>
+<p><strong>Query scenarios</strong>:
+- <strong>PART 1: Vulnerability Reproduction &amp; Regression Testing</strong>
+  - Extract request sequences by report ID
+  - Automated reproduction validation
+  - Before/after patch comparison
+  - Auto-triage dashboard
+- <strong>PART 2: Attack Detection</strong>
+  - Real-time threat monitoring
+  - Attack type breakdown
+  - Block list management
+- <strong>PART 3: PII Anonymization</strong>
+  - Original vs anonymized data comparison
+  - PII exposure statistics
+  - AI training dataset export</p>
+<p><strong>Expected time</strong>: ~5-30 seconds per query</p>
+<hr />
+<h4>7. Utility Functions and Views</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 07-utility-functions.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates reusable PII masking functions
+  - <code>maskJWT</code>, <code>maskEmail</code>, <code>maskPhoneKR</code>, <code>maskCreditCard</code>, <code>maskApiKey</code>
+  - <code>maskAllPII</code>: Comprehensive masking function
+- Creates threat score calculation functions
+  - <code>calcBruteforceScore</code>, <code>calcScannerScore</code>
+- Creates convenience views for common queries</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h3>🔍 Advanced Lab: Vector Search (Optional)</h3>
+<p><strong>Prerequisites</strong>: ClickHouse 24.8+ (Vector Search GA)</p>
+<p>This advanced section demonstrates AI-powered threat detection using vector embeddings and semantic similarity search.</p>
+<h4>8. Vector Search Setup</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 08-vector-search-setup.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Introduces Vector Search concepts and use cases
+- Creates <code>attack_signatures</code> table with vector embeddings
+- Stores known attack patterns with metadata (CWE, CVSS, severity)
+- Sets up HNSW index for fast similarity search
+- Inserts sample attack patterns (SQLi, XSS, SSRF, etc.)</p>
+<p><strong>Key concepts</strong>:
+- Vector embeddings represent attack patterns in high-dimensional space
+- cosineDistance measures semantic similarity between patterns
+- HNSW (Hierarchical Navigable Small World) enables fast approximate search</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h4>9. Embeddings Tables</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates <code>request_embeddings</code> table for HTTP request vectors
+- Creates <code>report_knowledge_base</code> table for bug report semantic search
+- Creates <code>duplicate_report_links</code> table for tracking duplicates
+- Sets up vector similarity indexes
+- Creates utility views and functions</p>
+<p><strong>Use cases</strong>:
+- Similar attack pattern detection
+- Duplicate report identification
+- Semantic search for bug reports
+- Automated triage prioritization</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h4>10. Vector Demo Data</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 10-vector-demo-data.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates mock embedding functions (SQLi, XSS, SSRF patterns)
+- Updates attack signatures with vector embeddings
+- Generates embeddings for sample HTTP requests
+- Creates sample bug reports with embeddings
+- Validates embedding dimensions and quality</p>
+<p><strong>Note</strong>: Uses mock embeddings for demo. Production requires OpenAI API or Sentence Transformers.</p>
+<p><strong>Expected time</strong>: ~3-5 seconds</p>
+<hr />
+<h4>11. Vector Search Queries</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 11-vector-search-queries.sql
+</code></pre>
+<p><strong>Query scenarios</strong>:
+- <strong>PART 1: Attack Pattern Detection</strong>
+  - Find similar attack patterns for suspicious requests
+  - Match requests to known attack categories
+  - Filter by severity and CVSS score
+- <strong>PART 2: Duplicate Report Detection</strong>
+  - Find similar bug reports
+  - Calculate duplicate probability
+  - Analyze duplicate rates by vulnerability type
+- <strong>PART 3: Semantic Search</strong>
+  - Natural language queries for bug reports
+  - Hybrid keyword + vector search
+  - Prioritize based on past high-bounty reports
+- <strong>PART 4: Clustering &amp; Analytics</strong>
+  - Group similar attack patterns
+  - Outlier detection (anomaly detection)
+  - Attack trend analysis over time
+- <strong>PART 5: Production Queries</strong>
+  - Real-time threat scoring system
+  - Automated triage recommendations
+  - Combined heuristic + vector scoring</p>
+<p><strong>Expected time</strong>: ~5-30 seconds per query</p>
+<hr />
+<h4>12. Python Integration</h4>
+<pre><code class="language-bash"># View the integration guide
+cat 12-vector-integration.sql
+</code></pre>
+<p><strong>What it covers</strong>:
+- <strong>OpenAI API Integration</strong>: Generate real embeddings using OpenAI
+- <strong>Batch Processing</strong>: Efficient embedding generation pipelines
+- <strong>REST API Examples</strong>: Flask-based search API endpoints
+- <strong>Sentence Transformers</strong>: Free, local embedding generation
+- <strong>Performance Optimization</strong>: Caching, batching, query optimization
+- <strong>Production Checklist</strong>: Security, monitoring, cost optimization</p>
+<p><strong>Key components</strong>:
+- Python scripts for embedding generation
+- API endpoints for similarity search
+- Duplicate detection service
+- Semantic search implementation
+- Best practices and deployment guide</p>
+<p><strong>Expected time</strong>: Study material (no execution required)</p>
+<hr />
+<h3>🔧 Use Cases</h3>
+<h4>1️⃣ Vulnerability Reproduction Automation</h4>
+<p><strong>Goal</strong>: Automatically validate bug reports and verify patches</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sequence Extraction</td>
+<td>Retrieve request/response sequence by report ID</td>
+</tr>
+<tr>
+<td>Reproduction Validation</td>
+<td>Analyze response patterns to confirm vulnerability</td>
+</tr>
+<tr>
+<td>Regression Testing</td>
+<td>Compare results before/after patch</td>
+</tr>
+<tr>
+<td>Auto Triage</td>
+<td>Automatic severity classification</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Query</strong>:</p>
+<pre><code class="language-sql">SELECT report_id,
+       countIf(response_body LIKE '%password%') as sensitive_exposed,
+       multiIf(
+           countIf(response_body LIKE '%password%') &gt; 0, 'CRITICAL',
+           countIf(response_status &gt;= 500) &gt; 0, 'HIGH',
+           'MEDIUM'
+       ) as verdict
+FROM http_packets
+WHERE report_id = 'BUG-2024-1234'
+GROUP BY report_id;
+</code></pre>
+<hr />
+<h4>2️⃣ Automated Attack Detection</h4>
+<p><strong>Goal</strong>: Detect abuse and malicious activity in security traffic analysis traffic</p>
+<table>
+<thead>
+<tr>
+<th>Attack Type</th>
+<th>Detection Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bruteforce</td>
+<td>Repeated requests to same endpoint, high auth failure rate</td>
+</tr>
+<tr>
+<td>Scanner</td>
+<td>Wide endpoint exploration, admin path attempts</td>
+</tr>
+<tr>
+<td>Enumeration</td>
+<td>Sequential ID access patterns</td>
+</tr>
+<tr>
+<td>EDoS</td>
+<td>Repeated high-cost requests, elevated response times</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Auto-blocking</strong>: Threats with score &gt; 0.7 automatically added to block list</p>
+<p><strong>Example Query</strong>:</p>
+<pre><code class="language-sql">SELECT source_ip_hash,
+       participant_id,
+       bruteforce_score, scanner_score,
+       is_blocked, block_reason
+FROM attack_detection_agg
+WHERE bruteforce_score &gt; 0.7 OR scanner_score &gt; 0.7
+ORDER BY bruteforce_score DESC;
+</code></pre>
+<hr />
+<h4>3️⃣ PII Detection and Anonymization</h4>
+<p><strong>Goal</strong>: Automatically detect and mask sensitive information in responses</p>
+<table>
+<thead>
+<tr>
+<th>PII Type</th>
+<th>Pattern</th>
+<th>Masked Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JWT Token</td>
+<td><code>eyJ...</code></td>
+<td><code>[JWT_REDACTED]</code></td>
+</tr>
+<tr>
+<td>API Key</td>
+<td><code>"api_key": "..."</code></td>
+<td><code>"api_key":"[REDACTED]"</code></td>
+</tr>
+<tr>
+<td>Email</td>
+<td><code>user@example.com</code></td>
+<td><code>[EMAIL_REDACTED]</code></td>
+</tr>
+<tr>
+<td>Phone (KR)</td>
+<td><code>010-1234-5678</code></td>
+<td><code>[PHONE_REDACTED]</code></td>
+</tr>
+<tr>
+<td>Credit Card</td>
+<td><code>4111-1111-1111-1111</code></td>
+<td><code>[CARD_REDACTED]</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Anonymized Data</strong>: Safe for AI training and public disclosure</p>
+<p><strong>Example Query</strong>:</p>
+<pre><code class="language-sql">SELECT pii_type, count() as exposure_count,
+       countIf(severity = 'CRITICAL') as critical_count
+FROM pii_exposure_log
+WHERE event_date = today()
+GROUP BY pii_type
+ORDER BY exposure_count DESC;
+</code></pre>
+<hr />
+<h3>🛠 Prerequisites</h3>
+<p><strong>System Requirements</strong>:
+- <strong>ClickHouse Version</strong>: 23.8+ (for Refreshable MVs on Cloud, 24.1+ for self-managed)
+- <strong>Memory</strong>: Minimum 4GB RAM (8GB+ recommended)
+- <strong>Disk Space</strong>: 10GB for demo data
+- <strong>CPU</strong>: 2+ cores recommended</p>
+<p><strong>Software</strong>:
+- ClickHouse client installed
+- Access to ClickHouse Cloud or self-managed instance
+- Terminal or SQL client</p>
+<p><strong>Permissions</strong>:
+- CREATE DATABASE
+- CREATE TABLE
+- CREATE VIEW
+- INSERT data</p>
+<hr />
+<h3>💡 Performance Tips</h3>
+<ol>
+<li>
+<p><strong>Index Usage</strong>:
+   - Bloom filter indexes added for <code>report_id</code>, <code>source_ip</code>, and <code>response_status</code>
+   - Leverage these for fast filtering</p>
+</li>
+<li>
+<p><strong>Partitioning</strong>:
+   - All tables partitioned by month (<code>toYYYYMM</code>)
+   - Use partition pruning in WHERE clauses: <code>WHERE event_date &gt;= today() - 30</code></p>
+</li>
+<li>
+<p><strong>TTL Management</strong>:
+   - Raw packets: 90 days
+   - Anonymized data: 365 days
+   - PII logs: 180 days
+   - Adjust TTL based on compliance requirements</p>
+</li>
+<li>
+<p><strong>Query Optimization</strong>:
+   - Use <code>FORMAT PrettyCompactMonoBlock</code> for readable output
+   - Apply LIMIT for large result sets
+   - Use materialized views instead of repeated aggregations</p>
+</li>
+<li>
+<p><strong>Refreshable MVs</strong>:
+   - Adjust refresh intervals based on monitoring needs
+   - Consider compute costs on ClickHouse Cloud</p>
+</li>
+</ol>
+<hr />
+<h3>🔍 Troubleshooting</h3>
+<h4>Issue: "Table already exists" error</h4>
+<p><strong>Solution</strong>: Run cleanup script first</p>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<h4>Issue: Refreshable MVs not supported</h4>
+<p><strong>Symptom</strong>: Error creating <code>mv_attack_detection</code>
+<strong>Solution</strong>:
+- Ensure ClickHouse version 23.8+ (Cloud) or 24.1+ (self-managed)
+- Alternative: Use regular MVs with INSERT SELECT scheduled queries</p>
+<h4>Issue: Out of memory during data generation</h4>
+<p><strong>Symptom</strong>: Query fails during <code>05-generate-demo-data.sql</code>
+<strong>Solution</strong>:
+- Reduce <code>numbers()</code> range in INSERT statements
+- Generate data in smaller batches
+- Increase available memory</p>
+<h4>Issue: Slow query performance</h4>
+<p><strong>Solution</strong>:
+- Check partition pruning: <code>EXPLAIN SELECT ...</code>
+- Verify indexes: <code>SHOW CREATE TABLE http_packets</code>
+- Use <code>SYSTEM RELOAD DICTIONARIES</code> if using dictionaries
+- Check merge status: <code>SELECT * FROM system.merges</code></p>
+<h4>Issue: PII not being detected</h4>
+<p><strong>Symptom</strong>: <code>detected_pii_types</code> array is empty
+<strong>Solution</strong>:
+- Verify regex patterns in <code>mv_anonymize_packets</code>
+- Check source data format matches patterns
+- Test regex with <code>SELECT match(response_body, 'eyJ[A-Za-z0-9_-]{10,}...')</code></p>
+<hr />
+<h3>🧹 Cleanup</h3>
+<p>To remove all demo data and objects:</p>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p><strong>What it removes</strong>:
+- All materialized views
+- All regular views
+- All functions
+- All tables
+- Database (optional - commented out by default)</p>
+<p><strong>Expected time</strong>: ~2-3 seconds</p>
+<hr />
+<h3>📚 Key Learning Points</h3>
+<ol>
+<li><strong>Real-time Data Processing</strong>: Materialized views for instant data transformation</li>
+<li><strong>PII Handling</strong>: Regex-based detection and masking strategies</li>
+<li><strong>Threat Detection</strong>: Pattern-based scoring for different attack types</li>
+<li><strong>Data Lifecycle</strong>: TTL management for compliance and cost optimization</li>
+<li><strong>Query Performance</strong>: Partitioning, indexing, and aggregation optimization</li>
+<li><strong>Automation</strong>: Refreshable MVs for periodic analysis updates</li>
+<li><strong>Audit Trail</strong>: Comprehensive logging of security events</li>
+<li><strong>Vector Search (Advanced)</strong>: AI-powered threat detection using semantic similarity
+   - Attack pattern recognition with embeddings
+   - Duplicate report detection using cosine distance
+   - Semantic search for bug reports
+   - Hybrid traditional + AI-based threat scoring
+   - Production-ready integration patterns</li>
+</ol>
+<hr />
+<h3>📝 License</h3>
+<p>MIT License - See repository root for details</p>
+<hr />
+<h3>👤 Author</h3>
+<p>Created: 2026-01-31
+Updated: 2026-02-01</p>
+<hr />
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse를 활용한 보안 트래픽 분석 패킷 분석 플랫폼입니다. 실시간 PII 비식별화, 자동화된 공격 탐지, 취약점 재현 검증 기능을 제공합니다.</p>
+<h3>🎯 목적</h3>
+<p>이 랩은 보안 운영 및 보안 트래픽 분석 관리를 위한 ClickHouse 실무 경험을 제공합니다:
+- HTTP 패킷 데이터 캡처 및 분석
+- 실시간 PII(개인식별정보) 탐지 및 비식별화
+- 자동화된 공격 패턴 탐지 (Bruteforce, Scanner, Enumeration, EDoS)
+- 취약점 재현 검증 및 회귀 테스트
+- 자동 트리아지 및 심각도 분류
+- AI 학습용 비식별화 데이터셋 생성</p>
+<p>보안 운영 플랫폼을 구축하거나 보안 트래픽 분석 프로그램을 관리하는 경우, 이 랩은 대규모 민감한 패킷 데이터 처리를 위한 프로덕션 수준의 패턴을 제시합니다.</p>
+<h3>📊 데이터셋 규모</h3>
+<ul>
+<li><strong>정상 트래픽</strong>: 5,000개 HTTP 요청</li>
+<li><strong>공격 시나리오</strong>: SQL Injection, JWT 노출, API 키 유출</li>
+<li><strong>PII 탐지 유형</strong>: JWT 토큰, API 키, 이메일, 전화번호, 신용카드</li>
+<li><strong>시간 윈도우</strong>: 실시간 + 히스토리컬 (TTL 설정 가능)</li>
+<li><strong>데모 데이터</strong>: 패치 전후 검증을 포함한 실제 보안 트래픽 분석 시나리오</li>
+</ul>
+<h3>📁 파일 구조</h3>
+<pre><code>security-traffic-analysis/
+├── README.md                                   # 이 파일
+├── 01-create-database.sql                      # 데이터베이스 설정
+├── 02-create-tables.sql                        # 핵심 테이블 (패킷, 비식별화, 탐지)
+├── 03-create-materialized-views-realtime.sql   # 실시간 MV (비식별화, PII 로깅)
+├── 04-create-refreshable-mvs.sql               # Refreshable MV (공격탐지, 트리아지)
+├── 05-generate-demo-data.sql                   # 데모 데이터 생성
+├── 06-demo-queries.sql                         # 데모 분석 쿼리
+├── 07-utility-functions.sql                    # 유틸리티 함수 및 뷰
+├── 08-vector-search-setup.sql                  # Vector Search 설정 (공격 시그니처)
+├── 09-vector-embeddings-tables.sql             # 임베딩 테이블 (요청, 리포트)
+├── 10-vector-demo-data.sql                     # Vector 데모 데이터 생성
+├── 11-vector-search-queries.sql                # Vector Search 쿼리 실습
+├── 12-vector-integration.sql                   # Python/API 통합 가이드
+└── 99-cleanup.sql                              # 정리 스크립트
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<p>핵심 실습을 순서대로 실행:</p>
+<pre><code class="language-bash">cd usecase/security-traffic-analysis
+
+# 핵심 실습 (필수)
+clickhouse-client --queries-file 01-create-database.sql
+clickhouse-client --queries-file 02-create-tables.sql
+clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
+clickhouse-client --queries-file 04-create-refreshable-mvs.sql
+clickhouse-client --queries-file 05-generate-demo-data.sql
+clickhouse-client --queries-file 07-utility-functions.sql
+
+# 고급 실습: Vector Search (선택, ClickHouse 24.8+ 필요)
+clickhouse-client --queries-file 08-vector-search-setup.sql
+clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+clickhouse-client --queries-file 10-vector-demo-data.sql
+clickhouse-client --queries-file 11-vector-search-queries.sql
+</code></pre>
+<p>또는 핵심 실습을 루프로 실행:</p>
+<pre><code class="language-bash">for file in 01-create-database.sql 02-create-tables.sql 03-create-materialized-views-realtime.sql 04-create-refreshable-mvs.sql 05-generate-demo-data.sql 07-utility-functions.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<p>Vector Search 실습용:</p>
+<pre><code class="language-bash">for file in 08-vector-search-setup.sql 09-vector-embeddings-tables.sql 10-vector-demo-data.sql 11-vector-search-queries.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 상세 랩 단계</h3>
+<h4>1. 데이터베이스 설정</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-create-database.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- <code>security_traffic_analysis</code> 데이터베이스 생성
+- USE 컨텍스트 설정</p>
+<p><strong>예상 시간</strong>: ~1초</p>
+<hr />
+<h4>2. 핵심 테이블 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-create-tables.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- 6개 핵심 테이블 생성:
+  - <code>http_packets</code>: 원본 HTTP 요청/응답 패킷 (TTL: 90일)
+  - <code>http_packets_anonymized</code>: AI 학습용 비식별화 패킷 (TTL: 365일)
+  - <code>attack_detection_agg</code>: 공격 패턴 집계 (1분 윈도우)
+  - <code>triage_results</code>: 자동 트리아지 분류
+  - <code>block_list</code>: 실시간 차단 대상
+  - <code>pii_exposure_log</code>: 상세 PII 노출 이벤트 (TTL: 180일)
+- 효율적인 쿼리를 위한 보조 인덱스 추가</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h4>3. 실시간 Materialized Views</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-create-materialized-views-realtime.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- 실시간 데이터 처리 파이프라인 생성:
+  - <code>mv_anonymize_packets</code>: 유입 패킷 자동 비식별화
+    - JWT 토큰, API 키, 이메일, 전화번호, 신용카드 마스킹
+    - IP 및 참여자 ID SHA256 해시 생성
+    - 탐지된 PII 유형을 메타데이터로 기록
+  - <code>mv_pii_exposure_log</code>: PII 노출 사건 로깅
+    - 심각도 분류 (CRITICAL/HIGH/MEDIUM/LOW)
+    - 컨텍스트 스니펫 (마스킹됨)</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h4>4. Refreshable Materialized Views</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-create-refreshable-mvs.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- 주기적으로 갱신되는 분석 뷰 생성:
+  - <code>mv_attack_detection</code>: 공격 패턴 탐지 (갱신: 1분)
+    - Bruteforce: 동일 엔드포인트 반복 요청
+    - Scanner: 광범위한 엔드포인트 탐색
+    - Enumeration: 순차적 ID 접근 패턴
+    - EDoS: 고비용 리소스 소비
+  - <code>mv_auto_triage</code>: 자동 심각도 분류 (갱신: 5분)
+  - <code>mv_auto_block</code>: 위협 점수 &gt; 0.7 자동 차단 (갱신: 1분)</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<p><strong>참고</strong>: Refreshable MV는 ClickHouse Cloud 또는 최신 self-managed 버전 필요</p>
+<hr />
+<h4>5. 데모 데이터 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-generate-demo-data.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- 5,000개 정상 HTTP 요청 생성
+- 취약점 시나리오 생성:
+  - SQL Injection 공격 시퀀스 (패치 전)
+  - JWT 토큰 노출
+  - 응답의 API 키 유출
+  - 패치 후 검증 데이터
+- 테스트용 다양한 PII 패턴 생성</p>
+<p><strong>예상 시간</strong>: ~5-10초</p>
+<hr />
+<h4>6. 데모 쿼리</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 06-demo-queries.sql
+</code></pre>
+<p><strong>쿼리 시나리오</strong>:
+- <strong>PART 1: 취약점 재현 및 회귀 테스트</strong>
+  - 리포트 ID별 요청 시퀀스 추출
+  - 자동 재현 검증
+  - 패치 전후 비교
+  - 자동 트리아지 대시보드
+- <strong>PART 2: 공격 탐지</strong>
+  - 실시간 위협 모니터링
+  - 공격 유형별 분석
+  - 차단 목록 관리
+- <strong>PART 3: PII 비식별화</strong>
+  - 원본 vs 비식별화 데이터 비교
+  - PII 노출 통계
+  - AI 학습용 데이터셋 추출</p>
+<p><strong>예상 시간</strong>: 쿼리당 ~5-30초</p>
+<hr />
+<h4>7. 유틸리티 함수 및 뷰</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 07-utility-functions.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- 재사용 가능한 PII 마스킹 함수 생성
+  - <code>maskJWT</code>, <code>maskEmail</code>, <code>maskPhoneKR</code>, <code>maskCreditCard</code>, <code>maskApiKey</code>
+  - <code>maskAllPII</code>: 종합 마스킹 함수
+- 위협 점수 계산 함수 생성
+  - <code>calcBruteforceScore</code>, <code>calcScannerScore</code>
+- 자주 사용하는 쿼리용 편의 뷰 생성</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h3>🔍 고급 실습: Vector Search (선택 사항)</h3>
+<p><strong>사전 요구사항</strong>: ClickHouse 24.8+ (Vector Search GA)</p>
+<p>이 고급 섹션에서는 벡터 임베딩과 시맨틱 유사도 검색을 활용한 AI 기반 위협 탐지를 실습합니다.</p>
+<h4>8. Vector Search 설정</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 08-vector-search-setup.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- Vector Search 개념 및 활용 사례 소개
+- 벡터 임베딩이 포함된 <code>attack_signatures</code> 테이블 생성
+- 알려진 공격 패턴을 메타데이터와 함께 저장 (CWE, CVSS, 심각도)
+- 빠른 유사도 검색을 위한 HNSW 인덱스 설정
+- 샘플 공격 패턴 삽입 (SQLi, XSS, SSRF 등)</p>
+<p><strong>핵심 개념</strong>:
+- 벡터 임베딩은 고차원 공간에서 공격 패턴을 표현
+- cosineDistance로 패턴 간 시맨틱 유사도 측정
+- HNSW (Hierarchical Navigable Small World)로 빠른 근사 검색 가능</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h4>9. 임베딩 테이블 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 09-vector-embeddings-tables.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- HTTP 요청 벡터용 <code>request_embeddings</code> 테이블 생성
+- 버그 리포트 시맨틱 검색용 <code>report_knowledge_base</code> 테이블 생성
+- 중복 추적용 <code>duplicate_report_links</code> 테이블 생성
+- 벡터 유사도 인덱스 설정
+- 유틸리티 뷰 및 함수 생성</p>
+<p><strong>활용 사례</strong>:
+- 유사 공격 패턴 탐지
+- 중복 리포트 식별
+- 버그 리포트 시맨틱 검색
+- 자동 트리아지 우선순위 지정</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h4>10. Vector 데모 데이터 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 10-vector-demo-data.sql
+</code></pre>
+<p><strong>수행 내용</strong>:
+- Mock 임베딩 함수 생성 (SQLi, XSS, SSRF 패턴)
+- 공격 시그니처에 벡터 임베딩 업데이트
+- 샘플 HTTP 요청에 대한 임베딩 생성
+- 임베딩이 포함된 샘플 버그 리포트 생성
+- 임베딩 차원 및 품질 검증</p>
+<p><strong>참고</strong>: 데모용 Mock 임베딩 사용. 프로덕션에서는 OpenAI API 또는 Sentence Transformers 필요.</p>
+<p><strong>예상 시간</strong>: ~3-5초</p>
+<hr />
+<h4>11. Vector Search 쿼리 실습</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 11-vector-search-queries.sql
+</code></pre>
+<p><strong>쿼리 시나리오</strong>:
+- <strong>PART 1: 공격 패턴 탐지</strong>
+  - 의심스러운 요청과 유사한 공격 패턴 찾기
+  - 요청을 알려진 공격 카테고리에 매칭
+  - 심각도 및 CVSS 점수로 필터링
+- <strong>PART 2: 중복 리포트 탐지</strong>
+  - 유사한 버그 리포트 찾기
+  - 중복 확률 계산
+  - 취약점 유형별 중복 비율 분석
+- <strong>PART 3: 시맨틱 검색</strong>
+  - 자연어 쿼리로 버그 리포트 검색
+  - 하이브리드 키워드 + 벡터 검색
+  - 과거 고액 바운티 리포트 기반 우선순위 지정
+- <strong>PART 4: 클러스터링 및 분석</strong>
+  - 유사 공격 패턴 그룹화
+  - 이상치 탐지 (anomaly detection)
+  - 시간별 공격 트렌드 분석
+- <strong>PART 5: 프로덕션 쿼리</strong>
+  - 실시간 위협 스코어링 시스템
+  - 자동 트리아지 추천
+  - 휴리스틱 + 벡터 결합 점수</p>
+<p><strong>예상 시간</strong>: 쿼리당 ~5-30초</p>
+<hr />
+<h4>12. Python 통합</h4>
+<pre><code class="language-bash"># 통합 가이드 확인
+cat 12-vector-integration.sql
+</code></pre>
+<p><strong>포함 내용</strong>:
+- <strong>OpenAI API 통합</strong>: OpenAI로 실제 임베딩 생성
+- <strong>배치 처리</strong>: 효율적인 임베딩 생성 파이프라인
+- <strong>REST API 예시</strong>: Flask 기반 검색 API 엔드포인트
+- <strong>Sentence Transformers</strong>: 무료 로컬 임베딩 생성
+- <strong>성능 최적화</strong>: 캐싱, 배칭, 쿼리 최적화
+- <strong>프로덕션 체크리스트</strong>: 보안, 모니터링, 비용 최적화</p>
+<p><strong>주요 구성요소</strong>:
+- 임베딩 생성용 Python 스크립트
+- 유사도 검색 API 엔드포인트
+- 중복 탐지 서비스
+- 시맨틱 검색 구현
+- 베스트 프랙티스 및 배포 가이드</p>
+<p><strong>예상 시간</strong>: 학습 자료 (실행 불필요)</p>
+<hr />
+<h3>🔧 유즈케이스</h3>
+<h4>1️⃣ 취약점 재현 자동화</h4>
+<p><strong>목표</strong>: 버그 리포트 자동 검증 및 패치 확인</p>
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>시퀀스 추출</td>
+<td>리포트 ID로 요청/응답 시퀀스 조회</td>
+</tr>
+<tr>
+<td>재현 검증</td>
+<td>응답 패턴 분석으로 취약점 확인</td>
+</tr>
+<tr>
+<td>회귀 테스트</td>
+<td>패치 전후 결과 비교</td>
+</tr>
+<tr>
+<td>자동 트리아지</td>
+<td>자동 심각도 분류</td>
+</tr>
+</tbody>
+</table>
+<p><strong>예제 쿼리</strong>:</p>
+<pre><code class="language-sql">SELECT report_id,
+       countIf(response_body LIKE '%password%') as sensitive_exposed,
+       multiIf(
+           countIf(response_body LIKE '%password%') &gt; 0, 'CRITICAL',
+           countIf(response_status &gt;= 500) &gt; 0, 'HIGH',
+           'MEDIUM'
+       ) as verdict
+FROM http_packets
+WHERE report_id = 'BUG-2024-1234'
+GROUP BY report_id;
+</code></pre>
+<hr />
+<h4>2️⃣ 자동화 공격 탐지</h4>
+<p><strong>목표</strong>: 보안 트래픽 분석 트래픽에서 남용 및 악의적 활동 탐지</p>
+<table>
+<thead>
+<tr>
+<th>공격 유형</th>
+<th>탐지 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bruteforce</td>
+<td>동일 엔드포인트 반복, 높은 인증 실패율</td>
+</tr>
+<tr>
+<td>Scanner</td>
+<td>광범위한 엔드포인트 탐색, 관리자 경로 시도</td>
+</tr>
+<tr>
+<td>Enumeration</td>
+<td>순차적 ID 접근 패턴</td>
+</tr>
+<tr>
+<td>EDoS</td>
+<td>반복적 고비용 요청, 높은 응답시간</td>
+</tr>
+</tbody>
+</table>
+<p><strong>자동 차단</strong>: 점수 &gt; 0.7인 위협 자동 차단 목록 추가</p>
+<p><strong>예제 쿼리</strong>:</p>
+<pre><code class="language-sql">SELECT source_ip_hash,
+       participant_id,
+       bruteforce_score, scanner_score,
+       is_blocked, block_reason
+FROM attack_detection_agg
+WHERE bruteforce_score &gt; 0.7 OR scanner_score &gt; 0.7
+ORDER BY bruteforce_score DESC;
+</code></pre>
+<hr />
+<h4>3️⃣ PII 탐지 및 비식별화</h4>
+<p><strong>목표</strong>: 응답의 민감정보 자동 탐지 및 마스킹</p>
+<table>
+<thead>
+<tr>
+<th>PII 유형</th>
+<th>패턴</th>
+<th>마스킹 결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JWT 토큰</td>
+<td><code>eyJ...</code></td>
+<td><code>[JWT_REDACTED]</code></td>
+</tr>
+<tr>
+<td>API 키</td>
+<td><code>"api_key": "..."</code></td>
+<td><code>"api_key":"[REDACTED]"</code></td>
+</tr>
+<tr>
+<td>이메일</td>
+<td><code>user@example.com</code></td>
+<td><code>[EMAIL_REDACTED]</code></td>
+</tr>
+<tr>
+<td>전화번호</td>
+<td><code>010-1234-5678</code></td>
+<td><code>[PHONE_REDACTED]</code></td>
+</tr>
+<tr>
+<td>신용카드</td>
+<td><code>4111-1111-1111-1111</code></td>
+<td><code>[CARD_REDACTED]</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>비식별화 데이터</strong>: AI 학습 및 공개 공유 안전</p>
+<p><strong>예제 쿼리</strong>:</p>
+<pre><code class="language-sql">SELECT pii_type, count() as exposure_count,
+       countIf(severity = 'CRITICAL') as critical_count
+FROM pii_exposure_log
+WHERE event_date = today()
+GROUP BY pii_type
+ORDER BY exposure_count DESC;
+</code></pre>
+<hr />
+<h3>🛠 사전 요구사항</h3>
+<p><strong>시스템 요구사항</strong>:
+- <strong>ClickHouse 버전</strong>: 23.8+ (Cloud Refreshable MV), 24.1+ (self-managed)
+- <strong>메모리</strong>: 최소 4GB RAM (8GB+ 권장)
+- <strong>디스크 공간</strong>: 데모 데이터용 10GB
+- <strong>CPU</strong>: 2코어 이상 권장</p>
+<p><strong>소프트웨어</strong>:
+- ClickHouse 클라이언트 설치
+- ClickHouse Cloud 또는 self-managed 인스턴스 접근
+- 터미널 또는 SQL 클라이언트</p>
+<p><strong>권한</strong>:
+- CREATE DATABASE
+- CREATE TABLE
+- CREATE VIEW
+- INSERT 데이터</p>
+<hr />
+<h3>💡 성능 팁</h3>
+<ol>
+<li>
+<p><strong>인덱스 활용</strong>:
+   - <code>report_id</code>, <code>source_ip</code>, <code>response_status</code>에 Bloom filter 인덱스 추가됨
+   - 빠른 필터링을 위해 활용</p>
+</li>
+<li>
+<p><strong>파티셔닝</strong>:
+   - 모든 테이블 월별 파티션 (<code>toYYYYMM</code>)
+   - WHERE 절에서 파티션 프루닝 활용: <code>WHERE event_date &gt;= today() - 30</code></p>
+</li>
+<li>
+<p><strong>TTL 관리</strong>:
+   - 원본 패킷: 90일
+   - 비식별화 데이터: 365일
+   - PII 로그: 180일
+   - 컴플라이언스 요구사항에 따라 TTL 조정</p>
+</li>
+<li>
+<p><strong>쿼리 최적화</strong>:
+   - 가독성 있는 출력을 위해 <code>FORMAT PrettyCompactMonoBlock</code> 사용
+   - 대용량 결과에 LIMIT 적용
+   - 반복 집계 대신 Materialized View 사용</p>
+</li>
+<li>
+<p><strong>Refreshable MV</strong>:
+   - 모니터링 필요에 따라 갱신 주기 조정
+   - ClickHouse Cloud에서 컴퓨트 비용 고려</p>
+</li>
+</ol>
+<hr />
+<h3>🔍 트러블슈팅</h3>
+<h4>문제: "Table already exists" 오류</h4>
+<p><strong>해결방법</strong>: 먼저 정리 스크립트 실행</p>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<h4>문제: Refreshable MV 지원되지 않음</h4>
+<p><strong>증상</strong>: <code>mv_attack_detection</code> 생성 시 오류
+<strong>해결방법</strong>:
+- ClickHouse 버전 23.8+ (Cloud) 또는 24.1+ (self-managed) 확인
+- 대안: 예약된 INSERT SELECT로 일반 MV 사용</p>
+<h4>문제: 데이터 생성 중 메모리 부족</h4>
+<p><strong>증상</strong>: <code>05-generate-demo-data.sql</code> 실행 중 쿼리 실패
+<strong>해결방법</strong>:
+- INSERT 문의 <code>numbers()</code> 범위 줄이기
+- 데이터를 더 작은 배치로 생성
+- 사용 가능한 메모리 증가</p>
+<h4>문제: 느린 쿼리 성능</h4>
+<p><strong>해결방법</strong>:
+- 파티션 프루닝 확인: <code>EXPLAIN SELECT ...</code>
+- 인덱스 검증: <code>SHOW CREATE TABLE http_packets</code>
+- 딕셔너리 사용 시 <code>SYSTEM RELOAD DICTIONARIES</code>
+- 머지 상태 확인: <code>SELECT * FROM system.merges</code></p>
+<h4>문제: PII가 탐지되지 않음</h4>
+<p><strong>증상</strong>: <code>detected_pii_types</code> 배열이 비어있음
+<strong>해결방법</strong>:
+- <code>mv_anonymize_packets</code>의 정규식 패턴 확인
+- 소스 데이터 형식이 패턴과 일치하는지 확인
+- 정규식 테스트: <code>SELECT match(response_body, 'eyJ[A-Za-z0-9_-]{10,}...')</code></p>
+<hr />
+<h3>🧹 정리</h3>
+<p>모든 데모 데이터 및 객체 제거:</p>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p><strong>제거 항목</strong>:
+- 모든 Materialized View
+- 모든 일반 View
+- 모든 Function
+- 모든 Table
+- Database (선택사항 - 기본적으로 주석 처리)</p>
+<p><strong>예상 시간</strong>: ~2-3초</p>
+<hr />
+<h3>📚 주요 학습 포인트</h3>
+<ol>
+<li><strong>실시간 데이터 처리</strong>: 즉각적인 데이터 변환을 위한 Materialized View</li>
+<li><strong>PII 처리</strong>: 정규식 기반 탐지 및 마스킹 전략</li>
+<li><strong>위협 탐지</strong>: 다양한 공격 유형에 대한 패턴 기반 점수 계산</li>
+<li><strong>데이터 라이프사이클</strong>: 컴플라이언스 및 비용 최적화를 위한 TTL 관리</li>
+<li><strong>쿼리 성능</strong>: 파티셔닝, 인덱싱, 집계 최적화</li>
+<li><strong>자동화</strong>: 주기적 분석 업데이트를 위한 Refreshable MV</li>
+<li><strong>감사 추적</strong>: 보안 이벤트의 포괄적 로깅</li>
+<li><strong>Vector Search (고급)</strong>: 시맨틱 유사도를 활용한 AI 기반 위협 탐지
+   - 임베딩을 사용한 공격 패턴 인식
+   - 코사인 거리를 이용한 중복 리포트 탐지
+   - 버그 리포트 시맨틱 검색
+   - 전통적 방법 + AI 기반 하이브리드 위협 스코어링
+   - 프로덕션 준비 통합 패턴</li>
+</ol>
+<hr />
+<h3>📝 라이선스</h3>
+<p>MIT License - 자세한 내용은 저장소 루트 참조</p>
+<hr />
+<h3>👤 작성자</h3>
+<p>작성일: 2026-01-31
+업데이트: 2026-02-01</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/security-traffic-analysis"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

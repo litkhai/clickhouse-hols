@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.5 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.5 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.5</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.5.11.15</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.5 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory focuses on verified and working features newly added in ClickHouse 25.5 (released 2025-05-22).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.5 includes Vector Similarity Index (Beta), Hive Metastore Catalog support, Implicit Table feature, new functions, and enhanced Geo Types in Parquet.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Vector Similarity Index (Beta)</strong> - Approximate nearest neighbor search with filtering strategies</li>
+<li><strong>Hive Metastore Catalog</strong> - Lakehouse integration for Iceberg tables</li>
+<li><strong>Implicit Table in clickhouse-local</strong> - Simplified data exploration without explicit FROM clause</li>
+<li><strong>New Functions</strong> - sparseGrams, map functions, iceberg functions</li>
+<li><strong>Geo Types in Parquet</strong> - Native parsing of WKB-encoded geometries</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 25.5
+cd local/releases/25.5
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-vector-similarity-index.sh
+./02-hive-metastore-catalog.sh
+./03-implicit-table.sh
+./04-new-functions.sh
+./05-geo-types-parquet.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../releases/25.5
+source 01-vector-similarity-index.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Vector Similarity Index (Beta) (01-vector-similarity-index)</h4>
+<p><strong>New Feature:</strong> Vector similarity search graduated to beta with hybrid search capabilities</p>
+<p><strong>Test Content:</strong>
+- HNSW vector index creation
+- L2Distance similarity search
+- Prefiltering strategy (filter first, then search)
+- Postfiltering strategy (search first, then filter)
+- Hybrid search combining vector similarity with metadata filters
+- Product recommendation system use case</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-vector-similarity-index.sh
+# Or
+cat 01-vector-similarity-index.sql | docker exec -i clickhouse-25-5 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>vector_similarity('hnsw', 'L2Distance')</code>: HNSW index with L2 distance metric
+- Prefiltering: Apply filters first, better for highly selective filters
+- Postfiltering: Vector search first, better for broad searches
+- <code>vector_search_filter_strategy</code> setting: auto, prefilter, postfilter
+- Combines semantic search with business logic filters</p>
+<p><strong>Real-World Use Cases:</strong>
+- E-commerce product recommendations
+- Content discovery and personalization
+- Image and document similarity search
+- Anomaly detection in embeddings
+- Question-answering systems
+- Customer segmentation</p>
+<hr />
+<h4>2. Hive Metastore Catalog (02-hive-metastore-catalog)</h4>
+<p><strong>New Feature:</strong> Support for Hive metastore catalog to query Iceberg tables</p>
+<p><strong>Test Content:</strong>
+- DataLakeCatalog table function usage
+- Iceberg table format integration
+- Thrift protocol configuration
+- Lakehouse query patterns
+- Data lake analytics without data movement</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-hive-metastore-catalog.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>DataLakeCatalog('catalog_type', 'metastore_uri', 'database.table')</code>
+- Extends lakehouse capabilities alongside Unity and AWS Glue
+- Query Iceberg tables in-place without ETL
+- Integrates with Hive/Spark ecosystems
+- Supports partitioned and evolving schemas</p>
+<p><strong>Real-World Use Cases:</strong>
+- Analytics on S3 data lakes
+- Hybrid queries (warehouse + lake)
+- Cost optimization via data tiering
+- Data exploration without copying
+- Multi-engine analytics (Spark + ClickHouse)
+- Historical data analysis</p>
+<hr />
+<h4>3. Implicit Table in clickhouse-local (03-implicit-table)</h4>
+<p><strong>New Feature:</strong> Omit FROM and SELECT clauses for quick data exploration</p>
+<p><strong>Test Content:</strong>
+- Implicit table with streamed stdin data
+- JSONAllPathsWithTypes() for schema discovery
+- Simplified data exploration patterns
+- Quick inspection of JSON structures
+- Log analysis use cases</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-implicit-table.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Use <code>_</code> to reference implicit table in clickhouse-local
+- Automatic schema inference from JSON data
+- No need for explicit FROM clause
+- Perfect for ad-hoc analysis
+- Combines with functions like JSONAllPathsWithTypes()</p>
+<p><strong>Real-World Use Cases:</strong>
+- Quick JSON schema inspection
+- Log file analysis without tables
+- Data quality validation
+- Rapid prototyping
+- Ad-hoc API response analysis
+- Production debugging</p>
+<hr />
+<h4>4. New Functions (04-new-functions)</h4>
+<p><strong>New Feature:</strong> Eight new functions introduced in ClickHouse 25.5</p>
+<p><strong>Test Content:</strong>
+- <code>sparseGrams(string, n)</code> - substring extraction for text analysis
+- <code>mapContains(map, key)</code> - check if map has key
+- <code>has(mapValues(map), value)</code> - check if map has value
+- <code>arrayExists(x -&gt; x LIKE pattern, mapValues(map))</code> - pattern matching in map values
+- <code>icebergHash(value)</code> - Iceberg-compatible hashing
+- <code>icebergBucket(buckets, value)</code> - Iceberg bucketing</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./04-new-functions.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- sparseGrams: Extract all substrings with length &gt;= n
+- Map functions: Efficient filtering without extraction
+- Iceberg functions: Compatible partitioning with Apache Iceberg
+- All functions optimized for performance
+- Enables new query patterns</p>
+<p><strong>Real-World Use Cases:</strong>
+- Text mining and fuzzy search (sparseGrams)
+- Configuration and metadata filtering (map functions)
+- Lakehouse integration (Iceberg functions)
+- Feature stores with map-based attributes
+- Document similarity analysis
+- Multi-catalog data management</p>
+<hr />
+<h4>5. Geo Types in Parquet (05-geo-types-parquet)</h4>
+<p><strong>New Feature:</strong> Enhanced Parquet reader for geographic data types</p>
+<p><strong>Test Content:</strong>
+- WKB-encoded geometry parsing
+- Point, LineString, Polygon types
+- MultiPoint, MultiLineString, MultiPolygon
+- GeoParquet dataset analysis
+- Spatial query patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./05-geo-types-parquet.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Auto-infers Point, LineString, Polygon from WKB
+- No manual binary conversion needed
+- Seamless GeoParquet standard integration
+- Efficient spatial queries on large datasets
+- Direct analysis of geo data lakes</p>
+<p><strong>Real-World Use Cases:</strong>
+- Retail store location analysis
+- Route planning and logistics
+- Real estate market analysis
+- Urban planning and zoning
+- Traffic pattern analysis
+- Climate and environmental monitoring</p>
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-25-5
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.5/
+├── README.md                          # This document
+├── 00-setup.sh                        # ClickHouse 25.5 installation script
+├── 01-vector-similarity-index.sh      # Vector similarity test execution
+├── 01-vector-similarity-index.sql     # Vector similarity SQL
+├── 02-hive-metastore-catalog.sh       # Hive metastore test execution
+├── 02-hive-metastore-catalog.sql      # Hive metastore SQL
+├── 03-implicit-table.sh               # Implicit table test execution
+├── 03-implicit-table.sql              # Implicit table SQL
+├── 04-new-functions.sh                # New functions test execution
+├── 04-new-functions.sql               # New functions SQL
+├── 05-geo-types-parquet.sh            # Geo types test execution
+└── 05-geo-types-parquet.sql           # Geo types SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>04-new-functions</strong> - Start with new function basics</li>
+<li><strong>03-implicit-table</strong> - Learn simplified exploration</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>01-vector-similarity-index</strong> - Understand vector search</li>
+<li><strong>05-geo-types-parquet</strong> - Spatial data analysis</li>
+<li><strong>02-hive-metastore-catalog</strong> - Lakehouse integration</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Combine all features for real production scenarios</li>
+<li>Design hybrid search systems</li>
+<li>Build lakehouse analytics pipelines</li>
+<li>Integrate with ML workflows</li>
+</ul>
+<h3>💡 Feature Comparison</h3>
+<h4>Vector Search Filter Strategies</h4>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>When to Use</th>
+<th>Performance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prefilter</td>
+<td>Highly selective filters (&lt;10%)</td>
+<td>Faster with selective filters</td>
+</tr>
+<tr>
+<td>Postfilter</td>
+<td>Broad searches, low selectivity</td>
+<td>Faster for large result sets</td>
+</tr>
+<tr>
+<td>Auto</td>
+<td>Let ClickHouse decide</td>
+<td>Optimal in most cases</td>
+</tr>
+</tbody>
+</table>
+<h4>Catalog Type Comparison</h4>
+<table>
+<thead>
+<tr>
+<th>Catalog</th>
+<th>Use Case</th>
+<th>Protocol</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hive Metastore</td>
+<td>Traditional Hadoop</td>
+<td>Thrift</td>
+</tr>
+<tr>
+<td>AWS Glue</td>
+<td>Managed AWS service</td>
+<td>AWS SDK</td>
+</tr>
+<tr>
+<td>Unity Catalog</td>
+<td>Databricks governance</td>
+<td>REST API</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 What's New in 25.5</h3>
+<ul>
+<li><strong>Vector similarity index filtering</strong> — pre-filtering and post-filtering for vector search (<a href="https://github.com/ClickHouse/ClickHouse/pull/79854">#79854</a>)</li>
+<li><strong><code>Time</code> / <code>Time64</code> data types</strong> — time-of-day types with cast functions (<a href="https://github.com/ClickHouse/ClickHouse/pull/75735">#75735</a>)</li>
+<li><strong>Implicit <code>FROM</code> table in clickhouse-local</strong> — query without naming the table (<a href="https://github.com/ClickHouse/ClickHouse/pull/79085">#79085</a>)</li>
+<li><strong>Geo types in Parquet</strong> — native parsing of WKB-encoded geometries (<a href="https://github.com/ClickHouse/ClickHouse/pull/79777">#79777</a>)</li>
+<li><strong><code>icebergHash</code> / <code>icebergBucket</code></strong> — Iceberg bucketing functions (<a href="https://github.com/ClickHouse/ClickHouse/pull/79262">#79262</a>)</li>
+<li><strong><code>system.iceberg_history</code></strong> — Iceberg snapshot history table (<a href="https://github.com/ClickHouse/ClickHouse/pull/78244">#78244</a>)</li>
+<li><strong>Correlated subqueries in <code>EXISTS</code></strong> — correlated <code>EXISTS</code> expressions (<a href="https://github.com/ClickHouse/ClickHouse/pull/76078">#76078</a>)</li>
+<li><strong><code>getServerSetting</code> / <code>getMergeTreeSetting</code></strong> — read settings from SQL (<a href="https://github.com/ClickHouse/ClickHouse/pull/78439">#78439</a>)</li>
+<li><strong>Default compression codec for MergeTree columns</strong> — per-table default codec (<a href="https://github.com/ClickHouse/ClickHouse/pull/66394">#66394</a>)</li>
+<li><strong><code>TRUNCATE ... LIKE</code></strong> — truncate tables matching a pattern (<a href="https://github.com/ClickHouse/ClickHouse/pull/78597">#78597</a>)</li>
+<li><strong><code>stringBytesUniq</code> / <code>stringBytesEntropy</code></strong> — byte-level string statistics (<a href="https://github.com/ClickHouse/ClickHouse/pull/79350">#79350</a>)</li>
+<li><strong>Base32 encode/decode</strong> — <code>base32Encode</code> and <code>base32Decode</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/79809">#79809</a>)</li>
+<li><strong><code>_part_starting_offset</code></strong> — new MergeTree virtual column (<a href="https://github.com/ClickHouse/ClickHouse/pull/79417">#79417</a>)</li>
+<li><strong>Parallel replicas for distributed <code>INSERT SELECT</code></strong> — on replicated MergeTree (<a href="https://github.com/ClickHouse/ClickHouse/pull/78041">#78041</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-05">ClickHouse 25.5 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>GitHub Repository</strong>: <a href="https://github.com/ClickHouse/ClickHouse">ClickHouse GitHub</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.5.11.15</li>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default</li>
+<li>Some features require external services (Hive metastore)</li>
+<li>Thorough testing recommended before production use</li>
+</ul>
+<h3>🔒 Security Considerations</h3>
+<p><strong>Vector Similarity Index:</strong>
+- Embeddings may contain sensitive information
+- Consider access controls on vector columns
+- Monitor query costs for large-scale searches</p>
+<p><strong>Hive Metastore Integration:</strong>
+- Ensure secure network connectivity
+- Use appropriate S3/HDFS credentials
+- Validate data access permissions</p>
+<p><strong>Geo Data:</strong>
+- Location data is sensitive
+- Comply with privacy regulations
+- Implement appropriate anonymization</p>
+<h3>⚡ Performance Tips</h3>
+<p><strong>Vector Similarity Index:</strong>
+- Choose appropriate GRANULARITY based on data size
+- Use prefilter for highly selective queries
+- Monitor vector_search_filter_strategy effectiveness
+- Consider index build time for large datasets</p>
+<p><strong>Lakehouse Queries:</strong>
+- Use partition pruning aggressively
+- Cache frequently accessed metadata
+- Optimize Iceberg file layouts
+- Monitor query performance metrics</p>
+<p><strong>Geo Queries:</strong>
+- Pre-filter with bounding boxes
+- Partition by geographic regions
+- Use appropriate coordinate precision
+- Consider spatial indexes when available</p>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.5 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 5월 22일 출시된 ClickHouse 25.5에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.5는 Vector Similarity Index (Beta), Hive Metastore Catalog 지원, Implicit Table 기능, 새로운 함수들, 그리고 Parquet의 향상된 Geo Types 지원을 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>Vector Similarity Index (Beta)</strong> - 필터링 전략을 갖춘 근사 최근접 이웃 검색</li>
+<li><strong>Hive Metastore Catalog</strong> - Iceberg 테이블을 위한 레이크하우스 통합</li>
+<li><strong>Implicit Table in clickhouse-local</strong> - 명시적 FROM 절 없이 데이터 탐색</li>
+<li><strong>New Functions</strong> - sparseGrams, map 함수들, iceberg 함수들</li>
+<li><strong>Geo Types in Parquet</strong> - WKB 인코딩된 지오메트리 네이티브 파싱</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.5 설치 및 시작
+cd local/releases/25.5
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-vector-similarity-index.sh
+./02-hive-metastore-catalog.sh
+./03-implicit-table.sh
+./04-new-functions.sh
+./05-geo-types-parquet.sh
+</code></pre>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../releases/25.5
+source 01-vector-similarity-index.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. Vector Similarity Index (Beta) (01-vector-similarity-index)</h4>
+<p><strong>새로운 기능:</strong> 하이브리드 검색 기능을 갖춘 벡터 유사도 검색이 베타로 출시</p>
+<p><strong>테스트 내용:</strong>
+- HNSW 벡터 인덱스 생성
+- L2Distance 유사도 검색
+- Prefiltering 전략 (필터 먼저, 그 다음 검색)
+- Postfiltering 전략 (검색 먼저, 그 다음 필터)
+- 벡터 유사도와 메타데이터 필터를 결합한 하이브리드 검색
+- 제품 추천 시스템 사용 사례</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-vector-similarity-index.sh
+# 또는
+cat 01-vector-similarity-index.sql | docker exec -i clickhouse-25-5 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>vector_similarity('hnsw', 'L2Distance')</code>: L2 거리 메트릭을 사용하는 HNSW 인덱스
+- Prefiltering: 필터를 먼저 적용, 선택성이 높은 필터에 적합
+- Postfiltering: 벡터 검색 먼저, 광범위한 검색에 적합
+- <code>vector_search_filter_strategy</code> 설정: auto, prefilter, postfilter
+- 의미론적 검색과 비즈니스 로직 필터 결합</p>
+<p><strong>실무 활용:</strong>
+- 전자상거래 제품 추천
+- 콘텐츠 발견 및 개인화
+- 이미지 및 문서 유사도 검색
+- 임베딩 이상 탐지
+- 질의응답 시스템
+- 고객 세분화</p>
+<hr />
+<h4>2. Hive Metastore Catalog (02-hive-metastore-catalog)</h4>
+<p><strong>새로운 기능:</strong> Iceberg 테이블 쿼리를 위한 Hive 메타스토어 카탈로그 지원</p>
+<p><strong>테스트 내용:</strong>
+- DataLakeCatalog 테이블 함수 사용법
+- Iceberg 테이블 포맷 통합
+- Thrift 프로토콜 구성
+- 레이크하우스 쿼리 패턴
+- 데이터 이동 없는 데이터 레이크 분석</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-hive-metastore-catalog.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>DataLakeCatalog('catalog_type', 'metastore_uri', 'database.table')</code>
+- Unity 및 AWS Glue와 함께 레이크하우스 기능 확장
+- ETL 없이 Iceberg 테이블을 제자리에서 쿼리
+- Hive/Spark 에코시스템과 통합
+- 파티션 및 진화하는 스키마 지원</p>
+<p><strong>실무 활용:</strong>
+- S3 데이터 레이크 분석
+- 하이브리드 쿼리 (웨어하우스 + 레이크)
+- 데이터 계층화를 통한 비용 최적화
+- 복사 없이 데이터 탐색
+- 다중 엔진 분석 (Spark + ClickHouse)
+- 히스토리컬 데이터 분석</p>
+<hr />
+<h4>3. Implicit Table in clickhouse-local (03-implicit-table)</h4>
+<p><strong>새로운 기능:</strong> 빠른 데이터 탐색을 위해 FROM 및 SELECT 절 생략</p>
+<p><strong>테스트 내용:</strong>
+- stdin 스트림 데이터를 사용한 암시적 테이블
+- 스키마 발견을 위한 JSONAllPathsWithTypes()
+- 간소화된 데이터 탐색 패턴
+- JSON 구조의 빠른 검사
+- 로그 분석 사용 사례</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-implicit-table.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- clickhouse-local에서 <code>_</code>를 사용하여 암시적 테이블 참조
+- JSON 데이터로부터 자동 스키마 추론
+- 명시적 FROM 절 불필요
+- 임시 분석에 완벽함
+- JSONAllPathsWithTypes() 같은 함수와 결합</p>
+<p><strong>실무 활용:</strong>
+- 빠른 JSON 스키마 검사
+- 테이블 없이 로그 파일 분석
+- 데이터 품질 검증
+- 빠른 프로토타이핑
+- 임시 API 응답 분석
+- 프로덕션 디버깅</p>
+<hr />
+<h4>4. New Functions (04-new-functions)</h4>
+<p><strong>새로운 기능:</strong> ClickHouse 25.5에 도입된 8개의 새로운 함수</p>
+<p><strong>테스트 내용:</strong>
+- <code>sparseGrams(string, n)</code> - 텍스트 분석을 위한 부분 문자열 추출
+- <code>mapContains(map, key)</code> - 맵이 키를 가지고 있는지 확인
+- <code>has(mapValues(map), value)</code> - 맵이 값을 가지고 있는지 확인
+- <code>arrayExists(x -&gt; x LIKE pattern, mapValues(map))</code> - 맵 값에서 패턴 매칭
+- <code>icebergHash(value)</code> - Iceberg 호환 해싱
+- <code>icebergBucket(buckets, value)</code> - Iceberg 버킷팅</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./04-new-functions.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- sparseGrams: 길이 &gt;= n인 모든 부분 문자열 추출
+- Map 함수들: 추출 없이 효율적인 필터링
+- Iceberg 함수들: Apache Iceberg와 호환되는 파티셔닝
+- 모든 함수가 성능에 최적화됨
+- 새로운 쿼리 패턴 가능</p>
+<p><strong>실무 활용:</strong>
+- 텍스트 마이닝 및 퍼지 검색 (sparseGrams)
+- 구성 및 메타데이터 필터링 (map 함수)
+- 레이크하우스 통합 (Iceberg 함수)
+- 맵 기반 속성을 가진 피처 스토어
+- 문서 유사도 분석
+- 다중 카탈로그 데이터 관리</p>
+<hr />
+<h4>5. Geo Types in Parquet (05-geo-types-parquet)</h4>
+<p><strong>새로운 기능:</strong> 지리적 데이터 타입을 위한 향상된 Parquet 리더</p>
+<p><strong>테스트 내용:</strong>
+- WKB 인코딩된 지오메트리 파싱
+- Point, LineString, Polygon 타입
+- MultiPoint, MultiLineString, MultiPolygon
+- GeoParquet 데이터셋 분석
+- 공간 쿼리 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./05-geo-types-parquet.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- WKB로부터 Point, LineString, Polygon 자동 추론
+- 수동 바이너리 변환 불필요
+- 원활한 GeoParquet 표준 통합
+- 대규모 데이터셋에서 효율적인 공간 쿼리
+- 지오 데이터 레이크 직접 분석</p>
+<p><strong>실무 활용:</strong>
+- 소매 매장 위치 분석
+- 경로 계획 및 물류
+- 부동산 시장 분석
+- 도시 계획 및 구역 설정
+- 교통 패턴 분석
+- 기후 및 환경 모니터링</p>
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-25-5
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.5/
+├── README.md                          # 이 문서
+├── 00-setup.sh                        # ClickHouse 25.5 설치 스크립트
+├── 01-vector-similarity-index.sh      # Vector similarity 테스트 실행
+├── 01-vector-similarity-index.sql     # Vector similarity SQL
+├── 02-hive-metastore-catalog.sh       # Hive metastore 테스트 실행
+├── 02-hive-metastore-catalog.sql      # Hive metastore SQL
+├── 03-implicit-table.sh               # Implicit table 테스트 실행
+├── 03-implicit-table.sql              # Implicit table SQL
+├── 04-new-functions.sh                # New functions 테스트 실행
+├── 04-new-functions.sql               # New functions SQL
+├── 05-geo-types-parquet.sh            # Geo types 테스트 실행
+└── 05-geo-types-parquet.sql           # Geo types SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>04-new-functions</strong> - 새로운 함수 기초부터 시작</li>
+<li><strong>03-implicit-table</strong> - 간소화된 탐색 학습</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>01-vector-similarity-index</strong> - 벡터 검색 이해</li>
+<li><strong>05-geo-types-parquet</strong> - 공간 데이터 분석</li>
+<li><strong>02-hive-metastore-catalog</strong> - 레이크하우스 통합</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>모든 기능을 조합하여 실제 프로덕션 시나리오 구현</li>
+<li>하이브리드 검색 시스템 설계</li>
+<li>레이크하우스 분석 파이프라인 구축</li>
+<li>ML 워크플로우와 통합</li>
+</ul>
+<h3>💡 기능 비교</h3>
+<h4>벡터 검색 필터 전략</h4>
+<table>
+<thead>
+<tr>
+<th>전략</th>
+<th>사용 시기</th>
+<th>성능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prefilter</td>
+<td>선택성이 높은 필터 (&lt;10%)</td>
+<td>선택적 필터에 더 빠름</td>
+</tr>
+<tr>
+<td>Postfilter</td>
+<td>광범위한 검색, 낮은 선택성</td>
+<td>큰 결과 집합에 더 빠름</td>
+</tr>
+<tr>
+<td>Auto</td>
+<td>ClickHouse가 결정하도록</td>
+<td>대부분의 경우 최적</td>
+</tr>
+</tbody>
+</table>
+<h4>카탈로그 타입 비교</h4>
+<table>
+<thead>
+<tr>
+<th>카탈로그</th>
+<th>사용 사례</th>
+<th>프로토콜</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hive Metastore</td>
+<td>전통적인 Hadoop</td>
+<td>Thrift</td>
+</tr>
+<tr>
+<td>AWS Glue</td>
+<td>관리형 AWS 서비스</td>
+<td>AWS SDK</td>
+</tr>
+<tr>
+<td>Unity Catalog</td>
+<td>Databricks 거버넌스</td>
+<td>REST API</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 25.5의 새로운 기능</h3>
+<ul>
+<li><strong>Vector similarity index filtering</strong> — pre-filtering and post-filtering for vector search (<a href="https://github.com/ClickHouse/ClickHouse/pull/79854">#79854</a>)</li>
+<li><strong><code>Time</code> / <code>Time64</code> data types</strong> — time-of-day types with cast functions (<a href="https://github.com/ClickHouse/ClickHouse/pull/75735">#75735</a>)</li>
+<li><strong>Implicit <code>FROM</code> table in clickhouse-local</strong> — query without naming the table (<a href="https://github.com/ClickHouse/ClickHouse/pull/79085">#79085</a>)</li>
+<li><strong>Geo types in Parquet</strong> — native parsing of WKB-encoded geometries (<a href="https://github.com/ClickHouse/ClickHouse/pull/79777">#79777</a>)</li>
+<li><strong><code>icebergHash</code> / <code>icebergBucket</code></strong> — Iceberg bucketing functions (<a href="https://github.com/ClickHouse/ClickHouse/pull/79262">#79262</a>)</li>
+<li><strong><code>system.iceberg_history</code></strong> — Iceberg snapshot history table (<a href="https://github.com/ClickHouse/ClickHouse/pull/78244">#78244</a>)</li>
+<li><strong>Correlated subqueries in <code>EXISTS</code></strong> — correlated <code>EXISTS</code> expressions (<a href="https://github.com/ClickHouse/ClickHouse/pull/76078">#76078</a>)</li>
+<li><strong><code>getServerSetting</code> / <code>getMergeTreeSetting</code></strong> — read settings from SQL (<a href="https://github.com/ClickHouse/ClickHouse/pull/78439">#78439</a>)</li>
+<li><strong>Default compression codec for MergeTree columns</strong> — per-table default codec (<a href="https://github.com/ClickHouse/ClickHouse/pull/66394">#66394</a>)</li>
+<li><strong><code>TRUNCATE ... LIKE</code></strong> — truncate tables matching a pattern (<a href="https://github.com/ClickHouse/ClickHouse/pull/78597">#78597</a>)</li>
+<li><strong><code>stringBytesUniq</code> / <code>stringBytesEntropy</code></strong> — byte-level string statistics (<a href="https://github.com/ClickHouse/ClickHouse/pull/79350">#79350</a>)</li>
+<li><strong>Base32 encode/decode</strong> — <code>base32Encode</code> and <code>base32Decode</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/79809">#79809</a>)</li>
+<li><strong><code>_part_starting_offset</code></strong> — new MergeTree virtual column (<a href="https://github.com/ClickHouse/ClickHouse/pull/79417">#79417</a>)</li>
+<li><strong>Parallel replicas for distributed <code>INSERT SELECT</code></strong> — on replicated MergeTree (<a href="https://github.com/ClickHouse/ClickHouse/pull/78041">#78041</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-05">ClickHouse 25.5 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>GitHub Repository</strong>: <a href="https://github.com/ClickHouse/ClickHouse">ClickHouse GitHub</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 있습니다</li>
+<li>일부 기능은 외부 서비스가 필요합니다 (Hive metastore)</li>
+<li>프로덕션 환경 적용 전 충분한 테스트를 권장합니다</li>
+</ul>
+<h3>🔒 보안 고려사항</h3>
+<p><strong>Vector Similarity Index:</strong>
+- 임베딩에 민감한 정보가 포함될 수 있음
+- 벡터 컬럼에 대한 접근 제어 고려
+- 대규모 검색의 쿼리 비용 모니터링</p>
+<p><strong>Hive Metastore 통합:</strong>
+- 안전한 네트워크 연결 보장
+- 적절한 S3/HDFS 자격 증명 사용
+- 데이터 접근 권한 검증</p>
+<p><strong>지오 데이터:</strong>
+- 위치 데이터는 민감함
+- 개인정보 보호 규정 준수
+- 적절한 익명화 구현</p>
+<h3>⚡ 성능 팁</h3>
+<p><strong>Vector Similarity Index:</strong>
+- 데이터 크기에 따라 적절한 GRANULARITY 선택
+- 선택성이 높은 쿼리에는 prefilter 사용
+- vector_search_filter_strategy 효과 모니터링
+- 대규모 데이터셋의 인덱스 빌드 시간 고려</p>
+<p><strong>레이크하우스 쿼리:</strong>
+- 파티션 프루닝 적극 활용
+- 자주 접근하는 메타데이터 캐싱
+- Iceberg 파일 레이아웃 최적화
+- 쿼리 성능 메트릭 모니터링</p>
+<p><strong>지오 쿼리:</strong>
+- 바운딩 박스로 사전 필터링
+- 지리적 지역별 파티셔닝
+- 적절한 좌표 정밀도 사용
+- 가능한 경우 공간 인덱스 고려</p>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.5"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ad Performance Analytics Cube with ClickHouse · ClickHouse HOLs</title>
+<meta name="description" content="Ad Performance Analytics Cube with ClickHouse — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/ads-analytics</code>
+    
+  </nav>
+  <div class="readme en"><h1>Ad Performance Analytics Cube with ClickHouse</h1>
+<hr />
+<p>A hands-on, end-to-end laboratory for building an <strong>ad-performance analytics "cube"</strong> on ClickHouse. It models a generic digital advertising platform (ad network / retail media / DSP·SSP / in-house ad server) where bid telemetry, ML ranking signals, and business KPIs all land in <strong>one wide append-only event row</strong>, and analysts want to slice it by <strong>arbitrary dimensions in near real time</strong>.</p>
+<p>Built around a synthetic <strong>10 million-row <code>ad_events</code> stream</strong>, it walks through every primitive that makes ClickHouse a natural fit for this workload: conditional aggregation (<code>countIf</code>/<code>sumIf</code>/<code>avgIf</code>), approximate distinct counts (<code>uniq</code>/<code>uniqCombined</code>), semi-structured JSON parsing, in-memory dictionary enrichment (<code>dictGet</code>), quantile distributions, and real-time roll-ups via <code>AggregatingMergeTree</code> + Materialized Views.</p>
+<h3>🎯 Why this lab</h3>
+<p>A digital advertising platform commonly handles three concerns from one event stream:</p>
+<ol>
+<li><strong>Ad serving &amp; auction (RTB) telemetry</strong> — bid requests, candidate ranking, win price, served rank</li>
+<li><strong>ML ranking signals</strong> — predicted CTR/CVR (pCTR·pCTCVR), quality score, capping behavior</li>
+<li><strong>Business reporting</strong> — spend, revenue, ROAS sliced by any dimension combination</li>
+</ol>
+<p>The combination of <em>"high-frequency append-only stream + arbitrary-dimension OLAP aggregation + approximate distinct + semi-structured enrichment"</em> is the textbook ClickHouse sweet spot. This lab makes that fit concrete and measurable.</p>
+<h3>📊 Dataset</h3>
+<p>A synthetic generic ad platform:
+- <strong>Events</strong>: 10,000,000 (30 days, 2026-05-15 → 2026-06-13)
+- <strong>Funnel</strong>: IMPRESSION 85% · VIEWABLE_IMPRESSION 8% · CLICK 3.5% · INTERACTION 1.5% · DIRECT_CONVERSION 1.2% · INDIRECT_CONVERSION 0.8% → realistic CTR ≈ 4%, CVR ≈ 57%
+- <strong>Wide schema</strong>: ~50 dimensions per row (ad hierarchy L1–L4, inventory, user/device, RTB, ML signals, 3 JSON fields)
+- <strong>Campaigns</strong>: 500 (fed into an in-memory dictionary)
+- <strong>High cardinality</strong>: ~1.9M users, ~2.9M devices, ~5M bid requests
+- Money fields are <strong>scaled integers</strong> (micro-units, <code>SCALE = 1,000,000</code>); scale factor &amp; take rates live in a <code>cube_params</code> table, never hard-coded</p>
+<h3>📁 File Structure</h3>
+<pre><code>ads-analytics/
+├── README.md                  # This file
+├── 01-schema.sql              # ad_events wide table + campaign_dict + cube_params
+├── 02-load.sql                # 10M synthetic events + 500 campaigns (hashed funnel)
+├── 03-cube-basics.sql         # countIf/sumIf cube: CTR/CVR/CTCVR/CPC/CPM/ROAS/Profit
+├── 04-approx-distinct.sql     # uniq vs uniqExact, DAU, reach, frequency capping
+├── 05-json-enrichment.sql     # JSONExtract*, dictGet, MATERIALIZED column promotion
+├── 06-model-ranking.sql       # quantile distributions, pCTR–CTR gap, capping ratios
+├── 07-materialized-views.sql  # AggregatingMergeTree daily cube + live-insert test
+└── 99-cleanup.sql             # Drop everything
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<pre><code class="language-bash">cd usecase/ads-analytics
+
+# Against a running ClickHouse (server or `clickhouse local`)
+for f in 01-schema.sql 02-load.sql 03-cube-basics.sql \
+         04-approx-distinct.sql 05-json-enrichment.sql \
+         06-model-ranking.sql 07-materialized-views.sql; do
+    echo &quot;▶ Running $f&quot;
+    clickhouse-client --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<p>Or with a stateless <code>clickhouse local</code> (persisting to a local path):</p>
+<pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-cube-basics.sql \
+         04-approx-distinct.sql 05-json-enrichment.sql \
+         06-model-ranking.sql 07-materialized-views.sql; do
+    clickhouse local --path /tmp/ad_cube --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<h3>📖 Lab Walkthrough</h3>
+<h4>01 — Schema (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/01-schema.sql">01-schema.sql</a>)</h4>
+<p>Creates the <code>ad_analytics</code> database and four objects:
+- <strong><code>ad_events</code></strong> — the single wide event table. <code>ORDER BY (channelType, campaignId, eventType, eventTs)</code> puts the most common filter/group columns first; <code>PARTITION BY toYYYYMM(eventTs)</code> enables date pruning. Enum-like columns use <code>LowCardinality(String)</code>; money is <code>Int64</code> (scaled).
+- <strong><code>campaign_meta</code></strong> — small dimension table (500 rows) that feeds the dictionary.
+- <strong><code>campaign_dict</code></strong> — <code>COMPLEX_KEY_HASHED</code> dictionary over <code>campaign_meta</code> for JOIN-free <code>dictGet()</code>.
+- <strong><code>cube_params</code></strong> — <code>SCALE</code> and take rates as data, so measure expressions stay parameter-driven.</p>
+<h4>02 — Synthetic data (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/02-load.sql">02-load.sql</a>)</h4>
+<p>10M events generated from <code>numbers(10000000)</code>, every field hashed deterministically from <code>number</code> via <code>cityHash64(number, 'salt')</code>. The funnel stage is picked from a 0–999 bucket; <code>winPrice</code> is populated only on CLICK rows, <code>conversionValue</code> only on conversion rows, so the downstream <code>sumIf</code> measures behave realistically.</p>
+<h4>03 — The cube (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/03-cube-basics.sql">03-cube-basics.sql</a>)</h4>
+<p>The heart of the lab. Every funnel metric is a <strong>conditional aggregate over the same table in a single pass</strong>:</p>
+<pre><code class="language-sql">countIf(eventType = 'CLICK') * 100.0
+  / nullIf(countIf(eventType = 'IMPRESSION'), 0)   AS ctr_pct
+</code></pre>
+<p>Covers Impression/Click/Conversion counts, Spending/Revenue/Profit, and CTR/CVR/CTCVR/CPC/CPM/ROAS — then re-slices the <em>same</em> cube by <code>channel × platform</code>, by <code>campaignGoal</code>, and by day. <strong>No new table, no new index — just change the <code>GROUP BY</code>.</strong> <code>SCALE</code> and take rates are pulled from <code>cube_params</code> as scalar subqueries.</p>
+<blockquote>
+<p><strong>Scale rule:</strong> ratio KPIs (CTR, ROAS) cancel the scale factor, so no <code>/SCALE</code>. Absolute-money KPIs (CPC, CPM, Spending) <em>do</em> divide by <code>SCALE</code>.</p>
+</blockquote>
+<h4>04 — Approximate distinct (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/04-approx-distinct.sql">04-approx-distinct.sql</a>)</h4>
+<p><code>userId</code>/<code>deviceId</code>/<code>requestId</code> have millions of distinct values:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Use</th>
+<th>Error (measured)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniqExact</code></td>
+<td>billing / settlement</td>
+<td>0% (exact, heaviest)</td>
+</tr>
+<tr>
+<td><code>uniq</code></td>
+<td>dashboards (default)</td>
+<td>~0.15%</td>
+</tr>
+<tr>
+<td><code>uniqCombined</code></td>
+<td>tunable accuracy/memory</td>
+<td>~0.35%</td>
+</tr>
+</tbody>
+</table>
+<p>Plus DAU, <code>uniqIf</code> (distinct only over a sub-population — "campaigns that actually got an impression"), reach-per-line-item, per-user economics, and a frequency-capping distribution (impressions per user).</p>
+<blockquote>
+<p><strong>Rule of thumb:</strong> approximate distinct for exploration &amp; dashboards; <code>uniqExact</code> only where a number drives money (billing/settlement).</p>
+</blockquote>
+<h4>05 — JSON &amp; dictionary enrichment (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/05-json-enrichment.sql">05-json-enrichment.sql</a>)</h4>
+<p>Two ways to enrich the wide table without JOINs:
+- <strong><code>JSONExtract*</code></strong> on the <code>creativeAsset</code> / <code>biddingStrategy</code> / <code>experiment</code> String columns — including nested paths (<code>JSONExtractString(creativeAsset, 'item', 'id')</code>) and typed numeric parsing.
+- <strong><code>dictGet()</code></strong> on <code>campaign_dict</code> — resolves campaign name/status/targetRoas per row from RAM, then compares actual vs target ROAS for pacing.</p>
+<p>Finally, promotes a hot JSON path to a <strong><code>MATERIALIZED</code> column</strong> (<code>ALTER TABLE … ADD COLUMN … MATERIALIZED</code> + <code>MATERIALIZE COLUMN</code> backfill) so future reads scan a <code>LowCardinality</code> column instead of re-parsing JSON.</p>
+<h4>06 — ML ranking quality (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/06-model-ranking.sql">06-model-ranking.sql</a>)</h4>
+<p>Mixes conditional aggregates with <code>quantile</code> distributions on the model-signal columns:
+- Score distributions (avg / median / p95 / p99 of <code>rawPCtr</code>)
+- <strong>Calibration gap</strong> — <code>avg(pCTR) − actual CTR</code> per channel
+- <strong>Capping ratios</strong> — lower / higher / total adjustment of <code>qualityScore</code> vs <code>rawQualityScore</code>
+- Rank movement (<code>candidateRank</code> → <code>rank</code>) and an eCPM-style <code>quality × bid</code> ranking score</p>
+<h4>07 — Real-time pre-aggregation (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/07-materialized-views.sql">07-materialized-views.sql</a>)</h4>
+<p>A daily <code>(campaign, eventType)</code> cube in an <code>AggregatingMergeTree</code>, fed by a Materialized View:</p>
+<pre><code class="language-sql">CREATE TABLE daily_campaign_cube (
+    reportDate Date, campaignId String, eventType LowCardinality(String),
+    events     AggregateFunction(count),
+    spend_raw  AggregateFunction(sum, Int64),
+    users      AggregateFunction(uniq, Nullable(String))
+) ENGINE = AggregatingMergeTree() ORDER BY (reportDate, campaignId, eventType);
+</code></pre>
+<p>Reads use <code>countMerge</code>/<code>sumMerge</code>/<code>uniqMerge</code> (and the <code>*MergeIf</code> combinator to split metrics by <code>eventType</code> in one query). The aggregate gives the <strong>same numbers</strong> as the raw scan (verified: 349,540 clicks / 307,367.09 spend from both), and a live-INSERT test proves the MV auto-rolls-up new events.</p>
+<h3>🔑 Gotchas worth remembering</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scaled-integer money</strong></td>
+<td>Store currency as <code>Int64</code> micro-units to avoid float drift. Divide by <code>SCALE</code> only for absolute-money KPIs; ratio KPIs cancel it out.</td>
+</tr>
+<tr>
+<td><strong>Parameterize, don't hard-code</strong></td>
+<td><code>SCALE</code>, take rates, tokenizer choices → a params table, read as scalar subqueries. Contract/model changes never touch query SQL.</td>
+</tr>
+<tr>
+<td><strong>MATERIALIZED columns aren't INSERTed</strong></td>
+<td>Omit them from explicit <code>INSERT</code> column lists — they are computed. <code>ADD COLUMN … MATERIALIZED</code> does not backfill old parts until you run <code>MATERIALIZE COLUMN</code>.</td>
+</tr>
+<tr>
+<td><strong><code>*State</code> ↔ <code>*Merge</code> must pair</strong></td>
+<td>An <code>AggregateFunction(uniq, …)</code> column written with <code>uniqState</code> is read with <code>uniqMerge</code>. The <code>*MergeIf</code> combinator filters during the merge.</td>
+</tr>
+<tr>
+<td><strong>Approximate vs exact distinct</strong></td>
+<td><code>uniq</code> is HyperLogLog (~1% error, tiny memory); reserve <code>uniqExact</code> for billing.</td>
+</tr>
+<tr>
+<td><strong><code>numbers(N)</code> not <code>system.numbers</code></strong></td>
+<td><code>numbers(N)</code> terminates; <code>system.numbers</code> is infinite.</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 Additional resources</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/sql-reference/aggregate-functions">ClickHouse aggregate functions</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/aggregate-functions/combinators">Combinators (<code>-If</code>, <code>-State</code>, <code>-Merge</code>)</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/json-functions">JSON functions</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/dictionaries">Dictionaries</a></li>
+<li><a href="https://clickhouse.com/docs/materialized-view">Materialized Views</a></li>
+</ul>
+<h3>📝 Verification</h3>
+<p>All scripts verified end-to-end against <strong>ClickHouse 26.6.1.778</strong> from an empty state (<code>clickhouse local</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Output lines</th>
+<th>Errors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>10</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>03-cube-basics.sql</code></td>
+<td>37</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>04-approx-distinct.sql</code></td>
+<td>31</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>05-json-enrichment.sql</code></td>
+<td>29</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>06-model-ranking.sql</code></td>
+<td>16</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>07-materialized-views.sql</code></td>
+<td>15</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<h3>📝 License</h3>
+<p>MIT License</p>
+<h3>👤 Author</h3>
+<p>Ken Lee (ClickHouse Solution Architect) — ken.lee@clickhouse.com
+Created: 2026-06-16</p>
+<hr />
+<p><strong>Happy Cubing! 📊</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse로 <strong>광고 성과 분석 "큐브"</strong>를 구축하는 종단간 실습 환경입니다. 디지털 광고 플랫폼(애드 네트워크 / 리테일 미디어 / DSP·SSP / 인하우스 광고 서버) 일반을 모델링하며, 입찰 텔레메트리 + ML 랭킹 신호 + 비즈니스 KPI가 모두 <strong>하나의 넓은 append-only 이벤트 row</strong>에 기록되고, 분석가가 <strong>임의 차원으로 거의 실시간에 가깝게 집계</strong>하기를 원하는 상황을 다룹니다.</p>
+<p>합성된 <strong>1,000만 행 <code>ad_events</code> 스트림</strong>을 기반으로, 이 워크로드에 ClickHouse가 자연스럽게 들어맞게 만드는 기능 전반 — 조건부 집계(<code>countIf</code>/<code>sumIf</code>/<code>avgIf</code>), 근사 고유값 카운트(<code>uniq</code>/<code>uniqCombined</code>), 반정형 JSON 파싱, 인메모리 사전 enrichment(<code>dictGet</code>), quantile 분포, <code>AggregatingMergeTree</code> + Materialized View 실시간 롤업 — 을 모두 다룹니다.</p>
+<h3>🎯 왜 이 랩인가</h3>
+<p>디지털 광고 플랫폼은 보통 하나의 이벤트 흐름에서 세 가지 관심사를 다룹니다.</p>
+<ol>
+<li><strong>광고 서빙 &amp; 경매(RTB) 텔레메트리</strong> — 입찰 요청, 후보 랭킹, 낙찰가, 노출 순위</li>
+<li><strong>ML 랭킹 신호</strong> — 예측 CTR/CVR(pCTR·pCTCVR), 품질 점수, 캡핑 동작</li>
+<li><strong>비즈니스 리포팅</strong> — 소진액·매출·ROAS를 임의 차원 조합으로 슬라이스</li>
+</ol>
+<p><em>"고빈도 append 스트림 + 임의 차원 OLAP 집계 + 근사 distinct + 반정형 enrichment"</em> 의 조합은 ClickHouse의 전형적인 강점 영역입니다. 본 랩은 그 적합성을 구체적이고 측정 가능하게 보여줍니다.</p>
+<h3>📊 데이터셋</h3>
+<p>합성 광고 플랫폼:
+- <strong>이벤트</strong>: 10,000,000건 (30일, 2026-05-15 → 2026-06-13)
+- <strong>퍼널</strong>: 노출 85% · 뷰어블 8% · 클릭 3.5% · 인터랙션 1.5% · 직접전환 1.2% · 간접전환 0.8% → 현실적인 CTR ≈ 4%, CVR ≈ 57%
+- <strong>와이드 스키마</strong>: 행당 약 50개 차원 (광고 계층 L1–L4, 인벤토리, 사용자/디바이스, RTB, ML 신호, JSON 3종)
+- <strong>캠페인</strong>: 500개 (인메모리 사전에 적재)
+- <strong>고카디널리티</strong>: 사용자 약 190만, 디바이스 약 290만, 입찰 요청 약 500만
+- 금액 필드는 <strong>scaled integer</strong> (마이크로 단위, <code>SCALE = 1,000,000</code>); 스케일 팩터·수수료율은 <code>cube_params</code> 테이블에 두고 하드코딩하지 않음</p>
+<h3>📁 파일 구조</h3>
+<pre><code>ads-analytics/
+├── README.md                  # 이 문서
+├── 01-schema.sql              # ad_events 와이드 테이블 + campaign_dict + cube_params
+├── 02-load.sql                # 1,000만 합성 이벤트 + 500 캠페인 (해시 퍼널)
+├── 03-cube-basics.sql         # countIf/sumIf 큐브: CTR/CVR/CTCVR/CPC/CPM/ROAS/Profit
+├── 04-approx-distinct.sql     # uniq vs uniqExact, DAU, 도달, 프리퀀시 캡
+├── 05-json-enrichment.sql     # JSONExtract*, dictGet, MATERIALIZED 컬럼 승격
+├── 06-model-ranking.sql       # quantile 분포, pCTR–CTR 갭, 캡핑 비율
+├── 07-materialized-views.sql  # AggregatingMergeTree 일별 큐브 + 라이브 INSERT 테스트
+└── 99-cleanup.sql             # 모든 객체 삭제
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd usecase/ads-analytics
+
+# 실행 중인 ClickHouse (서버 또는 `clickhouse local`)에 대해
+for f in 01-schema.sql 02-load.sql 03-cube-basics.sql \
+         04-approx-distinct.sql 05-json-enrichment.sql \
+         06-model-ranking.sql 07-materialized-views.sql; do
+    echo &quot;▶ Running $f&quot;
+    clickhouse-client --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<p>상태 비저장 <code>clickhouse local</code>(로컬 경로에 영속화)로 실행하려면:</p>
+<pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-cube-basics.sql \
+         04-approx-distinct.sql 05-json-enrichment.sql \
+         06-model-ranking.sql 07-materialized-views.sql; do
+    clickhouse local --path /tmp/ad_cube --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<h3>📖 랩 워크스루</h3>
+<h4>01 — 스키마</h4>
+<p><code>ad_analytics</code> 데이터베이스와 네 개의 객체를 생성:
+- <strong><code>ad_events</code></strong> — 단일 와이드 이벤트 테이블. <code>ORDER BY (channelType, campaignId, eventType, eventTs)</code>로 가장 빈번한 필터/그룹 컬럼을 앞에 두고, <code>PARTITION BY toYYYYMM(eventTs)</code>로 날짜 프루닝. enum성 컬럼은 <code>LowCardinality(String)</code>, 금액은 <code>Int64</code>(scaled).
+- <strong><code>campaign_meta</code></strong> — 사전의 소스가 되는 작은 차원 테이블 (500행).
+- <strong><code>campaign_dict</code></strong> — <code>campaign_meta</code> 위의 <code>COMPLEX_KEY_HASHED</code> 사전, JOIN 없는 <code>dictGet()</code>용.
+- <strong><code>cube_params</code></strong> — <code>SCALE</code>과 수수료율을 데이터로 보관해 지표 표현식을 파라미터 기반으로 유지.</p>
+<h4>02 — 합성 데이터</h4>
+<p><code>numbers(10000000)</code>에서 1,000만 이벤트 생성. 모든 필드는 <code>cityHash64(number, 'salt')</code>로 <code>number</code>에서 결정적으로 해시. 퍼널 단계는 0–999 버킷에서 선택하고, <code>winPrice</code>는 CLICK 행에만, <code>conversionValue</code>는 전환 행에만 채워 downstream <code>sumIf</code> 지표가 현실적으로 동작.</p>
+<h4>03 — 큐브</h4>
+<p>랩의 핵심. 모든 퍼널 지표는 <strong>동일 테이블에 대한 단일 패스 조건부 집계</strong>:</p>
+<pre><code class="language-sql">countIf(eventType = 'CLICK') * 100.0
+  / nullIf(countIf(eventType = 'IMPRESSION'), 0)   AS ctr_pct
+</code></pre>
+<p>노출/클릭/전환 카운트, 소진액/매출/Profit, CTR/CVR/CTCVR/CPC/CPM/ROAS를 다룬 뒤, <em>동일한</em> 큐브를 <code>채널 × 플랫폼</code>, <code>campaignGoal</code>, 일별로 다시 슬라이스. <strong>새 테이블도 새 인덱스도 필요 없이 <code>GROUP BY</code>만 변경.</strong> <code>SCALE</code>과 수수료율은 <code>cube_params</code>에서 스칼라 서브쿼리로 주입.</p>
+<blockquote>
+<p><strong>스케일 규칙:</strong> 비율 KPI(CTR, ROAS)는 스케일이 상쇄되므로 <code>/SCALE</code> 불필요. 절대 금액 KPI(CPC, CPM, Spending)에만 <code>/SCALE</code> 적용.</p>
+</blockquote>
+<h4>04 — 근사 고유값</h4>
+<p><code>userId</code>/<code>deviceId</code>/<code>requestId</code>는 distinct 수가 수백만:</p>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>용도</th>
+<th>오차 (측정값)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniqExact</code></td>
+<td>정산 / 과금</td>
+<td>0% (정확, 가장 무거움)</td>
+</tr>
+<tr>
+<td><code>uniq</code></td>
+<td>대시보드 (기본)</td>
+<td>~0.15%</td>
+</tr>
+<tr>
+<td><code>uniqCombined</code></td>
+<td>정확도/메모리 조정</td>
+<td>~0.35%</td>
+</tr>
+</tbody>
+</table>
+<p>추가로 DAU, <code>uniqIf</code>(부분집합 distinct — "실제 노출이 발생한 캠페인"), 라인아이템당 도달, 사용자 단위 경제성, 프리퀀시 캡 분포(사용자당 노출 수).</p>
+<blockquote>
+<p><strong>원칙:</strong> 탐색·대시보드는 근사 distinct; 금액에 직결되는 수치(과금/정산)에만 <code>uniqExact</code>.</p>
+</blockquote>
+<h4>05 — JSON &amp; 사전 Enrichment</h4>
+<p>와이드 테이블을 JOIN 없이 enrich하는 두 방법:
+- <strong><code>JSONExtract*</code></strong> — <code>creativeAsset</code> / <code>biddingStrategy</code> / <code>experiment</code> String 컬럼에 대해 중첩 경로(<code>JSONExtractString(creativeAsset, 'item', 'id')</code>)와 타입 숫자 파싱.
+- <strong><code>dictGet()</code></strong> — <code>campaign_dict</code>에서 캠페인 name/status/targetRoas를 RAM에서 행별로 해결한 뒤, 실제 ROAS vs 목표 ROAS 페이싱 비교.</p>
+<p>마지막으로 핫한 JSON 경로를 <strong><code>MATERIALIZED</code> 컬럼</strong>으로 승격(<code>ALTER TABLE … ADD COLUMN … MATERIALIZED</code> + <code>MATERIALIZE COLUMN</code> 백필)해 이후 읽기가 JSON 재파싱 없이 <code>LowCardinality</code> 컬럼만 스캔하도록 함.</p>
+<h4>06 — ML 랭킹 품질</h4>
+<p>모델 신호 컬럼에 조건부 집계와 <code>quantile</code> 분포를 결합:
+- 점수 분포 (<code>rawPCtr</code>의 avg / median / p95 / p99)
+- <strong>보정 갭</strong> — 채널별 <code>avg(pCTR) − 실제 CTR</code>
+- <strong>캡핑 비율</strong> — <code>qualityScore</code> vs <code>rawQualityScore</code>의 하향/상향/전체 조정
+- 랭크 이동(<code>candidateRank</code> → <code>rank</code>)과 eCPM 스타일 <code>품질 × 입찰가</code> 랭킹 점수</p>
+<h4>07 — 실시간 사전 집계</h4>
+<p>Materialized View가 채우는 <code>AggregatingMergeTree</code>의 일별 <code>(campaign, eventType)</code> 큐브:</p>
+<pre><code class="language-sql">CREATE TABLE daily_campaign_cube (
+    reportDate Date, campaignId String, eventType LowCardinality(String),
+    events     AggregateFunction(count),
+    spend_raw  AggregateFunction(sum, Int64),
+    users      AggregateFunction(uniq, Nullable(String))
+) ENGINE = AggregatingMergeTree() ORDER BY (reportDate, campaignId, eventType);
+</code></pre>
+<p>읽기는 <code>countMerge</code>/<code>sumMerge</code>/<code>uniqMerge</code>(그리고 한 쿼리에서 <code>eventType</code>별로 지표를 나누는 <code>*MergeIf</code> 콤비네이터)로 처리. 집계 테이블은 원본 스캔과 <strong>동일한 수치</strong>를 냄(검증: 양쪽 모두 클릭 349,540건 / 소진액 307,367.09), 라이브 INSERT 테스트로 MV가 새 이벤트를 자동 롤업함을 확인.</p>
+<h3>🔑 기억할 함정들</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>노트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scaled-integer 금액</strong></td>
+<td>float 오차를 피하려 통화를 <code>Int64</code> 마이크로 단위로 저장. 절대 금액 KPI에만 <code>/SCALE</code>; 비율 KPI는 상쇄됨.</td>
+</tr>
+<tr>
+<td><strong>하드코딩 대신 파라미터화</strong></td>
+<td><code>SCALE</code>·수수료율·토크나이저 선택 → 파라미터 테이블에서 스칼라 서브쿼리로 읽기. 계약/모델 변경 시 쿼리 SQL 불변.</td>
+</tr>
+<tr>
+<td><strong>MATERIALIZED 컬럼은 INSERT하지 않음</strong></td>
+<td>명시적 <code>INSERT</code> 컬럼 리스트에서 제외(계산됨). <code>ADD COLUMN … MATERIALIZED</code>는 <code>MATERIALIZE COLUMN</code> 실행 전까지 기존 파트를 백필하지 않음.</td>
+</tr>
+<tr>
+<td><strong><code>*State</code> ↔ <code>*Merge</code> 페어링</strong></td>
+<td><code>uniqState</code>로 쓴 <code>AggregateFunction(uniq, …)</code> 컬럼은 <code>uniqMerge</code>로 읽음. <code>*MergeIf</code> 콤비네이터는 merge 중 필터링.</td>
+</tr>
+<tr>
+<td><strong>근사 vs 정확 distinct</strong></td>
+<td><code>uniq</code>는 HyperLogLog(~1% 오차, 작은 메모리); 과금에만 <code>uniqExact</code>.</td>
+</tr>
+<tr>
+<td><strong><code>system.numbers</code> 아닌 <code>numbers(N)</code></strong></td>
+<td><code>numbers(N)</code>은 종료, <code>system.numbers</code>는 무한.</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/sql-reference/aggregate-functions">ClickHouse aggregate functions</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/aggregate-functions/combinators">Combinators (<code>-If</code>, <code>-State</code>, <code>-Merge</code>)</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/json-functions">JSON functions</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/dictionaries">Dictionaries</a></li>
+<li><a href="https://clickhouse.com/docs/materialized-view">Materialized Views</a></li>
+</ul>
+<h3>📝 검증</h3>
+<p>빈 상태에서 <strong>ClickHouse 26.6.1.778</strong>(<code>clickhouse local</code>)에 대해 모든 스크립트가 end-to-end 검증됨:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>출력 라인</th>
+<th>오류</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>10</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>03-cube-basics.sql</code></td>
+<td>37</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>04-approx-distinct.sql</code></td>
+<td>31</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>05-json-enrichment.sql</code></td>
+<td>29</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>06-model-ranking.sql</code></td>
+<td>16</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>07-materialized-views.sql</code></td>
+<td>15</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<h3>📝 라이선스</h3>
+<p>MIT License</p>
+<h3>👤 작성자</h3>
+<p>Ken Lee (ClickHouse Solution Architect) — ken.lee@clickhouse.com
+작성일: 2026-06-16</p>
+<hr />
+<p><strong>Happy Cubing! 📊</strong></p>
+<p>질문이나 이슈는 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/ads-analytics"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

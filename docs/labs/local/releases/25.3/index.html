@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.3 LTS New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.3 LTS New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.3</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.3.14.14</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.3 LTS New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.3 new features. This directory focuses on verified and working features newly added in ClickHouse 25.3 (released 2025-03-20, the first LTS release of 2025).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.3 is an LTS release that adds two tools for making a decision instead of guessing at one, plus a batch of new functions. The query condition cache remembers which granules a filter could not match, so repeating that filter reads less. <code>estimateCompressionRatio</code> answers "which codec should this column use" from a <code>SELECT</code> rather than a write-and-measure loop.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>New Functions</strong> — <code>arraySymmetricDifference</code>, <code>keccak256</code>, <code>firstNonDefault</code>, <code>compareSubstrings</code>, Iceberg transform helpers</li>
+<li><strong>Query Condition Cache</strong> — <code>use_query_condition_cache</code> and <code>system.query_condition_cache</code></li>
+<li><strong><code>estimateCompressionRatio</code></strong> — estimate a codec's effect without writing the data</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/25.3
+./00-setup.sh
+
+./01-new-functions.sh
+./02-query-condition-cache.sh
+./03-estimate-compression-ratio.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. New Functions (01-new-functions)</h4>
+<p><strong>New Features:</strong> <code>arraySymmetricDifference</code>, <code>keccak256</code>, <code>firstNonDefault</code>, <code>compareSubstrings</code>, <code>icebergTruncate</code>, <code>toYearNumSinceEpoch</code>, <code>toMonthNumSinceEpoch</code> — the function surface this release added, confirmed by diffing <code>system.functions</code> against 25.2.</p>
+<p><strong>Test Content:</strong>
+- <code>arraySymmetricDifference</code> on two and three arrays
+- Contrasted with <code>arrayIntersect</code> and a distinct concat
+- A permission-drift query: which grants only one role has
+- <code>keccak256</code> on literals, and its empty-input hash
+- Hashing a column and grouping by the hash
+- <code>firstNonDefault</code> for <code>0</code>/<code>''</code>-as-missing data
+- A phone-number fallback chain across three columns
+- <code>compareSubstrings</code> comparing slices without materialising them
+- Iceberg transform helpers and a month-partition rollup</p>
+<p><strong>Key Learning Points:</strong>
+- <code>arraySymmetricDifference</code> returns elements not present in <strong>all</strong> arguments, so with three or more arrays it is not the pairwise difference — and the result order is unspecified, so sort before comparing
+- <code>keccak256</code> is Keccak-256, the pre-standard variant Ethereum uses; it is not the finalised SHA3-256 and the two produce different digests
+- <code>firstNonDefault</code> keys off each type's default value, which makes it the right tool when <code>0</code> and <code>''</code> mean "missing" and <code>NULL</code> was never used
+- <code>compareSubstrings(a, b, offset_a, offset_b, length)</code> uses 0-based offsets and returns <code>-1</code>/<code>0</code>/<code>1</code>
+- <code>toYearNumSinceEpoch</code> / <code>toMonthNumSinceEpoch</code> count from 1970, which is exactly what an Iceberg year/month partition value holds</p>
+<p><strong>Use Cases:</strong>
+- Diffing permission or feature sets between roles or tenants
+- Blockchain address and event-topic hashing in SQL
+- Fallback chains over columns where empty means absent
+- Computing Iceberg partition values without leaving ClickHouse</p>
+<hr />
+<h4>2. Query Condition Cache (02-query-condition-cache)</h4>
+<p><strong>New Feature:</strong> with <code>use_query_condition_cache = 1</code>, ClickHouse records per granule that a <code>WHERE</code> condition matched nothing. A later query with the same condition skips those granules instead of re-evaluating them. <code>system.query_condition_cache</code> exposes the entries.</p>
+<p><strong>Test Content:</strong>
+- A 3M-row log table where <code>status = 500</code> occupies a narrow id range
+- The setting and its default
+- <code>SYSTEM DROP QUERY CONDITION CACHE</code>, then an empty cache
+- A first run populating three entries
+- The cache contents: one row per part and condition, with a mark bitmap
+- Repeating the condition with a different projection and a different aggregate
+- Cached and uncached results proven identical
+- Separate conditions creating separate entries
+- A predicate that nearly every granule satisfies, where there is nothing to skip
+- Dropping the cache, and an insert afterwards</p>
+<p><strong>Key Learning Points:</strong>
+- This is <strong>not</strong> a result cache: it caches the negative answer per granule, so a later query with the same predicate but different columns or aggregates still benefits
+- The setting is <strong>off by default</strong> and applies per query or per profile
+- Entries are keyed by <code>(part, condition hash)</code> — <code>system.query_condition_cache</code> shows <code>part_name</code>, <code>key_hash</code> and a <code>matching_marks</code> bitmap
+- Selectivity decides the value: a predicate matching a narrow id range prunes almost everything, while <code>status = 200</code> matching nearly every granule has nothing to record
+- New parts are not covered by existing entries, so an insert cannot make the cache stale</p>
+<p><strong>Use Cases:</strong>
+- Dashboards that re-run the same filter with different aggregates
+- Repeated needle-in-haystack lookups over an append-only log table
+- Any workload where the same <code>WHERE</code> clause appears across many queries</p>
+<hr />
+<h4>3. <code>estimateCompressionRatio</code> (03-estimate-compression-ratio)</h4>
+<p><strong>New Feature:</strong> an aggregate that estimates a column's compression ratio, either under the default codec or under a codec you name: <code>estimateCompressionRatio('Delta, ZSTD')(col)</code>.</p>
+<p><strong>Test Content:</strong>
+- One table with a constant column, a low-cardinality column, an incrementing column and a hash column
+- Default-codec ratios for each
+- <code>LZ4</code> versus <code>ZSTD</code> versus <code>ZSTD(9)</code> on the same column
+- <code>Delta</code> and <code>DoubleDelta</code> in front of <code>ZSTD</code> on a sequence
+- The same codecs on non-sequential data, where they buy nothing
+- A monotonic <code>DateTime</code> column
+- The estimate checked against a real part written with <code>CODEC(Delta, ZSTD)</code>
+- Every column ranked by ratio in one query
+- The estimate from all rows versus from a 50k sample</p>
+<p><strong>Key Learning Points:</strong>
+- The parametric form takes the codec pipeline as a string, so <code>Delta, ZSTD</code> and <code>DoubleDelta, ZSTD</code> can be compared directly
+- Codec choice is data-shaped: on this lab's incrementing column <code>ZSTD</code> alone estimates ≈8, <code>Delta, ZSTD</code> ≈79 and <code>DoubleDelta, ZSTD</code> ≈6579, while on a hash column all of them sit at ≈1
+- <strong>The estimate is optimistic.</strong> The same <code>Delta, ZSTD</code> column estimated ≈79 here but measured 3.6 once written and merged, so treat the numbers as a ranking between codecs rather than a size prediction
+- A 50k sample gave 7.8 against 7.9 for all 500k rows — sampling is enough to choose a codec
+- Ratios near 1 mean the column is already incompressible; no codec will rescue it</p>
+<p><strong>Use Cases:</strong>
+- Choosing a codec per column before a large backfill
+- Auditing an existing schema for columns that would benefit from <code>Delta</code>/<code>DoubleDelta</code>
+- Justifying a codec change with numbers rather than intuition</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-25-3
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.3/
+├── README.md                            # This document
+├── 00-setup.sh                          # ClickHouse 25.3 installation script
+├── 01-new-functions.sh                  # New functions runner
+├── 01-new-functions.sql                 # New functions SQL
+├── 02-query-condition-cache.sh          # Query condition cache runner
+├── 02-query-condition-cache.sql         # Query condition cache SQL
+├── 03-estimate-compression-ratio.sh     # Compression estimate runner
+└── 03-estimate-compression-ratio.sql    # Compression estimate SQL
+</code></pre>
+<h3>🆕 What's New in 25.3 LTS</h3>
+<ul>
+<li><strong>Query condition cache</strong> — <code>use_query_condition_cache</code>, <code>system.query_condition_cache</code></li>
+<li><strong><code>estimateCompressionRatio</code></strong> aggregate (<a href="https://github.com/ClickHouse/ClickHouse/pull/76661">#76661</a>)</li>
+<li><strong><code>arraySymmetricDifference</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/76231">#76231</a>)</li>
+<li><strong><code>keccak256</code></strong> for blockchain workloads (<a href="https://github.com/ClickHouse/ClickHouse/pull/76669">#76669</a>)</li>
+<li><strong><code>firstNonDefault</code></strong> and <strong><code>compareSubstrings</code></strong></li>
+<li><strong>Iceberg transforms</strong> — <code>icebergTruncate</code>, <code>toYearNumSinceEpoch</code>, <code>toMonthNumSinceEpoch</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77403">#77403</a>)</li>
+<li><strong><code>JSON</code>, <code>Dynamic</code> and <code>Variant</code> are production-ready</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77785">#77785</a>)</li>
+<li><strong>Userspace page cache</strong> for remote virtual filesystems (<a href="https://github.com/ClickHouse/ClickHouse/pull/70509">#70509</a>)</li>
+<li><strong><code>concurrent_threads_scheduler</code></strong> server setting (<a href="https://github.com/ClickHouse/ClickHouse/pull/75949">#75949</a>)</li>
+<li><strong><code>system.histogram_metrics</code></strong> system table</li>
+<li><strong>Profile events</strong> <code>FilterTransformPassedRows</code> / <code>FilterTransformPassedBytes</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/76662">#76662</a>)</li>
+<li><strong>Header forwarding to external HTTP authenticators</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77054">#77054</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 25.3</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.3.14.14</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+<li>The changelog also lists low-cardinality decimal support, but <code>LowCardinality(Decimal(10, 2))</code> is still rejected on 25.3.14 with <code>ILLEGAL_TYPE_OF_ARGUMENT</code>, so it is not exercised here</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.3 LTS 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 3월 20일 출시된 ClickHouse 25.3에서 검증된 작동 기능에 집중합니다. 2025년 첫 LTS 릴리스입니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.3은 "추측 대신 판단"을 돕는 두 가지 도구와 다수의 신규 함수를 담은 LTS 릴리스입니다. 쿼리 조건 캐시는 필터가 매칭될 수 없는 granule을 기억해 같은 필터의 재실행 시 읽는 양을 줄입니다. <code>estimateCompressionRatio</code>는 "이 컬럼에 어떤 코덱을 쓸까"를 쓰고-측정하는 반복 대신 <code>SELECT</code> 한 번으로 답합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>신규 함수</strong> — <code>arraySymmetricDifference</code>, <code>keccak256</code>, <code>firstNonDefault</code>, <code>compareSubstrings</code>, Iceberg 변환 헬퍼</li>
+<li><strong>쿼리 조건 캐시</strong> — <code>use_query_condition_cache</code>, <code>system.query_condition_cache</code></li>
+<li><strong><code>estimateCompressionRatio</code></strong> — 데이터를 쓰지 않고 코덱 효과 추정</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/25.3
+./00-setup.sh
+
+./01-new-functions.sh
+./02-query-condition-cache.sh
+./03-estimate-compression-ratio.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. 신규 함수</h4>
+<p><code>arraySymmetricDifference</code>, <code>keccak256</code>, <code>firstNonDefault</code>, <code>compareSubstrings</code>, <code>icebergTruncate</code>, <code>toYearNumSinceEpoch</code>, <code>toMonthNumSinceEpoch</code> — 25.2 대비 <code>system.functions</code> 차이로 확인한 이번 릴리스의 함수 추가분입니다.</p>
+<p><strong>테스트 내용:</strong>
+- 배열 2개·3개에 대한 <code>arraySymmetricDifference</code>
+- <code>arrayIntersect</code>, distinct concat과의 대비
+- 권한 드리프트 쿼리: 한쪽 롤에만 있는 권한
+- 리터럴에 대한 <code>keccak256</code>과 빈 입력 해시
+- 컬럼 해싱 및 해시 기준 그룹화
+- <code>0</code>/<code>''</code>을 결측으로 쓰는 데이터에 대한 <code>firstNonDefault</code>
+- 컬럼 3개에 걸친 전화번호 폴백 체인
+- 부분 문자열을 만들지 않고 비교하는 <code>compareSubstrings</code>
+- Iceberg 변환 헬퍼와 월 파티션 집계</p>
+<p><strong>핵심 학습 포인트:</strong>
+- <code>arraySymmetricDifference</code>는 <strong>모든</strong> 인자에 없는 원소를 반환하므로 배열이 3개 이상이면 쌍별 차집합이 아닙니다. 결과 순서도 보장되지 않으니 비교 전에 정렬하세요
+- <code>keccak256</code>은 이더리움이 쓰는 표준화 이전 Keccak-256이며, 확정된 SHA3-256과 다른 다이제스트를 만듭니다
+- <code>firstNonDefault</code>는 타입별 기본값을 기준으로 하므로, <code>NULL</code> 없이 <code>0</code>과 <code>''</code>이 "없음"을 뜻하는 데이터에 적합합니다
+- <code>compareSubstrings(a, b, offset_a, offset_b, length)</code>의 오프셋은 0 기반이며 <code>-1</code>/<code>0</code>/<code>1</code>을 반환합니다
+- <code>toYearNumSinceEpoch</code> / <code>toMonthNumSinceEpoch</code>는 1970년 기준 카운트로, Iceberg의 연/월 파티션 값과 동일합니다</p>
+<h4>2. 쿼리 조건 캐시</h4>
+<p><code>use_query_condition_cache = 1</code>이면 ClickHouse가 <code>WHERE</code> 조건이 아무것도 매칭하지 못한 granule을 기록합니다. 이후 같은 조건의 쿼리는 그 granule을 재평가하지 않고 건너뜁니다. <code>system.query_condition_cache</code>에서 항목을 확인할 수 있습니다.</p>
+<p><strong>테스트 내용:</strong>
+- <code>status = 500</code>이 좁은 id 구간에 몰린 300만 행 로그 테이블
+- 설정과 기본값
+- <code>SYSTEM DROP QUERY CONDITION CACHE</code> 후 빈 캐시 확인
+- 첫 실행으로 항목 3개 생성
+- 캐시 내용: 파트·조건별 한 행과 mark 비트맵
+- 다른 프로젝션·다른 집계로 같은 조건 반복
+- 캐시 사용/미사용 결과가 동일함을 증명
+- 서로 다른 조건이 별도 항목을 만드는지 확인
+- 거의 모든 granule이 만족하는 조건 — 건너뛸 것이 없는 경우
+- 캐시 드롭과 이후 INSERT</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 결과 캐시가 <strong>아닙니다</strong>. granule 단위의 부정 답변을 캐시하므로, 같은 조건에 컬럼이나 집계가 달라도 이득을 봅니다
+- 기본값은 <strong>꺼짐</strong>이며 쿼리 또는 프로파일 단위로 적용합니다
+- 항목 키는 <code>(파트, 조건 해시)</code>이고 <code>system.query_condition_cache</code>에 <code>part_name</code>·<code>key_hash</code>·<code>matching_marks</code> 비트맵이 보입니다
+- 선택도가 가치를 결정합니다. 좁은 id 구간을 겨냥한 조건은 대부분을 잘라내지만, 거의 모든 granule이 만족하는 <code>status = 200</code>은 기록할 게 없습니다
+- 새 파트는 기존 항목의 적용 대상이 아니므로 INSERT로 캐시가 낡을 수 없습니다</p>
+<h4>3. <code>estimateCompressionRatio</code></h4>
+<p>기본 코덱 또는 지정한 코덱 기준으로 컬럼의 압축률을 추정하는 집계 함수입니다: <code>estimateCompressionRatio('Delta, ZSTD')(col)</code>.</p>
+<p><strong>테스트 내용:</strong>
+- 상수 컬럼·저카디널리티 컬럼·증가 컬럼·해시 컬럼을 가진 테이블
+- 각 컬럼의 기본 코덱 압축률
+- 같은 컬럼에 대한 <code>LZ4</code> vs <code>ZSTD</code> vs <code>ZSTD(9)</code>
+- 시퀀스에 대한 <code>Delta</code>·<code>DoubleDelta</code> + <code>ZSTD</code>
+- 비순차 데이터에 같은 코덱을 적용했을 때 이득이 없음을 확인
+- 단조 증가 <code>DateTime</code> 컬럼
+- <code>CODEC(Delta, ZSTD)</code>로 실제 기록한 파트와 추정치 비교
+- 한 쿼리로 전 컬럼 압축률 순위
+- 전체 행 vs 5만 행 샘플 추정 비교</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 파라메트릭 형태는 코덱 파이프라인을 문자열로 받으므로 <code>Delta, ZSTD</code>와 <code>DoubleDelta, ZSTD</code>를 바로 비교할 수 있습니다
+- 코덱 선택은 데이터 모양에 달렸습니다. 이 랩의 증가 컬럼에서 <code>ZSTD</code> 단독은 약 8, <code>Delta, ZSTD</code>는 약 79, <code>DoubleDelta, ZSTD</code>는 약 6579인 반면, 해시 컬럼에서는 모두 약 1입니다
+- <strong>추정치는 낙관적입니다.</strong> 같은 <code>Delta, ZSTD</code> 컬럼이 여기서는 약 79로 추정됐지만 실제로 기록·머지된 뒤에는 3.6이었습니다. 크기 예측이 아니라 코덱 간 순위로 쓰세요
+- 5만 행 샘플이 7.8, 전체 50만 행이 7.9였습니다 — 코덱 선택에는 샘플로 충분합니다
+- 압축률이 1에 가깝다면 이미 압축 불가능한 컬럼이며 어떤 코덱도 구제하지 못합니다</p>
+<h3>🆕 25.3 LTS의 새로운 기능</h3>
+<ul>
+<li><strong>쿼리 조건 캐시</strong> — <code>use_query_condition_cache</code>, <code>system.query_condition_cache</code></li>
+<li><strong><code>estimateCompressionRatio</code></strong> 집계 함수 (<a href="https://github.com/ClickHouse/ClickHouse/pull/76661">#76661</a>)</li>
+<li><strong><code>arraySymmetricDifference</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/76231">#76231</a>)</li>
+<li><strong><code>keccak256</code></strong> — 블록체인 워크로드용 (<a href="https://github.com/ClickHouse/ClickHouse/pull/76669">#76669</a>)</li>
+<li><strong><code>firstNonDefault</code></strong>, <strong><code>compareSubstrings</code></strong></li>
+<li><strong>Iceberg 변환</strong> — <code>icebergTruncate</code>, <code>toYearNumSinceEpoch</code>, <code>toMonthNumSinceEpoch</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77403">#77403</a>)</li>
+<li><strong><code>JSON</code>·<code>Dynamic</code>·<code>Variant</code> 정식 지원(production-ready)</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77785">#77785</a>)</li>
+<li><strong>유저스페이스 페이지 캐시</strong> — 원격 가상 파일시스템용 (<a href="https://github.com/ClickHouse/ClickHouse/pull/70509">#70509</a>)</li>
+<li><strong><code>concurrent_threads_scheduler</code></strong> 서버 설정 (<a href="https://github.com/ClickHouse/ClickHouse/pull/75949">#75949</a>)</li>
+<li><strong><code>system.histogram_metrics</code></strong> 시스템 테이블</li>
+<li><strong>프로파일 이벤트</strong> <code>FilterTransformPassedRows</code> / <code>FilterTransformPassedBytes</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/76662">#76662</a>)</li>
+<li><strong>외부 HTTP 인증기로의 헤더 전달</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77054">#77054</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 25.3</a></li>
+<li><strong>ClickHouse 공식 문서</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 25.3.14.14에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 안에서 생성</li>
+<li>정리(cleanup) 구문은 확인을 위해 주석 처리</li>
+<li>changelog에는 low-cardinality decimal 지원도 있지만, 25.3.14에서 <code>LowCardinality(Decimal(10, 2))</code>는 여전히 <code>ILLEGAL_TYPE_OF_ARGUMENT</code>로 거부되어 여기서는 다루지 않습니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.3"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

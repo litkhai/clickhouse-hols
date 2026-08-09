@@ -1,0 +1,2718 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WAF Observability Workshop with Multi-Cloud MSA · ClickHouse HOLs</title>
+<meta name="description" content="WAF Observability Workshop with Multi-Cloud MSA — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workshop/observability-waf</code>
+    
+  </nav>
+  <div class="readme en"><h1>WAF Observability Workshop with Multi-Cloud MSA</h1>
+<p>A comprehensive hands-on workshop for generating and analyzing Web Application Firewall (WAF) telemetry in a realistic multi-cloud microservices architecture using ClickHouse Cloud and HyperDX.</p>
+<p><a href="#한국어-문서">한글 문서 보기</a> | <a href="#한국어-문서">View Korean Documentation</a></p>
+<hr />
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#what-is-a-waf">What is a WAF?</a></li>
+<li><a href="#why-multi-cloud-msa">Why Multi-Cloud MSA?</a></li>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#understanding-the-generated-data">Understanding the Generated Data</a></li>
+<li><a href="#analyzing-waf-data-in-hyperdx">Analyzing WAF Data in HyperDX</a></li>
+<li><a href="#detection-queries">Detection Queries</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+<hr />
+<h2>Overview</h2>
+<p>This workshop simulates a <strong>global multi-cloud retail platform</strong> protected by Web Application Firewalls (WAFs) across three major cloud providers: AWS, Azure, and GCP. The system generates realistic OWASP-based attack patterns and routes allowed traffic through a complex microservices architecture.</p>
+<h3>Key Features</h3>
+<ul>
+<li><strong>3 Cloud WAF Services</strong>: AWS WAF, Azure WAF, GCP Cloud Armor</li>
+<li><strong>20 Backend Microservices</strong>: Complete e-commerce platform simulation</li>
+<li><strong>OWASP Top 10 Attack Patterns</strong>: Realistic security threat simulation</li>
+<li><strong>Full OpenTelemetry Integration</strong>: Traces, Logs, and Metrics</li>
+<li><strong>Complex Service Dependencies</strong>: Up to 6-depth service call chains</li>
+<li><strong>Real-time DDoS Simulation</strong>: Periodic attack spike patterns</li>
+<li><strong>Realistic False Negative Scenarios</strong>: Configurable rates for attacks passing through WAF (2% default)</li>
+</ul>
+<hr />
+<h2>Architecture</h2>
+<h3>System Overview</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Multi-Cloud WAF Layer                        │
+│  ┌──────────┐      ┌──────────┐      ┌────────────────┐       │
+│  │ AWS WAF  │      │Azure WAF │      │ GCP Cloud      │       │
+│  │  (60%)   │      │  (10%)   │      │ Armor (30%)    │       │
+│  └────┬─────┘      └────┬─────┘      └────────┬───────┘       │
+└───────┼──────────────────┼─────────────────────┼───────────────┘
+        │                  │                     │
+        └──────────────────┴─────────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────┐
+    │        Backend Microservices (MSA)          │
+    ├─────────────────────────────────────────────┤
+    │  Core Services:                             │
+    │  • user-service → auth-service              │
+    │  • product-service → inventory, pricing     │
+    │  • order-service → payment, shipping        │
+    │  • payment-service → fraud-detection        │
+    │                                              │
+    │  Supporting Services:                        │
+    │  • notification-service → template-service  │
+    │  • recommendation-service → analytics       │
+    │  • inventory-service → warehouse, supplier  │
+    │  • shipping-service → logistics             │
+    │                                              │
+    │  Infrastructure:                             │
+    │  • analytics-service, cache-service         │
+    │  • audit-service, ml-service                │
+    └─────────────────────────────────────────────┘
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │ OTEL Collector   │
+                 │  (ClickHouse     │
+                 │   Exporter)      │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │ ClickHouse Cloud │
+                 │   + ClickStack   │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │     HyperDX      │
+                 │  (Observability) │
+                 └──────────────────┘
+</code></pre>
+<h3>Service Dependency Graph</h3>
+<p>The system simulates a realistic retail platform with complex interdependencies:</p>
+<p><strong>Frontend Services (via WAF):</strong>
+- user-service
+- product-service
+- order-service
+- payment-service
+- inventory-service
+- shipping-service</p>
+<p><strong>Backend Services:</strong>
+- auth-service, notification-service
+- pricing-service, recommendation-service
+- fraud-detection-service, analytics-service
+- warehouse-service, supplier-service
+- logistics-service, template-service
+- accounting-service, audit-service
+- cache-service, ml-service</p>
+<h3>Trace Structure Example</h3>
+<p>A typical order flow creates a complex trace:</p>
+<pre><code>aws-waf (waf.request)
+  ├─ waf.inspection (threat analysis)
+  ├─ waf.decision (allow/block)
+  └─ order-service (if allowed)
+       ├─ payment-service
+       │    ├─ fraud-detection-service
+       │    │    └─ analytics-service
+       │    │         └─ ml-service
+       │    └─ accounting-service
+       ├─ inventory-service
+       │    ├─ warehouse-service
+       │    └─ supplier-service
+       ├─ shipping-service
+       │    └─ logistics-service
+       │         └─ notification-service
+       │              └─ template-service
+       └─ notification-service
+            └─ template-service
+</code></pre>
+<hr />
+<h2>What is a WAF?</h2>
+<p>A <strong>Web Application Firewall (WAF)</strong> is a security solution that operates at the application layer (L7) to protect web applications from attacks.</p>
+<h3>Key Capabilities</h3>
+<ol>
+<li>
+<p><strong>OWASP Top 10 Protection</strong>
+   - SQL Injection (SQLi)
+   - Cross-Site Scripting (XSS)
+   - Cross-Site Request Forgery (CSRF)
+   - Path Traversal
+   - Command Injection
+   - XML External Entity (XXE)
+   - Server-Side Request Forgery (SSRF)
+   - Local/Remote File Inclusion (LFI/RFI)
+   - DDoS Protection</p>
+</li>
+<li>
+<p><strong>Request Processing</strong>
+   - Signature-based detection
+   - Behavioral analysis
+   - Threat scoring
+   - Rate limiting
+   - Geo-blocking</p>
+</li>
+<li>
+<p><strong>Action Types</strong>
+   - <strong>Allow</strong>: Pass to backend
+   - <strong>Block</strong>: Reject with 403
+   - <strong>Challenge</strong>: CAPTCHA verification
+   - <strong>Log</strong>: Monitor only</p>
+</li>
+</ol>
+<h3>Why WAFs Are Stateless</h3>
+<p>WAFs inspect each request independently without maintaining session state:</p>
+<p><strong>Reasons:</strong>
+- <strong>Performance</strong>: Session storage would create bottlenecks at scale
+- <strong>Scalability</strong>: Stateless design enables horizontal scaling
+- <strong>Reliability</strong>: No single point of failure
+- <strong>Cloud-Native</strong>: Fits distributed architecture patterns</p>
+<p><strong>Real-World Examples:</strong>
+- <strong>AWS WAF</strong>: No session tracking capability
+- <strong>Azure WAF</strong>: Stateless by design
+- <strong>GCP Cloud Armor</strong>: Request-level inspection only
+- <strong>Cloudflare WAF</strong>: Rule-based without session context</p>
+<hr />
+<h2>WAF False Negatives (Security Misses)</h2>
+<p>In real-world scenarios, WAFs are not 100% effective and may allow some attacks to pass through. This workshop simulates realistic <strong>False Negative</strong> scenarios to demonstrate:</p>
+<h3>What Are False Negatives?</h3>
+<p>A <strong>False Negative</strong> occurs when a WAF fails to detect and block a malicious request, allowing it to reach backend services. This happens due to:</p>
+<ol>
+<li><strong>Signature Bypass</strong>: Attackers obfuscate payloads to evade pattern matching</li>
+<li><strong>Zero-Day Exploits</strong>: New attack patterns not yet in WAF rules</li>
+<li><strong>Rate Limiting</strong>: High traffic volume causing inspection gaps</li>
+<li><strong>Configuration Issues</strong>: Overly permissive rules or disabled protections</li>
+</ol>
+<h3>False Negative Rates in This Workshop</h3>
+<p>The system uses severity-based False Negative rates that mirror real-world WAF performance:</p>
+<table>
+<thead>
+<tr>
+<th>Attack Severity</th>
+<th>False Negative Rate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong></td>
+<td>1% (0.5× base)</td>
+<td>SQL Injection, RCE - highest detection priority</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>2% (1.0× base)</td>
+<td>XSS, CSRF - standard detection</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>4% (2.0× base)</td>
+<td>Path Traversal - moderate detection</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>6% (3.0× base)</td>
+<td>Suspicious patterns - lower priority</td>
+</tr>
+<tr>
+<td><strong>DDoS</strong></td>
+<td>10%</td>
+<td>Volume-based attacks are harder to block completely</td>
+</tr>
+</tbody>
+</table>
+<h3>Configuration</h3>
+<p>Adjust False Negative rates in <code>.env</code>:</p>
+<pre><code class="language-bash"># Base rate for attack bypass (affects high severity)
+WAF_FALSE_NEGATIVE_RATE=0.02  # 2% default
+
+# Specific rate for DDoS attacks
+DDOS_FALSE_NEGATIVE_RATE=0.10  # 10% default
+</code></pre>
+<h3>Detecting False Negatives in HyperDX</h3>
+<p><strong>Query 1: Find attacks that passed through WAF</strong></p>
+<pre><code class="language-sql">SELECT
+    SeverityText,
+    Body,
+    Attributes['attack.name'] AS attack_name,
+    Attributes['attack.severity'] AS severity,
+    Attributes['client.ip'] AS client_ip,
+    Attributes['http.url'] AS url,
+    Timestamp
+FROM otel_logs
+WHERE Attributes['waf.false_negative'] = 'true'
+ORDER BY Timestamp DESC
+LIMIT 100;
+</code></pre>
+<p><strong>Query 2: False Negative rate by attack type</strong></p>
+<pre><code class="language-sql">SELECT
+    Attributes['attack.type'] AS attack_type,
+    countIf(Attributes['waf.false_negative'] = 'true') AS false_negatives,
+    count(*) AS total_attacks,
+    round(false_negatives / total_attacks * 100, 2) AS miss_rate_percent
+FROM otel_logs
+WHERE Attributes['attack.type'] != ''
+GROUP BY attack_type
+ORDER BY miss_rate_percent DESC;
+</code></pre>
+<p><strong>Query 3: Backend services processing malicious requests</strong></p>
+<pre><code class="language-sql">SELECT
+    ResourceAttributes['service.name'] AS backend_service,
+    count(*) AS malicious_requests,
+    uniq(Attributes['client.ip']) AS unique_attackers,
+    groupArray(DISTINCT Attributes['security.attack_type']) AS attack_types
+FROM otel_traces
+WHERE Attributes['security.false_negative'] = 'true'
+GROUP BY backend_service
+ORDER BY malicious_requests DESC;
+</code></pre>
+<h3>Why This Matters</h3>
+<p>Understanding False Negatives helps:
+- <strong>Security Teams</strong>: Identify WAF rule gaps and tune detection
+- <strong>SRE Teams</strong>: Detect anomalous behavior in backend services
+- <strong>Incident Response</strong>: Investigate attacks that bypassed perimeter defenses
+- <strong>Compliance</strong>: Document security control effectiveness</p>
+<hr />
+<h2>Why Multi-Cloud MSA?</h2>
+<p>This workshop uses a multi-cloud microservices architecture to provide realistic training:</p>
+<h3>Multi-Cloud Benefits</h3>
+<ol>
+<li>
+<p><strong>Geographical Distribution</strong>
+   - AWS: 60% (US-focused workloads)
+   - GCP: 30% (Global distribution)
+   - Azure: 10% (Enterprise integrations)</p>
+</li>
+<li>
+<p><strong>Disaster Recovery</strong>
+   - Cross-cloud failover
+   - Data sovereignty compliance
+   - Vendor lock-in avoidance</p>
+</li>
+<li>
+<p><strong>Realistic Service Maps</strong>
+   - Complex trace propagation
+   - Cross-cloud observability
+   - Real-world debugging scenarios</p>
+</li>
+</ol>
+<h3>Microservices Architecture</h3>
+<p><strong>Core E-commerce Services:</strong>
+- User management &amp; authentication
+- Product catalog &amp; search
+- Order processing &amp; checkout
+- Payment &amp; fraud detection
+- Inventory &amp; warehouse management
+- Shipping &amp; logistics</p>
+<p><strong>Supporting Services:</strong>
+- Notifications (email, SMS, push)
+- Recommendations &amp; personalization
+- Pricing &amp; promotions
+- Analytics &amp; reporting
+- Caching &amp; performance
+- Auditing &amp; compliance</p>
+<hr />
+<h2>Prerequisites</h2>
+<ol>
+<li>
+<p><strong>ClickHouse Cloud Account</strong>
+   - Sign up at https://clickhouse.cloud
+   - Create a new service
+   - Note your connection details</p>
+</li>
+<li>
+<p><strong>ClickStack API Key</strong>
+   - Navigate to ClickHouse Cloud Console
+   - Go to ClickStack section
+   - Click the (?) icon to get your API key</p>
+</li>
+<li>
+<p><strong>Docker &amp; Docker Compose</strong>
+   - Docker 20.10 or later
+   - Docker Compose v2.0 or later</p>
+</li>
+<li>
+<p><strong>System Requirements</strong>
+   - 4GB RAM minimum
+   - 2 CPU cores
+   - 5GB disk space</p>
+</li>
+</ol>
+<hr />
+<h2>Quick Start</h2>
+<h3>1. Clone the Repository</h3>
+<pre><code class="language-bash">cd workshop/observability-waf
+</code></pre>
+<h3>2. Configure the Environment</h3>
+<p>Run the interactive setup script:</p>
+<pre><code class="language-bash">./setup.sh
+</code></pre>
+<p>You'll be prompted for:
+- ClickHouse Cloud endpoint
+- Database credentials
+- ClickStack API key
+- WAF generation parameters
+- Service ports</p>
+<h3>3. Start the Services</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>This will:
+- Start OTEL Collector
+- Launch WAF Generator (23 services)
+- Start Web UI</p>
+<h3>4. Open the Web UI</h3>
+<pre><code class="language-bash">open http://localhost:9873
+</code></pre>
+<p>Click <strong>"Start Generation"</strong> to begin generating telemetry data.</p>
+<h3>5. View in HyperDX</h3>
+<ol>
+<li>Log into ClickHouse Cloud</li>
+<li>Navigate to ClickStack → HyperDX</li>
+<li>Explore:
+   - <strong>Service Map</strong>: See all 23 services and their connections
+   - <strong>Traces</strong>: View complete request flows with up to 6 depth levels
+   - <strong>Logs</strong>: Search security events and attack patterns
+   - <strong>Metrics</strong>: Monitor request rates and block percentages</li>
+</ol>
+<hr />
+<h2>Understanding the Generated Data</h2>
+<h3>OpenTelemetry Data Types</h3>
+<h4>1. Traces</h4>
+<p><strong>WAF Span Hierarchy:</strong></p>
+<pre><code>waf.request (SERVER)
+  ├─ waf.inspection (INTERNAL)
+  └─ waf.decision (INTERNAL)
+       └─ {service-name} (CLIENT) → routes to backend
+</code></pre>
+<p><strong>Backend Service Spans:</strong></p>
+<pre><code>HTTP {METHOD} (SERVER)
+  ├─ {downstream-service-1} (CLIENT)
+  │    └─ HTTP {METHOD} (SERVER)
+  └─ {downstream-service-2} (CLIENT)
+       └─ HTTP {METHOD} (SERVER)
+</code></pre>
+<p><strong>Span Attributes:</strong>
+- <code>http.method</code>, <code>http.url</code>, <code>http.user_agent</code>
+- <code>client.ip</code>, <code>cloud.provider</code>, <code>cloud.region</code>
+- <code>waf.is_attack</code>, <code>waf.threat_score</code>, <code>waf.action</code>
+- <code>waf.attack_type</code>, <code>waf.matched_rule</code>, <code>waf.severity</code>
+- <code>peer.service</code> (for service-to-service calls)</p>
+<h4>2. Logs</h4>
+<p><strong>Log Levels by Event:</strong>
+- <code>INFO</code>: Normal requests, routing decisions
+- <code>WARNING</code>: Threats detected (attacks identified)
+- <code>ERROR</code>: Blocked requests</p>
+<p><strong>Log Attributes:</strong>
+- Request metadata (method, URL, IP)
+- Attack details (type, OWASP ID, payload)
+- Threat scoring and matched rules
+- Backend service routing information</p>
+<h4>3. Metrics</h4>
+<p><strong>Counter Metrics:</strong>
+- <code>waf.requests.total</code> (by action, method, region)
+- <code>waf.requests.blocked</code> (by attack type, region)</p>
+<p><strong>Histogram Metrics:</strong>
+- <code>waf.response.time</code> (by action, region)</p>
+<hr />
+<h2>Analyzing WAF Data in HyperDX</h2>
+<h3>1. Service Map Analysis</h3>
+<p><strong>View Service Dependencies:</strong>
+- All 23 services (3 WAFs + 20 microservices)
+- Request flow from WAF to backend services
+- Service-to-service call patterns
+- Error rates and latencies per service</p>
+<p><strong>Key Insights:</strong>
+- Identify high-traffic services
+- Spot bottlenecks in the call chain
+- Monitor cross-service dependencies
+- Detect cascading failures</p>
+<h3>2. Trace Analysis</h3>
+<p><strong>Search for Attack Traces:</strong></p>
+<pre><code>waf.is_attack = true AND waf.action = &quot;block&quot;
+</code></pre>
+<p><strong>Find Long-Running Traces:</strong></p>
+<pre><code>duration &gt; 100ms
+</code></pre>
+<p><strong>Service-Specific Traces:</strong></p>
+<pre><code>service.name = &quot;order-service&quot;
+</code></pre>
+<h3>3. Log Analysis</h3>
+<p><strong>Find SQL Injection Attempts:</strong></p>
+<pre><code>attack.type = &quot;sql_injection&quot;
+</code></pre>
+<p><strong>Monitor Blocked Requests:</strong></p>
+<pre><code>waf.action = &quot;block&quot; AND severity = &quot;high&quot;
+</code></pre>
+<p><strong>Track Specific IPs:</strong></p>
+<pre><code>client.ip = &quot;x.x.x.x&quot;
+</code></pre>
+<h3>4. Custom Dashboards</h3>
+<p>Create dashboards to monitor:
+- WAF block rate by cloud provider
+- Top attacked endpoints
+- Attack distribution by OWASP category
+- Service latency percentiles (p50, p95, p99)
+- Request volume by backend service</p>
+<hr />
+<h2>Detection Queries</h2>
+<h3>SQL Queries for ClickHouse</h3>
+<h4>1. Attack Detection</h4>
+<pre><code class="language-sql">-- Top Attack Types
+SELECT
+    SpanAttributes['waf.attack_type'] as attack_type,
+    SpanAttributes['waf.attack_name'] as attack_name,
+    count() as count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND has(mapKeys(SpanAttributes), 'waf.attack_type')
+GROUP BY attack_type, attack_name
+ORDER BY count DESC;
+</code></pre>
+<h4>2. Service Performance</h4>
+<pre><code class="language-sql">-- Service Latency Analysis
+SELECT
+    ServiceName,
+    quantile(0.50)(Duration / 1000000) as p50_ms,
+    quantile(0.95)(Duration / 1000000) as p95_ms,
+    quantile(0.99)(Duration / 1000000) as p99_ms,
+    count() as request_count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Server'
+GROUP BY ServiceName
+ORDER BY p99_ms DESC;
+</code></pre>
+<h4>3. Service Dependencies</h4>
+<pre><code class="language-sql">-- Service Call Graph
+SELECT
+    ServiceName as from_service,
+    SpanAttributes['peer.service'] as to_service,
+    count() as call_count,
+    avg(Duration / 1000000) as avg_latency_ms
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Client'
+    AND has(mapKeys(SpanAttributes), 'peer.service')
+GROUP BY from_service, to_service
+ORDER BY call_count DESC;
+</code></pre>
+<h4>4. DDoS Detection</h4>
+<pre><code class="language-sql">-- High Volume Sources
+SELECT
+    LogAttributes['client.ip'] as source_ip,
+    count() as request_count,
+    countIf(LogAttributes['waf.action'] = 'block') as blocked_count,
+    blocked_count / request_count * 100 as block_rate
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE
+GROUP BY source_ip
+HAVING request_count &gt; 100
+ORDER BY request_count DESC;
+</code></pre>
+<h4>5. Security Audit</h4>
+<pre><code class="language-sql">-- Blocked Attacks by Severity
+SELECT
+    LogAttributes['severity'] as severity,
+    LogAttributes['attack.type'] as attack_type,
+    LogAttributes['owasp.id'] as owasp_id,
+    count() as count
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SeverityText = 'ERROR'
+    AND has(mapKeys(LogAttributes), 'severity')
+GROUP BY severity, attack_type, owasp_id
+ORDER BY count DESC;
+</code></pre>
+<hr />
+<h2>Troubleshooting</h2>
+<h3>Generator Not Starting</h3>
+<p><strong>Check Docker logs:</strong></p>
+<pre><code class="language-bash">docker logs waf-generator
+</code></pre>
+<p><strong>Common issues:</strong>
+- OTEL Collector connection refused
+- Invalid ClickHouse credentials
+- Port conflicts</p>
+<h3>No Data in HyperDX</h3>
+<p><strong>Verify data in ClickHouse:</strong></p>
+<pre><code class="language-bash">bash -c 'source .env &amp;&amp; clickhouse client \
+  --host=${CH_HOST} \
+  --user=${CH_USER} \
+  --password=${CH_PASSWORD} \
+  --secure \
+  --query=&quot;SELECT count() FROM otel_waf.otel_traces&quot;'
+</code></pre>
+<p><strong>Check OTEL Collector:</strong></p>
+<pre><code class="language-bash">docker logs waf-otel-collector
+</code></pre>
+<h3>Service Map Not Showing All Services</h3>
+<p><strong>Wait time:</strong> It may take 2-3 minutes for all services to appear.</p>
+<p><strong>Verify spans:</strong></p>
+<pre><code class="language-sql">SELECT DISTINCT ServiceName
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE;
+</code></pre>
+<h3>High CPU Usage</h3>
+<p><strong>Reduce generation rate:</strong></p>
+<p>Edit <code>.env</code>:</p>
+<pre><code class="language-bash">EVENTS_PER_SECOND=50  # Default is 100
+</code></pre>
+<p>Restart services:</p>
+<pre><code class="language-bash">./stop.sh &amp;&amp; ./start.sh
+</code></pre>
+<hr />
+<h2>Workshop Exercises</h2>
+<h3>Exercise 1: Service Map Exploration</h3>
+<ol>
+<li>Identify the most called backend service</li>
+<li>Find the longest service call chain</li>
+<li>Determine which services have no downstream dependencies</li>
+</ol>
+<h3>Exercise 2: Attack Analysis</h3>
+<ol>
+<li>Find all SQL injection attempts in the last hour</li>
+<li>Calculate the WAF block rate by cloud provider</li>
+<li>Identify IPs with multiple attack types</li>
+</ol>
+<h3>Exercise 3: Performance Investigation</h3>
+<ol>
+<li>Find the slowest backend service</li>
+<li>Identify services with p99 latency &gt; 100ms</li>
+<li>Trace a specific slow request end-to-end</li>
+</ol>
+<h3>Exercise 4: Custom Dashboard</h3>
+<ol>
+<li>Create a dashboard showing:
+   - Request rate per cloud WAF
+   - Block rate by attack type
+   - Service latency heatmap
+   - Top 10 attacked endpoints</li>
+</ol>
+<hr />
+<h2>Configuration Reference</h2>
+<h3>Environment Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVENTS_PER_SECOND</code></td>
+<td>Events generated per second</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>NORMAL_TRAFFIC_RATIO</code></td>
+<td>Percentage of normal traffic</td>
+<td><code>0.80</code></td>
+</tr>
+<tr>
+<td><code>WAF_FALSE_NEGATIVE_RATE</code></td>
+<td>Base rate for attacks passing through WAF</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td><code>DDOS_FALSE_NEGATIVE_RATE</code></td>
+<td>Rate for DDoS attacks passing through</td>
+<td><code>0.10</code> (10%)</td>
+</tr>
+<tr>
+<td><code>AWS_RATIO</code></td>
+<td>AWS traffic weight</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>AZURE_RATIO</code></td>
+<td>Azure traffic weight</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>GCP_RATIO</code></td>
+<td>GCP traffic weight</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>WEB_UI_PORT</code></td>
+<td>Web UI port</td>
+<td><code>9873</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_GRPC</code></td>
+<td>OTEL gRPC port</td>
+<td><code>14317</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_HTTP</code></td>
+<td>OTEL HTTP port</td>
+<td><code>14318</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Service Architecture</h3>
+<p><strong>Total Services:</strong> 23
+- 3 WAF services (multi-cloud)
+- 6 core services (user-facing)
+- 8 supporting services (business logic)
+- 6 infrastructure services (platform)</p>
+<p><strong>Service Dependencies:</strong> 60+ unique relationships</p>
+<p><strong>Maximum Trace Depth:</strong> 6 levels</p>
+<p><strong>Typical Span Count per Trace:</strong> 3-19 spans</p>
+<hr />
+<h2>Additional Resources</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/use-cases/observability/clickstack">ClickStack Guide</a></li>
+<li><a href="https://www.hyperdx.io/docs">HyperDX Documentation</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/otel/">OpenTelemetry Specification</a></li>
+<li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a></li>
+</ul>
+<hr />
+<h2>License</h2>
+<p>MIT License - See LICENSE file for details</p>
+<hr />
+<h1>한국어 문서</h1>
+<h1>멀티 클라우드 MSA 환경의 WAF 가관측성 워크샵</h1>
+<p>ClickHouse Cloud와 HyperDX를 활용한 웹 애플리케이션 방화벽(WAF) 텔레메트리 생성 및 분석 실습 워크샵입니다.</p>
+<hr />
+<h2>목차</h2>
+<ul>
+<li><a href="#개요-1">개요</a></li>
+<li><a href="#아키텍처-1">아키텍처</a></li>
+<li><a href="#waf란-무엇인가">WAF란 무엇인가?</a></li>
+<li><a href="#왜-멀티-클라우드-msa인가">왜 멀티 클라우드 MSA인가?</a></li>
+<li><a href="#사전-준비사항-1">사전 준비사항</a></li>
+<li><a href="#빠른-시작-1">빠른 시작</a></li>
+<li><a href="#생성되는-데이터-이해하기-1">생성되는 데이터 이해하기</a></li>
+<li><a href="#hyperdx에서-waf-데이터-분석하기-1">HyperDX에서 WAF 데이터 분석하기</a></li>
+<li><a href="#탐지-쿼리-1">탐지 쿼리</a></li>
+<li><a href="#문제-해결-1">문제 해결</a></li>
+</ul>
+<hr />
+<h2>개요</h2>
+<p>본 워크샵은 AWS, Azure, GCP 3개 주요 클라우드 공급자의 웹 애플리케이션 방화벽(WAF)으로 보호되는 <strong>글로벌 멀티 클라우드 리테일 플랫폼</strong>을 시뮬레이션합니다. 시스템은 실제와 같은 OWASP 기반 공격 패턴을 생성하고, 허용된 트래픽을 복잡한 마이크로서비스 아키텍처를 통해 라우팅합니다.</p>
+<h3>주요 기능</h3>
+<ul>
+<li><strong>3개 클라우드 WAF 서비스</strong>: AWS WAF, Azure WAF, GCP Cloud Armor</li>
+<li><strong>20개 백엔드 마이크로서비스</strong>: 완전한 이커머스 플랫폼 시뮬레이션</li>
+<li><strong>OWASP Top 10 공격 패턴</strong>: 실제와 같은 보안 위협 시뮬레이션</li>
+<li><strong>완전한 OpenTelemetry 통합</strong>: Traces, Logs, Metrics</li>
+<li><strong>복잡한 서비스 의존성</strong>: 최대 6단계 서비스 호출 체인</li>
+<li><strong>실시간 DDoS 시뮬레이션</strong>: 주기적 공격 급증 패턴</li>
+<li><strong>현실적인 False Negative 시나리오</strong>: WAF를 통과하는 공격 비율 설정 가능 (기본 2%)</li>
+</ul>
+<hr />
+<h2>아키텍처</h2>
+<h3>시스템 개요</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     멀티 클라우드 WAF 계층                         │
+│  ┌──────────┐      ┌──────────┐      ┌────────────────┐       │
+│  │ AWS WAF  │      │Azure WAF │      │ GCP Cloud      │       │
+│  │  (60%)   │      │  (10%)   │      │ Armor (30%)    │       │
+│  └────┬─────┘      └────┬─────┘      └────────┬───────┘       │
+└───────┼──────────────────┼─────────────────────┼───────────────┘
+        │                  │                     │
+        └──────────────────┴─────────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────┐
+    │       백엔드 마이크로서비스 (MSA)            │
+    ├─────────────────────────────────────────────┤
+    │  핵심 서비스:                                │
+    │  • user-service → auth-service              │
+    │  • product-service → inventory, pricing     │
+    │  • order-service → payment, shipping        │
+    │  • payment-service → fraud-detection        │
+    │                                              │
+    │  지원 서비스:                                │
+    │  • notification-service → template-service  │
+    │  • recommendation-service → analytics       │
+    │  • inventory-service → warehouse, supplier  │
+    │  • shipping-service → logistics             │
+    │                                              │
+    │  인프라:                                     │
+    │  • analytics-service, cache-service         │
+    │  • audit-service, ml-service                │
+    └─────────────────────────────────────────────┘
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │ OTEL Collector   │
+                 │  (ClickHouse     │
+                 │   Exporter)      │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │ ClickHouse Cloud │
+                 │   + ClickStack   │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │     HyperDX      │
+                 │  (가관측성)       │
+                 └──────────────────┘
+</code></pre>
+<h3>서비스 의존성 그래프</h3>
+<p>실제와 같은 리테일 플랫폼의 복잡한 상호 의존성을 시뮬레이션합니다:</p>
+<p><strong>프론트엔드 서비스 (WAF 경유):</strong>
+- user-service
+- product-service
+- order-service
+- payment-service
+- inventory-service
+- shipping-service</p>
+<p><strong>백엔드 서비스:</strong>
+- auth-service, notification-service
+- pricing-service, recommendation-service
+- fraud-detection-service, analytics-service
+- warehouse-service, supplier-service
+- logistics-service, template-service
+- accounting-service, audit-service
+- cache-service, ml-service</p>
+<h3>Trace 구조 예시</h3>
+<p>일반적인 주문 흐름은 복잡한 trace를 생성합니다:</p>
+<pre><code>aws-waf (waf.request)
+  ├─ waf.inspection (위협 분석)
+  ├─ waf.decision (허용/차단)
+  └─ order-service (허용된 경우)
+       ├─ payment-service
+       │    ├─ fraud-detection-service
+       │    │    └─ analytics-service
+       │    │         └─ ml-service
+       │    └─ accounting-service
+       ├─ inventory-service
+       │    ├─ warehouse-service
+       │    └─ supplier-service
+       ├─ shipping-service
+       │    └─ logistics-service
+       │         └─ notification-service
+       │              └─ template-service
+       └─ notification-service
+            └─ template-service
+</code></pre>
+<hr />
+<h2>WAF란 무엇인가?</h2>
+<p><strong>웹 애플리케이션 방화벽(WAF)</strong>은 애플리케이션 계층(L7)에서 작동하여 웹 애플리케이션을 공격으로부터 보호하는 보안 솔루션입니다.</p>
+<h3>주요 기능</h3>
+<ol>
+<li>
+<p><strong>OWASP Top 10 보호</strong>
+   - SQL 인젝션 (SQLi)
+   - 크로스 사이트 스크립팅 (XSS)
+   - 크로스 사이트 요청 위조 (CSRF)
+   - 경로 순회 (Path Traversal)
+   - 명령어 인젝션
+   - XML 외부 개체 (XXE)
+   - 서버 측 요청 위조 (SSRF)
+   - 로컬/원격 파일 포함 (LFI/RFI)
+   - DDoS 보호</p>
+</li>
+<li>
+<p><strong>요청 처리</strong>
+   - 시그니처 기반 탐지
+   - 행위 분석
+   - 위협 점수 계산
+   - 속도 제한
+   - 지역 차단</p>
+</li>
+<li>
+<p><strong>조치 유형</strong>
+   - <strong>Allow</strong>: 백엔드로 전달
+   - <strong>Block</strong>: 403으로 거부
+   - <strong>Challenge</strong>: CAPTCHA 검증
+   - <strong>Log</strong>: 모니터링만</p>
+</li>
+</ol>
+<h3>WAF가 무상태인 이유</h3>
+<p>WAF는 세션 상태를 유지하지 않고 각 요청을 독립적으로 검사합니다:</p>
+<p><strong>이유:</strong>
+- <strong>성능</strong>: 세션 저장소가 대규모 환경에서 병목 현상 유발
+- <strong>확장성</strong>: 무상태 설계가 수평 확장 가능
+- <strong>신뢰성</strong>: 단일 장애 지점 없음
+- <strong>클라우드 네이티브</strong>: 분산 아키텍처 패턴에 적합</p>
+<p><strong>실제 사례:</strong>
+- <strong>AWS WAF</strong>: 세션 추적 기능 없음
+- <strong>Azure WAF</strong>: 설계상 무상태
+- <strong>GCP Cloud Armor</strong>: 요청 수준 검사만
+- <strong>Cloudflare WAF</strong>: 세션 컨텍스트 없이 규칙 기반</p>
+<hr />
+<h2>WAF False Negative (보안 미탐)</h2>
+<p>실제 환경에서 WAF는 100% 효과적이지 않으며, 일부 공격이 통과할 수 있습니다. 본 워크샵은 현실적인 <strong>False Negative</strong> 시나리오를 시뮬레이션하여 다음을 보여줍니다:</p>
+<h3>False Negative란?</h3>
+<p><strong>False Negative</strong>는 WAF가 악의적인 요청을 탐지하고 차단하는 데 실패하여 백엔드 서비스에 도달하도록 허용하는 경우입니다. 다음과 같은 이유로 발생합니다:</p>
+<ol>
+<li><strong>시그니처 우회</strong>: 공격자가 패턴 매칭을 회피하기 위해 페이로드를 난독화</li>
+<li><strong>제로데이 익스플로잇</strong>: WAF 규칙에 아직 없는 새로운 공격 패턴</li>
+<li><strong>속도 제한</strong>: 높은 트래픽 볼륨으로 인한 검사 공백</li>
+<li><strong>설정 문제</strong>: 지나치게 관대한 규칙 또는 비활성화된 보호</li>
+</ol>
+<h3>본 워크샵의 False Negative 비율</h3>
+<p>시스템은 실제 WAF 성능을 반영하는 심각도 기반 False Negative 비율을 사용합니다:</p>
+<table>
+<thead>
+<tr>
+<th>공격 심각도</th>
+<th>False Negative 비율</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong></td>
+<td>1% (0.5× 기본)</td>
+<td>SQL Injection, RCE - 최고 탐지 우선순위</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>2% (1.0× 기본)</td>
+<td>XSS, CSRF - 표준 탐지</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>4% (2.0× 기본)</td>
+<td>Path Traversal - 중간 탐지</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>6% (3.0× 기본)</td>
+<td>의심스러운 패턴 - 낮은 우선순위</td>
+</tr>
+<tr>
+<td><strong>DDoS</strong></td>
+<td>10%</td>
+<td>볼륨 기반 공격은 완전히 차단하기 어려움</td>
+</tr>
+</tbody>
+</table>
+<h3>설정</h3>
+<p><code>.env</code> 파일에서 False Negative 비율을 조정합니다:</p>
+<pre><code class="language-bash"># 공격 우회를 위한 기본 비율 (high severity에 영향)
+WAF_FALSE_NEGATIVE_RATE=0.02  # 기본값 2%
+
+# DDoS 공격에 대한 특정 비율
+DDOS_FALSE_NEGATIVE_RATE=0.10  # 기본값 10%
+</code></pre>
+<h3>HyperDX에서 False Negative 탐지</h3>
+<p><strong>쿼리 1: WAF를 통과한 공격 찾기</strong></p>
+<pre><code class="language-sql">SELECT
+    SeverityText,
+    Body,
+    Attributes['attack.name'] AS attack_name,
+    Attributes['attack.severity'] AS severity,
+    Attributes['client.ip'] AS client_ip,
+    Attributes['http.url'] AS url,
+    Timestamp
+FROM otel_logs
+WHERE Attributes['waf.false_negative'] = 'true'
+ORDER BY Timestamp DESC
+LIMIT 100;
+</code></pre>
+<p><strong>쿼리 2: 공격 유형별 False Negative 비율</strong></p>
+<pre><code class="language-sql">SELECT
+    Attributes['attack.type'] AS attack_type,
+    countIf(Attributes['waf.false_negative'] = 'true') AS false_negatives,
+    count(*) AS total_attacks,
+    round(false_negatives / total_attacks * 100, 2) AS miss_rate_percent
+FROM otel_logs
+WHERE Attributes['attack.type'] != ''
+GROUP BY attack_type
+ORDER BY miss_rate_percent DESC;
+</code></pre>
+<p><strong>쿼리 3: 악의적 요청을 처리하는 백엔드 서비스</strong></p>
+<pre><code class="language-sql">SELECT
+    ResourceAttributes['service.name'] AS backend_service,
+    count(*) AS malicious_requests,
+    uniq(Attributes['client.ip']) AS unique_attackers,
+    groupArray(DISTINCT Attributes['security.attack_type']) AS attack_types
+FROM otel_traces
+WHERE Attributes['security.false_negative'] = 'true'
+GROUP BY backend_service
+ORDER BY malicious_requests DESC;
+</code></pre>
+<h3>왜 중요한가</h3>
+<p>False Negative 이해는 다음에 도움이 됩니다:
+- <strong>보안팀</strong>: WAF 규칙 공백 식별 및 탐지 튜닝
+- <strong>SRE팀</strong>: 백엔드 서비스의 비정상적인 동작 탐지
+- <strong>인시던트 대응</strong>: 경계 방어를 우회한 공격 조사
+- <strong>규정 준수</strong>: 보안 제어 효과성 문서화</p>
+<hr />
+<h2>왜 멀티 클라우드 MSA인가?</h2>
+<p>본 워크샵은 실제와 같은 교육을 제공하기 위해 멀티 클라우드 마이크로서비스 아키텍처를 사용합니다:</p>
+<h3>멀티 클라우드 이점</h3>
+<ol>
+<li>
+<p><strong>지리적 분산</strong>
+   - AWS: 60% (미국 중심 워크로드)
+   - GCP: 30% (글로벌 분산)
+   - Azure: 10% (엔터프라이즈 통합)</p>
+</li>
+<li>
+<p><strong>재해 복구</strong>
+   - 클라우드 간 장애조치
+   - 데이터 주권 준수
+   - 벤더 종속 회피</p>
+</li>
+<li>
+<p><strong>실제와 같은 서비스 맵</strong>
+   - 복잡한 trace 전파
+   - 크로스 클라우드 가관측성
+   - 실제 디버깅 시나리오</p>
+</li>
+</ol>
+<h3>마이크로서비스 아키텍처</h3>
+<p><strong>핵심 이커머스 서비스:</strong>
+- 사용자 관리 및 인증
+- 제품 카탈로그 및 검색
+- 주문 처리 및 결제
+- 결제 및 사기 탐지
+- 재고 및 창고 관리
+- 배송 및 물류</p>
+<p><strong>지원 서비스:</strong>
+- 알림 (이메일, SMS, 푸시)
+- 추천 및 개인화
+- 가격 책정 및 프로모션
+- 분석 및 보고
+- 캐싱 및 성능
+- 감사 및 규정 준수</p>
+<hr />
+<h2>사전 준비사항</h2>
+<ol>
+<li>
+<p><strong>ClickHouse Cloud 계정</strong>
+   - https://clickhouse.cloud 에서 가입
+   - 새 서비스 생성
+   - 연결 정보 확인</p>
+</li>
+<li>
+<p><strong>ClickStack API 키</strong>
+   - ClickHouse Cloud 콘솔로 이동
+   - ClickStack 섹션으로 이동
+   - (?) 아이콘을 클릭하여 API 키 획득</p>
+</li>
+<li>
+<p><strong>Docker &amp; Docker Compose</strong>
+   - Docker 20.10 이상
+   - Docker Compose v2.0 이상</p>
+</li>
+<li>
+<p><strong>시스템 요구사항</strong>
+   - 최소 4GB RAM
+   - 2 CPU 코어
+   - 5GB 디스크 공간</p>
+</li>
+</ol>
+<hr />
+<h2>빠른 시작</h2>
+<h3>1. 레포지토리 클론</h3>
+<pre><code class="language-bash">cd workshop/observability-waf
+</code></pre>
+<h3>2. 환경 설정</h3>
+<p>대화형 설정 스크립트 실행:</p>
+<pre><code class="language-bash">./setup.sh
+</code></pre>
+<p>다음 정보를 입력하라는 메시지가 표시됩니다:
+- ClickHouse Cloud 엔드포인트
+- 데이터베이스 자격 증명
+- ClickStack API 키
+- WAF 생성 파라미터
+- 서비스 포트</p>
+<h3>3. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>다음이 시작됩니다:
+- OTEL Collector
+- WAF Generator (23개 서비스)
+- Web UI</p>
+<h3>4. Web UI 열기</h3>
+<pre><code class="language-bash">open http://localhost:9873
+</code></pre>
+<p><strong>"Start Generation"</strong>을 클릭하여 텔레메트리 데이터 생성을 시작합니다.</p>
+<h3>5. HyperDX에서 확인</h3>
+<ol>
+<li>ClickHouse Cloud에 로그인</li>
+<li>ClickStack → HyperDX로 이동</li>
+<li>탐색:
+   - <strong>Service Map</strong>: 23개 서비스와 연결 확인
+   - <strong>Traces</strong>: 최대 6단계 깊이의 완전한 요청 흐름 보기
+   - <strong>Logs</strong>: 보안 이벤트 및 공격 패턴 검색
+   - <strong>Metrics</strong>: 요청 비율 및 차단 비율 모니터링</li>
+</ol>
+<hr />
+<h2>생성되는 데이터 이해하기</h2>
+<h3>OpenTelemetry 데이터 유형</h3>
+<h4>1. Traces</h4>
+<p><strong>WAF Span 계층:</strong></p>
+<pre><code>waf.request (SERVER)
+  ├─ waf.inspection (INTERNAL)
+  └─ waf.decision (INTERNAL)
+       └─ {service-name} (CLIENT) → 백엔드로 라우팅
+</code></pre>
+<p><strong>백엔드 서비스 Spans:</strong></p>
+<pre><code>HTTP {METHOD} (SERVER)
+  ├─ {downstream-service-1} (CLIENT)
+  │    └─ HTTP {METHOD} (SERVER)
+  └─ {downstream-service-2} (CLIENT)
+       └─ HTTP {METHOD} (SERVER)
+</code></pre>
+<p><strong>Span 속성:</strong>
+- <code>http.method</code>, <code>http.url</code>, <code>http.user_agent</code>
+- <code>client.ip</code>, <code>cloud.provider</code>, <code>cloud.region</code>
+- <code>waf.is_attack</code>, <code>waf.threat_score</code>, <code>waf.action</code>
+- <code>waf.attack_type</code>, <code>waf.matched_rule</code>, <code>waf.severity</code>
+- <code>peer.service</code> (서비스 간 호출용)</p>
+<h4>2. Logs</h4>
+<p><strong>이벤트별 로그 레벨:</strong>
+- <code>INFO</code>: 일반 요청, 라우팅 결정
+- <code>WARNING</code>: 탐지된 위협 (공격 식별)
+- <code>ERROR</code>: 차단된 요청</p>
+<p><strong>로그 속성:</strong>
+- 요청 메타데이터 (method, URL, IP)
+- 공격 세부정보 (type, OWASP ID, payload)
+- 위협 점수 및 매칭된 규칙
+- 백엔드 서비스 라우팅 정보</p>
+<h4>3. Metrics</h4>
+<p><strong>카운터 메트릭:</strong>
+- <code>waf.requests.total</code> (action, method, region별)
+- <code>waf.requests.blocked</code> (attack type, region별)</p>
+<p><strong>히스토그램 메트릭:</strong>
+- <code>waf.response.time</code> (action, region별)</p>
+<hr />
+<h2>HyperDX에서 WAF 데이터 분석하기</h2>
+<h3>1. Service Map 분석</h3>
+<p><strong>서비스 의존성 확인:</strong>
+- 모든 23개 서비스 (WAF 3개 + 마이크로서비스 20개)
+- WAF에서 백엔드 서비스로의 요청 흐름
+- 서비스 간 호출 패턴
+- 서비스별 오류율 및 지연시간</p>
+<p><strong>주요 인사이트:</strong>
+- 트래픽이 많은 서비스 식별
+- 호출 체인의 병목 지점 발견
+- 크로스 서비스 의존성 모니터링
+- 연쇄 장애 탐지</p>
+<h3>2. Trace 분석</h3>
+<p><strong>공격 Trace 검색:</strong></p>
+<pre><code>waf.is_attack = true AND waf.action = &quot;block&quot;
+</code></pre>
+<p><strong>장시간 실행 Trace 찾기:</strong></p>
+<pre><code>duration &gt; 100ms
+</code></pre>
+<p><strong>특정 서비스 Trace:</strong></p>
+<pre><code>service.name = &quot;order-service&quot;
+</code></pre>
+<h3>3. Log 분석</h3>
+<p><strong>SQL 인젝션 시도 찾기:</strong></p>
+<pre><code>attack.type = &quot;sql_injection&quot;
+</code></pre>
+<p><strong>차단된 요청 모니터링:</strong></p>
+<pre><code>waf.action = &quot;block&quot; AND severity = &quot;high&quot;
+</code></pre>
+<p><strong>특정 IP 추적:</strong></p>
+<pre><code>client.ip = &quot;x.x.x.x&quot;
+</code></pre>
+<h3>4. 커스텀 대시보드</h3>
+<p>다음을 모니터링하는 대시보드 생성:
+- 클라우드 공급자별 WAF 차단률
+- 가장 많이 공격받는 엔드포인트
+- OWASP 카테고리별 공격 분포
+- 서비스 지연시간 백분위수 (p50, p95, p99)
+- 백엔드 서비스별 요청 볼륨</p>
+<hr />
+<h2>탐지 쿼리</h2>
+<h3>ClickHouse용 SQL 쿼리</h3>
+<h4>1. 공격 탐지</h4>
+<pre><code class="language-sql">-- 상위 공격 유형
+SELECT
+    SpanAttributes['waf.attack_type'] as attack_type,
+    SpanAttributes['waf.attack_name'] as attack_name,
+    count() as count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND has(mapKeys(SpanAttributes), 'waf.attack_type')
+GROUP BY attack_type, attack_name
+ORDER BY count DESC;
+</code></pre>
+<h4>2. 서비스 성능</h4>
+<pre><code class="language-sql">-- 서비스 지연시간 분석
+SELECT
+    ServiceName,
+    quantile(0.50)(Duration / 1000000) as p50_ms,
+    quantile(0.95)(Duration / 1000000) as p95_ms,
+    quantile(0.99)(Duration / 1000000) as p99_ms,
+    count() as request_count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Server'
+GROUP BY ServiceName
+ORDER BY p99_ms DESC;
+</code></pre>
+<h4>3. 서비스 의존성</h4>
+<pre><code class="language-sql">-- 서비스 호출 그래프
+SELECT
+    ServiceName as from_service,
+    SpanAttributes['peer.service'] as to_service,
+    count() as call_count,
+    avg(Duration / 1000000) as avg_latency_ms
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Client'
+    AND has(mapKeys(SpanAttributes), 'peer.service')
+GROUP BY from_service, to_service
+ORDER BY call_count DESC;
+</code></pre>
+<h4>4. DDoS 탐지</h4>
+<pre><code class="language-sql">-- 대량 트래픽 소스
+SELECT
+    LogAttributes['client.ip'] as source_ip,
+    count() as request_count,
+    countIf(LogAttributes['waf.action'] = 'block') as blocked_count,
+    blocked_count / request_count * 100 as block_rate
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE
+GROUP BY source_ip
+HAVING request_count &gt; 100
+ORDER BY request_count DESC;
+</code></pre>
+<h4>5. 보안 감사</h4>
+<pre><code class="language-sql">-- 심각도별 차단된 공격
+SELECT
+    LogAttributes['severity'] as severity,
+    LogAttributes['attack.type'] as attack_type,
+    LogAttributes['owasp.id'] as owasp_id,
+    count() as count
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SeverityText = 'ERROR'
+    AND has(mapKeys(LogAttributes), 'severity')
+GROUP BY severity, attack_type, owasp_id
+ORDER BY count DESC;
+</code></pre>
+<hr />
+<h2>문제 해결</h2>
+<h3>Generator가 시작되지 않음</h3>
+<p><strong>Docker 로그 확인:</strong></p>
+<pre><code class="language-bash">docker logs waf-generator
+</code></pre>
+<p><strong>일반적인 문제:</strong>
+- OTEL Collector 연결 거부
+- 잘못된 ClickHouse 자격 증명
+- 포트 충돌</p>
+<h3>HyperDX에 데이터가 없음</h3>
+<p><strong>ClickHouse에서 데이터 확인:</strong></p>
+<pre><code class="language-bash">bash -c 'source .env &amp;&amp; clickhouse client \
+  --host=${CH_HOST} \
+  --user=${CH_USER} \
+  --password=${CH_PASSWORD} \
+  --secure \
+  --query=&quot;SELECT count() FROM otel_waf.otel_traces&quot;'
+</code></pre>
+<p><strong>OTEL Collector 확인:</strong></p>
+<pre><code class="language-bash">docker logs waf-otel-collector
+</code></pre>
+<h3>Service Map에 모든 서비스가 표시되지 않음</h3>
+<p><strong>대기 시간:</strong> 모든 서비스가 나타나는 데 2-3분이 걸릴 수 있습니다.</p>
+<p><strong>Span 확인:</strong></p>
+<pre><code class="language-sql">SELECT DISTINCT ServiceName
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE;
+</code></pre>
+<h3>높은 CPU 사용량</h3>
+<p><strong>생성 속도 줄이기:</strong></p>
+<p><code>.env</code> 파일 편집:</p>
+<pre><code class="language-bash">EVENTS_PER_SECOND=50  # 기본값은 100
+</code></pre>
+<p>서비스 재시작:</p>
+<pre><code class="language-bash">./stop.sh &amp;&amp; ./start.sh
+</code></pre>
+<hr />
+<h2>워크샵 실습</h2>
+<h3>실습 1: Service Map 탐색</h3>
+<ol>
+<li>가장 많이 호출되는 백엔드 서비스 식별</li>
+<li>가장 긴 서비스 호출 체인 찾기</li>
+<li>다운스트림 의존성이 없는 서비스 확인</li>
+</ol>
+<h3>실습 2: 공격 분석</h3>
+<ol>
+<li>지난 1시간 동안의 모든 SQL 인젝션 시도 찾기</li>
+<li>클라우드 공급자별 WAF 차단률 계산</li>
+<li>여러 공격 유형을 가진 IP 식별</li>
+</ol>
+<h3>실습 3: 성능 조사</h3>
+<ol>
+<li>가장 느린 백엔드 서비스 찾기</li>
+<li>p99 지연시간 &gt; 100ms인 서비스 식별</li>
+<li>특정 느린 요청을 엔드-투-엔드로 추적</li>
+</ol>
+<h3>실습 4: 커스텀 대시보드</h3>
+<ol>
+<li>다음을 보여주는 대시보드 생성:
+   - 클라우드 WAF별 요청 비율
+   - 공격 유형별 차단률
+   - 서비스 지연시간 히트맵
+   - 상위 10개 공격받는 엔드포인트</li>
+</ol>
+<hr />
+<h2>설정 참조</h2>
+<h3>환경 변수</h3>
+<table>
+<thead>
+<tr>
+<th>변수</th>
+<th>설명</th>
+<th>기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVENTS_PER_SECOND</code></td>
+<td>초당 생성되는 이벤트 수</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>NORMAL_TRAFFIC_RATIO</code></td>
+<td>정상 트래픽 비율</td>
+<td><code>0.80</code></td>
+</tr>
+<tr>
+<td><code>WAF_FALSE_NEGATIVE_RATE</code></td>
+<td>WAF를 통과하는 공격의 기본 비율</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td><code>DDOS_FALSE_NEGATIVE_RATE</code></td>
+<td>WAF를 통과하는 DDoS 공격 비율</td>
+<td><code>0.10</code> (10%)</td>
+</tr>
+<tr>
+<td><code>AWS_RATIO</code></td>
+<td>AWS 트래픽 가중치</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>AZURE_RATIO</code></td>
+<td>Azure 트래픽 가중치</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>GCP_RATIO</code></td>
+<td>GCP 트래픽 가중치</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>WEB_UI_PORT</code></td>
+<td>Web UI 포트</td>
+<td><code>9873</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_GRPC</code></td>
+<td>OTEL gRPC 포트</td>
+<td><code>14317</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_HTTP</code></td>
+<td>OTEL HTTP 포트</td>
+<td><code>14318</code></td>
+</tr>
+</tbody>
+</table>
+<h3>서비스 아키텍처</h3>
+<p><strong>총 서비스:</strong> 23개
+- WAF 서비스 3개 (멀티 클라우드)
+- 핵심 서비스 6개 (사용자 대면)
+- 지원 서비스 8개 (비즈니스 로직)
+- 인프라 서비스 6개 (플랫폼)</p>
+<p><strong>서비스 의존성:</strong> 60개 이상의 고유한 관계</p>
+<p><strong>최대 Trace 깊이:</strong> 6단계</p>
+<p><strong>Trace당 일반적인 Span 수:</strong> 3-19개 span</p>
+<hr />
+<h2>추가 리소스</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse 문서</a></li>
+<li><a href="https://clickhouse.com/docs/use-cases/observability/clickstack">ClickStack 가이드</a></li>
+<li><a href="https://www.hyperdx.io/docs">HyperDX 문서</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/otel/">OpenTelemetry 명세</a></li>
+<li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a></li>
+</ul>
+<hr />
+<h2>라이선스</h2>
+<p>MIT License - 자세한 내용은 LICENSE 파일 참조</p>
+<hr />
+<p><strong>Workshop Created by:</strong> Claude Code with ClickHouse &amp; HyperDX
+<strong>Last Updated:</strong> December 2025</p></div>
+  <div class="readme ko"><h1>WAF Observability Workshop with Multi-Cloud MSA</h1>
+<p>A comprehensive hands-on workshop for generating and analyzing Web Application Firewall (WAF) telemetry in a realistic multi-cloud microservices architecture using ClickHouse Cloud and HyperDX.</p>
+<p><a href="#한국어-문서">한글 문서 보기</a> | <a href="#한국어-문서">View Korean Documentation</a></p>
+<hr />
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#what-is-a-waf">What is a WAF?</a></li>
+<li><a href="#why-multi-cloud-msa">Why Multi-Cloud MSA?</a></li>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#understanding-the-generated-data">Understanding the Generated Data</a></li>
+<li><a href="#analyzing-waf-data-in-hyperdx">Analyzing WAF Data in HyperDX</a></li>
+<li><a href="#detection-queries">Detection Queries</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+<hr />
+<h2>Overview</h2>
+<p>This workshop simulates a <strong>global multi-cloud retail platform</strong> protected by Web Application Firewalls (WAFs) across three major cloud providers: AWS, Azure, and GCP. The system generates realistic OWASP-based attack patterns and routes allowed traffic through a complex microservices architecture.</p>
+<h3>Key Features</h3>
+<ul>
+<li><strong>3 Cloud WAF Services</strong>: AWS WAF, Azure WAF, GCP Cloud Armor</li>
+<li><strong>20 Backend Microservices</strong>: Complete e-commerce platform simulation</li>
+<li><strong>OWASP Top 10 Attack Patterns</strong>: Realistic security threat simulation</li>
+<li><strong>Full OpenTelemetry Integration</strong>: Traces, Logs, and Metrics</li>
+<li><strong>Complex Service Dependencies</strong>: Up to 6-depth service call chains</li>
+<li><strong>Real-time DDoS Simulation</strong>: Periodic attack spike patterns</li>
+<li><strong>Realistic False Negative Scenarios</strong>: Configurable rates for attacks passing through WAF (2% default)</li>
+</ul>
+<hr />
+<h2>Architecture</h2>
+<h3>System Overview</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Multi-Cloud WAF Layer                        │
+│  ┌──────────┐      ┌──────────┐      ┌────────────────┐       │
+│  │ AWS WAF  │      │Azure WAF │      │ GCP Cloud      │       │
+│  │  (60%)   │      │  (10%)   │      │ Armor (30%)    │       │
+│  └────┬─────┘      └────┬─────┘      └────────┬───────┘       │
+└───────┼──────────────────┼─────────────────────┼───────────────┘
+        │                  │                     │
+        └──────────────────┴─────────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────┐
+    │        Backend Microservices (MSA)          │
+    ├─────────────────────────────────────────────┤
+    │  Core Services:                             │
+    │  • user-service → auth-service              │
+    │  • product-service → inventory, pricing     │
+    │  • order-service → payment, shipping        │
+    │  • payment-service → fraud-detection        │
+    │                                              │
+    │  Supporting Services:                        │
+    │  • notification-service → template-service  │
+    │  • recommendation-service → analytics       │
+    │  • inventory-service → warehouse, supplier  │
+    │  • shipping-service → logistics             │
+    │                                              │
+    │  Infrastructure:                             │
+    │  • analytics-service, cache-service         │
+    │  • audit-service, ml-service                │
+    └─────────────────────────────────────────────┘
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │ OTEL Collector   │
+                 │  (ClickHouse     │
+                 │   Exporter)      │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │ ClickHouse Cloud │
+                 │   + ClickStack   │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │     HyperDX      │
+                 │  (Observability) │
+                 └──────────────────┘
+</code></pre>
+<h3>Service Dependency Graph</h3>
+<p>The system simulates a realistic retail platform with complex interdependencies:</p>
+<p><strong>Frontend Services (via WAF):</strong>
+- user-service
+- product-service
+- order-service
+- payment-service
+- inventory-service
+- shipping-service</p>
+<p><strong>Backend Services:</strong>
+- auth-service, notification-service
+- pricing-service, recommendation-service
+- fraud-detection-service, analytics-service
+- warehouse-service, supplier-service
+- logistics-service, template-service
+- accounting-service, audit-service
+- cache-service, ml-service</p>
+<h3>Trace Structure Example</h3>
+<p>A typical order flow creates a complex trace:</p>
+<pre><code>aws-waf (waf.request)
+  ├─ waf.inspection (threat analysis)
+  ├─ waf.decision (allow/block)
+  └─ order-service (if allowed)
+       ├─ payment-service
+       │    ├─ fraud-detection-service
+       │    │    └─ analytics-service
+       │    │         └─ ml-service
+       │    └─ accounting-service
+       ├─ inventory-service
+       │    ├─ warehouse-service
+       │    └─ supplier-service
+       ├─ shipping-service
+       │    └─ logistics-service
+       │         └─ notification-service
+       │              └─ template-service
+       └─ notification-service
+            └─ template-service
+</code></pre>
+<hr />
+<h2>What is a WAF?</h2>
+<p>A <strong>Web Application Firewall (WAF)</strong> is a security solution that operates at the application layer (L7) to protect web applications from attacks.</p>
+<h3>Key Capabilities</h3>
+<ol>
+<li>
+<p><strong>OWASP Top 10 Protection</strong>
+   - SQL Injection (SQLi)
+   - Cross-Site Scripting (XSS)
+   - Cross-Site Request Forgery (CSRF)
+   - Path Traversal
+   - Command Injection
+   - XML External Entity (XXE)
+   - Server-Side Request Forgery (SSRF)
+   - Local/Remote File Inclusion (LFI/RFI)
+   - DDoS Protection</p>
+</li>
+<li>
+<p><strong>Request Processing</strong>
+   - Signature-based detection
+   - Behavioral analysis
+   - Threat scoring
+   - Rate limiting
+   - Geo-blocking</p>
+</li>
+<li>
+<p><strong>Action Types</strong>
+   - <strong>Allow</strong>: Pass to backend
+   - <strong>Block</strong>: Reject with 403
+   - <strong>Challenge</strong>: CAPTCHA verification
+   - <strong>Log</strong>: Monitor only</p>
+</li>
+</ol>
+<h3>Why WAFs Are Stateless</h3>
+<p>WAFs inspect each request independently without maintaining session state:</p>
+<p><strong>Reasons:</strong>
+- <strong>Performance</strong>: Session storage would create bottlenecks at scale
+- <strong>Scalability</strong>: Stateless design enables horizontal scaling
+- <strong>Reliability</strong>: No single point of failure
+- <strong>Cloud-Native</strong>: Fits distributed architecture patterns</p>
+<p><strong>Real-World Examples:</strong>
+- <strong>AWS WAF</strong>: No session tracking capability
+- <strong>Azure WAF</strong>: Stateless by design
+- <strong>GCP Cloud Armor</strong>: Request-level inspection only
+- <strong>Cloudflare WAF</strong>: Rule-based without session context</p>
+<hr />
+<h2>WAF False Negatives (Security Misses)</h2>
+<p>In real-world scenarios, WAFs are not 100% effective and may allow some attacks to pass through. This workshop simulates realistic <strong>False Negative</strong> scenarios to demonstrate:</p>
+<h3>What Are False Negatives?</h3>
+<p>A <strong>False Negative</strong> occurs when a WAF fails to detect and block a malicious request, allowing it to reach backend services. This happens due to:</p>
+<ol>
+<li><strong>Signature Bypass</strong>: Attackers obfuscate payloads to evade pattern matching</li>
+<li><strong>Zero-Day Exploits</strong>: New attack patterns not yet in WAF rules</li>
+<li><strong>Rate Limiting</strong>: High traffic volume causing inspection gaps</li>
+<li><strong>Configuration Issues</strong>: Overly permissive rules or disabled protections</li>
+</ol>
+<h3>False Negative Rates in This Workshop</h3>
+<p>The system uses severity-based False Negative rates that mirror real-world WAF performance:</p>
+<table>
+<thead>
+<tr>
+<th>Attack Severity</th>
+<th>False Negative Rate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong></td>
+<td>1% (0.5× base)</td>
+<td>SQL Injection, RCE - highest detection priority</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>2% (1.0× base)</td>
+<td>XSS, CSRF - standard detection</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>4% (2.0× base)</td>
+<td>Path Traversal - moderate detection</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>6% (3.0× base)</td>
+<td>Suspicious patterns - lower priority</td>
+</tr>
+<tr>
+<td><strong>DDoS</strong></td>
+<td>10%</td>
+<td>Volume-based attacks are harder to block completely</td>
+</tr>
+</tbody>
+</table>
+<h3>Configuration</h3>
+<p>Adjust False Negative rates in <code>.env</code>:</p>
+<pre><code class="language-bash"># Base rate for attack bypass (affects high severity)
+WAF_FALSE_NEGATIVE_RATE=0.02  # 2% default
+
+# Specific rate for DDoS attacks
+DDOS_FALSE_NEGATIVE_RATE=0.10  # 10% default
+</code></pre>
+<h3>Detecting False Negatives in HyperDX</h3>
+<p><strong>Query 1: Find attacks that passed through WAF</strong></p>
+<pre><code class="language-sql">SELECT
+    SeverityText,
+    Body,
+    Attributes['attack.name'] AS attack_name,
+    Attributes['attack.severity'] AS severity,
+    Attributes['client.ip'] AS client_ip,
+    Attributes['http.url'] AS url,
+    Timestamp
+FROM otel_logs
+WHERE Attributes['waf.false_negative'] = 'true'
+ORDER BY Timestamp DESC
+LIMIT 100;
+</code></pre>
+<p><strong>Query 2: False Negative rate by attack type</strong></p>
+<pre><code class="language-sql">SELECT
+    Attributes['attack.type'] AS attack_type,
+    countIf(Attributes['waf.false_negative'] = 'true') AS false_negatives,
+    count(*) AS total_attacks,
+    round(false_negatives / total_attacks * 100, 2) AS miss_rate_percent
+FROM otel_logs
+WHERE Attributes['attack.type'] != ''
+GROUP BY attack_type
+ORDER BY miss_rate_percent DESC;
+</code></pre>
+<p><strong>Query 3: Backend services processing malicious requests</strong></p>
+<pre><code class="language-sql">SELECT
+    ResourceAttributes['service.name'] AS backend_service,
+    count(*) AS malicious_requests,
+    uniq(Attributes['client.ip']) AS unique_attackers,
+    groupArray(DISTINCT Attributes['security.attack_type']) AS attack_types
+FROM otel_traces
+WHERE Attributes['security.false_negative'] = 'true'
+GROUP BY backend_service
+ORDER BY malicious_requests DESC;
+</code></pre>
+<h3>Why This Matters</h3>
+<p>Understanding False Negatives helps:
+- <strong>Security Teams</strong>: Identify WAF rule gaps and tune detection
+- <strong>SRE Teams</strong>: Detect anomalous behavior in backend services
+- <strong>Incident Response</strong>: Investigate attacks that bypassed perimeter defenses
+- <strong>Compliance</strong>: Document security control effectiveness</p>
+<hr />
+<h2>Why Multi-Cloud MSA?</h2>
+<p>This workshop uses a multi-cloud microservices architecture to provide realistic training:</p>
+<h3>Multi-Cloud Benefits</h3>
+<ol>
+<li>
+<p><strong>Geographical Distribution</strong>
+   - AWS: 60% (US-focused workloads)
+   - GCP: 30% (Global distribution)
+   - Azure: 10% (Enterprise integrations)</p>
+</li>
+<li>
+<p><strong>Disaster Recovery</strong>
+   - Cross-cloud failover
+   - Data sovereignty compliance
+   - Vendor lock-in avoidance</p>
+</li>
+<li>
+<p><strong>Realistic Service Maps</strong>
+   - Complex trace propagation
+   - Cross-cloud observability
+   - Real-world debugging scenarios</p>
+</li>
+</ol>
+<h3>Microservices Architecture</h3>
+<p><strong>Core E-commerce Services:</strong>
+- User management &amp; authentication
+- Product catalog &amp; search
+- Order processing &amp; checkout
+- Payment &amp; fraud detection
+- Inventory &amp; warehouse management
+- Shipping &amp; logistics</p>
+<p><strong>Supporting Services:</strong>
+- Notifications (email, SMS, push)
+- Recommendations &amp; personalization
+- Pricing &amp; promotions
+- Analytics &amp; reporting
+- Caching &amp; performance
+- Auditing &amp; compliance</p>
+<hr />
+<h2>Prerequisites</h2>
+<ol>
+<li>
+<p><strong>ClickHouse Cloud Account</strong>
+   - Sign up at https://clickhouse.cloud
+   - Create a new service
+   - Note your connection details</p>
+</li>
+<li>
+<p><strong>ClickStack API Key</strong>
+   - Navigate to ClickHouse Cloud Console
+   - Go to ClickStack section
+   - Click the (?) icon to get your API key</p>
+</li>
+<li>
+<p><strong>Docker &amp; Docker Compose</strong>
+   - Docker 20.10 or later
+   - Docker Compose v2.0 or later</p>
+</li>
+<li>
+<p><strong>System Requirements</strong>
+   - 4GB RAM minimum
+   - 2 CPU cores
+   - 5GB disk space</p>
+</li>
+</ol>
+<hr />
+<h2>Quick Start</h2>
+<h3>1. Clone the Repository</h3>
+<pre><code class="language-bash">cd workshop/observability-waf
+</code></pre>
+<h3>2. Configure the Environment</h3>
+<p>Run the interactive setup script:</p>
+<pre><code class="language-bash">./setup.sh
+</code></pre>
+<p>You'll be prompted for:
+- ClickHouse Cloud endpoint
+- Database credentials
+- ClickStack API key
+- WAF generation parameters
+- Service ports</p>
+<h3>3. Start the Services</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>This will:
+- Start OTEL Collector
+- Launch WAF Generator (23 services)
+- Start Web UI</p>
+<h3>4. Open the Web UI</h3>
+<pre><code class="language-bash">open http://localhost:9873
+</code></pre>
+<p>Click <strong>"Start Generation"</strong> to begin generating telemetry data.</p>
+<h3>5. View in HyperDX</h3>
+<ol>
+<li>Log into ClickHouse Cloud</li>
+<li>Navigate to ClickStack → HyperDX</li>
+<li>Explore:
+   - <strong>Service Map</strong>: See all 23 services and their connections
+   - <strong>Traces</strong>: View complete request flows with up to 6 depth levels
+   - <strong>Logs</strong>: Search security events and attack patterns
+   - <strong>Metrics</strong>: Monitor request rates and block percentages</li>
+</ol>
+<hr />
+<h2>Understanding the Generated Data</h2>
+<h3>OpenTelemetry Data Types</h3>
+<h4>1. Traces</h4>
+<p><strong>WAF Span Hierarchy:</strong></p>
+<pre><code>waf.request (SERVER)
+  ├─ waf.inspection (INTERNAL)
+  └─ waf.decision (INTERNAL)
+       └─ {service-name} (CLIENT) → routes to backend
+</code></pre>
+<p><strong>Backend Service Spans:</strong></p>
+<pre><code>HTTP {METHOD} (SERVER)
+  ├─ {downstream-service-1} (CLIENT)
+  │    └─ HTTP {METHOD} (SERVER)
+  └─ {downstream-service-2} (CLIENT)
+       └─ HTTP {METHOD} (SERVER)
+</code></pre>
+<p><strong>Span Attributes:</strong>
+- <code>http.method</code>, <code>http.url</code>, <code>http.user_agent</code>
+- <code>client.ip</code>, <code>cloud.provider</code>, <code>cloud.region</code>
+- <code>waf.is_attack</code>, <code>waf.threat_score</code>, <code>waf.action</code>
+- <code>waf.attack_type</code>, <code>waf.matched_rule</code>, <code>waf.severity</code>
+- <code>peer.service</code> (for service-to-service calls)</p>
+<h4>2. Logs</h4>
+<p><strong>Log Levels by Event:</strong>
+- <code>INFO</code>: Normal requests, routing decisions
+- <code>WARNING</code>: Threats detected (attacks identified)
+- <code>ERROR</code>: Blocked requests</p>
+<p><strong>Log Attributes:</strong>
+- Request metadata (method, URL, IP)
+- Attack details (type, OWASP ID, payload)
+- Threat scoring and matched rules
+- Backend service routing information</p>
+<h4>3. Metrics</h4>
+<p><strong>Counter Metrics:</strong>
+- <code>waf.requests.total</code> (by action, method, region)
+- <code>waf.requests.blocked</code> (by attack type, region)</p>
+<p><strong>Histogram Metrics:</strong>
+- <code>waf.response.time</code> (by action, region)</p>
+<hr />
+<h2>Analyzing WAF Data in HyperDX</h2>
+<h3>1. Service Map Analysis</h3>
+<p><strong>View Service Dependencies:</strong>
+- All 23 services (3 WAFs + 20 microservices)
+- Request flow from WAF to backend services
+- Service-to-service call patterns
+- Error rates and latencies per service</p>
+<p><strong>Key Insights:</strong>
+- Identify high-traffic services
+- Spot bottlenecks in the call chain
+- Monitor cross-service dependencies
+- Detect cascading failures</p>
+<h3>2. Trace Analysis</h3>
+<p><strong>Search for Attack Traces:</strong></p>
+<pre><code>waf.is_attack = true AND waf.action = &quot;block&quot;
+</code></pre>
+<p><strong>Find Long-Running Traces:</strong></p>
+<pre><code>duration &gt; 100ms
+</code></pre>
+<p><strong>Service-Specific Traces:</strong></p>
+<pre><code>service.name = &quot;order-service&quot;
+</code></pre>
+<h3>3. Log Analysis</h3>
+<p><strong>Find SQL Injection Attempts:</strong></p>
+<pre><code>attack.type = &quot;sql_injection&quot;
+</code></pre>
+<p><strong>Monitor Blocked Requests:</strong></p>
+<pre><code>waf.action = &quot;block&quot; AND severity = &quot;high&quot;
+</code></pre>
+<p><strong>Track Specific IPs:</strong></p>
+<pre><code>client.ip = &quot;x.x.x.x&quot;
+</code></pre>
+<h3>4. Custom Dashboards</h3>
+<p>Create dashboards to monitor:
+- WAF block rate by cloud provider
+- Top attacked endpoints
+- Attack distribution by OWASP category
+- Service latency percentiles (p50, p95, p99)
+- Request volume by backend service</p>
+<hr />
+<h2>Detection Queries</h2>
+<h3>SQL Queries for ClickHouse</h3>
+<h4>1. Attack Detection</h4>
+<pre><code class="language-sql">-- Top Attack Types
+SELECT
+    SpanAttributes['waf.attack_type'] as attack_type,
+    SpanAttributes['waf.attack_name'] as attack_name,
+    count() as count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND has(mapKeys(SpanAttributes), 'waf.attack_type')
+GROUP BY attack_type, attack_name
+ORDER BY count DESC;
+</code></pre>
+<h4>2. Service Performance</h4>
+<pre><code class="language-sql">-- Service Latency Analysis
+SELECT
+    ServiceName,
+    quantile(0.50)(Duration / 1000000) as p50_ms,
+    quantile(0.95)(Duration / 1000000) as p95_ms,
+    quantile(0.99)(Duration / 1000000) as p99_ms,
+    count() as request_count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Server'
+GROUP BY ServiceName
+ORDER BY p99_ms DESC;
+</code></pre>
+<h4>3. Service Dependencies</h4>
+<pre><code class="language-sql">-- Service Call Graph
+SELECT
+    ServiceName as from_service,
+    SpanAttributes['peer.service'] as to_service,
+    count() as call_count,
+    avg(Duration / 1000000) as avg_latency_ms
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Client'
+    AND has(mapKeys(SpanAttributes), 'peer.service')
+GROUP BY from_service, to_service
+ORDER BY call_count DESC;
+</code></pre>
+<h4>4. DDoS Detection</h4>
+<pre><code class="language-sql">-- High Volume Sources
+SELECT
+    LogAttributes['client.ip'] as source_ip,
+    count() as request_count,
+    countIf(LogAttributes['waf.action'] = 'block') as blocked_count,
+    blocked_count / request_count * 100 as block_rate
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE
+GROUP BY source_ip
+HAVING request_count &gt; 100
+ORDER BY request_count DESC;
+</code></pre>
+<h4>5. Security Audit</h4>
+<pre><code class="language-sql">-- Blocked Attacks by Severity
+SELECT
+    LogAttributes['severity'] as severity,
+    LogAttributes['attack.type'] as attack_type,
+    LogAttributes['owasp.id'] as owasp_id,
+    count() as count
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SeverityText = 'ERROR'
+    AND has(mapKeys(LogAttributes), 'severity')
+GROUP BY severity, attack_type, owasp_id
+ORDER BY count DESC;
+</code></pre>
+<hr />
+<h2>Troubleshooting</h2>
+<h3>Generator Not Starting</h3>
+<p><strong>Check Docker logs:</strong></p>
+<pre><code class="language-bash">docker logs waf-generator
+</code></pre>
+<p><strong>Common issues:</strong>
+- OTEL Collector connection refused
+- Invalid ClickHouse credentials
+- Port conflicts</p>
+<h3>No Data in HyperDX</h3>
+<p><strong>Verify data in ClickHouse:</strong></p>
+<pre><code class="language-bash">bash -c 'source .env &amp;&amp; clickhouse client \
+  --host=${CH_HOST} \
+  --user=${CH_USER} \
+  --password=${CH_PASSWORD} \
+  --secure \
+  --query=&quot;SELECT count() FROM otel_waf.otel_traces&quot;'
+</code></pre>
+<p><strong>Check OTEL Collector:</strong></p>
+<pre><code class="language-bash">docker logs waf-otel-collector
+</code></pre>
+<h3>Service Map Not Showing All Services</h3>
+<p><strong>Wait time:</strong> It may take 2-3 minutes for all services to appear.</p>
+<p><strong>Verify spans:</strong></p>
+<pre><code class="language-sql">SELECT DISTINCT ServiceName
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE;
+</code></pre>
+<h3>High CPU Usage</h3>
+<p><strong>Reduce generation rate:</strong></p>
+<p>Edit <code>.env</code>:</p>
+<pre><code class="language-bash">EVENTS_PER_SECOND=50  # Default is 100
+</code></pre>
+<p>Restart services:</p>
+<pre><code class="language-bash">./stop.sh &amp;&amp; ./start.sh
+</code></pre>
+<hr />
+<h2>Workshop Exercises</h2>
+<h3>Exercise 1: Service Map Exploration</h3>
+<ol>
+<li>Identify the most called backend service</li>
+<li>Find the longest service call chain</li>
+<li>Determine which services have no downstream dependencies</li>
+</ol>
+<h3>Exercise 2: Attack Analysis</h3>
+<ol>
+<li>Find all SQL injection attempts in the last hour</li>
+<li>Calculate the WAF block rate by cloud provider</li>
+<li>Identify IPs with multiple attack types</li>
+</ol>
+<h3>Exercise 3: Performance Investigation</h3>
+<ol>
+<li>Find the slowest backend service</li>
+<li>Identify services with p99 latency &gt; 100ms</li>
+<li>Trace a specific slow request end-to-end</li>
+</ol>
+<h3>Exercise 4: Custom Dashboard</h3>
+<ol>
+<li>Create a dashboard showing:
+   - Request rate per cloud WAF
+   - Block rate by attack type
+   - Service latency heatmap
+   - Top 10 attacked endpoints</li>
+</ol>
+<hr />
+<h2>Configuration Reference</h2>
+<h3>Environment Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVENTS_PER_SECOND</code></td>
+<td>Events generated per second</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>NORMAL_TRAFFIC_RATIO</code></td>
+<td>Percentage of normal traffic</td>
+<td><code>0.80</code></td>
+</tr>
+<tr>
+<td><code>WAF_FALSE_NEGATIVE_RATE</code></td>
+<td>Base rate for attacks passing through WAF</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td><code>DDOS_FALSE_NEGATIVE_RATE</code></td>
+<td>Rate for DDoS attacks passing through</td>
+<td><code>0.10</code> (10%)</td>
+</tr>
+<tr>
+<td><code>AWS_RATIO</code></td>
+<td>AWS traffic weight</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>AZURE_RATIO</code></td>
+<td>Azure traffic weight</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>GCP_RATIO</code></td>
+<td>GCP traffic weight</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>WEB_UI_PORT</code></td>
+<td>Web UI port</td>
+<td><code>9873</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_GRPC</code></td>
+<td>OTEL gRPC port</td>
+<td><code>14317</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_HTTP</code></td>
+<td>OTEL HTTP port</td>
+<td><code>14318</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Service Architecture</h3>
+<p><strong>Total Services:</strong> 23
+- 3 WAF services (multi-cloud)
+- 6 core services (user-facing)
+- 8 supporting services (business logic)
+- 6 infrastructure services (platform)</p>
+<p><strong>Service Dependencies:</strong> 60+ unique relationships</p>
+<p><strong>Maximum Trace Depth:</strong> 6 levels</p>
+<p><strong>Typical Span Count per Trace:</strong> 3-19 spans</p>
+<hr />
+<h2>Additional Resources</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/use-cases/observability/clickstack">ClickStack Guide</a></li>
+<li><a href="https://www.hyperdx.io/docs">HyperDX Documentation</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/otel/">OpenTelemetry Specification</a></li>
+<li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a></li>
+</ul>
+<hr />
+<h2>License</h2>
+<p>MIT License - See LICENSE file for details</p>
+<hr />
+<h1>한국어 문서</h1>
+<h1>멀티 클라우드 MSA 환경의 WAF 가관측성 워크샵</h1>
+<p>ClickHouse Cloud와 HyperDX를 활용한 웹 애플리케이션 방화벽(WAF) 텔레메트리 생성 및 분석 실습 워크샵입니다.</p>
+<hr />
+<h2>목차</h2>
+<ul>
+<li><a href="#개요-1">개요</a></li>
+<li><a href="#아키텍처-1">아키텍처</a></li>
+<li><a href="#waf란-무엇인가">WAF란 무엇인가?</a></li>
+<li><a href="#왜-멀티-클라우드-msa인가">왜 멀티 클라우드 MSA인가?</a></li>
+<li><a href="#사전-준비사항-1">사전 준비사항</a></li>
+<li><a href="#빠른-시작-1">빠른 시작</a></li>
+<li><a href="#생성되는-데이터-이해하기-1">생성되는 데이터 이해하기</a></li>
+<li><a href="#hyperdx에서-waf-데이터-분석하기-1">HyperDX에서 WAF 데이터 분석하기</a></li>
+<li><a href="#탐지-쿼리-1">탐지 쿼리</a></li>
+<li><a href="#문제-해결-1">문제 해결</a></li>
+</ul>
+<hr />
+<h2>개요</h2>
+<p>본 워크샵은 AWS, Azure, GCP 3개 주요 클라우드 공급자의 웹 애플리케이션 방화벽(WAF)으로 보호되는 <strong>글로벌 멀티 클라우드 리테일 플랫폼</strong>을 시뮬레이션합니다. 시스템은 실제와 같은 OWASP 기반 공격 패턴을 생성하고, 허용된 트래픽을 복잡한 마이크로서비스 아키텍처를 통해 라우팅합니다.</p>
+<h3>주요 기능</h3>
+<ul>
+<li><strong>3개 클라우드 WAF 서비스</strong>: AWS WAF, Azure WAF, GCP Cloud Armor</li>
+<li><strong>20개 백엔드 마이크로서비스</strong>: 완전한 이커머스 플랫폼 시뮬레이션</li>
+<li><strong>OWASP Top 10 공격 패턴</strong>: 실제와 같은 보안 위협 시뮬레이션</li>
+<li><strong>완전한 OpenTelemetry 통합</strong>: Traces, Logs, Metrics</li>
+<li><strong>복잡한 서비스 의존성</strong>: 최대 6단계 서비스 호출 체인</li>
+<li><strong>실시간 DDoS 시뮬레이션</strong>: 주기적 공격 급증 패턴</li>
+<li><strong>현실적인 False Negative 시나리오</strong>: WAF를 통과하는 공격 비율 설정 가능 (기본 2%)</li>
+</ul>
+<hr />
+<h2>아키텍처</h2>
+<h3>시스템 개요</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     멀티 클라우드 WAF 계층                         │
+│  ┌──────────┐      ┌──────────┐      ┌────────────────┐       │
+│  │ AWS WAF  │      │Azure WAF │      │ GCP Cloud      │       │
+│  │  (60%)   │      │  (10%)   │      │ Armor (30%)    │       │
+│  └────┬─────┘      └────┬─────┘      └────────┬───────┘       │
+└───────┼──────────────────┼─────────────────────┼───────────────┘
+        │                  │                     │
+        └──────────────────┴─────────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────┐
+    │       백엔드 마이크로서비스 (MSA)            │
+    ├─────────────────────────────────────────────┤
+    │  핵심 서비스:                                │
+    │  • user-service → auth-service              │
+    │  • product-service → inventory, pricing     │
+    │  • order-service → payment, shipping        │
+    │  • payment-service → fraud-detection        │
+    │                                              │
+    │  지원 서비스:                                │
+    │  • notification-service → template-service  │
+    │  • recommendation-service → analytics       │
+    │  • inventory-service → warehouse, supplier  │
+    │  • shipping-service → logistics             │
+    │                                              │
+    │  인프라:                                     │
+    │  • analytics-service, cache-service         │
+    │  • audit-service, ml-service                │
+    └─────────────────────────────────────────────┘
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │ OTEL Collector   │
+                 │  (ClickHouse     │
+                 │   Exporter)      │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │ ClickHouse Cloud │
+                 │   + ClickStack   │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 ┌──────────────────┐
+                 │     HyperDX      │
+                 │  (가관측성)       │
+                 └──────────────────┘
+</code></pre>
+<h3>서비스 의존성 그래프</h3>
+<p>실제와 같은 리테일 플랫폼의 복잡한 상호 의존성을 시뮬레이션합니다:</p>
+<p><strong>프론트엔드 서비스 (WAF 경유):</strong>
+- user-service
+- product-service
+- order-service
+- payment-service
+- inventory-service
+- shipping-service</p>
+<p><strong>백엔드 서비스:</strong>
+- auth-service, notification-service
+- pricing-service, recommendation-service
+- fraud-detection-service, analytics-service
+- warehouse-service, supplier-service
+- logistics-service, template-service
+- accounting-service, audit-service
+- cache-service, ml-service</p>
+<h3>Trace 구조 예시</h3>
+<p>일반적인 주문 흐름은 복잡한 trace를 생성합니다:</p>
+<pre><code>aws-waf (waf.request)
+  ├─ waf.inspection (위협 분석)
+  ├─ waf.decision (허용/차단)
+  └─ order-service (허용된 경우)
+       ├─ payment-service
+       │    ├─ fraud-detection-service
+       │    │    └─ analytics-service
+       │    │         └─ ml-service
+       │    └─ accounting-service
+       ├─ inventory-service
+       │    ├─ warehouse-service
+       │    └─ supplier-service
+       ├─ shipping-service
+       │    └─ logistics-service
+       │         └─ notification-service
+       │              └─ template-service
+       └─ notification-service
+            └─ template-service
+</code></pre>
+<hr />
+<h2>WAF란 무엇인가?</h2>
+<p><strong>웹 애플리케이션 방화벽(WAF)</strong>은 애플리케이션 계층(L7)에서 작동하여 웹 애플리케이션을 공격으로부터 보호하는 보안 솔루션입니다.</p>
+<h3>주요 기능</h3>
+<ol>
+<li>
+<p><strong>OWASP Top 10 보호</strong>
+   - SQL 인젝션 (SQLi)
+   - 크로스 사이트 스크립팅 (XSS)
+   - 크로스 사이트 요청 위조 (CSRF)
+   - 경로 순회 (Path Traversal)
+   - 명령어 인젝션
+   - XML 외부 개체 (XXE)
+   - 서버 측 요청 위조 (SSRF)
+   - 로컬/원격 파일 포함 (LFI/RFI)
+   - DDoS 보호</p>
+</li>
+<li>
+<p><strong>요청 처리</strong>
+   - 시그니처 기반 탐지
+   - 행위 분석
+   - 위협 점수 계산
+   - 속도 제한
+   - 지역 차단</p>
+</li>
+<li>
+<p><strong>조치 유형</strong>
+   - <strong>Allow</strong>: 백엔드로 전달
+   - <strong>Block</strong>: 403으로 거부
+   - <strong>Challenge</strong>: CAPTCHA 검증
+   - <strong>Log</strong>: 모니터링만</p>
+</li>
+</ol>
+<h3>WAF가 무상태인 이유</h3>
+<p>WAF는 세션 상태를 유지하지 않고 각 요청을 독립적으로 검사합니다:</p>
+<p><strong>이유:</strong>
+- <strong>성능</strong>: 세션 저장소가 대규모 환경에서 병목 현상 유발
+- <strong>확장성</strong>: 무상태 설계가 수평 확장 가능
+- <strong>신뢰성</strong>: 단일 장애 지점 없음
+- <strong>클라우드 네이티브</strong>: 분산 아키텍처 패턴에 적합</p>
+<p><strong>실제 사례:</strong>
+- <strong>AWS WAF</strong>: 세션 추적 기능 없음
+- <strong>Azure WAF</strong>: 설계상 무상태
+- <strong>GCP Cloud Armor</strong>: 요청 수준 검사만
+- <strong>Cloudflare WAF</strong>: 세션 컨텍스트 없이 규칙 기반</p>
+<hr />
+<h2>WAF False Negative (보안 미탐)</h2>
+<p>실제 환경에서 WAF는 100% 효과적이지 않으며, 일부 공격이 통과할 수 있습니다. 본 워크샵은 현실적인 <strong>False Negative</strong> 시나리오를 시뮬레이션하여 다음을 보여줍니다:</p>
+<h3>False Negative란?</h3>
+<p><strong>False Negative</strong>는 WAF가 악의적인 요청을 탐지하고 차단하는 데 실패하여 백엔드 서비스에 도달하도록 허용하는 경우입니다. 다음과 같은 이유로 발생합니다:</p>
+<ol>
+<li><strong>시그니처 우회</strong>: 공격자가 패턴 매칭을 회피하기 위해 페이로드를 난독화</li>
+<li><strong>제로데이 익스플로잇</strong>: WAF 규칙에 아직 없는 새로운 공격 패턴</li>
+<li><strong>속도 제한</strong>: 높은 트래픽 볼륨으로 인한 검사 공백</li>
+<li><strong>설정 문제</strong>: 지나치게 관대한 규칙 또는 비활성화된 보호</li>
+</ol>
+<h3>본 워크샵의 False Negative 비율</h3>
+<p>시스템은 실제 WAF 성능을 반영하는 심각도 기반 False Negative 비율을 사용합니다:</p>
+<table>
+<thead>
+<tr>
+<th>공격 심각도</th>
+<th>False Negative 비율</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong></td>
+<td>1% (0.5× 기본)</td>
+<td>SQL Injection, RCE - 최고 탐지 우선순위</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>2% (1.0× 기본)</td>
+<td>XSS, CSRF - 표준 탐지</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>4% (2.0× 기본)</td>
+<td>Path Traversal - 중간 탐지</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>6% (3.0× 기본)</td>
+<td>의심스러운 패턴 - 낮은 우선순위</td>
+</tr>
+<tr>
+<td><strong>DDoS</strong></td>
+<td>10%</td>
+<td>볼륨 기반 공격은 완전히 차단하기 어려움</td>
+</tr>
+</tbody>
+</table>
+<h3>설정</h3>
+<p><code>.env</code> 파일에서 False Negative 비율을 조정합니다:</p>
+<pre><code class="language-bash"># 공격 우회를 위한 기본 비율 (high severity에 영향)
+WAF_FALSE_NEGATIVE_RATE=0.02  # 기본값 2%
+
+# DDoS 공격에 대한 특정 비율
+DDOS_FALSE_NEGATIVE_RATE=0.10  # 기본값 10%
+</code></pre>
+<h3>HyperDX에서 False Negative 탐지</h3>
+<p><strong>쿼리 1: WAF를 통과한 공격 찾기</strong></p>
+<pre><code class="language-sql">SELECT
+    SeverityText,
+    Body,
+    Attributes['attack.name'] AS attack_name,
+    Attributes['attack.severity'] AS severity,
+    Attributes['client.ip'] AS client_ip,
+    Attributes['http.url'] AS url,
+    Timestamp
+FROM otel_logs
+WHERE Attributes['waf.false_negative'] = 'true'
+ORDER BY Timestamp DESC
+LIMIT 100;
+</code></pre>
+<p><strong>쿼리 2: 공격 유형별 False Negative 비율</strong></p>
+<pre><code class="language-sql">SELECT
+    Attributes['attack.type'] AS attack_type,
+    countIf(Attributes['waf.false_negative'] = 'true') AS false_negatives,
+    count(*) AS total_attacks,
+    round(false_negatives / total_attacks * 100, 2) AS miss_rate_percent
+FROM otel_logs
+WHERE Attributes['attack.type'] != ''
+GROUP BY attack_type
+ORDER BY miss_rate_percent DESC;
+</code></pre>
+<p><strong>쿼리 3: 악의적 요청을 처리하는 백엔드 서비스</strong></p>
+<pre><code class="language-sql">SELECT
+    ResourceAttributes['service.name'] AS backend_service,
+    count(*) AS malicious_requests,
+    uniq(Attributes['client.ip']) AS unique_attackers,
+    groupArray(DISTINCT Attributes['security.attack_type']) AS attack_types
+FROM otel_traces
+WHERE Attributes['security.false_negative'] = 'true'
+GROUP BY backend_service
+ORDER BY malicious_requests DESC;
+</code></pre>
+<h3>왜 중요한가</h3>
+<p>False Negative 이해는 다음에 도움이 됩니다:
+- <strong>보안팀</strong>: WAF 규칙 공백 식별 및 탐지 튜닝
+- <strong>SRE팀</strong>: 백엔드 서비스의 비정상적인 동작 탐지
+- <strong>인시던트 대응</strong>: 경계 방어를 우회한 공격 조사
+- <strong>규정 준수</strong>: 보안 제어 효과성 문서화</p>
+<hr />
+<h2>왜 멀티 클라우드 MSA인가?</h2>
+<p>본 워크샵은 실제와 같은 교육을 제공하기 위해 멀티 클라우드 마이크로서비스 아키텍처를 사용합니다:</p>
+<h3>멀티 클라우드 이점</h3>
+<ol>
+<li>
+<p><strong>지리적 분산</strong>
+   - AWS: 60% (미국 중심 워크로드)
+   - GCP: 30% (글로벌 분산)
+   - Azure: 10% (엔터프라이즈 통합)</p>
+</li>
+<li>
+<p><strong>재해 복구</strong>
+   - 클라우드 간 장애조치
+   - 데이터 주권 준수
+   - 벤더 종속 회피</p>
+</li>
+<li>
+<p><strong>실제와 같은 서비스 맵</strong>
+   - 복잡한 trace 전파
+   - 크로스 클라우드 가관측성
+   - 실제 디버깅 시나리오</p>
+</li>
+</ol>
+<h3>마이크로서비스 아키텍처</h3>
+<p><strong>핵심 이커머스 서비스:</strong>
+- 사용자 관리 및 인증
+- 제품 카탈로그 및 검색
+- 주문 처리 및 결제
+- 결제 및 사기 탐지
+- 재고 및 창고 관리
+- 배송 및 물류</p>
+<p><strong>지원 서비스:</strong>
+- 알림 (이메일, SMS, 푸시)
+- 추천 및 개인화
+- 가격 책정 및 프로모션
+- 분석 및 보고
+- 캐싱 및 성능
+- 감사 및 규정 준수</p>
+<hr />
+<h2>사전 준비사항</h2>
+<ol>
+<li>
+<p><strong>ClickHouse Cloud 계정</strong>
+   - https://clickhouse.cloud 에서 가입
+   - 새 서비스 생성
+   - 연결 정보 확인</p>
+</li>
+<li>
+<p><strong>ClickStack API 키</strong>
+   - ClickHouse Cloud 콘솔로 이동
+   - ClickStack 섹션으로 이동
+   - (?) 아이콘을 클릭하여 API 키 획득</p>
+</li>
+<li>
+<p><strong>Docker &amp; Docker Compose</strong>
+   - Docker 20.10 이상
+   - Docker Compose v2.0 이상</p>
+</li>
+<li>
+<p><strong>시스템 요구사항</strong>
+   - 최소 4GB RAM
+   - 2 CPU 코어
+   - 5GB 디스크 공간</p>
+</li>
+</ol>
+<hr />
+<h2>빠른 시작</h2>
+<h3>1. 레포지토리 클론</h3>
+<pre><code class="language-bash">cd workshop/observability-waf
+</code></pre>
+<h3>2. 환경 설정</h3>
+<p>대화형 설정 스크립트 실행:</p>
+<pre><code class="language-bash">./setup.sh
+</code></pre>
+<p>다음 정보를 입력하라는 메시지가 표시됩니다:
+- ClickHouse Cloud 엔드포인트
+- 데이터베이스 자격 증명
+- ClickStack API 키
+- WAF 생성 파라미터
+- 서비스 포트</p>
+<h3>3. 서비스 시작</h3>
+<pre><code class="language-bash">./start.sh
+</code></pre>
+<p>다음이 시작됩니다:
+- OTEL Collector
+- WAF Generator (23개 서비스)
+- Web UI</p>
+<h3>4. Web UI 열기</h3>
+<pre><code class="language-bash">open http://localhost:9873
+</code></pre>
+<p><strong>"Start Generation"</strong>을 클릭하여 텔레메트리 데이터 생성을 시작합니다.</p>
+<h3>5. HyperDX에서 확인</h3>
+<ol>
+<li>ClickHouse Cloud에 로그인</li>
+<li>ClickStack → HyperDX로 이동</li>
+<li>탐색:
+   - <strong>Service Map</strong>: 23개 서비스와 연결 확인
+   - <strong>Traces</strong>: 최대 6단계 깊이의 완전한 요청 흐름 보기
+   - <strong>Logs</strong>: 보안 이벤트 및 공격 패턴 검색
+   - <strong>Metrics</strong>: 요청 비율 및 차단 비율 모니터링</li>
+</ol>
+<hr />
+<h2>생성되는 데이터 이해하기</h2>
+<h3>OpenTelemetry 데이터 유형</h3>
+<h4>1. Traces</h4>
+<p><strong>WAF Span 계층:</strong></p>
+<pre><code>waf.request (SERVER)
+  ├─ waf.inspection (INTERNAL)
+  └─ waf.decision (INTERNAL)
+       └─ {service-name} (CLIENT) → 백엔드로 라우팅
+</code></pre>
+<p><strong>백엔드 서비스 Spans:</strong></p>
+<pre><code>HTTP {METHOD} (SERVER)
+  ├─ {downstream-service-1} (CLIENT)
+  │    └─ HTTP {METHOD} (SERVER)
+  └─ {downstream-service-2} (CLIENT)
+       └─ HTTP {METHOD} (SERVER)
+</code></pre>
+<p><strong>Span 속성:</strong>
+- <code>http.method</code>, <code>http.url</code>, <code>http.user_agent</code>
+- <code>client.ip</code>, <code>cloud.provider</code>, <code>cloud.region</code>
+- <code>waf.is_attack</code>, <code>waf.threat_score</code>, <code>waf.action</code>
+- <code>waf.attack_type</code>, <code>waf.matched_rule</code>, <code>waf.severity</code>
+- <code>peer.service</code> (서비스 간 호출용)</p>
+<h4>2. Logs</h4>
+<p><strong>이벤트별 로그 레벨:</strong>
+- <code>INFO</code>: 일반 요청, 라우팅 결정
+- <code>WARNING</code>: 탐지된 위협 (공격 식별)
+- <code>ERROR</code>: 차단된 요청</p>
+<p><strong>로그 속성:</strong>
+- 요청 메타데이터 (method, URL, IP)
+- 공격 세부정보 (type, OWASP ID, payload)
+- 위협 점수 및 매칭된 규칙
+- 백엔드 서비스 라우팅 정보</p>
+<h4>3. Metrics</h4>
+<p><strong>카운터 메트릭:</strong>
+- <code>waf.requests.total</code> (action, method, region별)
+- <code>waf.requests.blocked</code> (attack type, region별)</p>
+<p><strong>히스토그램 메트릭:</strong>
+- <code>waf.response.time</code> (action, region별)</p>
+<hr />
+<h2>HyperDX에서 WAF 데이터 분석하기</h2>
+<h3>1. Service Map 분석</h3>
+<p><strong>서비스 의존성 확인:</strong>
+- 모든 23개 서비스 (WAF 3개 + 마이크로서비스 20개)
+- WAF에서 백엔드 서비스로의 요청 흐름
+- 서비스 간 호출 패턴
+- 서비스별 오류율 및 지연시간</p>
+<p><strong>주요 인사이트:</strong>
+- 트래픽이 많은 서비스 식별
+- 호출 체인의 병목 지점 발견
+- 크로스 서비스 의존성 모니터링
+- 연쇄 장애 탐지</p>
+<h3>2. Trace 분석</h3>
+<p><strong>공격 Trace 검색:</strong></p>
+<pre><code>waf.is_attack = true AND waf.action = &quot;block&quot;
+</code></pre>
+<p><strong>장시간 실행 Trace 찾기:</strong></p>
+<pre><code>duration &gt; 100ms
+</code></pre>
+<p><strong>특정 서비스 Trace:</strong></p>
+<pre><code>service.name = &quot;order-service&quot;
+</code></pre>
+<h3>3. Log 분석</h3>
+<p><strong>SQL 인젝션 시도 찾기:</strong></p>
+<pre><code>attack.type = &quot;sql_injection&quot;
+</code></pre>
+<p><strong>차단된 요청 모니터링:</strong></p>
+<pre><code>waf.action = &quot;block&quot; AND severity = &quot;high&quot;
+</code></pre>
+<p><strong>특정 IP 추적:</strong></p>
+<pre><code>client.ip = &quot;x.x.x.x&quot;
+</code></pre>
+<h3>4. 커스텀 대시보드</h3>
+<p>다음을 모니터링하는 대시보드 생성:
+- 클라우드 공급자별 WAF 차단률
+- 가장 많이 공격받는 엔드포인트
+- OWASP 카테고리별 공격 분포
+- 서비스 지연시간 백분위수 (p50, p95, p99)
+- 백엔드 서비스별 요청 볼륨</p>
+<hr />
+<h2>탐지 쿼리</h2>
+<h3>ClickHouse용 SQL 쿼리</h3>
+<h4>1. 공격 탐지</h4>
+<pre><code class="language-sql">-- 상위 공격 유형
+SELECT
+    SpanAttributes['waf.attack_type'] as attack_type,
+    SpanAttributes['waf.attack_name'] as attack_name,
+    count() as count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND has(mapKeys(SpanAttributes), 'waf.attack_type')
+GROUP BY attack_type, attack_name
+ORDER BY count DESC;
+</code></pre>
+<h4>2. 서비스 성능</h4>
+<pre><code class="language-sql">-- 서비스 지연시간 분석
+SELECT
+    ServiceName,
+    quantile(0.50)(Duration / 1000000) as p50_ms,
+    quantile(0.95)(Duration / 1000000) as p95_ms,
+    quantile(0.99)(Duration / 1000000) as p99_ms,
+    count() as request_count
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Server'
+GROUP BY ServiceName
+ORDER BY p99_ms DESC;
+</code></pre>
+<h4>3. 서비스 의존성</h4>
+<pre><code class="language-sql">-- 서비스 호출 그래프
+SELECT
+    ServiceName as from_service,
+    SpanAttributes['peer.service'] as to_service,
+    count() as call_count,
+    avg(Duration / 1000000) as avg_latency_ms
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SpanKind = 'Client'
+    AND has(mapKeys(SpanAttributes), 'peer.service')
+GROUP BY from_service, to_service
+ORDER BY call_count DESC;
+</code></pre>
+<h4>4. DDoS 탐지</h4>
+<pre><code class="language-sql">-- 대량 트래픽 소스
+SELECT
+    LogAttributes['client.ip'] as source_ip,
+    count() as request_count,
+    countIf(LogAttributes['waf.action'] = 'block') as blocked_count,
+    blocked_count / request_count * 100 as block_rate
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE
+GROUP BY source_ip
+HAVING request_count &gt; 100
+ORDER BY request_count DESC;
+</code></pre>
+<h4>5. 보안 감사</h4>
+<pre><code class="language-sql">-- 심각도별 차단된 공격
+SELECT
+    LogAttributes['severity'] as severity,
+    LogAttributes['attack.type'] as attack_type,
+    LogAttributes['owasp.id'] as owasp_id,
+    count() as count
+FROM otel_waf.otel_logs
+WHERE Timestamp &gt;= now() - INTERVAL 1 HOUR
+    AND SeverityText = 'ERROR'
+    AND has(mapKeys(LogAttributes), 'severity')
+GROUP BY severity, attack_type, owasp_id
+ORDER BY count DESC;
+</code></pre>
+<hr />
+<h2>문제 해결</h2>
+<h3>Generator가 시작되지 않음</h3>
+<p><strong>Docker 로그 확인:</strong></p>
+<pre><code class="language-bash">docker logs waf-generator
+</code></pre>
+<p><strong>일반적인 문제:</strong>
+- OTEL Collector 연결 거부
+- 잘못된 ClickHouse 자격 증명
+- 포트 충돌</p>
+<h3>HyperDX에 데이터가 없음</h3>
+<p><strong>ClickHouse에서 데이터 확인:</strong></p>
+<pre><code class="language-bash">bash -c 'source .env &amp;&amp; clickhouse client \
+  --host=${CH_HOST} \
+  --user=${CH_USER} \
+  --password=${CH_PASSWORD} \
+  --secure \
+  --query=&quot;SELECT count() FROM otel_waf.otel_traces&quot;'
+</code></pre>
+<p><strong>OTEL Collector 확인:</strong></p>
+<pre><code class="language-bash">docker logs waf-otel-collector
+</code></pre>
+<h3>Service Map에 모든 서비스가 표시되지 않음</h3>
+<p><strong>대기 시간:</strong> 모든 서비스가 나타나는 데 2-3분이 걸릴 수 있습니다.</p>
+<p><strong>Span 확인:</strong></p>
+<pre><code class="language-sql">SELECT DISTINCT ServiceName
+FROM otel_waf.otel_traces
+WHERE Timestamp &gt;= now() - INTERVAL 5 MINUTE;
+</code></pre>
+<h3>높은 CPU 사용량</h3>
+<p><strong>생성 속도 줄이기:</strong></p>
+<p><code>.env</code> 파일 편집:</p>
+<pre><code class="language-bash">EVENTS_PER_SECOND=50  # 기본값은 100
+</code></pre>
+<p>서비스 재시작:</p>
+<pre><code class="language-bash">./stop.sh &amp;&amp; ./start.sh
+</code></pre>
+<hr />
+<h2>워크샵 실습</h2>
+<h3>실습 1: Service Map 탐색</h3>
+<ol>
+<li>가장 많이 호출되는 백엔드 서비스 식별</li>
+<li>가장 긴 서비스 호출 체인 찾기</li>
+<li>다운스트림 의존성이 없는 서비스 확인</li>
+</ol>
+<h3>실습 2: 공격 분석</h3>
+<ol>
+<li>지난 1시간 동안의 모든 SQL 인젝션 시도 찾기</li>
+<li>클라우드 공급자별 WAF 차단률 계산</li>
+<li>여러 공격 유형을 가진 IP 식별</li>
+</ol>
+<h3>실습 3: 성능 조사</h3>
+<ol>
+<li>가장 느린 백엔드 서비스 찾기</li>
+<li>p99 지연시간 &gt; 100ms인 서비스 식별</li>
+<li>특정 느린 요청을 엔드-투-엔드로 추적</li>
+</ol>
+<h3>실습 4: 커스텀 대시보드</h3>
+<ol>
+<li>다음을 보여주는 대시보드 생성:
+   - 클라우드 WAF별 요청 비율
+   - 공격 유형별 차단률
+   - 서비스 지연시간 히트맵
+   - 상위 10개 공격받는 엔드포인트</li>
+</ol>
+<hr />
+<h2>설정 참조</h2>
+<h3>환경 변수</h3>
+<table>
+<thead>
+<tr>
+<th>변수</th>
+<th>설명</th>
+<th>기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVENTS_PER_SECOND</code></td>
+<td>초당 생성되는 이벤트 수</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>NORMAL_TRAFFIC_RATIO</code></td>
+<td>정상 트래픽 비율</td>
+<td><code>0.80</code></td>
+</tr>
+<tr>
+<td><code>WAF_FALSE_NEGATIVE_RATE</code></td>
+<td>WAF를 통과하는 공격의 기본 비율</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td><code>DDOS_FALSE_NEGATIVE_RATE</code></td>
+<td>WAF를 통과하는 DDoS 공격 비율</td>
+<td><code>0.10</code> (10%)</td>
+</tr>
+<tr>
+<td><code>AWS_RATIO</code></td>
+<td>AWS 트래픽 가중치</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>AZURE_RATIO</code></td>
+<td>Azure 트래픽 가중치</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>GCP_RATIO</code></td>
+<td>GCP 트래픽 가중치</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>WEB_UI_PORT</code></td>
+<td>Web UI 포트</td>
+<td><code>9873</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_GRPC</code></td>
+<td>OTEL gRPC 포트</td>
+<td><code>14317</code></td>
+</tr>
+<tr>
+<td><code>OTEL_COLLECTOR_PORT_HTTP</code></td>
+<td>OTEL HTTP 포트</td>
+<td><code>14318</code></td>
+</tr>
+</tbody>
+</table>
+<h3>서비스 아키텍처</h3>
+<p><strong>총 서비스:</strong> 23개
+- WAF 서비스 3개 (멀티 클라우드)
+- 핵심 서비스 6개 (사용자 대면)
+- 지원 서비스 8개 (비즈니스 로직)
+- 인프라 서비스 6개 (플랫폼)</p>
+<p><strong>서비스 의존성:</strong> 60개 이상의 고유한 관계</p>
+<p><strong>최대 Trace 깊이:</strong> 6단계</p>
+<p><strong>Trace당 일반적인 Span 수:</strong> 3-19개 span</p>
+<hr />
+<h2>추가 리소스</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs">ClickHouse 문서</a></li>
+<li><a href="https://clickhouse.com/docs/use-cases/observability/clickstack">ClickStack 가이드</a></li>
+<li><a href="https://www.hyperdx.io/docs">HyperDX 문서</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/otel/">OpenTelemetry 명세</a></li>
+<li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a></li>
+</ul>
+<hr />
+<h2>라이선스</h2>
+<p>MIT License - 자세한 내용은 LICENSE 파일 참조</p>
+<hr />
+<p><strong>Workshop Created by:</strong> Claude Code with ClickHouse &amp; HyperDX
+<strong>Last Updated:</strong> December 2025</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workshop/observability-waf"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

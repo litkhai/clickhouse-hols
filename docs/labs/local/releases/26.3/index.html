@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.3 LTS New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.3 LTS New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.3</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.3.12.3</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.3 LTS New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.3 LTS new features. This directory focuses on verified and working features newly added in ClickHouse 26.3 (released 2026-03-26, the second LTS release of 2026).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.3 is an <strong>LTS release</strong> that tightens SQL ergonomics: CTEs can now be materialized once and reused, a new <code>naturalSortKey</code> makes "file2 / file10" sort the way humans expect, and a family of Unicode normalization functions unlocks robust language-aware text matching.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Materialized CTE</strong> — <code>WITH cte AS MATERIALIZED (...)</code> and <code>enable_materialized_cte</code> setting</li>
+<li><strong><code>naturalSortKey()</code> Function</strong> — human-friendly mixed-letter/number sorting</li>
+<li><strong>Unicode Functions</strong> — <code>caseFoldUTF8</code>, <code>removeDiacriticsUTF8</code>, <code>normalizeUTF8NFKCCasefold</code></li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/26.3
+./00-setup.sh
+
+./01-materialized-cte.sh
+./02-natural-sort-key.sh
+./03-unicode-functions.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Materialized CTE (01-materialized-cte)</h4>
+<p><strong>New Feature:</strong> Common Table Expressions can be evaluated once and stored in a temporary table, instead of being inlined at every reference. (<a href="https://github.com/ClickHouse/ClickHouse/pull/94849">#94849</a>)</p>
+<p><strong>Two ways to opt in:</strong>
+- Inline: <code>WITH cte AS MATERIALIZED (...)</code> — explicit, per-CTE
+- Setting: <code>SET enable_materialized_cte = 1</code> — applies to bare <code>WITH ... AS ...</code> CTEs referenced more than once</p>
+<p><strong>Test Content:</strong>
+- Basic <code>AS MATERIALIZED</code> syntax
+- CTE referenced in 3-way self-join (would re-execute 3× without materialization)
+- <code>EXPLAIN PIPELINE</code> side-by-side comparison
+- Reused aggregation (<code>category_totals</code> used twice)
+- CTE with window function
+- Setting-driven materialization</p>
+<p><strong>Key Learning Points:</strong>
+- Materialized CTEs trade memory for CPU — useful when the CTE is expensive and reused
+- Inline <code>AS MATERIALIZED</code> keyword overrides the session setting
+- Plan inspection via <code>EXPLAIN PIPELINE</code> shows the source is scanned once
+- Default behavior (inline) is preserved when CTE is referenced only once</p>
+<p><strong>Use Cases:</strong>
+- Expensive aggregations referenced multiple times in the same query
+- Window-function results reused in self-joins
+- Reducing repeated remote-table scans in distributed queries</p>
+<hr />
+<h4>2. <code>naturalSortKey()</code> Function (02-natural-sort-key)</h4>
+<p><strong>New Feature:</strong> <code>naturalSortKey(s)</code> produces a binary key that, when used as the <code>ORDER BY</code> expression, sorts strings in human-friendly "natural" order — digit runs are compared numerically, so <code>file2 &lt; file10</code>. (<a href="https://github.com/ClickHouse/ClickHouse/pull/90322">#90322</a>)</p>
+<p><strong>Test Content:</strong>
+- Demonstration of the lexical-vs-natural difference
+- Inspecting the raw <code>naturalSortKey</code> output (hex)
+- Software version strings (<code>25.5</code> vs <code>25.10</code>)
+- Filename-style mixed content
+- Using <code>naturalSortKey</code> as a <code>MATERIALIZED</code> column in a MergeTree <code>ORDER BY</code> clause
+- Mixed-case identifiers</p>
+<p><strong>Key Learning Points:</strong>
+- Use as the <code>ORDER BY</code> expression, not as a comparison operator
+- Can be stored as a <code>MATERIALIZED</code> column for indexed natural ordering
+- The output is a binary string, not human-readable — only its sort order matters
+- Letters are still compared by codepoint (case-sensitive), only digits get special treatment</p>
+<p><strong>Use Cases:</strong>
+- Filename listings (<code>log-1.txt … log-100.txt</code>)
+- Software version sorting (<code>25.5 → 25.6 → 25.10 → 26.1</code>)
+- Chapter / episode lists
+- Build identifiers and SKUs with mixed letters and numbers</p>
+<hr />
+<h4>3. Unicode Normalization Functions (03-unicode-functions)</h4>
+<p><strong>New Features:</strong> Three new functions for Unicode-aware text canonicalization:</p>
+<ul>
+<li><code>caseFoldUTF8(s)</code> — locale-independent Unicode case folding (handles ß, İ, ẞ, Greek, etc.) (<a href="https://github.com/ClickHouse/ClickHouse/pull/98973">#98973</a>)</li>
+<li><code>removeDiacriticsUTF8(s)</code> — strips combining marks (<code>café</code> → <code>cafe</code>, <code>naïve</code> → <code>naive</code>)</li>
+<li><code>normalizeUTF8NFKCCasefold(s)</code> — NFKC compatibility normalization + case folding in one pass (<a href="https://github.com/ClickHouse/ClickHouse/pull/99276">#99276</a>)</li>
+</ul>
+<p><strong>Test Content:</strong>
+- <code>caseFoldUTF8</code> vs <code>lower()</code> on German, Turkish, Greek text
+- Accent stripping across French, Spanish, Czech, Polish examples
+- NFKC compatibility: full-width Latin, ligatures, circled digits, compatibility characters (<code>㎏ → kg</code>)
+- Search-friendly <code>MATERIALIZED</code> column combining all three
+- Duplicate-name detection by normalized key
+- Side-by-side comparison table</p>
+<p><strong>Key Learning Points:</strong>
+- <code>caseFoldUTF8</code> is the right answer for international case-insensitive comparison; <code>lower()</code> is ASCII-biased
+- <code>removeDiacriticsUTF8</code> does NOT lowercase — combine with <code>caseFoldUTF8</code> for full normalization
+- <code>normalizeUTF8NFKCCasefold</code> is the most aggressive — it merges compatibility variants like <code>㎏ → kg</code>, <code>Ⅷ → viii</code>
+- Common pattern: store <code>removeDiacriticsUTF8(normalizeUTF8NFKCCasefold(name))</code> as a <code>MATERIALIZED</code> column for fuzzy name matching</p>
+<p><strong>Use Cases:</strong>
+- Case-insensitive search across multilingual content
+- Fuzzy name matching (CRM, identity resolution, deduplication)
+- Search indexes that should match <code>José</code>, <code>JOSE</code>, <code>Jose</code>, <code>jose</code>, <code>josé</code> interchangeably
+- Cleaning OCR / mixed-encoding text</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-26-3
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.3/
+├── README.md                     # This document
+├── 00-setup.sh                   # ClickHouse 26.3 LTS installation script
+├── 01-materialized-cte.sh        # Materialized CTE test runner
+├── 01-materialized-cte.sql       # Materialized CTE SQL
+├── 02-natural-sort-key.sh        # naturalSortKey test runner
+├── 02-natural-sort-key.sql       # naturalSortKey SQL
+├── 03-unicode-functions.sh       # Unicode functions test runner
+└── 03-unicode-functions.sql      # Unicode functions SQL
+</code></pre>
+<h3>🆕 What's New in 26.3 LTS</h3>
+<ul>
+<li><strong>Materialized CTE</strong> with <code>AS MATERIALIZED</code> and <code>enable_materialized_cte</code></li>
+<li><strong><code>naturalSortKey()</code></strong> for human-friendly mixed-content sorting</li>
+<li><strong><code>caseFoldUTF8</code>, <code>removeDiacriticsUTF8</code>, <code>normalizeUTF8NFKCCasefold</code></strong> — Unicode normalization</li>
+<li><strong><code>mergeTreeTextIndex()</code> table function</strong> — read text-index contents directly</li>
+<li><strong>Bucketed Map serialization</strong> — 2-49× faster single-key lookups on Map columns</li>
+<li><strong><code>pretty = 1</code> / <code>compact = 1</code> EXPLAIN options</strong> — tree-style and collapsed plans</li>
+<li><strong><code>NOW</code> (and other zero-arg functions) without parentheses</strong> — SQL-standard compatibility</li>
+<li><strong><code>SOME</code> keyword</strong> — alias for <code>ANY</code> in subquery expressions</li>
+<li><strong><code>asciiCJK</code> tokenizer</strong> — Unicode word-boundary tokenization for full-text indexes</li>
+<li><strong><code>toDaysInMonth()</code></strong> — number of days in the month of a date</li>
+<li><strong><code>table_readonly</code> MergeTree setting</strong> — mark tables as read-only</li>
+<li><strong>Experimental WebAssembly UDFs</strong> and <strong><code>ALP</code> floating-point compression codec</strong></li>
+<li><strong>Experimental lazy JSON type hints</strong> — metadata-only <code>MODIFY COLUMN</code></li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=_bY0ucNB1lQ">YouTube</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2026</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>26.3 is the <strong>LTS</strong> release for 2026 — supported for 1 year vs. 6 months for stable</li>
+<li>All features verified on ClickHouse 26.3.12.3</li>
+<li>Each script runs independently; cleanup is commented out for inspection</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.3 LTS 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 3월 26일 출시된 LTS 릴리스 ClickHouse 26.3에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.3은 <strong>LTS 릴리스</strong>로, SQL 사용성을 강화합니다: CTE를 한 번 평가해 재사용할 수 있고, 새로운 <code>naturalSortKey</code>로 <code>file2 / file10</code>을 사람이 기대하는 순서로 정렬하며, 유니코드 정규화 함수군으로 다국어 텍스트 매칭이 견고해집니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>Materialized CTE</strong> — <code>WITH cte AS MATERIALIZED (...)</code> 및 <code>enable_materialized_cte</code> 설정</li>
+<li><strong><code>naturalSortKey()</code> 함수</strong> — 사람 친화적인 문자/숫자 혼합 정렬</li>
+<li><strong>Unicode 함수들</strong> — <code>caseFoldUTF8</code>, <code>removeDiacriticsUTF8</code>, <code>normalizeUTF8NFKCCasefold</code></li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/26.3
+./00-setup.sh
+
+./01-materialized-cte.sh
+./02-natural-sort-key.sh
+./03-unicode-functions.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. Materialized CTE</h4>
+<p>CTE를 한 번 평가해 임시 테이블에 저장하고 모든 참조에서 재사용합니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/94849">#94849</a>)</p>
+<p><strong>두 가지 활성화 방법:</strong>
+- 인라인: <code>WITH cte AS MATERIALIZED (...)</code>
+- 설정: <code>SET enable_materialized_cte = 1</code> (<code>WITH ... AS ...</code>가 두 번 이상 참조될 때)</p>
+<p><strong>테스트 내용:</strong>
+- 기본 <code>AS MATERIALIZED</code> 구문
+- 3-way self-join에서 참조된 CTE
+- <code>EXPLAIN PIPELINE</code> 비교
+- 재사용되는 집계 (<code>category_totals</code>)
+- 윈도우 함수와 CTE
+- 설정 기반 머터리얼라이제이션</p>
+<h4>2. <code>naturalSortKey()</code> 함수</h4>
+<p><code>naturalSortKey(s)</code>는 <code>ORDER BY</code> 표현식으로 사용 시 사람 친화적 자연 정렬을 만드는 바이너리 키를 반환합니다 (숫자 부분은 숫자로 비교). (<a href="https://github.com/ClickHouse/ClickHouse/pull/90322">#90322</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 사전식 vs 자연 정렬 차이 시연
+- 원본 키(hex) 검사
+- 소프트웨어 버전 문자열
+- 파일명 스타일
+- MergeTree <code>ORDER BY</code>에 <code>MATERIALIZED</code> 컬럼으로 저장
+- 대소문자 혼합</p>
+<h4>3. Unicode 정규화 함수</h4>
+<p>세 가지 새로운 함수:</p>
+<ul>
+<li><code>caseFoldUTF8(s)</code> — 로케일 독립적 유니코드 케이스 폴딩 (<a href="https://github.com/ClickHouse/ClickHouse/pull/98973">#98973</a>)</li>
+<li><code>removeDiacriticsUTF8(s)</code> — 발음 부호 제거 (<code>café</code> → <code>cafe</code>)</li>
+<li><code>normalizeUTF8NFKCCasefold(s)</code> — NFKC 호환 정규화 + 케이스 폴딩 한 번에 (<a href="https://github.com/ClickHouse/ClickHouse/pull/99276">#99276</a>)</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- 독일어, 터키어, 그리스어에서 <code>caseFoldUTF8</code> vs <code>lower()</code>
+- 프랑스어, 스페인어, 체코어, 폴란드어 악센트 제거
+- NFKC 호환성: 전각 라틴 문자, 합자, 동그라미 숫자, 호환 문자 (<code>㎏ → kg</code>)
+- 세 함수를 결합한 검색용 <code>MATERIALIZED</code> 컬럼
+- 정규화 키 기반 중복 이름 탐지
+- 비교표</p>
+<h3>🆕 26.3 LTS의 새로운 기능</h3>
+<ul>
+<li><strong>Materialized CTE</strong> — <code>AS MATERIALIZED</code>와 <code>enable_materialized_cte</code></li>
+<li><strong><code>naturalSortKey()</code></strong> — 사람 친화적 혼합 정렬</li>
+<li><strong><code>caseFoldUTF8</code>, <code>removeDiacriticsUTF8</code>, <code>normalizeUTF8NFKCCasefold</code></strong> — 유니코드 정규화</li>
+<li><strong><code>mergeTreeTextIndex()</code> 테이블 함수</strong> — 텍스트 인덱스 내용 직접 조회</li>
+<li><strong>버킷화된 Map 직렬화</strong> — 단일 키 조회 2~49배 가속</li>
+<li><strong><code>pretty = 1</code> / <code>compact = 1</code> EXPLAIN</strong></li>
+<li><strong><code>NOW</code> 등 괄호 없는 호출</strong> — SQL 표준 호환</li>
+<li><strong><code>SOME</code> 키워드</strong> — <code>ANY</code> 별칭</li>
+<li><strong><code>asciiCJK</code> 토크나이저</strong></li>
+<li><strong><code>toDaysInMonth()</code></strong></li>
+<li><strong><code>table_readonly</code> 설정</strong></li>
+<li><strong>실험적 WebAssembly UDF</strong>, <strong><code>ALP</code> 부동소수 압축 코덱</strong>, <strong>JSON lazy 타입 힌트</strong></li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=_bY0ucNB1lQ">YouTube</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>26.3은 2026년 <strong>LTS</strong> 릴리스 (1년 지원)</li>
+<li>모든 기능은 ClickHouse 26.3.12에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.3"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

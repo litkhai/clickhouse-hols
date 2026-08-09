@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Index Granularity Point Query Benchmark · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Index Granularity Point Query Benchmark — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/index-granularity-point-query</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Index Granularity Point Query Benchmark</h1>
+<hr />
+<p>A comprehensive benchmark test suite for comparing ClickHouse index_granularity settings and their impact on point query performance.</p>
+<h3>🎯 Purpose</h3>
+<p>This lab provides practical experience testing different index_granularity values in ClickHouse:
+- <strong>Granularity 256</strong> - Optimized for precise point queries
+- <strong>Granularity 1024</strong> - Good balance for point queries
+- <strong>Granularity 4096</strong> - Balanced performance
+- <strong>Granularity 8192</strong> - Default setting, optimized for scan queries</p>
+<p>Whether you're optimizing point query performance or choosing the right granularity for your workload, this lab offers structured, step-by-step exercises to measure real-world performance characteristics.</p>
+<h3>📁 File Structure</h3>
+<pre><code>index-granularity-point-query/
+├── README.md                      # This file
+├── 01-setup.sql                   # Database and table creation
+├── 02-insert-data.sql             # Generate 2M rows test data
+├── 03-metadata-check.sql          # Metadata and index statistics
+├── 04-performance-test.sql        # Point query performance tests
+├── 05-analyze-results.sql         # Performance analysis and comparison
+└── 99-cleanup.sql                 # Cleanup script
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<p>Execute all scripts in sequence:</p>
+<pre><code class="language-bash">cd workload/index-granularity-point-query
+
+# Sequential execution
+clickhouse-client --queries-file 01-setup.sql
+clickhouse-client --queries-file 02-insert-data.sql
+clickhouse-client --queries-file 03-metadata-check.sql
+clickhouse-client --queries-file 04-performance-test.sql
+clickhouse-client --queries-file 05-analyze-results.sql
+
+# Cleanup when done
+clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p>Or execute all at once:</p>
+<pre><code class="language-bash">for file in 01-setup.sql 02-insert-data.sql 03-metadata-check.sql 04-performance-test.sql 05-analyze-results.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 Detailed Execution Steps</h3>
+<h4>1. Database Setup</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-setup.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates <code>granularity_test</code> database
+- Creates four test tables with different granularity settings:
+  - <code>player_g256</code>: index_granularity = 256
+  - <code>player_g1024</code>: index_granularity = 1024
+  - <code>player_g4096</code>: index_granularity = 4096
+  - <code>player_g8192</code>: index_granularity = 8192 (default)</p>
+<p><strong>Expected time</strong>: &lt; 1 second</p>
+<hr />
+<h4>2. Insert Test Data</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-insert-data.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Inserts 2,000,000 rows into each table
+- Simulates game player data with various attributes
+- Copies data across all granularity tables</p>
+<p><strong>Expected time</strong>: 30-60 seconds (environment dependent)</p>
+<hr />
+<h4>3. Check Metadata</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-metadata-check.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Displays table storage information
+- Shows index granularity settings
+- Analyzes parts and marks statistics
+- Compares index file sizes
+- Shows column-level statistics</p>
+<p><strong>Expected time</strong>: &lt; 5 seconds</p>
+<hr />
+<h4>4. Execute Performance Tests</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-performance-test.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Single point query tests (WHERE player_id = X)
+- Multiple point query tests (WHERE player_id IN (...))
+- Small range query tests (WHERE player_id BETWEEN X AND Y)
+- EXPLAIN analysis for execution plans</p>
+<p><strong>Expected time</strong>: 10-30 seconds</p>
+<hr />
+<h4>5. Analyze Results</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-analyze-results.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Recent query performance summary
+- Performance comparison by granularity
+- Relative performance analysis
+- Query type performance breakdown
+- Storage vs performance trade-off analysis
+- Recommendations summary</p>
+<p><strong>Expected time</strong>: &lt; 5 seconds</p>
+<hr />
+<h4>6. Cleanup</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p>Removes all test data and tables.</p>
+<h3>🔍 Key Concepts</h3>
+<h4>What is Index Granularity?</h4>
+<p>Index granularity determines how many rows are grouped together in each "mark" of the primary index.</p>
+<table>
+<thead>
+<tr>
+<th>Granularity</th>
+<th>Description</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>256</td>
+<td>Smallest marks, most precise</td>
+<td>Frequent point queries on specific IDs</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>Small marks, good precision</td>
+<td>Point queries with good storage efficiency</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>Medium marks, balanced</td>
+<td>Mixed workload (both point and scan queries)</td>
+</tr>
+<tr>
+<td>8192 (default)</td>
+<td>Large marks, scan-optimized</td>
+<td>Full table scans, aggregation queries</td>
+</tr>
+</tbody>
+</table>
+<h4>Trade-offs</h4>
+<p><strong>Smaller Granularity (256, 1024)</strong>:
+- ✅ Faster point queries (fewer rows to scan)
+- ✅ More precise index lookups
+- ❌ Larger index size
+- ❌ More memory for index storage</p>
+<p><strong>Larger Granularity (4096, 8192)</strong>:
+- ✅ Smaller index size
+- ✅ Better for full table scans
+- ✅ Lower memory overhead
+- ❌ Slower point queries (more rows to scan per mark)</p>
+<h3>📊 Expected Results</h3>
+<h4>Point Query Performance</h4>
+<p>Typical performance improvements for point queries:</p>
+<table>
+<thead>
+<tr>
+<th>Granularity</th>
+<th>Relative Speed</th>
+<th>Rows Read</th>
+<th>Index Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>256</td>
+<td>~2-3x faster</td>
+<td>~256 rows</td>
+<td>~4x larger</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>~1.5-2x faster</td>
+<td>~1024 rows</td>
+<td>~2x larger</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>~1.2x faster</td>
+<td>~4096 rows</td>
+<td>~1.2x larger</td>
+</tr>
+<tr>
+<td>8192 (baseline)</td>
+<td>1.0x</td>
+<td>~8192 rows</td>
+<td>1.0x (baseline)</td>
+</tr>
+</tbody>
+</table>
+<p><em>Actual results may vary based on data distribution and hardware</em></p>
+<h4>Storage Comparison</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>G256</th>
+<th>G1024</th>
+<th>G4096</th>
+<th>G8192</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total Marks</td>
+<td>~7800</td>
+<td>~1950</td>
+<td>~488</td>
+<td>~244</td>
+</tr>
+<tr>
+<td>Index Size</td>
+<td>Largest</td>
+<td>Medium</td>
+<td>Small</td>
+<td>Smallest</td>
+</tr>
+<tr>
+<td>Data Size</td>
+<td>Same</td>
+<td>Same</td>
+<td>Same</td>
+<td>Same</td>
+</tr>
+</tbody>
+</table>
+<h3>💡 Performance Tips</h3>
+<h4>When to Use Smaller Granularity (256-1024)</h4>
+<ul>
+<li>Frequent point queries by primary key</li>
+<li>Low-latency requirements for single-row lookups</li>
+<li>Sufficient memory for larger indexes</li>
+<li>Small to medium table sizes</li>
+</ul>
+<h4>When to Use Larger Granularity (4096-8192)</h4>
+<ul>
+<li>Primarily analytical/scan queries</li>
+<li>Large tables (billions of rows)</li>
+<li>Memory-constrained environments</li>
+<li>Mostly aggregation workloads</li>
+</ul>
+<h4>Finding the Right Balance</h4>
+<ol>
+<li><strong>Start with default (8192)</strong> for new tables</li>
+<li><strong>Profile your queries</strong> using query_log</li>
+<li><strong>Test with smaller granularity</strong> if you see many point queries</li>
+<li><strong>Monitor index memory usage</strong> with system.parts</li>
+<li><strong>Measure the impact</strong> before and after changes</li>
+</ol>
+<h3>🔧 Troubleshooting</h3>
+<h4>High Memory Usage</h4>
+<pre><code class="language-sql">-- Check index memory consumption
+SELECT
+    table,
+    formatReadableSize(sum(primary_key_bytes_in_memory)) AS index_memory
+FROM system.parts
+WHERE database = 'granularity_test'
+GROUP BY table;
+</code></pre>
+<h4>Slow Point Queries</h4>
+<pre><code class="language-sql">-- Check how many rows are being read
+SELECT
+    query,
+    read_rows,
+    query_duration_ms
+FROM system.query_log
+WHERE query LIKE '%player_id%'
+  AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 5;
+</code></pre>
+<h4>Verify Granularity Setting</h4>
+<pre><code class="language-sql">-- Confirm granularity is applied
+SELECT
+    name,
+    extractAllGroupsVertical(create_table_query, 'index_granularity = (\\d+)')[1][1] AS granularity
+FROM system.tables
+WHERE database = 'granularity_test';
+</code></pre>
+<h3>🎨 Customization</h3>
+<h4>Change Data Volume</h4>
+<p>Edit <code>02-insert-data.sql</code> to change the <code>numbers()</code> function value:</p>
+<pre><code class="language-sql">-- 10 million rows instead of 2 million
+FROM numbers(10000000)
+</code></pre>
+<h4>Test Different IDs</h4>
+<p>Edit <code>04-performance-test.sql</code> to test different player_id values:</p>
+<pre><code class="language-sql">-- Test with different IDs
+WHERE player_id IN (10, 100, 1000, 10000, 100000)
+</code></pre>
+<h4>Add More Granularity Values</h4>
+<p>You can create additional tables with other granularity values like 512, 2048, etc.</p>
+<h3>🛠 Prerequisites</h3>
+<ul>
+<li>ClickHouse server (local or cloud)</li>
+<li>ClickHouse client installed</li>
+<li>Basic SQL knowledge</li>
+<li>Sufficient disk space (~200MB for test data)</li>
+</ul>
+<h3>📚 Reference</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/optimize/sparse-primary-indexes">ClickHouse Primary Key and Index Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#table_engine-mergetree-creating-a-table">MergeTree Table Engine Settings</a></li>
+<li><a href="https://clickhouse.com/docs/en/operations/optimizing-performance/sampling-query-profiler">Performance Optimization Guide</a></li>
+</ul>
+<h3>📝 License</h3>
+<p>MIT License</p>
+<h3>👤 Author</h3>
+<p>Ken (ClickHouse Solution Architect)
+Created: 2025-12-25</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse의 index_granularity 설정을 비교하고 point query 성능에 미치는 영향을 측정하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
+<h3>🎯 목적</h3>
+<p>이 랩은 ClickHouse의 다양한 index_granularity 값을 테스트하는 실무 경험을 제공합니다:
+- <strong>Granularity 256</strong> - 정확한 point query에 최적화
+- <strong>Granularity 1024</strong> - point query에 좋은 균형
+- <strong>Granularity 4096</strong> - 균형잡힌 성능
+- <strong>Granularity 8192</strong> - 기본 설정, 스캔 쿼리에 최적화</p>
+<p>point query 성능을 최적화하거나 워크로드에 적합한 granularity를 선택하려는 경우, 이 랩은 실제 성능 특성을 측정할 수 있는 구조화된 단계별 연습을 제공합니다.</p>
+<h3>📁 파일 구성</h3>
+<pre><code>index-granularity-point-query/
+├── README.md                      # 이 파일
+├── 01-setup.sql                   # 데이터베이스 및 테이블 생성
+├── 02-insert-data.sql             # 200만 rows 테스트 데이터 생성
+├── 03-metadata-check.sql          # 메타데이터 및 인덱스 통계
+├── 04-performance-test.sql        # Point query 성능 테스트
+├── 05-analyze-results.sql         # 성능 분석 및 비교
+└── 99-cleanup.sql                 # 정리 스크립트
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<p>모든 스크립트를 순서대로 실행:</p>
+<pre><code class="language-bash">cd workload/index-granularity-point-query
+
+# 순차 실행
+clickhouse-client --queries-file 01-setup.sql
+clickhouse-client --queries-file 02-insert-data.sql
+clickhouse-client --queries-file 03-metadata-check.sql
+clickhouse-client --queries-file 04-performance-test.sql
+clickhouse-client --queries-file 05-analyze-results.sql
+
+# 완료 후 정리
+clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p>또는 한 번에 실행:</p>
+<pre><code class="language-bash">for file in 01-setup.sql 02-insert-data.sql 03-metadata-check.sql 04-performance-test.sql 05-analyze-results.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 상세 실행 단계</h3>
+<h4>1. 데이터베이스 설정</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-setup.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- <code>granularity_test</code> 데이터베이스 생성
+- 다양한 granularity 설정을 가진 네 개의 테스트 테이블 생성:
+  - <code>player_g256</code>: index_granularity = 256
+  - <code>player_g1024</code>: index_granularity = 1024
+  - <code>player_g4096</code>: index_granularity = 4096
+  - <code>player_g8192</code>: index_granularity = 8192 (기본값)</p>
+<p><strong>예상 시간</strong>: 1초 미만</p>
+<hr />
+<h4>2. 테스트 데이터 삽입</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-insert-data.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 각 테이블에 2,000,000개 rows 삽입
+- 다양한 속성을 가진 게임 플레이어 데이터 시뮬레이션
+- 모든 granularity 테이블에 데이터 복사</p>
+<p><strong>예상 시간</strong>: 30-60초 (환경에 따라 다름)</p>
+<hr />
+<h4>3. 메타데이터 확인</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-metadata-check.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 테이블 스토리지 정보 표시
+- 인덱스 granularity 설정 표시
+- Parts 및 marks 통계 분석
+- 인덱스 파일 크기 비교
+- 컬럼 레벨 통계 표시</p>
+<p><strong>예상 시간</strong>: 5초 미만</p>
+<hr />
+<h4>4. 성능 테스트 실행</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-performance-test.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 단일 point query 테스트 (WHERE player_id = X)
+- 다중 point query 테스트 (WHERE player_id IN (...))
+- 작은 범위 쿼리 테스트 (WHERE player_id BETWEEN X AND Y)
+- 실행 계획을 위한 EXPLAIN 분석</p>
+<p><strong>예상 시간</strong>: 10-30초</p>
+<hr />
+<h4>5. 결과 분석</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-analyze-results.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 최근 쿼리 성능 요약
+- Granularity별 성능 비교
+- 상대 성능 분석
+- 쿼리 타입별 성능 분석
+- 스토리지 vs 성능 트레이드오프 분석
+- 권장사항 요약</p>
+<p><strong>예상 시간</strong>: 5초 미만</p>
+<hr />
+<h4>6. 정리</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<p>모든 테스트 데이터와 테이블을 삭제합니다.</p>
+<h3>🔍 핵심 개념</h3>
+<h4>Index Granularity란?</h4>
+<p>Index granularity는 프라이머리 인덱스의 각 "mark"에 얼마나 많은 행이 그룹화되는지를 결정합니다.</p>
+<table>
+<thead>
+<tr>
+<th>Granularity</th>
+<th>설명</th>
+<th>최적 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>256</td>
+<td>가장 작은 marks, 가장 정확</td>
+<td>특정 ID에 대한 빈번한 point query</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>작은 marks, 좋은 정확도</td>
+<td>좋은 스토리지 효율성을 가진 point query</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>중간 marks, 균형잡힌</td>
+<td>혼합 워크로드 (point 및 스캔 쿼리 모두)</td>
+</tr>
+<tr>
+<td>8192 (기본값)</td>
+<td>큰 marks, 스캔 최적화</td>
+<td>전체 테이블 스캔, 집계 쿼리</td>
+</tr>
+</tbody>
+</table>
+<h4>트레이드오프</h4>
+<p><strong>작은 Granularity (256, 1024)</strong>:
+- ✅ 더 빠른 point query (스캔할 행이 적음)
+- ✅ 더 정확한 인덱스 조회
+- ❌ 더 큰 인덱스 크기
+- ❌ 인덱스 저장을 위한 더 많은 메모리</p>
+<p><strong>큰 Granularity (4096, 8192)</strong>:
+- ✅ 더 작은 인덱스 크기
+- ✅ 전체 테이블 스캔에 더 좋음
+- ✅ 더 낮은 메모리 오버헤드
+- ❌ 더 느린 point query (mark당 스캔할 행이 많음)</p>
+<h3>📊 예상 결과</h3>
+<h4>Point Query 성능</h4>
+<p>Point query에 대한 일반적인 성능 향상:</p>
+<table>
+<thead>
+<tr>
+<th>Granularity</th>
+<th>상대 속도</th>
+<th>읽은 행 수</th>
+<th>인덱스 크기</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>256</td>
+<td>~2-3배 빠름</td>
+<td>~256 rows</td>
+<td>~4배 큼</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>~1.5-2배 빠름</td>
+<td>~1024 rows</td>
+<td>~2배 큼</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>~1.2배 빠름</td>
+<td>~4096 rows</td>
+<td>~1.2배 큼</td>
+</tr>
+<tr>
+<td>8192 (기준)</td>
+<td>1.0배</td>
+<td>~8192 rows</td>
+<td>1.0배 (기준)</td>
+</tr>
+</tbody>
+</table>
+<p><em>실제 결과는 데이터 분포 및 하드웨어에 따라 달라질 수 있습니다</em></p>
+<h4>스토리지 비교</h4>
+<table>
+<thead>
+<tr>
+<th>메트릭</th>
+<th>G256</th>
+<th>G1024</th>
+<th>G4096</th>
+<th>G8192</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>총 Marks</td>
+<td>~7800</td>
+<td>~1950</td>
+<td>~488</td>
+<td>~244</td>
+</tr>
+<tr>
+<td>인덱스 크기</td>
+<td>가장 큼</td>
+<td>중간</td>
+<td>작음</td>
+<td>가장 작음</td>
+</tr>
+<tr>
+<td>데이터 크기</td>
+<td>동일</td>
+<td>동일</td>
+<td>동일</td>
+<td>동일</td>
+</tr>
+</tbody>
+</table>
+<h3>💡 성능 팁</h3>
+<h4>작은 Granularity (256-1024)를 사용해야 하는 경우</h4>
+<ul>
+<li>프라이머리 키로 빈번한 point query</li>
+<li>단일 행 조회에 대한 낮은 지연 시간 요구사항</li>
+<li>더 큰 인덱스를 위한 충분한 메모리</li>
+<li>작거나 중간 크기의 테이블</li>
+</ul>
+<h4>큰 Granularity (4096-8192)를 사용해야 하는 경우</h4>
+<ul>
+<li>주로 분석/스캔 쿼리</li>
+<li>큰 테이블 (수십억 행)</li>
+<li>메모리 제약이 있는 환경</li>
+<li>대부분 집계 워크로드</li>
+</ul>
+<h4>올바른 균형 찾기</h4>
+<ol>
+<li><strong>새 테이블은 기본값(8192)으로 시작</strong></li>
+<li><strong>query_log를 사용하여 쿼리 프로파일링</strong></li>
+<li><strong>많은 point query가 보이면 작은 granularity로 테스트</strong></li>
+<li><strong>system.parts로 인덱스 메모리 사용량 모니터링</strong></li>
+<li><strong>변경 전후의 영향 측정</strong></li>
+</ol>
+<h3>🔧 트러블슈팅</h3>
+<h4>높은 메모리 사용량</h4>
+<pre><code class="language-sql">-- 인덱스 메모리 소비 확인
+SELECT
+    table,
+    formatReadableSize(sum(primary_key_bytes_in_memory)) AS index_memory
+FROM system.parts
+WHERE database = 'granularity_test'
+GROUP BY table;
+</code></pre>
+<h4>느린 Point Query</h4>
+<pre><code class="language-sql">-- 읽는 행 수 확인
+SELECT
+    query,
+    read_rows,
+    query_duration_ms
+FROM system.query_log
+WHERE query LIKE '%player_id%'
+  AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 5;
+</code></pre>
+<h4>Granularity 설정 확인</h4>
+<pre><code class="language-sql">-- Granularity가 적용되었는지 확인
+SELECT
+    name,
+    extractAllGroupsVertical(create_table_query, 'index_granularity = (\\d+)')[1][1] AS granularity
+FROM system.tables
+WHERE database = 'granularity_test';
+</code></pre>
+<h3>🎨 커스터마이징</h3>
+<h4>데이터 볼륨 변경</h4>
+<p><code>02-insert-data.sql</code>에서 <code>numbers()</code> 함수 값을 변경:</p>
+<pre><code class="language-sql">-- 200만 대신 1000만 rows
+FROM numbers(10000000)
+</code></pre>
+<h4>다른 ID 테스트</h4>
+<p><code>04-performance-test.sql</code>에서 다른 player_id 값을 테스트:</p>
+<pre><code class="language-sql">-- 다른 ID로 테스트
+WHERE player_id IN (10, 100, 1000, 10000, 100000)
+</code></pre>
+<h4>더 많은 Granularity 값 추가</h4>
+<p>512, 2048 등과 같은 다른 granularity 값으로 추가 테이블을 생성할 수 있습니다.</p>
+<h3>🛠 사전 요구사항</h3>
+<ul>
+<li>ClickHouse 서버 (로컬 또는 클라우드)</li>
+<li>ClickHouse 클라이언트 설치</li>
+<li>기본 SQL 지식</li>
+<li>충분한 디스크 공간 (테스트 데이터용 ~200MB)</li>
+</ul>
+<h3>📚 참고 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/optimize/sparse-primary-indexes">ClickHouse Primary Key and Index Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#table_engine-mergetree-creating-a-table">MergeTree Table Engine Settings</a></li>
+<li><a href="https://clickhouse.com/docs/en/operations/optimizing-performance/sampling-query-profiler">Performance Optimization Guide</a></li>
+</ul>
+<h3>📝 라이선스</h3>
+<p>MIT License</p>
+<h3>👤 작성자</h3>
+<p>Ken (ClickHouse Solution Architect)
+작성일: 2025-12-25</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/index-granularity-point-query"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.4 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.4 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.4</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.4.3.37</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.4 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.4 new features. This directory focuses on verified and working features newly added in ClickHouse 26.4 (released 2026-04-30).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.4 is a SQL-ergonomics release: <code>NATURAL JOIN</code> and <code>VALUES</code> clauses cut JOIN boilerplate, two new array primitives (<code>arrayTranspose</code> and <code>arrayAutocorrelation</code>) bring matrix and time-series utilities to SQL, and a trio of text helpers (<code>obfuscateQuery</code>, <code>highlight</code>, non-constant <code>printf</code>) round out the string toolkit. The release also makes automatic JOIN spilling to grace hash join the default behavior.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong><code>NATURAL JOIN</code> + <code>VALUES</code> Table Expression</strong> — SQL-standard join syntax and inline tables</li>
+<li><strong><code>arrayTranspose</code> + <code>arrayAutocorrelation</code></strong> — matrix transpose and time-series autocorrelation</li>
+<li><strong><code>obfuscateQuery</code> + <code>highlight</code> + per-row <code>printf</code></strong> — text transformation toolkit</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/26.4
+./00-setup.sh
+
+./01-natural-join-values.sh
+./02-array-functions.sh
+./03-string-text-functions.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. <code>NATURAL JOIN</code> + <code>VALUES</code> Table Expression (01-natural-join-values)</h4>
+<p><strong>New Features:</strong>
+- <code>NATURAL JOIN</code> — automatically matches on all same-named columns and deduplicates them in the result. (<a href="https://github.com/ClickHouse/ClickHouse/pull/99840">#99840</a>)
+- <code>VALUES (...) AS t(col, ...)</code> — SQL-standard <code>VALUES</code> clause usable as a table expression in <code>FROM</code>. (<a href="https://github.com/ClickHouse/ClickHouse/pull/100143">#100143</a>)</p>
+<p><strong>Test Content:</strong>
+- <code>VALUES</code> as the source of a <code>SELECT</code>, inside CTEs, and as the right side of a join
+- <code>NATURAL JOIN</code> between two tables sharing one column
+- Column-count comparison vs explicit <code>JOIN ... ON</code>
+- <code>NATURAL JOIN</code> driven entirely by <code>VALUES</code> literals
+- Country-code lookup pattern (replace temp tables with inline <code>VALUES</code>)
+- Multi-column <code>NATURAL JOIN</code> (region + category)</p>
+<p><strong>Key Learning Points:</strong>
+- <code>NATURAL JOIN</code> makes joins concise but is implicit — readers must inspect the schema to know what is being joined
+- Use it for ad-hoc analytics; prefer explicit <code>JOIN ... USING (col)</code> in production for clarity
+- <code>VALUES</code> works as a real table expression — supports <code>ORDER BY</code>, <code>LIMIT</code>, joins
+- Combine <code>VALUES</code> with CTEs to inline small reference tables without DDL</p>
+<p><strong>Use Cases:</strong>
+- Quick lookups against a small static mapping (country → name, currency → rate)
+- Demos and tutorials (no <code>CREATE TABLE</code> needed)
+- Migration from PostgreSQL / SQL Server scripts that already use <code>VALUES</code>
+- Reducing JOIN boilerplate in star-schema queries</p>
+<hr />
+<h4>2. <code>arrayTranspose</code> + <code>arrayAutocorrelation</code> (02-array-functions)</h4>
+<p><strong>New Features:</strong>
+- <code>arrayTranspose(matrix)</code> — transpose a 2-D array (rows ↔ columns). (<a href="https://github.com/ClickHouse/ClickHouse/pull/101214">#101214</a>)
+- <code>arrayAutocorrelation(arr [, max_lag])</code> — normalized autocorrelation at each lag from 0 up to <code>max_lag</code>. (<a href="https://github.com/ClickHouse/ClickHouse/pull/94776">#94776</a>)</p>
+<p><strong>Test Content:</strong>
+- 2×3 → 3×2 transpose, square transpose, single-row → column-vector
+- Round-trip identity <code>arrayTranspose(arrayTranspose(M)) = M</code>
+- Pivot use case: rows-of-records → columns-of-fields
+- Autocorrelation of a linear ramp, constant array, and random noise
+- Detecting weekly seasonality (period 7) in a synthetic 28-day series
+- Custom <code>max_lag</code> parameter
+- Combined: per-row autocorrelation after transposing a stack of signals</p>
+<p><strong>Key Learning Points:</strong>
+- <code>arrayTranspose</code> expects a "rectangular" array of arrays — all inner arrays must be the same length
+- Element type is preserved (numbers stay numbers, strings stay strings)
+- <code>arrayAutocorrelation</code> returns lag 0 as <code>1.0</code> (perfect self-correlation)
+- Constant arrays produce <code>NaN</code> autocorrelation (zero variance, undefined denominator)
+- A strong peak at lag <code>k</code> indicates periodicity with period <code>k</code></p>
+<p><strong>Use Cases:</strong>
+- Matrix-style data manipulation in SQL (no <code>ARRAY JOIN</code> ceremony)
+- Quick pivot from row-store to column-store views
+- Detecting seasonality in time-series stored as arrays
+- Time-series quality checks (random noise should yield near-zero autocorrelation)
+- Mathematical and statistical pipelines</p>
+<hr />
+<h4>3. <code>obfuscateQuery</code> + <code>highlight</code> + Non-Constant <code>printf</code> (03-string-text-functions)</h4>
+<p><strong>New Features:</strong>
+- <code>obfuscateQuery(s)</code> — replace identifiers and literals with deterministic random substitutes, preserving SQL structure. (<a href="https://github.com/ClickHouse/ClickHouse/pull/98305">#98305</a>)
+- <code>highlight(text, terms [, open_tag, close_tag])</code> — wrap each occurrence of any term in HTML tags (default <code>&lt;em&gt;</code>/<code>&lt;/em&gt;</code>). (<a href="https://github.com/ClickHouse/ClickHouse/pull/99131">#99131</a>)
+- <code>printf</code> now accepts a <strong>non-constant</strong> format string, allowing per-row formats. (<a href="https://github.com/ClickHouse/ClickHouse/pull/98991">#98991</a>)</p>
+<p><strong>Test Content:</strong>
+- Basic <code>obfuscateQuery</code> on simple and complex SQL
+- Determinism check (same input → same output)
+- Batch obfuscation of three different queries
+- <code>highlight</code> with default and custom tags, case-insensitive matching
+- Search-results pipeline using <code>highlight</code> on real article text
+- Per-row format strings (decimal, hex, octal, zero-padded)
+- Mixed-format logging output
+- Combined pipeline: filter → highlight → format</p>
+<p><strong>Key Learning Points:</strong>
+- <code>obfuscateQuery</code> is deterministic — same query always obfuscates to the same output (good for de-duplicating query patterns in logs)
+- <code>highlight</code> does ASCII case-insensitive matching; for international text combine with <code>caseFoldUTF8</code> (added in 26.3)
+- Non-constant <code>printf</code> enables data-driven formatting — useful for log rendering and report generation
+- <code>highlight</code> automatically merges overlapping matches</p>
+<p><strong>Use Cases:</strong>
+- Safely sharing slow-query reports without exposing PII or sensitive identifiers
+- Building search-results UIs (highlight matched terms in snippets)
+- Generating reports / logs with mixed numeric formats per row
+- Query-pattern deduplication for capacity planning</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-26-4
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.4/
+├── README.md                     # This document
+├── 00-setup.sh                   # ClickHouse 26.4 installation script
+├── 01-natural-join-values.sh     # NATURAL JOIN + VALUES test runner
+├── 01-natural-join-values.sql    # NATURAL JOIN + VALUES SQL
+├── 02-array-functions.sh         # arrayTranspose + arrayAutocorrelation runner
+├── 02-array-functions.sql        # Array functions SQL
+├── 03-string-text-functions.sh   # obfuscateQuery + highlight + printf runner
+└── 03-string-text-functions.sql  # String/text functions SQL
+</code></pre>
+<h3>🆕 What's New in 26.4</h3>
+<ul>
+<li><strong>Automatic JOIN spilling</strong> to grace hash join when memory limit is reached (default behavior)</li>
+<li><strong>Arrow Flight SQL</strong> support</li>
+<li><strong><code>NATURAL JOIN</code></strong> syntax</li>
+<li><strong><code>VALUES</code></strong> as a table expression in <code>FROM</code></li>
+<li><strong><code>arrayTranspose</code></strong> and <strong><code>arrayAutocorrelation</code></strong></li>
+<li><strong><code>obfuscateQuery</code></strong>, <strong><code>highlight</code></strong>, <strong>non-constant <code>printf</code></strong></li>
+<li><strong>PostgreSQL-compatible <code>EXTRACT</code> units</strong> — <code>EPOCH</code>, <code>DOW</code>, <code>DOY</code>, <code>ISODOW</code>, <code>ISOYEAR</code>, <code>WEEK</code>, <code>CENTURY</code>, <code>DECADE</code>, <code>MILLENNIUM</code></li>
+<li><strong>SQL-standard compound intervals</strong> — <code>INTERVAL '1:30' HOUR TO MINUTE</code></li>
+<li><strong><code>hasPhrase</code> / <code>matchPhrase</code></strong> — phrase search (continuous sequences of tokens)</li>
+<li><strong><code>commit_order</code> projection index</strong> — keep data in insertion order</li>
+<li><strong>MergeTree skip-index for JSON columns</strong> — <code>bloom_filter</code>, <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, <code>text</code> on <code>JSONAllPaths</code></li>
+<li><strong>Bucketed serialization for Map columns</strong> — 2-49× faster single-key lookups</li>
+<li><strong><code>stem</code> function GA</strong> — was previously experimental</li>
+<li><strong>Map/JSON values in dictionary attributes</strong></li>
+<li><strong><code>auto_statistics_types</code> defaults to <code>'minmax, uniq'</code></strong> — automatic stats on new tables</li>
+<li><strong><code>Date + Time</code></strong> addition produces <code>DateTime</code>/<code>DateTime64</code></li>
+<li><strong>Quotas by normalized-query-hash</strong> — limit per query-pattern</li>
+<li><strong><code>SET TIME ZONE</code></strong> as an alias for <code>SET session_timezone</code></li>
+<li><strong>Text index GA</strong> stays enabled regardless of <code>compatibility</code> setting</li>
+<li><strong>Experimental: <code>aiGenerate</code></strong> function for OpenAI / Anthropic LLM calls from SQL</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.4/">ClickHouse 26.4</a></li>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=9lSVy7k2EoI">YouTube</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 26.4.3.37</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.4 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 4월 30일 출시된 ClickHouse 26.4에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.4는 SQL 사용성 강화 릴리스입니다: <code>NATURAL JOIN</code>과 <code>VALUES</code> 절로 JOIN 보일러플레이트를 줄이고, 두 가지 새로운 배열 함수(<code>arrayTranspose</code>, <code>arrayAutocorrelation</code>)로 행렬·시계열 유틸리티를 SQL에 도입하며, 세 가지 텍스트 헬퍼(<code>obfuscateQuery</code>, <code>highlight</code>, 비상수 <code>printf</code>)로 문자열 도구를 보강합니다. 또한 메모리 한도 도달 시 grace hash join으로의 자동 스필이 기본 동작이 되었습니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong><code>NATURAL JOIN</code> + <code>VALUES</code> 테이블 표현식</strong> — SQL 표준 조인 구문과 인라인 테이블</li>
+<li><strong><code>arrayTranspose</code> + <code>arrayAutocorrelation</code></strong> — 행렬 전치 및 시계열 자기상관</li>
+<li><strong><code>obfuscateQuery</code> + <code>highlight</code> + 행별 <code>printf</code></strong> — 텍스트 변환 툴킷</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/26.4
+./00-setup.sh
+
+./01-natural-join-values.sh
+./02-array-functions.sh
+./03-string-text-functions.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. <code>NATURAL JOIN</code> + <code>VALUES</code></h4>
+<ul>
+<li><code>NATURAL JOIN</code> — 동일 이름 컬럼으로 자동 매칭, 중복 제거 (<a href="https://github.com/ClickHouse/ClickHouse/pull/99840">#99840</a>)</li>
+<li><code>VALUES (...) AS t(col, ...)</code> — <code>FROM</code> 절에서 사용 가능한 SQL 표준 <code>VALUES</code> (<a href="https://github.com/ClickHouse/ClickHouse/pull/100143">#100143</a>)</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- <code>SELECT</code> 소스, CTE 내부, JOIN 오른편으로 <code>VALUES</code> 사용
+- 단일 공통 컬럼 NATURAL JOIN
+- <code>JOIN ... ON</code>과 컬럼 수 비교
+- <code>VALUES</code>만으로 구성된 NATURAL JOIN
+- 국가코드 룩업 패턴 (temp 테이블 대체)
+- 다중 컬럼 NATURAL JOIN</p>
+<h4>2. <code>arrayTranspose</code> + <code>arrayAutocorrelation</code></h4>
+<ul>
+<li><code>arrayTranspose(matrix)</code> — 2-D 배열 행/열 전치 (<a href="https://github.com/ClickHouse/ClickHouse/pull/101214">#101214</a>)</li>
+<li><code>arrayAutocorrelation(arr [, max_lag])</code> — 각 lag별 정규화 자기상관 (<a href="https://github.com/ClickHouse/ClickHouse/pull/94776">#94776</a>)</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- 2×3 → 3×2, 정사각, 단일 행 → 열 벡터
+- <code>arrayTranspose(arrayTranspose(M)) = M</code> 항등식
+- 행 단위 레코드 → 열 단위 필드 피벗
+- 선형 증가, 상수, 랜덤 노이즈의 자기상관
+- 28일 합성 시계열에서 주간(7일) 계절성 탐지
+- 사용자 정의 <code>max_lag</code> 파라미터
+- 결합 사용: 신호 스택 전치 후 신호별 자기상관</p>
+<h4>3. <code>obfuscateQuery</code> + <code>highlight</code> + 비상수 <code>printf</code></h4>
+<ul>
+<li><code>obfuscateQuery(s)</code> — 식별자/리터럴을 결정론적 임의값으로 교체 (SQL 구조 보존) (<a href="https://github.com/ClickHouse/ClickHouse/pull/98305">#98305</a>)</li>
+<li><code>highlight(text, terms [, open, close])</code> — 각 일치 항목을 HTML 태그로 감싸기 (기본 <code>&lt;em&gt;</code>) (<a href="https://github.com/ClickHouse/ClickHouse/pull/99131">#99131</a>)</li>
+<li><code>printf</code> 비상수 포맷 문자열 — 행별 다른 포맷 (<a href="https://github.com/ClickHouse/ClickHouse/pull/98991">#98991</a>)</li>
+</ul>
+<p><strong>테스트 내용:</strong>
+- 단순/복합 SQL의 <code>obfuscateQuery</code>
+- 결정론 확인 (동일 입력 → 동일 출력)
+- 3개 쿼리 일괄 난독화
+- 기본/사용자 정의 태그, 대소문자 구분 없는 매칭
+- 실제 기사 본문에 <code>highlight</code> 적용한 검색 결과 파이프라인
+- 행별 포맷 문자열 (decimal, hex, octal, zero-padded)
+- 혼합 포맷 로깅 출력
+- 결합 파이프라인: 필터 → 하이라이트 → 포맷팅</p>
+<h3>🆕 26.4의 새로운 기능</h3>
+<ul>
+<li><strong>자동 JOIN 스필링</strong> — 메모리 한도 도달 시 grace hash join 자동 전환 (기본 동작)</li>
+<li><strong>Arrow Flight SQL</strong> 지원</li>
+<li><strong><code>NATURAL JOIN</code></strong> 구문</li>
+<li><strong><code>VALUES</code></strong> FROM 절 테이블 표현식</li>
+<li><strong><code>arrayTranspose</code>, <code>arrayAutocorrelation</code></strong></li>
+<li><strong><code>obfuscateQuery</code>, <code>highlight</code>, 비상수 <code>printf</code></strong></li>
+<li><strong>PostgreSQL 호환 <code>EXTRACT</code> 단위</strong> — <code>EPOCH</code>, <code>DOW</code>, <code>DOY</code>, <code>ISODOW</code>, <code>ISOYEAR</code>, <code>WEEK</code>, <code>CENTURY</code>, <code>DECADE</code>, <code>MILLENNIUM</code></li>
+<li><strong>SQL 표준 복합 인터벌</strong> — <code>INTERVAL '1:30' HOUR TO MINUTE</code></li>
+<li><strong><code>hasPhrase</code> / <code>matchPhrase</code></strong> — 연속 토큰 시퀀스 검색</li>
+<li><strong><code>commit_order</code> 프로젝션 인덱스</strong> — 삽입 순서 유지</li>
+<li><strong>JSON 컬럼 MergeTree 스킵 인덱스</strong> — <code>bloom_filter</code>, <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, <code>text</code> on <code>JSONAllPaths</code></li>
+<li><strong>Map 컬럼 버킷 직렬화</strong> — 단일 키 조회 2~49배 가속</li>
+<li><strong><code>stem</code> 함수 GA</strong></li>
+<li><strong>딕셔너리 속성에 Map/JSON 지원</strong></li>
+<li><strong><code>auto_statistics_types</code></strong> 기본값 <code>'minmax, uniq'</code></li>
+<li><strong><code>Date + Time</code></strong> → <code>DateTime</code>/<code>DateTime64</code></li>
+<li><strong>정규화 쿼리 해시별 쿼터</strong> — 쿼리 패턴별 제한</li>
+<li><strong><code>SET TIME ZONE</code></strong> — <code>SET session_timezone</code> 별칭</li>
+<li><strong>Text 인덱스 GA</strong> — <code>compatibility</code> 설정 무관 활성 유지</li>
+<li><strong>실험적 <code>aiGenerate</code></strong> 함수 — SQL에서 OpenAI/Anthropic LLM 호출</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.4/">ClickHouse 26.4</a></li>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=9lSVy7k2EoI">YouTube</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 26.4.3에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>정리(cleanup)는 기본적으로 주석 처리됨</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.4"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse DELETE Mechanism Benchmark Test Guide · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse DELETE Mechanism Benchmark Test Guide — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/delete-benchmark</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse DELETE Mechanism Benchmark Test Guide</h1>
+<hr />
+<p>A comprehensive benchmark test suite comparing three main mechanisms for handling data deletion in ClickHouse.</p>
+<h3>🎯 Purpose</h3>
+<p>This lab provides practical experience testing and comparing different DELETE mechanisms in ClickHouse:
+- <strong>ALTER TABLE DELETE</strong> - Physical deletion
+- <strong>ReplacingMergeTree</strong> - Logical deletion with is_deleted flag
+- <strong>CollapsingMergeTree</strong> - Logical deletion with sign column</p>
+<p>Whether you're optimizing delete operations or choosing the right deletion strategy, this lab offers structured, step-by-step exercises to measure real-world performance characteristics.</p>
+<h3>📁 File Structure</h3>
+<pre><code>delete-benchmark/
+├── README.md                      # This file
+├── 01-setup_database.sql          # Database and table creation
+├── 02-insert_test_data.sql        # Generate 1M rows test data
+├── 03-execute_deletes.sql         # Execute 10% data deletion
+├── 04-query_performance.sql       # SELECT query performance test
+└── 05-generate_report.sql         # Comprehensive report generation
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<p>Execute all scripts in sequence:</p>
+<pre><code class="language-bash">cd workload/delete-benchmark
+
+# Sequential execution
+clickhouse-client --queries-file 01-setup_database.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
+
+# Wait for ALTER DELETE mutation to complete (optional)
+sleep 30
+
+clickhouse-client --queries-file 04-query_performance.sql
+clickhouse-client --queries-file 05-generate_report.sql
+</code></pre>
+<p>Or execute all at once:</p>
+<pre><code class="language-bash">for file in 01-setup_database.sql 02-insert_test_data.sql 03-execute_deletes.sql 04-query_performance.sql 05-generate_report.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 Detailed Execution Steps</h3>
+<h4>1. Database Setup</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-setup_database.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Creates <code>delete_test</code> database
+- Creates three test tables:
+  - <code>alter_delete_table</code>: SharedMergeTree
+  - <code>replacing_merge_table</code>: SharedReplacingMergeTree
+  - <code>collapsing_merge_table</code>: SharedCollapsingMergeTree</p>
+<p><strong>Expected time</strong>: &lt; 1 second</p>
+<hr />
+<h4>2. Insert Test Data</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-insert_test_data.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Inserts 1,000,000 rows into each table
+- Simulates 1 year of event data
+- Verifies initial state</p>
+<p><strong>Expected time</strong>: 10-30 seconds (environment dependent)</p>
+<hr />
+<h4>3. Execute DELETE Operations</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-execute_deletes.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- <strong>ALTER DELETE</strong>: Deletes 100K rows with user_id % 10 = 0 (asynchronous)
+- <strong>ReplacingMergeTree</strong>: Marks is_deleted=1 (synchronous)
+- <strong>CollapsingMergeTree</strong>: Adds sign=-1 (synchronous)
+- Compares before/after states</p>
+<p><strong>Expected time</strong>: 1-5 seconds (ALTER DELETE runs in background)</p>
+<hr />
+<h4>4. Query Performance Test</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-query_performance.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Simple COUNT queries
+- Event type aggregation queries
+- Time-series aggregation queries
+- Complex filter + aggregation queries
+- Collects performance metrics</p>
+<p><strong>Expected time</strong>: 30 seconds - 2 minutes</p>
+<hr />
+<h4>5. Generate Comprehensive Report</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-generate_report.sql
+</code></pre>
+<p><strong>What it does</strong>:
+- Table status summary
+- Data accuracy comparison
+- Query performance summary
+- Relative performance comparison
+- Storage efficiency comparison
+- Final recommendations</p>
+<p><strong>Expected time</strong>: &lt; 5 seconds</p>
+<h3>�� Key Checkpoints</h3>
+<h4>Check Mutation Status (ALTER DELETE)</h4>
+<pre><code class="language-sql">SELECT
+    table,
+    mutation_id,
+    command,
+    create_time,
+    is_done,
+    parts_to_do
+FROM system.mutations
+WHERE database = 'delete_test'
+  AND table = 'alter_delete_table'
+ORDER BY create_time DESC;
+</code></pre>
+<p><strong>is_done = 1</strong> means mutation is complete</p>
+<hr />
+<h4>Check Real-time Query Performance</h4>
+<pre><code class="language-sql">SELECT
+    query_duration_ms,
+    read_rows,
+    formatReadableSize(read_bytes) as read_bytes,
+    formatReadableSize(memory_usage) as memory
+FROM system.query_log
+WHERE event_time &gt;= now() - INTERVAL 5 MINUTE
+  AND query LIKE '%delete_test%'
+  AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 10;
+</code></pre>
+<hr />
+<h4>Check Storage Usage</h4>
+<pre><code class="language-sql">SELECT
+    table,
+    formatReadableSize(sum(data_compressed_bytes)) as size,
+    sum(rows) as rows,
+    count() as parts
+FROM system.parts
+WHERE database = 'delete_test' AND active
+GROUP BY table;
+</code></pre>
+<h3>📊 Expected Results</h3>
+<h4>Query Performance (Average)</h4>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Aggregation Query</th>
+<th>Relative Performance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ALTER DELETE</td>
+<td>~20-30 ms</td>
+<td>1.0x (baseline)</td>
+</tr>
+<tr>
+<td>CollapsingMergeTree</td>
+<td>~25-35 ms</td>
+<td>1.2x</td>
+</tr>
+<tr>
+<td>ReplacingMergeTree FINAL</td>
+<td>~80-120 ms</td>
+<td>3-4x</td>
+</tr>
+</tbody>
+</table>
+<h4>Storage Usage</h4>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Compressed Size</th>
+<th>Relative to Baseline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ALTER DELETE</td>
+<td>~7 MiB</td>
+<td>1.0x (baseline)</td>
+</tr>
+<tr>
+<td>CollapsingMergeTree</td>
+<td>~9 MiB</td>
+<td>1.3x</td>
+</tr>
+<tr>
+<td>ReplacingMergeTree</td>
+<td>~10 MiB</td>
+<td>1.4x</td>
+</tr>
+</tbody>
+</table>
+<h3>🎨 Customization</h3>
+<h4>Change Data Volume</h4>
+<p>Edit <code>02-insert_test_data.sql</code> to change the <code>numbers()</code> function value:</p>
+<pre><code class="language-sql">-- 10 million rows instead of 1 million
+FROM numbers(10000000)
+</code></pre>
+<h4>Change Delete Ratio</h4>
+<p>Edit <code>03-execute_deletes.sql</code> to change the condition:</p>
+<pre><code class="language-sql">-- Delete 20% instead of 10%
+WHERE user_id % 5 = 0  -- (originally user_id % 10 = 0)
+</code></pre>
+<h4>Add Query Patterns</h4>
+<p>Add your custom queries to <code>04-query_performance.sql</code></p>
+<h3>💡 Performance Tips</h3>
+<h4>For ALTER DELETE</h4>
+<ul>
+<li>Execute during off-peak hours</li>
+<li>Delete by partition when possible</li>
+<li>Adjust max_alter_threads for parallel processing</li>
+</ul>
+<h4>For ReplacingMergeTree</h4>
+<ul>
+<li>Use Materialized Views for pre-aggregation</li>
+<li>Run OPTIMIZE TABLE FINAL periodically</li>
+<li>Avoid FINAL in high-frequency queries</li>
+</ul>
+<h4>For CollapsingMergeTree</h4>
+<ul>
+<li>Ensure correct INSERT order (sign=-1 after sign=1)</li>
+<li>Use sum(sign) in all aggregation queries</li>
+<li>Consider VersionedCollapsingMergeTree for order independence</li>
+</ul>
+<h3>🔧 Troubleshooting</h3>
+<h4>Mutation Not Completing</h4>
+<pre><code class="language-sql">-- Check mutation status
+SELECT * FROM system.mutations
+WHERE database = 'delete_test' AND NOT is_done;
+
+-- Wait for mutation synchronously
+ALTER TABLE delete_test.alter_delete_table
+DELETE WHERE user_id % 10 = 0
+SETTINGS mutations_sync = 2;  -- Synchronous execution
+</code></pre>
+<h4>Query Performance Not Measured</h4>
+<pre><code class="language-sql">-- Verify query_log is enabled
+SELECT * FROM system.query_log LIMIT 1;
+
+-- Check log retention settings
+SELECT * FROM system.settings
+WHERE name LIKE '%query_log%';
+</code></pre>
+<h4>Too Many Parts</h4>
+<pre><code class="language-sql">-- Force merge
+OPTIMIZE TABLE delete_test.replacing_merge_table FINAL;
+OPTIMIZE TABLE delete_test.collapsing_merge_table FINAL;
+</code></pre>
+<h3>🧹 Clean Up</h3>
+<p>Delete the test database after completion:</p>
+<pre><code class="language-sql">DROP DATABASE IF EXISTS delete_test;
+</code></pre>
+<h3>🛠 Prerequisites</h3>
+<ul>
+<li>ClickHouse server (local or cloud)</li>
+<li>ClickHouse client installed</li>
+<li>Basic SQL knowledge</li>
+<li>Sufficient disk space (~100MB)</li>
+</ul>
+<h3>📚 Reference</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/sql-reference/statements/alter/delete">ClickHouse ALTER DELETE Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replacingmergetree">ReplacingMergeTree Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/collapsingmergetree">CollapsingMergeTree Documentation</a></li>
+</ul>
+<h3>📝 License</h3>
+<p>MIT License</p>
+<h3>👤 Author</h3>
+<p>Ken (ClickHouse Solution Architect)
+Created: 2025-12-01</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse의 데이터 삭제를 처리하는 세 가지 주요 메커니즘을 비교하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
+<h3>🎯 목적</h3>
+<p>이 랩은 ClickHouse의 다양한 DELETE 메커니즘을 테스트하고 비교하는 실무 경험을 제공합니다:
+- <strong>ALTER TABLE DELETE</strong> - 물리적 삭제
+- <strong>ReplacingMergeTree</strong> - is_deleted 플래그를 사용한 논리적 삭제
+- <strong>CollapsingMergeTree</strong> - sign 컬럼을 사용한 논리적 삭제</p>
+<p>삭제 작업을 최적화하거나 올바른 삭제 전략을 선택하려는 경우, 이 랩은 실제 성능 특성을 측정할 수 있는 구조화된 단계별 연습을 제공합니다.</p>
+<h3>📁 파일 구성</h3>
+<pre><code>delete-benchmark/
+├── README.md                      # 이 파일
+├── 01-setup_database.sql          # 데이터베이스 및 테이블 생성
+├── 02-insert_test_data.sql        # 1백만 rows 테스트 데이터 생성
+├── 03-execute_deletes.sql         # 10% 데이터 삭제 실행
+├── 04-query_performance.sql       # SELECT 쿼리 성능 테스트
+└── 05-generate_report.sql         # 종합 리포트 생성
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<p>모든 스크립트를 순서대로 실행:</p>
+<pre><code class="language-bash">cd workload/delete-benchmark
+
+# 순차 실행
+clickhouse-client --queries-file 01-setup_database.sql
+clickhouse-client --queries-file 02-insert_test_data.sql
+clickhouse-client --queries-file 03-execute_deletes.sql
+
+# ALTER DELETE mutation 완료 대기 (옵션)
+sleep 30
+
+clickhouse-client --queries-file 04-query_performance.sql
+clickhouse-client --queries-file 05-generate_report.sql
+</code></pre>
+<p>또는 한 번에 실행:</p>
+<pre><code class="language-bash">for file in 01-setup_database.sql 02-insert_test_data.sql 03-execute_deletes.sql 04-query_performance.sql 05-generate_report.sql; do
+    echo &quot;Executing $file...&quot;
+    clickhouse-client --queries-file &quot;$file&quot;
+    echo &quot;&quot;
+done
+</code></pre>
+<h3>📖 상세 실행 단계</h3>
+<h4>1. 데이터베이스 설정</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 01-setup_database.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- <code>delete_test</code> 데이터베이스 생성
+- 세 가지 테스트 테이블 생성:
+  - <code>alter_delete_table</code>: SharedMergeTree
+  - <code>replacing_merge_table</code>: SharedReplacingMergeTree
+  - <code>collapsing_merge_table</code>: SharedCollapsingMergeTree</p>
+<p><strong>예상 시간</strong>: 1초 미만</p>
+<hr />
+<h4>2. 테스트 데이터 삽입</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 02-insert_test_data.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 각 테이블에 1,000,000개 rows 삽입
+- 1년간의 이벤트 데이터 시뮬레이션
+- 초기 상태 확인</p>
+<p><strong>예상 시간</strong>: 10-30초 (환경에 따라 다름)</p>
+<hr />
+<h4>3. DELETE 작업 실행</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 03-execute_deletes.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- <strong>ALTER DELETE</strong>: user_id % 10 = 0인 100,000 rows 삭제 (비동기)
+- <strong>ReplacingMergeTree</strong>: is_deleted=1 마킹 (동기)
+- <strong>CollapsingMergeTree</strong>: sign=-1 추가 (동기)
+- 삭제 전후 상태 비교</p>
+<p><strong>예상 시간</strong>: 1-5초 (ALTER DELETE는 백그라운드 처리)</p>
+<hr />
+<h4>4. 쿼리 성능 테스트</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 04-query_performance.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 단순 COUNT 쿼리
+- Event Type별 집계 쿼리
+- 시계열 집계 쿼리
+- 복잡한 필터 + 집계 쿼리
+- 성능 메트릭 수집</p>
+<p><strong>예상 시간</strong>: 30초 - 2분</p>
+<hr />
+<h4>5. 종합 리포트 생성</h4>
+<pre><code class="language-bash">clickhouse-client --queries-file 05-generate_report.sql
+</code></pre>
+<p><strong>수행 작업</strong>:
+- 테이블 상태 요약
+- 데이터 정확성 비교
+- 쿼리 성능 요약
+- 상대 성능 비교
+- 스토리지 효율성 비교
+- 최종 권장사항</p>
+<p><strong>예상 시간</strong>: 5초 미만</p>
+<h3>🔍 주요 확인 포인트</h3>
+<h4>Mutation 상태 확인 (ALTER DELETE)</h4>
+<pre><code class="language-sql">SELECT
+    table,
+    mutation_id,
+    command,
+    create_time,
+    is_done,
+    parts_to_do
+FROM system.mutations
+WHERE database = 'delete_test'
+  AND table = 'alter_delete_table'
+ORDER BY create_time DESC;
+</code></pre>
+<p><strong>is_done = 1</strong>이면 mutation 완료</p>
+<hr />
+<h4>실시간 쿼리 성능 확인</h4>
+<pre><code class="language-sql">SELECT
+    query_duration_ms,
+    read_rows,
+    formatReadableSize(read_bytes) as read_bytes,
+    formatReadableSize(memory_usage) as memory
+FROM system.query_log
+WHERE event_time &gt;= now() - INTERVAL 5 MINUTE
+  AND query LIKE '%delete_test%'
+  AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 10;
+</code></pre>
+<hr />
+<h4>스토리지 사용량 확인</h4>
+<pre><code class="language-sql">SELECT
+    table,
+    formatReadableSize(sum(data_compressed_bytes)) as size,
+    sum(rows) as rows,
+    count() as parts
+FROM system.parts
+WHERE database = 'delete_test' AND active
+GROUP BY table;
+</code></pre>
+<h3>📊 예상 결과</h3>
+<h4>쿼리 성능 (평균)</h4>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>집계 쿼리</th>
+<th>상대 성능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ALTER DELETE</td>
+<td>~20-30 ms</td>
+<td>1.0x (기준)</td>
+</tr>
+<tr>
+<td>CollapsingMergeTree</td>
+<td>~25-35 ms</td>
+<td>1.2x</td>
+</tr>
+<tr>
+<td>ReplacingMergeTree FINAL</td>
+<td>~80-120 ms</td>
+<td>3-4x</td>
+</tr>
+</tbody>
+</table>
+<h4>스토리지 사용량</h4>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>압축 크기</th>
+<th>기준 대비</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ALTER DELETE</td>
+<td>~7 MiB</td>
+<td>1.0x (기준)</td>
+</tr>
+<tr>
+<td>CollapsingMergeTree</td>
+<td>~9 MiB</td>
+<td>1.3x</td>
+</tr>
+<tr>
+<td>ReplacingMergeTree</td>
+<td>~10 MiB</td>
+<td>1.4x</td>
+</tr>
+</tbody>
+</table>
+<h3>🎨 커스터마이징</h3>
+<h4>데이터 볼륨 변경</h4>
+<p><code>02-insert_test_data.sql</code>에서 <code>numbers()</code> 함수 값을 변경:</p>
+<pre><code class="language-sql">-- 100만 대신 1000만 rows
+FROM numbers(10000000)
+</code></pre>
+<h4>삭제 비율 변경</h4>
+<p><code>03-execute_deletes.sql</code>에서 조건 변경:</p>
+<pre><code class="language-sql">-- 10% 대신 20% 삭제
+WHERE user_id % 5 = 0  -- (원래는 user_id % 10 = 0)
+</code></pre>
+<h4>쿼리 패턴 추가</h4>
+<p><code>04-query_performance.sql</code>에 원하는 쿼리 추가</p>
+<h3>💡 성능 팁</h3>
+<h4>ALTER DELETE의 경우</h4>
+<ul>
+<li>Off-peak 시간에 실행</li>
+<li>가능하면 파티션 단위로 삭제</li>
+<li>max_alter_threads로 병렬 처리 조정</li>
+</ul>
+<h4>ReplacingMergeTree의 경우</h4>
+<ul>
+<li>Materialized View로 pre-aggregation</li>
+<li>주기적으로 OPTIMIZE TABLE FINAL 실행</li>
+<li>고빈도 쿼리에서 FINAL 피하기</li>
+</ul>
+<h4>CollapsingMergeTree의 경우</h4>
+<ul>
+<li>올바른 INSERT 순서 보장 (sign=-1이 sign=1 이후)</li>
+<li>모든 집계 쿼리에서 sum(sign) 사용</li>
+<li>순서 독립성을 위해 VersionedCollapsingMergeTree 고려</li>
+</ul>
+<h3>🔧 트러블슈팅</h3>
+<h4>Mutation이 완료되지 않음</h4>
+<pre><code class="language-sql">-- Mutation 상태 확인
+SELECT * FROM system.mutations
+WHERE database = 'delete_test' AND NOT is_done;
+
+-- 동기적으로 mutation 대기
+ALTER TABLE delete_test.alter_delete_table
+DELETE WHERE user_id % 10 = 0
+SETTINGS mutations_sync = 2;  -- 동기 실행
+</code></pre>
+<h4>쿼리 성능 측정이 안됨</h4>
+<pre><code class="language-sql">-- query_log 활성화 확인
+SELECT * FROM system.query_log LIMIT 1;
+
+-- 로그 보존 기간 확인
+SELECT * FROM system.settings
+WHERE name LIKE '%query_log%';
+</code></pre>
+<h4>Parts가 너무 많음</h4>
+<pre><code class="language-sql">-- 강제 merge
+OPTIMIZE TABLE delete_test.replacing_merge_table FINAL;
+OPTIMIZE TABLE delete_test.collapsing_merge_table FINAL;
+</code></pre>
+<h3>🧹 정리</h3>
+<p>테스트 완료 후 데이터베이스 삭제:</p>
+<pre><code class="language-sql">DROP DATABASE IF EXISTS delete_test;
+</code></pre>
+<h3>🛠 사전 요구사항</h3>
+<ul>
+<li>ClickHouse 서버 (로컬 또는 클라우드)</li>
+<li>ClickHouse 클라이언트 설치</li>
+<li>기본 SQL 지식</li>
+<li>충분한 디스크 공간 (~100MB)</li>
+</ul>
+<h3>📚 참고 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/sql-reference/statements/alter/delete">ClickHouse ALTER DELETE Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replacingmergetree">ReplacingMergeTree Documentation</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/collapsingmergetree">CollapsingMergeTree Documentation</a></li>
+</ul>
+<h3>📝 라이선스</h3>
+<p>MIT License</p>
+<h3>👤 작성자</h3>
+<p>Ken (ClickHouse Solution Architect)
+작성일: 2025-12-01</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/delete-benchmark"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

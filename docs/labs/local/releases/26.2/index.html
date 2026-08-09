@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.2 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.2 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.2</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.2.19.43</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.2 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.2 new features. This directory focuses on verified and working features newly added in ClickHouse 26.2 (released 2026-02-26).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.2 expands the SQL surface area with number-theory utilities, a new 128-bit hash function, and an introspectable text-index tokenizer catalog. The release also makes the text index GA, promotes the QBit vector type to GA, and adds distributed vector search.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong><code>primes()</code> Table Function + <code>system.primes</code></strong> — prime numbers as a first-class SQL source</li>
+<li><strong><code>xxh3_128</code> Hash Function</strong> — 128-bit non-cryptographic hash for deduplication, sharding, and joins</li>
+<li><strong><code>system.tokenizers</code> Catalog</strong> — discover every tokenizer available to text indexes from SQL</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 26.2
+cd local/releases/26.2
+./00-setup.sh
+
+# 2. Run feature tests
+./01-primes-function.sh
+./02-xxh3-128-hash.sh
+./03-system-tokenizers.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./client.sh 8123
+
+cd ../local/releases/26.2
+source 01-primes-function.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. <code>primes()</code> Table Function &amp; <code>system.primes</code> (01-primes-function)</h4>
+<p><strong>New Feature:</strong> A new table function <code>primes(n)</code> returns the first <code>n</code> prime numbers, and <code>system.primes</code> exposes an unbounded stream of primes — a single column named <code>prime</code> of type <code>UInt64</code>. (<a href="https://github.com/ClickHouse/ClickHouse/pull/92776">#92776</a>)</p>
+<p><strong>Test Content:</strong>
+- Reading from <code>system.primes</code> with <code>LIMIT</code> and <code>WHERE</code>
+- Generating bounded prime sequences via <code>primes(n)</code>
+- Twin-prime pair detection with self-JOIN on row number
+- Prime-gap distribution analysis
+- Composite-number identification via <code>NOT IN (primes)</code>
+- Building a materialized prime cache table
+- Nearest-prime lookup for hash-table sizing</p>
+<p><strong>Key Learning Points:</strong>
+- Both <code>primes()</code> and <code>system.primes</code> use a single column named <code>prime</code> (not <code>number</code>)
+- <code>system.primes</code> is unbounded — always pair with <code>LIMIT</code> or a <code>WHERE prime &lt; X</code> predicate
+- <code>primes(n)</code> is bounded and is the safer choice when you know the upper bound
+- Combine with <code>rowNumberInAllBlocks()</code> to access ordinal position</p>
+<p><strong>Use Cases:</strong>
+- Hash-table bucket sizing (use the next prime ≥ desired capacity)
+- Modular arithmetic and number-theory experiments
+- Generating test/synthetic data with deterministic distinctness
+- Teaching and demonstrations</p>
+<hr />
+<h4>2. <code>xxh3_128</code> Hash Function (02-xxh3-128-hash)</h4>
+<p><strong>New Feature:</strong> 128-bit XXH3 hash returning <code>UInt128</code>, doubling the hash space of the existing <code>xxHash64</code> at comparable throughput. (<a href="https://github.com/ClickHouse/ClickHouse/pull/96055">#96055</a>)</p>
+<p><strong>Test Content:</strong>
+- Basic hashing and <code>UInt128</code> result type inspection
+- Hex / decimal representations side-by-side with <code>xxHash64</code>
+- Content-fingerprint deduplication via <code>MATERIALIZED</code> column
+- Hash-based shard mapping
+- Collision test on 10,000 random strings
+- JOIN on 128-bit fingerprints</p>
+<p><strong>Key Learning Points:</strong>
+- Result type is <code>UInt128</code> (32 hex chars vs <code>xxHash64</code>'s 16)
+- Same input → same hash (deterministic, no salt)
+- Use as a <code>MATERIALIZED</code> column for cheap, indexable content fingerprints
+- Practical collision probability is negligible at typical data sizes
+- The function name is <code>xxh3_128</code>, while the existing 64-bit equivalent is <code>xxHash64</code> (note the camel-case asymmetry)</p>
+<p><strong>Use Cases:</strong>
+- Deduplication where 64-bit collision risk is unacceptable
+- Sharding keys for very large key spaces
+- Content-addressable joins across tables
+- Idempotency keys / cache lookups</p>
+<hr />
+<h4>3. <code>system.tokenizers</code> Catalog (03-system-tokenizers)</h4>
+<p><strong>New Feature:</strong> <code>system.tokenizers</code> system table lists every tokenizer registered for use with <code>text</code> indexes and the <code>tokens()</code> function. (<a href="https://github.com/ClickHouse/ClickHouse/pull/96753">#96753</a>)</p>
+<p><strong>Test Content:</strong>
+- Listing all tokenizers from <code>system.tokenizers</code>
+- Calling <code>tokens(s, tokenizer_name [, params])</code> with different tokenizers (splitByNonAlpha, splitByString, ngrams)
+- Creating a <code>text</code> index with an explicit tokenizer
+- Full-text search via <code>hasToken</code> driven by the index
+- Token count per document
+- <code>EXPLAIN indexes = 1</code> to confirm the skip index is used
+- Side-by-side comparison of tokenizer output</p>
+<p><strong>Key Learning Points:</strong>
+- Available tokenizers include <code>splitByNonAlpha</code>, <code>splitByString</code>, <code>ngrams</code>, <code>ngrambf_v1</code>, <code>tokenbf_v1</code>, <code>sparseGrams</code>, <code>sparse_grams</code>, <code>array</code>
+- <code>text</code> indexes are now GA in 26.2 (no compatibility flag required)
+- <code>tokens(string, tokenizer_name)</code> lets you preview what the index will store before building it
+- Tokenizer choice directly determines what queries the index can accelerate</p>
+<p><strong>Use Cases:</strong>
+- Choosing the right tokenizer before building a large text index
+- Validating tokenization behavior against multilingual or structured text
+- Diagnosing why a text-index query is or isn't being skipped</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-26-2
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.2/
+├── README.md                     # This document
+├── 00-setup.sh                   # ClickHouse 26.2 installation script
+├── 01-primes-function.sh         # primes()/system.primes test runner
+├── 01-primes-function.sql        # primes()/system.primes SQL
+├── 02-xxh3-128-hash.sh           # xxh3_128 test runner
+├── 02-xxh3-128-hash.sql          # xxh3_128 SQL
+├── 03-system-tokenizers.sh       # system.tokenizers test runner
+└── 03-system-tokenizers.sql      # system.tokenizers SQL
+</code></pre>
+<h3>🆕 What's New in 26.2</h3>
+<ul>
+<li><strong>Text index is now GA</strong> — no more <code>allow_experimental_*</code> flag, survives backup restores</li>
+<li><strong>QBit data type GA</strong> — quantized bit-packed vectors for approximate nearest-neighbor search</li>
+<li><strong>Distributed vector search</strong> — vector indexes can now be sharded across replicas</li>
+<li><strong>TOTP authentication</strong> — time-based one-time passwords as a server-side auth method</li>
+<li><strong><code>primes()</code> and <code>system.primes</code></strong> — prime numbers as a SQL source</li>
+<li><strong><code>xxh3_128</code></strong> — 128-bit non-cryptographic hash</li>
+<li><strong><code>system.tokenizers</code></strong>, <strong><code>system.user_defined_functions</code></strong>, <strong><code>system.jemalloc_stats</code></strong>, <strong><code>system.jemalloc_profile_text</code></strong>, <strong><code>system.fail_points</code></strong> — five new introspection tables</li>
+<li><strong><code>OPTIMIZE … DRY RUN PARTS</code></strong> — simulate merges without committing</li>
+<li><strong><code>lazy_load_tables</code> database setting</strong> — defer table-engine instantiation to first access</li>
+<li><strong>ClickStack observability UI</strong> — bundled directly with the server</li>
+<li><strong>Google BigLake catalog integration</strong> — query BigLake-managed Iceberg tables</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.2/">ClickHouse 26.2 Community Call</a></li>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=7qHba08vNfo">YouTube</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2026</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default for inspection</li>
+<li>All features verified on ClickHouse 26.2.19.43</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.2 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 2월 26일 출시된 ClickHouse 26.2에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.2는 수론 유틸리티, 새로운 128비트 해시 함수, 그리고 검색 가능한 텍스트 인덱스 토크나이저 카탈로그로 SQL 표면을 확장합니다. 또한 텍스트 인덱스가 GA로 승격되고, QBit 벡터 타입이 GA가 되었으며, 분산 벡터 검색이 추가되었습니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong><code>primes()</code> 테이블 함수 + <code>system.primes</code></strong> — 소수를 SQL 소스로 직접 활용</li>
+<li><strong><code>xxh3_128</code> 해시 함수</strong> — 중복 제거·샤딩·조인을 위한 128비트 비암호 해시</li>
+<li><strong><code>system.tokenizers</code> 카탈로그</strong> — 텍스트 인덱스용 토크나이저 목록을 SQL로 조회</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (Docker Desktop 설치)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 26.2 설치 및 시작
+cd local/releases/26.2
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-primes-function.sh
+./02-xxh3-128-hash.sh
+./03-system-tokenizers.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. <code>primes()</code> 테이블 함수 &amp; <code>system.primes</code></h4>
+<p>새 테이블 함수 <code>primes(n)</code>은 첫 <code>n</code>개의 소수를 반환하고, <code>system.primes</code>는 무한 소수 스트림을 제공합니다. 컬럼명은 <code>prime</code>(UInt64) 하나입니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/92776">#92776</a>)</p>
+<p><strong>테스트 내용:</strong>
+- <code>LIMIT</code>/<code>WHERE</code>로 <code>system.primes</code> 조회
+- <code>primes(n)</code>로 유한 소수 시퀀스 생성
+- 행 번호 자기 조인으로 쌍둥이 소수 탐색
+- 소수 간격(prime gap) 분포 분석
+- <code>NOT IN (primes)</code>로 합성수 식별
+- 소수 캐시 테이블 구축
+- 해시 테이블 크기용 최근접 소수 검색</p>
+<h4>2. <code>xxh3_128</code> 해시 함수</h4>
+<p><code>UInt128</code>을 반환하는 128비트 XXH3 해시 — 기존 <code>xxHash64</code>의 해시 공간을 두 배로 확장하면서 비슷한 처리량을 유지합니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/96055">#96055</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 기본 해싱 및 <code>UInt128</code> 결과 타입 확인
+- <code>xxHash64</code>와의 16진수/십진수 표현 비교
+- <code>MATERIALIZED</code> 컬럼을 통한 콘텐츠 지문 기반 중복 제거
+- 해시 기반 샤드 매핑
+- 10,000개 랜덤 문자열 충돌 테스트
+- 128비트 지문 기반 JOIN</p>
+<h4>3. <code>system.tokenizers</code> 카탈로그</h4>
+<p><code>system.tokenizers</code>는 <code>text</code> 인덱스와 <code>tokens()</code> 함수에서 사용 가능한 모든 토크나이저를 보여줍니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/96753">#96753</a>)</p>
+<p><strong>테스트 내용:</strong>
+- <code>system.tokenizers</code>에서 토크나이저 목록 조회
+- 다양한 토크나이저로 <code>tokens(s, name [, params])</code> 호출
+- 명시적 토크나이저로 <code>text</code> 인덱스 생성
+- 인덱스를 활용한 <code>hasToken</code> 전체 텍스트 검색
+- 문서별 토큰 개수 계산
+- <code>EXPLAIN indexes = 1</code>로 스킵 인덱스 사용 확인</p>
+<h3>🆕 26.2의 새로운 기능</h3>
+<ul>
+<li><strong>Text 인덱스 GA</strong> — 실험 플래그 불필요, 백업 복원 시에도 유지</li>
+<li><strong>QBit 데이터 타입 GA</strong> — 근사 최근접 이웃 검색용 양자화 비트팩 벡터</li>
+<li><strong>분산 벡터 검색</strong> — 벡터 인덱스를 복제본에 걸쳐 샤딩</li>
+<li><strong>TOTP 인증</strong> — 시간 기반 일회용 비밀번호 서버 인증</li>
+<li><strong><code>primes()</code> / <code>system.primes</code></strong> — 소수를 SQL 소스로</li>
+<li><strong><code>xxh3_128</code></strong> — 128비트 비암호 해시</li>
+<li><strong><code>system.tokenizers</code>, <code>system.user_defined_functions</code>, <code>system.jemalloc_stats</code></strong> 등 — 5개의 새로운 인트로스펙션 테이블</li>
+<li><strong><code>OPTIMIZE … DRY RUN PARTS</code></strong> — 커밋 없이 머지 시뮬레이션</li>
+<li><strong><code>lazy_load_tables</code></strong> — 테이블 엔진 인스턴스화 지연</li>
+<li><strong>ClickStack 옵저버빌리티 UI</strong> — 서버에 번들 포함</li>
+<li><strong>Google BigLake 카탈로그 통합</strong></li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2026-release-26.2/">ClickHouse 26.2 Community Call</a></li>
+<li><strong>Release Video</strong>: <a href="https://www.youtube.com/watch?v=7qHba08vNfo">YouTube</a></li>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됨</li>
+<li>정리(cleanup) 구문은 기본적으로 주석 처리됨</li>
+<li>모든 기능은 ClickHouse 26.2.19에서 검증됨</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈는 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.2"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

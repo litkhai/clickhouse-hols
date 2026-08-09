@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.4 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.4 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.4</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.4.13.22</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.4 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.4 new features. This directory focuses on verified and working features newly added in ClickHouse 25.4 (released 2025-04-30).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.4 is a release about comparing things. Levenshtein distance is lifted from characters to array elements, so two user journeys can be compared step by step. <code>sparseGrams</code> derives gram boundaries from the data instead of a fixed <code>n</code>, which makes near-duplicate detection work across strings of different lengths. And <code>hasAll()</code> learned to use token skip indices, so array-containment filters can prune.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Array Distance and Similarity</strong> — <code>arrayLevenshteinDistance</code>, <code>arrayLevenshteinDistanceWeighted</code>, <code>arraySimilarity</code></li>
+<li><strong><code>sparseGrams</code></strong> — data-derived n-grams, plus <code>hasAll()</code> using token indices</li>
+<li><strong><code>toInterval</code> and Editable Database Comments</strong></li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd local/releases/25.4
+./00-setup.sh
+
+./01-array-distance-functions.sh
+./02-sparsegrams.sh
+./03-tointerval-and-db-comments.sh
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Array Distance and Similarity (01-array-distance-functions)</h4>
+<p><strong>New Feature:</strong> <code>arrayLevenshteinDistance(lhs, rhs)</code>, <code>arrayLevenshteinDistanceWeighted(lhs, rhs, lhs_weights, rhs_weights)</code> and <code>arraySimilarity(...)</code> compute edit distance where the unit of edit is an array element rather than a character. (<a href="https://github.com/ClickHouse/ClickHouse/pull/77187">#77187</a>)</p>
+<p><strong>Test Content:</strong>
+- Substitutions, insertions and deleting everything
+- The element-wise nature shown against <code>editDistance</code> on the same pair
+- Five session paths measured against a canonical happy path
+- Pairwise distances across all sessions, grouped
+- The weighted form, where each element carries a cost
+- Weighting so that losing a checkout costs more than losing a blog visit
+- <code>arraySimilarity</code> normalising the weighted distance into 0..1
+- Sessions ranked by similarity
+- Keeping weight arrays aligned with their value arrays</p>
+<p><strong>Key Learning Points:</strong>
+- Elements are atomic: <code>['home','checkout']</code> versus <code>['home','checkout_v2']</code> is <strong>one</strong> edit, while <code>editDistance</code> on those strings reports three
+- The weighted form takes four arrays — values and weights for each side — and every weight array must match its value array's length, which <code>arrayMap(x -&gt; 1.0, arr)</code> guarantees
+- <code>arraySimilarity</code> returns 1 for identical arrays and 0 when nothing lines up, so it sorts naturally as a ranking score
+- Unweighted distance counts edits; weighted distance counts <em>cost</em>, so the two orderings can disagree — in this lab one substitution is distance 1 but weighted distance 7</p>
+<p><strong>Use Cases:</strong>
+- Clustering user journeys or clickstreams by shape
+- Comparing pipeline or workflow step sequences
+- Fuzzy matching over tokenised text where the token, not the character, is the unit</p>
+<hr />
+<h4>2. <code>sparseGrams</code> (02-sparsegrams)</h4>
+<p><strong>New Features:</strong> <code>sparseGrams</code>, <code>sparseGramsHashes</code> and their <code>UTF8</code> variants produce variable-length grams whose boundaries come from the data. Separately, <code>hasAll()</code> now consults <code>tokenbf_v1</code> and <code>ngrambf_v1</code> skip indices. (<a href="https://github.com/ClickHouse/ClickHouse/pull/78176">#78176</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/77662">#77662</a>)</p>
+<p><strong>Test Content:</strong>
+- The grams produced for a short string, and their varying lengths
+- Fixed <code>ngrams(s, 3)</code> next to <code>sparseGrams</code> on the same input
+- The hashed form, and its determinism
+- Byte versus character behaviour on Korean text
+- Near-duplicate detection: shared gram counts across three documents
+- A Jaccard-style similarity built from gram overlap
+- <code>hasAll()</code> against a <code>tokenbf_v1</code> index on an <code>Array(String)</code> column
+- <code>EXPLAIN indexes = 1</code> for a tag present in every granule versus one confined to a narrow range
+- Identical results with and without the skip index</p>
+<p><strong>Key Learning Points:</strong>
+- Gram lengths vary — this lab's 11-character string yields grams from 3 to 8 characters, 17 of them, against 9 fixed trigrams
+- <code>sparseGramsHashes</code> is the form to store or index: fixed-width integers instead of substrings
+- The plain functions are byte-oriented; on Korean text <code>sparseGrams</code> produced 65 grams where <code>sparseGramsUTF8</code> produced 14, so use the UTF8 variants for non-ASCII
+- Two sentences differing by one word shared 67 grams and scored 0.65 Jaccard, while an unrelated sentence scored 0.005
+- <code>hasAll()</code> consulting the index does not mean it prunes: a tag present in every granule still reads 24/24, while a clustered tag reads 1/24
+- Results are identical with <code>use_skip_indexes = 0</code>, so the index is purely an optimisation</p>
+<p><strong>Use Cases:</strong>
+- Near-duplicate and plagiarism detection over documents
+- Fuzzy joins keyed on gram overlap
+- Tag-containment filters that need to prune rather than scan</p>
+<hr />
+<h4>3. <code>toInterval</code> and Database Comments (03-tointerval-and-db-comments)</h4>
+<p><strong>New Features:</strong> <code>toInterval(value, unit)</code> is the function form of the <code>INTERVAL</code> keyword (<a href="https://github.com/ClickHouse/ClickHouse/pull/78723">#78723</a>), and <code>ALTER DATABASE ... MODIFY COMMENT</code> makes a database comment editable after creation (<a href="https://github.com/ClickHouse/ClickHouse/pull/75622">#75622</a>).</p>
+<p><strong>Test Content:</strong>
+- <code>toInterval</code> for day, hour and minute
+- Date arithmetic with it, including a month step
+- Proof it matches the <code>INTERVAL</code> keyword exactly
+- The amount supplied by a column
+- A retention table with a per-dataset unit, resolved with <code>multiIf</code>
+- Expired-row counts per dataset from that table
+- The full unit vocabulary, second through year
+- <code>CREATE DATABASE ... COMMENT</code>, then <code>ALTER DATABASE ... MODIFY COMMENT</code>
+- Searching <code>system.databases</code> by comment, and clearing one</p>
+<p><strong>Key Learning Points:</strong>
+- The <strong>value</strong> may be any expression, but the <strong>unit must be a constant string</strong> — <code>toInterval(n, unit_column)</code> fails with <code>ILLEGAL_TYPE_OF_ARGUMENT</code>
+- For a genuinely per-row unit, branch with <code>multiIf</code> and give each branch its own constant
+- Branch on the resulting <strong>timestamp</strong>, not on the interval: intervals of different units have no common type and <code>multiIf</code> over them fails with <code>NO_COMMON_TYPE</code>
+- Database comments are queryable metadata in <code>system.databases</code>, so <code>WHERE comment ILIKE ...</code> turns them into a searchable catalogue
+- Setting the comment to <code>''</code> clears it</p>
+<p><strong>Use Cases:</strong>
+- Retention and TTL logic driven by a configuration table
+- Building interval arithmetic in generated SQL
+- Recording ownership or purpose on a database and keeping it current</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./status.sh
+./client.sh 8123
+docker logs clickhouse-25-4
+./stop.sh
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.4/
+├── README.md                             # This document
+├── 00-setup.sh                           # ClickHouse 25.4 installation script
+├── 01-array-distance-functions.sh        # Array distance runner
+├── 01-array-distance-functions.sql       # Array distance SQL
+├── 02-sparsegrams.sh                     # sparseGrams runner
+├── 02-sparsegrams.sql                    # sparseGrams SQL
+├── 03-tointerval-and-db-comments.sh      # toInterval / DB comments runner
+└── 03-tointerval-and-db-comments.sql     # toInterval / DB comments SQL
+</code></pre>
+<h3>🆕 What's New in 25.4</h3>
+<ul>
+<li><strong><code>arrayLevenshteinDistance</code>, <code>arrayLevenshteinDistanceWeighted</code>, <code>arraySimilarity</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77187">#77187</a>)</li>
+<li><strong><code>sparseGrams</code> / <code>sparseGramsHashes</code></strong> and their UTF8 variants (<a href="https://github.com/ClickHouse/ClickHouse/pull/78176">#78176</a>)</li>
+<li><strong><code>hasAll()</code> uses <code>tokenbf_v1</code> and <code>ngrambf_v1</code> indices</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77662">#77662</a>)</li>
+<li><strong><code>toInterval(value, unit)</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/78723">#78723</a>)</li>
+<li><strong><code>ALTER DATABASE ... MODIFY COMMENT</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/75622">#75622</a>)</li>
+<li><strong><code>DeltaLakeS3</code> and <code>DeltaLakeAzure</code> table engines</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/74541">#74541</a>)</li>
+<li><strong>Iceberg time travel</strong> — query a table as of a timestamp (<a href="https://github.com/ClickHouse/ClickHouse/pull/71072">#71072</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/77439">#77439</a>)</li>
+<li><strong><code>IcebergMetadataFilesCache</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77156">#77156</a>)</li>
+<li><strong>CPU slot scheduling for workloads</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77595">#77595</a>)</li>
+<li><strong>In-memory cache for deserialized vector similarity indexes</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77905">#77905</a>)</li>
+<li><strong>Scram SHA256 authentication</strong> for the PostgreSQL wire protocol (<a href="https://github.com/ClickHouse/ClickHouse/pull/76839">#76839</a>)</li>
+<li><strong><code>serialize_query_plan</code></strong> for distributed queries (<a href="https://github.com/ClickHouse/ClickHouse/pull/69652">#69652</a>)</li>
+<li><strong><code>bind_host</code></strong> setting for client connections (<a href="https://github.com/ClickHouse/ClickHouse/pull/74741">#74741</a>)</li>
+<li><strong>Default compression codec</strong> as a MergeTree setting (<a href="https://github.com/ClickHouse/ClickHouse/pull/66394">#66394</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 25.4</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.4.13.22</li>
+<li>Each script can be executed independently</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out for inspection</li>
+<li><code>03</code> creates two databases (<code>documented</code>, <code>analytics_marts</code>); the cleanup block at the end of the file drops them</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.4 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 4월 30일 출시된 ClickHouse 25.4에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.4는 "비교"에 관한 릴리스입니다. Levenshtein 거리가 문자에서 배열 원소 단위로 올라가면서 두 사용자 여정을 단계별로 비교할 수 있게 됐습니다. <code>sparseGrams</code>는 고정 <code>n</code> 대신 데이터에서 gram 경계를 도출해, 길이가 다른 문자열 간 near-duplicate 탐지가 잘 동작합니다. 그리고 <code>hasAll()</code>이 토큰 스킵 인덱스를 사용하게 되어 배열 포함 조건도 프루닝할 수 있습니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>배열 거리·유사도</strong> — <code>arrayLevenshteinDistance</code>, <code>arrayLevenshteinDistanceWeighted</code>, <code>arraySimilarity</code></li>
+<li><strong><code>sparseGrams</code></strong> — 데이터 기반 n-gram, 그리고 토큰 인덱스를 쓰는 <code>hasAll()</code></li>
+<li><strong><code>toInterval</code>과 수정 가능한 데이터베이스 코멘트</strong></li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd local/releases/25.4
+./00-setup.sh
+
+./01-array-distance-functions.sh
+./02-sparsegrams.sh
+./03-tointerval-and-db-comments.sh
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. 배열 거리·유사도</h4>
+<p><code>arrayLevenshteinDistance(lhs, rhs)</code>, <code>arrayLevenshteinDistanceWeighted(lhs, rhs, lhs_weights, rhs_weights)</code>, <code>arraySimilarity(...)</code>은 편집 단위가 문자가 아닌 <strong>배열 원소</strong>인 편집 거리를 계산합니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/77187">#77187</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 치환·삽입·전체 삭제
+- 같은 쌍에 대한 <code>editDistance</code>와 대비해 원소 단위임을 확인
+- 5개 세션 경로를 기준 해피패스와 비교
+- 전체 세션 쌍의 거리 분포
+- 원소마다 비용을 부여하는 가중 형태
+- 체크아웃 이탈이 블로그 방문 이탈보다 비싸도록 가중치 설정
+- 가중 거리를 0~1로 정규화하는 <code>arraySimilarity</code>
+- 유사도 기준 세션 순위
+- 가중치 배열과 값 배열의 길이 정합</p>
+<p><strong>핵심 학습 포인트:</strong>
+- 원소는 원자적입니다. <code>['home','checkout']</code> vs <code>['home','checkout_v2']</code>는 편집 <strong>1회</strong>지만, 같은 문자열에 대한 <code>editDistance</code>는 3을 보고합니다
+- 가중 형태는 배열 4개(양쪽의 값과 가중치)를 받으며, 가중치 배열 길이가 값 배열과 같아야 합니다 — <code>arrayMap(x -&gt; 1.0, arr)</code>로 보장할 수 있습니다
+- <code>arraySimilarity</code>는 동일하면 1, 공통이 없으면 0을 반환해 랭킹 점수로 바로 정렬됩니다
+- 비가중 거리는 편집 <strong>횟수</strong>를, 가중 거리는 <strong>비용</strong>을 셉니다. 이 랩에서 치환 1회는 거리 1이지만 가중 거리는 7입니다</p>
+<h4>2. <code>sparseGrams</code></h4>
+<p><code>sparseGrams</code>, <code>sparseGramsHashes</code>와 <code>UTF8</code> 변형은 데이터에서 경계를 도출한 가변 길이 gram을 생성합니다. 별도로 <code>hasAll()</code>이 <code>tokenbf_v1</code>·<code>ngrambf_v1</code> 스킵 인덱스를 참조하게 됐습니다. (<a href="https://github.com/ClickHouse/ClickHouse/pull/78176">#78176</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/77662">#77662</a>)</p>
+<p><strong>테스트 내용:</strong>
+- 짧은 문자열의 gram과 그 길이 분포
+- 같은 입력에 대한 고정 <code>ngrams(s, 3)</code>와의 비교
+- 해시 형태와 결정성 확인
+- 한국어 텍스트에서 바이트 vs 문자 동작
+- 문서 3개의 공통 gram 수로 near-duplicate 탐지
+- gram 중첩 기반 Jaccard 유사도
+- <code>Array(String)</code> 컬럼의 <code>tokenbf_v1</code> 인덱스에 대한 <code>hasAll()</code>
+- 모든 granule에 있는 태그 vs 좁은 구간에 몰린 태그의 <code>EXPLAIN indexes = 1</code>
+- 스킵 인덱스 유무에 관계없이 동일한 결과</p>
+<p><strong>핵심 학습 포인트:</strong>
+- gram 길이가 다양합니다. 이 랩의 11자 문자열은 3~8자 gram 17개를 만드는 반면 고정 trigram은 9개입니다
+- 저장·인덱싱에는 <code>sparseGramsHashes</code>가 적합합니다 — 부분 문자열 대신 고정 폭 정수입니다
+- 기본 함수는 바이트 기준입니다. 한국어에서 <code>sparseGrams</code>는 65개, <code>sparseGramsUTF8</code>는 14개를 만들었으니 비ASCII에는 UTF8 변형을 쓰세요
+- 한 단어만 다른 두 문장은 공통 gram 67개, Jaccard 0.65였고 무관한 문장은 0.005였습니다
+- <code>hasAll()</code>이 인덱스를 참조한다고 프루닝되는 건 아닙니다. 모든 granule에 있는 태그는 24/24를 읽고, 군집형 태그는 1/24를 읽습니다
+- <code>use_skip_indexes = 0</code>과 결과가 같으므로 인덱스는 순수한 최적화입니다</p>
+<h4>3. <code>toInterval</code>과 데이터베이스 코멘트</h4>
+<p><code>toInterval(value, unit)</code>은 <code>INTERVAL</code> 키워드의 함수 형태이고 (<a href="https://github.com/ClickHouse/ClickHouse/pull/78723">#78723</a>), <code>ALTER DATABASE ... MODIFY COMMENT</code>로 생성 이후에도 코멘트를 수정할 수 있습니다 (<a href="https://github.com/ClickHouse/ClickHouse/pull/75622">#75622</a>).</p>
+<p><strong>테스트 내용:</strong>
+- day·hour·minute에 대한 <code>toInterval</code>
+- month 단위를 포함한 날짜 연산
+- <code>INTERVAL</code> 키워드와 결과가 정확히 같음을 확인
+- 컬럼에서 공급되는 수량
+- 데이터셋별 단위를 가진 보존 정책 테이블을 <code>multiIf</code>로 해석
+- 그 테이블 기준 데이터셋별 만료 행 수
+- second~year 전체 단위 어휘
+- <code>CREATE DATABASE ... COMMENT</code> 이후 <code>ALTER DATABASE ... MODIFY COMMENT</code>
+- 코멘트로 <code>system.databases</code> 검색 및 코멘트 삭제</p>
+<p><strong>핵심 학습 포인트:</strong>
+- <strong>값</strong>은 임의의 식이 가능하지만 <strong>단위는 상수 문자열</strong>이어야 합니다 — <code>toInterval(n, unit_컬럼)</code>은 <code>ILLEGAL_TYPE_OF_ARGUMENT</code>로 실패합니다
+- 행마다 단위가 다르면 <code>multiIf</code>로 분기하고 각 분기에 자체 상수를 주세요
+- 인터벌이 아니라 <strong>결과 시각</strong>으로 분기해야 합니다. 단위가 다른 인터벌은 공통 타입이 없어 <code>multiIf</code>가 <code>NO_COMMON_TYPE</code>으로 실패합니다
+- 데이터베이스 코멘트는 <code>system.databases</code>의 조회 가능한 메타데이터라 <code>WHERE comment ILIKE ...</code>로 검색 가능한 카탈로그가 됩니다
+- 코멘트를 <code>''</code>로 설정하면 삭제됩니다</p>
+<h3>🆕 25.4의 새로운 기능</h3>
+<ul>
+<li><strong><code>arrayLevenshteinDistance</code>, <code>arrayLevenshteinDistanceWeighted</code>, <code>arraySimilarity</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77187">#77187</a>)</li>
+<li><strong><code>sparseGrams</code> / <code>sparseGramsHashes</code></strong>와 UTF8 변형 (<a href="https://github.com/ClickHouse/ClickHouse/pull/78176">#78176</a>)</li>
+<li><strong><code>hasAll()</code>이 <code>tokenbf_v1</code>·<code>ngrambf_v1</code> 인덱스 활용</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77662">#77662</a>)</li>
+<li><strong><code>toInterval(value, unit)</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/78723">#78723</a>)</li>
+<li><strong><code>ALTER DATABASE ... MODIFY COMMENT</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/75622">#75622</a>)</li>
+<li><strong><code>DeltaLakeS3</code>·<code>DeltaLakeAzure</code> 테이블 엔진</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/74541">#74541</a>)</li>
+<li><strong>Iceberg 타임 트래블</strong> — 특정 시점 기준 조회 (<a href="https://github.com/ClickHouse/ClickHouse/pull/71072">#71072</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/77439">#77439</a>)</li>
+<li><strong><code>IcebergMetadataFilesCache</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77156">#77156</a>)</li>
+<li><strong>워크로드 CPU 슬롯 스케줄링</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77595">#77595</a>)</li>
+<li><strong>역직렬화된 벡터 유사도 인덱스의 인메모리 캐시</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/77905">#77905</a>)</li>
+<li><strong>PostgreSQL 와이어 프로토콜의 Scram SHA256 인증</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/76839">#76839</a>)</li>
+<li><strong>분산 쿼리용 <code>serialize_query_plan</code></strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/69652">#69652</a>)</li>
+<li><strong>클라이언트 연결의 <code>bind_host</code> 설정</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/74741">#74741</a>)</li>
+<li><strong>MergeTree 설정으로서의 기본 압축 코덱</strong> (<a href="https://github.com/ClickHouse/ClickHouse/pull/66394">#66394</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">ClickHouse 25.4</a></li>
+<li><strong>ClickHouse 공식 문서</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>모든 기능은 ClickHouse 25.4.13.22에서 검증</li>
+<li>각 스크립트는 독립적으로 실행 가능</li>
+<li>테스트 데이터는 각 SQL 파일 안에서 생성</li>
+<li>정리(cleanup) 구문은 확인을 위해 주석 처리</li>
+<li><code>03</code>은 데이터베이스 2개(<code>documented</code>, <code>analytics_marts</code>)를 만듭니다 — 파일 끝의 정리 블록에서 삭제합니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.4"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

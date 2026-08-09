@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terraform MinIO on AWS · ClickHouse HOLs</title>
+<meta name="description" content="Terraform MinIO on AWS — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/lake/terraform-minio-on-aws</code>
+    
+  </nav>
+  <div class="readme en"><h1>Terraform MinIO on AWS</h1>
+<p>Terraform scripts to deploy a single-node MinIO server on AWS EC2.</p>
+<h2>Prerequisites</h2>
+<ol>
+<li>Terraform installed (&gt;= 1.0)</li>
+<li>AWS account and credentials configured</li>
+<li>AWS EC2 Key Pair created</li>
+</ol>
+<h2>Features</h2>
+<ul>
+<li><strong>Ubuntu 22.04 LTS</strong>: Uses Ubuntu Server following MinIO's official documentation</li>
+<li><strong>Configurable Instance Type</strong>: Default <code>c5.xlarge</code>, customizable</li>
+<li><strong>EBS Volume Size</strong>: Default <code>250GB</code>, customizable</li>
+<li><strong>AWS Authentication</strong>: Uses standard AWS environment variables</li>
+<li><strong>Security Group</strong>: Automatically configures MinIO API (9000), Console (9001), and SSH (22) ports</li>
+<li><strong>Elastic IP</strong>: Optional stable public IP allocation</li>
+<li><strong>Automated Installation</strong>: MinIO automatically installed and configured via user-data script</li>
+<li><strong>Automated Deployment Scripts</strong>: Quick deployment and cleanup with shell scripts</li>
+</ul>
+<h2>Quick Start (Automated)</h2>
+<p>The easiest way to deploy is using the provided deployment script:</p>
+<pre><code class="language-bash"># 1. Configure AWS credentials
+export AWS_ACCESS_KEY_ID=&quot;your-access-key&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_REGION=&quot;us-east-1&quot;  # Optional
+
+# Or use AWS CLI
+aws configure
+
+# 2. Run deployment script
+./deploy.sh
+</code></pre>
+<p>The script will:
+- Check prerequisites (Terraform, AWS credentials)
+- Create terraform.tfvars if needed
+- Initialize Terraform
+- Show execution plan
+- Deploy all resources
+- Display MinIO access information</p>
+<h3>Cleanup</h3>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">./destroy.sh
+</code></pre>
+<h2>Manual Deployment Instructions</h2>
+<h3>1. Configure AWS Credentials and Region</h3>
+<p>Set up AWS credentials and region using environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # Optional, for temporary credentials
+export AWS_REGION=&quot;us-west-2&quot;  # Optional, defaults to us-east-1 if not set
+
+# Or use AWS CLI configuration (recommended)
+aws configure
+</code></pre>
+<p>The AWS region will be determined in this order:
+1. <code>aws_region</code> variable in terraform.tfvars (if set)
+2. <code>AWS_REGION</code> or <code>AWS_DEFAULT_REGION</code> environment variable
+3. Falls back to <code>us-east-1</code> if none of the above are set</p>
+<h3>2. Create terraform.tfvars File</h3>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<h3>3. Edit terraform.tfvars File</h3>
+<pre><code class="language-hcl"># AWS Configuration
+# Optional: Region can be set via AWS_REGION environment variable
+# aws_region = &quot;us-west-2&quot;
+
+# EC2 Configuration
+instance_name   = &quot;minio-server&quot;
+instance_type   = &quot;c5.xlarge&quot;      # Change to desired instance type
+ebs_volume_size = 250               # Change to desired EBS size (GB)
+key_pair_name   = &quot;YOUR_KEY_PAIR_NAME&quot;
+
+# Network Configuration
+allowed_cidr_blocks = [&quot;0.0.0.0/0&quot;]  # Allows access from any IP (public endpoint)
+use_elastic_ip      = false  # Set to true for production to get stable IP
+
+# MinIO Configuration
+minio_root_user     = &quot;admin&quot;
+minio_root_password = &quot;minioadmin&quot;  # Must be at least 8 characters
+minio_data_dir      = &quot;/mnt/data&quot;
+</code></pre>
+<h3>4. Initialize Terraform</h3>
+<pre><code class="language-bash">terraform init
+</code></pre>
+<h3>5. Review Execution Plan</h3>
+<pre><code class="language-bash">terraform plan
+</code></pre>
+<h3>6. Deploy</h3>
+<pre><code class="language-bash">terraform apply
+</code></pre>
+<p>After deployment completes, the following information will be displayed:
+- MinIO Console URL
+- MinIO API Endpoint
+- SSH connection command
+- Public/Private IP addresses</p>
+<h3>7. Access MinIO</h3>
+<p>Access the MinIO web console using the <code>minio_console_url</code> from the output:
+- URL: <code>http://&lt;PUBLIC_IP&gt;:9001</code>
+- Username: Value set in <code>minio_root_user</code> in terraform.tfvars
+- Password: Value set in <code>minio_root_password</code> in terraform.tfvars</p>
+<h2>Configurable Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>Uses <code>AWS_REGION</code> env var, or <code>us-east-1</code></td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>EC2 instance name tag</td>
+<td><code>minio-server</code></td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td><code>c5.xlarge</code></td>
+</tr>
+<tr>
+<td><code>ebs_volume_size</code></td>
+<td>EBS volume size in GB</td>
+<td><code>250</code></td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>EC2 key pair name</td>
+<td>- (required)</td>
+</tr>
+<tr>
+<td><code>allowed_cidr_blocks</code></td>
+<td>CIDR blocks allowed to access</td>
+<td><code>["0.0.0.0/0"]</code> (public)</td>
+</tr>
+<tr>
+<td><code>minio_root_user</code></td>
+<td>MinIO root username (min 3 chars)</td>
+<td><code>admin</code></td>
+</tr>
+<tr>
+<td><code>minio_root_password</code></td>
+<td>MinIO root password (min 8 chars)</td>
+<td><code>minioadmin</code></td>
+</tr>
+<tr>
+<td><code>minio_data_dir</code></td>
+<td>MinIO data directory path</td>
+<td><code>/mnt/data</code></td>
+</tr>
+<tr>
+<td><code>use_elastic_ip</code></td>
+<td>Enable Elastic IP allocation</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Recommended Instance Types</h2>
+<p>Recommended instance types based on MinIO usage:</p>
+<ul>
+<li><strong>Development/Testing</strong>: <code>t3.medium</code>, <code>t3.large</code></li>
+<li><strong>Small Production</strong>: <code>c5.xlarge</code> (default), <code>c5.2xlarge</code></li>
+<li><strong>Medium Production</strong>: <code>c5.4xlarge</code>, <code>c5.9xlarge</code></li>
+<li><strong>Large Production</strong>: <code>c5.12xlarge</code>, <code>c5.18xlarge</code> or memory-optimized <code>r5</code> series</li>
+</ul>
+<h2>Deployment Scripts</h2>
+<h3>deploy.sh</h3>
+<p>Automated deployment script that handles the entire deployment process:</p>
+<p><strong>Features:</strong>
+- Validates prerequisites (Terraform, AWS credentials)
+- Creates terraform.tfvars from template if needed
+- Runs terraform init, plan, and apply
+- Shows deployment information after completion
+- Provides MinIO access URLs and credentials</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p><strong>What it checks:</strong>
+- Terraform installation
+- AWS CLI installation (optional)
+- AWS credentials (environment variables or AWS CLI config)
+- AWS region configuration
+- Existing terraform.tfvars file
+- EC2 key pair configuration</p>
+<h3>destroy.sh</h3>
+<p>Automated cleanup script to remove all deployed resources:</p>
+<p><strong>Features:</strong>
+- Shows current deployment information
+- Confirms destruction with double-check
+- Removes all AWS resources (EC2, Security Group, Elastic IP)
+- Optional cleanup of local Terraform files</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-bash">./destroy.sh
+</code></pre>
+<p><strong>Safety features:</strong>
+- Requires explicit "yes" confirmation
+- Requires typing "destroy" as second confirmation
+- Shows what will be destroyed before proceeding</p>
+<h2>View Outputs</h2>
+<pre><code class="language-bash"># View all outputs
+terraform output
+
+# View specific output
+terraform output minio_console_url
+
+# View sensitive information (passwords, etc.)
+terraform output -json minio_credentials
+</code></pre>
+<h2>SSH Access</h2>
+<pre><code class="language-bash"># SSH to Ubuntu instance (default user is 'ubuntu')
+ssh -i /path/to/your-key.pem ubuntu@&lt;PUBLIC_IP&gt;
+
+# Check MinIO status
+sudo systemctl status minio
+
+# View MinIO logs
+sudo journalctl -u minio -f
+
+# Check installation logs
+sudo cat /var/log/minio-setup.log
+</code></pre>
+<h2>Destroy Resources</h2>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<h2>Security Recommendations</h2>
+<ol>
+<li>
+<p><strong>terraform.tfvars Security</strong>:
+   - Add <code>terraform.tfvars</code> to <code>.gitignore</code>
+   - Use AWS environment variables instead of hardcoding credentials</p>
+</li>
+<li>
+<p><strong>Network Security</strong>:
+   - Restrict <code>allowed_cidr_blocks</code> to your IP address
+   - Use VPN or Bastion host for production environments</p>
+</li>
+<li>
+<p><strong>MinIO Credentials</strong>:
+   - Username must be at least 3 characters
+   - Password must be at least 8 characters (MinIO requirement)
+   - Use strong passwords for production
+   - Rotate passwords regularly</p>
+</li>
+<li>
+<p><strong>HTTPS Configuration</strong>:
+   - Apply SSL/TLS certificates for production environments
+   - Consider using Let's Encrypt or AWS Certificate Manager</p>
+</li>
+</ol>
+<h2>Troubleshooting</h2>
+<h3>Check Installation Logs</h3>
+<p>The installation script creates detailed logs that can help diagnose issues:</p>
+<pre><code class="language-bash"># View the complete installation log
+sudo cat /var/log/minio-setup.log
+
+# Check if installation completed successfully
+sudo cat /var/log/minio-installation-complete
+
+# View cloud-init output logs
+sudo cat /var/log/cloud-init-output.log
+
+# View real-time MinIO service logs
+sudo journalctl -u minio -f
+</code></pre>
+<h3>MinIO Service Not Starting</h3>
+<pre><code class="language-bash"># SSH into the instance (Ubuntu default user)
+ssh -i /path/to/your-key.pem ubuntu@&lt;PUBLIC_IP&gt;
+
+# Check MinIO service status
+sudo systemctl status minio
+
+# Check recent MinIO logs
+sudo journalctl -u minio -n 50
+
+# Verify MinIO configuration
+sudo cat /etc/default/minio
+
+# Check if MinIO binary is present
+ls -la /usr/local/bin/minio
+
+# Test MinIO binary
+sudo -u minio-user /usr/local/bin/minio --version
+</code></pre>
+<h3>Installation Script Features</h3>
+<p>The enhanced user-data script includes:
+- <strong>Ubuntu 22.04 LTS</strong>: Uses Ubuntu Server with apt package manager
+- <strong>Comprehensive Logging</strong>: All output is logged to <code>/var/log/minio-setup.log</code>
+- <strong>Step-by-Step Progress</strong>: Shows progress through 10 installation steps
+- <strong>Error Handling</strong>: Exits immediately on errors with detailed error messages
+- <strong>Package Verification</strong>: Verifies all required commands are available
+- <strong>Health Checks</strong>: Waits up to 60 seconds for MinIO to become healthy
+- <strong>Installation Summary</strong>: Creates detailed completion report in <code>/var/log/minio-installation-complete</code></p>
+<h3>Verify Firewall Configuration</h3>
+<p>Check that required ports (9000, 9001, 22) are open in the Security Group settings</p>
+<h3>Manual MinIO Restart</h3>
+<p>If MinIO needs to be restarted:</p>
+<pre><code class="language-bash">sudo systemctl restart minio
+sudo systemctl status minio
+</code></pre>
+<h2>AWS Authentication Methods</h2>
+<p>This configuration supports multiple AWS authentication methods:</p>
+<ol>
+<li><strong>Environment Variables</strong> (Recommended):</li>
+</ol>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # Optional, for temporary credentials
+export AWS_REGION=&quot;us-west-2&quot;  # Optional, defaults to us-east-1
+</code></pre>
+<ol start="2">
+<li><strong>AWS CLI Configuration</strong>:</li>
+</ol>
+<pre><code class="language-bash">aws configure
+</code></pre>
+<ol start="3">
+<li>
+<p><strong>IAM Role</strong> (for EC2/ECS deployments):
+   - No explicit credentials needed
+   - Automatically uses attached IAM role</p>
+</li>
+<li>
+<p><strong>AWS SSO</strong>:</p>
+</li>
+</ol>
+<pre><code class="language-bash">aws sso login
+</code></pre>
+<p>The Terraform AWS provider will automatically detect and use credentials from these sources.</p>
+<h2>License</h2>
+<p>MIT License</p></div>
+  <div class="readme ko"><h1>Terraform MinIO on AWS</h1>
+<p>Terraform scripts to deploy a single-node MinIO server on AWS EC2.</p>
+<h2>Prerequisites</h2>
+<ol>
+<li>Terraform installed (&gt;= 1.0)</li>
+<li>AWS account and credentials configured</li>
+<li>AWS EC2 Key Pair created</li>
+</ol>
+<h2>Features</h2>
+<ul>
+<li><strong>Ubuntu 22.04 LTS</strong>: Uses Ubuntu Server following MinIO's official documentation</li>
+<li><strong>Configurable Instance Type</strong>: Default <code>c5.xlarge</code>, customizable</li>
+<li><strong>EBS Volume Size</strong>: Default <code>250GB</code>, customizable</li>
+<li><strong>AWS Authentication</strong>: Uses standard AWS environment variables</li>
+<li><strong>Security Group</strong>: Automatically configures MinIO API (9000), Console (9001), and SSH (22) ports</li>
+<li><strong>Elastic IP</strong>: Optional stable public IP allocation</li>
+<li><strong>Automated Installation</strong>: MinIO automatically installed and configured via user-data script</li>
+<li><strong>Automated Deployment Scripts</strong>: Quick deployment and cleanup with shell scripts</li>
+</ul>
+<h2>Quick Start (Automated)</h2>
+<p>The easiest way to deploy is using the provided deployment script:</p>
+<pre><code class="language-bash"># 1. Configure AWS credentials
+export AWS_ACCESS_KEY_ID=&quot;your-access-key&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_REGION=&quot;us-east-1&quot;  # Optional
+
+# Or use AWS CLI
+aws configure
+
+# 2. Run deployment script
+./deploy.sh
+</code></pre>
+<p>The script will:
+- Check prerequisites (Terraform, AWS credentials)
+- Create terraform.tfvars if needed
+- Initialize Terraform
+- Show execution plan
+- Deploy all resources
+- Display MinIO access information</p>
+<h3>Cleanup</h3>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">./destroy.sh
+</code></pre>
+<h2>Manual Deployment Instructions</h2>
+<h3>1. Configure AWS Credentials and Region</h3>
+<p>Set up AWS credentials and region using environment variables:</p>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # Optional, for temporary credentials
+export AWS_REGION=&quot;us-west-2&quot;  # Optional, defaults to us-east-1 if not set
+
+# Or use AWS CLI configuration (recommended)
+aws configure
+</code></pre>
+<p>The AWS region will be determined in this order:
+1. <code>aws_region</code> variable in terraform.tfvars (if set)
+2. <code>AWS_REGION</code> or <code>AWS_DEFAULT_REGION</code> environment variable
+3. Falls back to <code>us-east-1</code> if none of the above are set</p>
+<h3>2. Create terraform.tfvars File</h3>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<h3>3. Edit terraform.tfvars File</h3>
+<pre><code class="language-hcl"># AWS Configuration
+# Optional: Region can be set via AWS_REGION environment variable
+# aws_region = &quot;us-west-2&quot;
+
+# EC2 Configuration
+instance_name   = &quot;minio-server&quot;
+instance_type   = &quot;c5.xlarge&quot;      # Change to desired instance type
+ebs_volume_size = 250               # Change to desired EBS size (GB)
+key_pair_name   = &quot;YOUR_KEY_PAIR_NAME&quot;
+
+# Network Configuration
+allowed_cidr_blocks = [&quot;0.0.0.0/0&quot;]  # Allows access from any IP (public endpoint)
+use_elastic_ip      = false  # Set to true for production to get stable IP
+
+# MinIO Configuration
+minio_root_user     = &quot;admin&quot;
+minio_root_password = &quot;minioadmin&quot;  # Must be at least 8 characters
+minio_data_dir      = &quot;/mnt/data&quot;
+</code></pre>
+<h3>4. Initialize Terraform</h3>
+<pre><code class="language-bash">terraform init
+</code></pre>
+<h3>5. Review Execution Plan</h3>
+<pre><code class="language-bash">terraform plan
+</code></pre>
+<h3>6. Deploy</h3>
+<pre><code class="language-bash">terraform apply
+</code></pre>
+<p>After deployment completes, the following information will be displayed:
+- MinIO Console URL
+- MinIO API Endpoint
+- SSH connection command
+- Public/Private IP addresses</p>
+<h3>7. Access MinIO</h3>
+<p>Access the MinIO web console using the <code>minio_console_url</code> from the output:
+- URL: <code>http://&lt;PUBLIC_IP&gt;:9001</code>
+- Username: Value set in <code>minio_root_user</code> in terraform.tfvars
+- Password: Value set in <code>minio_root_password</code> in terraform.tfvars</p>
+<h2>Configurable Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>Uses <code>AWS_REGION</code> env var, or <code>us-east-1</code></td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>EC2 instance name tag</td>
+<td><code>minio-server</code></td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td><code>c5.xlarge</code></td>
+</tr>
+<tr>
+<td><code>ebs_volume_size</code></td>
+<td>EBS volume size in GB</td>
+<td><code>250</code></td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>EC2 key pair name</td>
+<td>- (required)</td>
+</tr>
+<tr>
+<td><code>allowed_cidr_blocks</code></td>
+<td>CIDR blocks allowed to access</td>
+<td><code>["0.0.0.0/0"]</code> (public)</td>
+</tr>
+<tr>
+<td><code>minio_root_user</code></td>
+<td>MinIO root username (min 3 chars)</td>
+<td><code>admin</code></td>
+</tr>
+<tr>
+<td><code>minio_root_password</code></td>
+<td>MinIO root password (min 8 chars)</td>
+<td><code>minioadmin</code></td>
+</tr>
+<tr>
+<td><code>minio_data_dir</code></td>
+<td>MinIO data directory path</td>
+<td><code>/mnt/data</code></td>
+</tr>
+<tr>
+<td><code>use_elastic_ip</code></td>
+<td>Enable Elastic IP allocation</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Recommended Instance Types</h2>
+<p>Recommended instance types based on MinIO usage:</p>
+<ul>
+<li><strong>Development/Testing</strong>: <code>t3.medium</code>, <code>t3.large</code></li>
+<li><strong>Small Production</strong>: <code>c5.xlarge</code> (default), <code>c5.2xlarge</code></li>
+<li><strong>Medium Production</strong>: <code>c5.4xlarge</code>, <code>c5.9xlarge</code></li>
+<li><strong>Large Production</strong>: <code>c5.12xlarge</code>, <code>c5.18xlarge</code> or memory-optimized <code>r5</code> series</li>
+</ul>
+<h2>Deployment Scripts</h2>
+<h3>deploy.sh</h3>
+<p>Automated deployment script that handles the entire deployment process:</p>
+<p><strong>Features:</strong>
+- Validates prerequisites (Terraform, AWS credentials)
+- Creates terraform.tfvars from template if needed
+- Runs terraform init, plan, and apply
+- Shows deployment information after completion
+- Provides MinIO access URLs and credentials</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-bash">./deploy.sh
+</code></pre>
+<p><strong>What it checks:</strong>
+- Terraform installation
+- AWS CLI installation (optional)
+- AWS credentials (environment variables or AWS CLI config)
+- AWS region configuration
+- Existing terraform.tfvars file
+- EC2 key pair configuration</p>
+<h3>destroy.sh</h3>
+<p>Automated cleanup script to remove all deployed resources:</p>
+<p><strong>Features:</strong>
+- Shows current deployment information
+- Confirms destruction with double-check
+- Removes all AWS resources (EC2, Security Group, Elastic IP)
+- Optional cleanup of local Terraform files</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-bash">./destroy.sh
+</code></pre>
+<p><strong>Safety features:</strong>
+- Requires explicit "yes" confirmation
+- Requires typing "destroy" as second confirmation
+- Shows what will be destroyed before proceeding</p>
+<h2>View Outputs</h2>
+<pre><code class="language-bash"># View all outputs
+terraform output
+
+# View specific output
+terraform output minio_console_url
+
+# View sensitive information (passwords, etc.)
+terraform output -json minio_credentials
+</code></pre>
+<h2>SSH Access</h2>
+<pre><code class="language-bash"># SSH to Ubuntu instance (default user is 'ubuntu')
+ssh -i /path/to/your-key.pem ubuntu@&lt;PUBLIC_IP&gt;
+
+# Check MinIO status
+sudo systemctl status minio
+
+# View MinIO logs
+sudo journalctl -u minio -f
+
+# Check installation logs
+sudo cat /var/log/minio-setup.log
+</code></pre>
+<h2>Destroy Resources</h2>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<h2>Security Recommendations</h2>
+<ol>
+<li>
+<p><strong>terraform.tfvars Security</strong>:
+   - Add <code>terraform.tfvars</code> to <code>.gitignore</code>
+   - Use AWS environment variables instead of hardcoding credentials</p>
+</li>
+<li>
+<p><strong>Network Security</strong>:
+   - Restrict <code>allowed_cidr_blocks</code> to your IP address
+   - Use VPN or Bastion host for production environments</p>
+</li>
+<li>
+<p><strong>MinIO Credentials</strong>:
+   - Username must be at least 3 characters
+   - Password must be at least 8 characters (MinIO requirement)
+   - Use strong passwords for production
+   - Rotate passwords regularly</p>
+</li>
+<li>
+<p><strong>HTTPS Configuration</strong>:
+   - Apply SSL/TLS certificates for production environments
+   - Consider using Let's Encrypt or AWS Certificate Manager</p>
+</li>
+</ol>
+<h2>Troubleshooting</h2>
+<h3>Check Installation Logs</h3>
+<p>The installation script creates detailed logs that can help diagnose issues:</p>
+<pre><code class="language-bash"># View the complete installation log
+sudo cat /var/log/minio-setup.log
+
+# Check if installation completed successfully
+sudo cat /var/log/minio-installation-complete
+
+# View cloud-init output logs
+sudo cat /var/log/cloud-init-output.log
+
+# View real-time MinIO service logs
+sudo journalctl -u minio -f
+</code></pre>
+<h3>MinIO Service Not Starting</h3>
+<pre><code class="language-bash"># SSH into the instance (Ubuntu default user)
+ssh -i /path/to/your-key.pem ubuntu@&lt;PUBLIC_IP&gt;
+
+# Check MinIO service status
+sudo systemctl status minio
+
+# Check recent MinIO logs
+sudo journalctl -u minio -n 50
+
+# Verify MinIO configuration
+sudo cat /etc/default/minio
+
+# Check if MinIO binary is present
+ls -la /usr/local/bin/minio
+
+# Test MinIO binary
+sudo -u minio-user /usr/local/bin/minio --version
+</code></pre>
+<h3>Installation Script Features</h3>
+<p>The enhanced user-data script includes:
+- <strong>Ubuntu 22.04 LTS</strong>: Uses Ubuntu Server with apt package manager
+- <strong>Comprehensive Logging</strong>: All output is logged to <code>/var/log/minio-setup.log</code>
+- <strong>Step-by-Step Progress</strong>: Shows progress through 10 installation steps
+- <strong>Error Handling</strong>: Exits immediately on errors with detailed error messages
+- <strong>Package Verification</strong>: Verifies all required commands are available
+- <strong>Health Checks</strong>: Waits up to 60 seconds for MinIO to become healthy
+- <strong>Installation Summary</strong>: Creates detailed completion report in <code>/var/log/minio-installation-complete</code></p>
+<h3>Verify Firewall Configuration</h3>
+<p>Check that required ports (9000, 9001, 22) are open in the Security Group settings</p>
+<h3>Manual MinIO Restart</h3>
+<p>If MinIO needs to be restarted:</p>
+<pre><code class="language-bash">sudo systemctl restart minio
+sudo systemctl status minio
+</code></pre>
+<h2>AWS Authentication Methods</h2>
+<p>This configuration supports multiple AWS authentication methods:</p>
+<ol>
+<li><strong>Environment Variables</strong> (Recommended):</li>
+</ol>
+<pre><code class="language-bash">export AWS_ACCESS_KEY_ID=&quot;your-access-key&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-key&quot;
+export AWS_SESSION_TOKEN=&quot;your-session-token&quot;  # Optional, for temporary credentials
+export AWS_REGION=&quot;us-west-2&quot;  # Optional, defaults to us-east-1
+</code></pre>
+<ol start="2">
+<li><strong>AWS CLI Configuration</strong>:</li>
+</ol>
+<pre><code class="language-bash">aws configure
+</code></pre>
+<ol start="3">
+<li>
+<p><strong>IAM Role</strong> (for EC2/ECS deployments):
+   - No explicit credentials needed
+   - Automatically uses attached IAM role</p>
+</li>
+<li>
+<p><strong>AWS SSO</strong>:</p>
+</li>
+</ol>
+<pre><code class="language-bash">aws sso login
+</code></pre>
+<p>The Terraform AWS provider will automatically detect and use credentials from these sources.</p>
+<h2>License</h2>
+<p>MIT License</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/lake/terraform-minio-on-aws"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

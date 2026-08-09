@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.12 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.12 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.12</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.12.11.4</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.12 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.12 new features. This directory focuses on verified and working features newly added in ClickHouse 25.12 (released 2025-12-18, the "Christmas Release" of 2025).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.12 includes significant enhancements in security, machine learning, query optimization, and data lake integration. This release features 26 new features, 31 performance optimizations, and 129 bug fixes.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>HMAC Function</strong> - Hash-based Message Authentication Code for API security</li>
+<li><strong>Naive Bayes Classifier</strong> - Built-in machine learning for classification tasks</li>
+<li><strong>JOIN Order Optimization (DPSize)</strong> - Advanced algorithm for optimal query performance</li>
+<li><strong>Delta Lake Change Data Feed</strong> - CDC support for data lakes (requires additional setup)</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 25.12
+cd local/releases/25.12
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-hmac-function.sh
+./02-naive-bayes-classifier.sh
+./03-join-optimization.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../local/releases/25.12
+source 01-hmac-function.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. HMAC Function (01-hmac-function)</h4>
+<p><strong>New Feature:</strong> HMAC (Hash-based Message Authentication Code) function for secure message authentication</p>
+<p><strong>Test Content:</strong>
+- Basic HMAC with SHA-256, SHA-1, SHA-512
+- Webhook signature generation and validation
+- API request authentication
+- Session token generation (JWT-like)
+- Data integrity verification
+- Replay attack prevention patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-hmac-function.sh
+# Or
+cat 01-hmac-function.sql | docker exec -i clickhouse-25-12 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>HMAC(message, key, 'sha256')</code> generates authentication codes
+- Used extensively in webhook validation (GitHub, Stripe, etc.)
+- Essential for API security and authentication
+- Prevents tampering and replay attacks
+- Supports multiple hash algorithms (sha1, sha256, sha512)</p>
+<p><strong>Use Cases:</strong>
+- Webhook signature validation
+- API authentication and authorization
+- Session token generation
+- Data integrity verification
+- Secure inter-service communication
+- OAuth and OpenID implementations
+- Audit trail protection</p>
+<hr />
+<h4>2. Naive Bayes Classifier (02-naive-bayes-classifier)</h4>
+<p><strong>New Feature:</strong> Built-in support for Naive Bayes classification, a simple yet powerful probabilistic classifier</p>
+<p><strong>Test Content:</strong>
+- Email spam detection model
+- Customer churn prediction
+- Sentiment analysis
+- Product category classification
+- Feature probability analysis
+- Training data patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-naive-bayes-classifier.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Probabilistic classification based on Bayes' theorem
+- Works well with small training datasets
+- Binary features (0/1) for presence/absence
+- Calculate prior and conditional probabilities
+- Simple feature engineering approach
+- Interpretable results with probability scores</p>
+<p><strong>Use Cases:</strong>
+- Spam detection and email filtering
+- Sentiment analysis and opinion mining
+- Document categorization and tagging
+- Customer churn prediction
+- Product recommendation systems
+- Fraud detection
+- Medical diagnosis support
+- Content moderation</p>
+<hr />
+<h4>3. JOIN Order Optimization (03-join-optimization)</h4>
+<p><strong>New Feature:</strong> DPSize algorithm for more exhaustive search of optimal JOIN order in multi-table queries</p>
+<p><strong>Test Content:</strong>
+- 2-table, 3-table, 4-table, and 5-table JOINs
+- Star schema query patterns
+- Complex JOIN conditions
+- LEFT JOIN optimization
+- EXPLAIN query analysis
+- Performance comparison scenarios</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-join-optimization.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- DPSize algorithm automatically optimizes JOIN order
+- Reduces query execution time and memory usage
+- Transparent to query writers
+- Handles complex multi-table JOINs efficiently
+- Works with star and snowflake schemas
+- Use EXPLAIN to understand execution plan</p>
+<p><strong>Use Cases:</strong>
+- Complex analytics queries with multiple tables
+- Star schema and snowflake schema queries
+- E-commerce product and order analytics
+- Multi-dimensional business intelligence
+- Data warehouse reporting
+- Dashboard and BI tool queries
+- Ad-hoc analytical queries</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-25-12
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.12/
+├── README.md                        # This document
+├── 00-setup.sh                      # ClickHouse 25.12 installation script
+├── 01-hmac-function.sh              # HMAC function test execution
+├── 01-hmac-function.sql             # HMAC function SQL
+├── 02-naive-bayes-classifier.sh     # Naive Bayes classifier test execution
+├── 02-naive-bayes-classifier.sql    # Naive Bayes classifier SQL
+├── 03-join-optimization.sh          # JOIN optimization test execution
+└── 03-join-optimization.sql         # JOIN optimization SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>01-hmac-function</strong> - Learn API security fundamentals</li>
+<li><strong>02-naive-bayes-classifier</strong> - Introduction to ML in databases</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>03-join-optimization</strong> - Query performance optimization</li>
+<li>Combine HMAC with real API integrations</li>
+<li>Build end-to-end ML pipelines with Naive Bayes</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Apply these features to production workloads</li>
+<li>Analyze query execution plans with EXPLAIN</li>
+<li>Performance benchmarking and comparison</li>
+<li>Integrate with external ML and API systems</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2025-release-25.12/">ClickHouse 25.12 Release Call</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>Newsletter</strong>: <a href="https://clickhouse.com/blog/202512-newsletter">December 2025 Newsletter</a></li>
+<li><strong>Alexey's Favorites</strong>: <a href="https://clickhouse.com/blog/alexey-favorite-features-2025">Favorite Features 2025</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default for inspection</li>
+<li>All features verified on ClickHouse 25.12.11.4</li>
+</ul>
+<h3>🆕 What's New in 25.12</h3>
+<ul>
+<li><strong>26 new features</strong> including HMAC, improved text indexing, and Delta Lake CDC</li>
+<li><strong>31 performance optimizations</strong> with DPSize JOIN algorithm</li>
+<li><strong>129 bug fixes</strong> for stability and reliability</li>
+<li><strong>Text Index Beta</strong> promotion from experimental status</li>
+<li><strong>Advanced instrumentation</strong> for production debugging</li>
+<li><strong>Object storage optimization</strong> with new storage format</li>
+</ul>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🎄</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.12 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 12월 18일 출시된 "크리스마스 릴리스" ClickHouse 25.12에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.12는 보안, 머신러닝, 쿼리 최적화, 데이터 레이크 통합에서 중요한 개선사항을 포함합니다. 이 릴리스는 26개의 새로운 기능, 31개의 성능 최적화, 129개의 버그 수정을 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>HMAC Function</strong> - API 보안을 위한 해시 기반 메시지 인증 코드</li>
+<li><strong>Naive Bayes Classifier</strong> - 분류 작업을 위한 내장 머신러닝</li>
+<li><strong>JOIN Order Optimization (DPSize)</strong> - 최적의 쿼리 성능을 위한 고급 알고리즘</li>
+<li><strong>Delta Lake Change Data Feed</strong> - 데이터 레이크용 CDC 지원 (추가 설정 필요)</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.12 설치 및 시작
+cd local/releases/25.12
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-hmac-function.sh
+./02-naive-bayes-classifier.sh
+./03-join-optimization.sh
+</code></pre>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../local/releases/25.12
+source 01-hmac-function.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. HMAC Function (01-hmac-function)</h4>
+<p><strong>새로운 기능:</strong> 안전한 메시지 인증을 위한 HMAC (Hash-based Message Authentication Code) 함수</p>
+<p><strong>테스트 내용:</strong>
+- SHA-256, SHA-1, SHA-512를 사용한 기본 HMAC
+- 웹훅 서명 생성 및 검증
+- API 요청 인증
+- 세션 토큰 생성 (JWT 유사)
+- 데이터 무결성 검증
+- 재생 공격 방지 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-hmac-function.sh
+# 또는
+cat 01-hmac-function.sql | docker exec -i clickhouse-25-12 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>HMAC(message, key, 'sha256')</code>로 인증 코드 생성
+- 웹훅 검증에 광범위하게 사용 (GitHub, Stripe 등)
+- API 보안 및 인증에 필수적
+- 변조 및 재생 공격 방지
+- 여러 해시 알고리즘 지원 (sha1, sha256, sha512)</p>
+<p><strong>사용 사례:</strong>
+- 웹훅 서명 검증
+- API 인증 및 권한 부여
+- 세션 토큰 생성
+- 데이터 무결성 검증
+- 서비스 간 안전한 통신
+- OAuth 및 OpenID 구현
+- 감사 추적 보호</p>
+<hr />
+<h4>2. Naive Bayes Classifier (02-naive-bayes-classifier)</h4>
+<p><strong>새로운 기능:</strong> 간단하지만 강력한 확률적 분류기인 Naive Bayes 분류에 대한 내장 지원</p>
+<p><strong>테스트 내용:</strong>
+- 이메일 스팸 감지 모델
+- 고객 이탈 예측
+- 감정 분석
+- 제품 카테고리 분류
+- 특성 확률 분석
+- 훈련 데이터 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-naive-bayes-classifier.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 베이즈 정리를 기반으로 한 확률적 분류
+- 작은 훈련 데이터셋에서도 잘 작동
+- 존재/부재를 위한 이진 특성 (0/1)
+- 사전 확률 및 조건부 확률 계산
+- 간단한 특성 엔지니어링 접근법
+- 확률 점수로 해석 가능한 결과</p>
+<p><strong>사용 사례:</strong>
+- 스팸 감지 및 이메일 필터링
+- 감정 분석 및 의견 마이닝
+- 문서 분류 및 태깅
+- 고객 이탈 예측
+- 제품 추천 시스템
+- 사기 탐지
+- 의료 진단 지원
+- 콘텐츠 모더레이션</p>
+<hr />
+<h4>3. JOIN Order Optimization (03-join-optimization)</h4>
+<p><strong>새로운 기능:</strong> 다중 테이블 쿼리에서 최적의 JOIN 순서를 더 철저하게 찾는 DPSize 알고리즘</p>
+<p><strong>테스트 내용:</strong>
+- 2테이블, 3테이블, 4테이블, 5테이블 JOIN
+- 스타 스키마 쿼리 패턴
+- 복잡한 JOIN 조건
+- LEFT JOIN 최적화
+- EXPLAIN 쿼리 분석
+- 성능 비교 시나리오</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-join-optimization.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- DPSize 알고리즘이 JOIN 순서를 자동으로 최적화
+- 쿼리 실행 시간 및 메모리 사용량 감소
+- 쿼리 작성자에게 투명함
+- 복잡한 다중 테이블 JOIN을 효율적으로 처리
+- 스타 및 스노우플레이크 스키마에서 작동
+- EXPLAIN을 사용하여 실행 계획 이해</p>
+<p><strong>사용 사례:</strong>
+- 여러 테이블이 있는 복잡한 분석 쿼리
+- 스타 스키마 및 스노우플레이크 스키마 쿼리
+- 전자상거래 제품 및 주문 분석
+- 다차원 비즈니스 인텔리전스
+- 데이터 웨어하우스 리포팅
+- 대시보드 및 BI 도구 쿼리
+- 임시 분석 쿼리</p>
+<hr />
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-25-12
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.12/
+├── README.md                        # 이 문서
+├── 00-setup.sh                      # ClickHouse 25.12 설치 스크립트
+├── 01-hmac-function.sh              # HMAC 함수 테스트 실행
+├── 01-hmac-function.sql             # HMAC 함수 SQL
+├── 02-naive-bayes-classifier.sh     # Naive Bayes 분류기 테스트 실행
+├── 02-naive-bayes-classifier.sql    # Naive Bayes 분류기 SQL
+├── 03-join-optimization.sh          # JOIN 최적화 테스트 실행
+└── 03-join-optimization.sql         # JOIN 최적화 SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>01-hmac-function</strong> - API 보안 기초 학습</li>
+<li><strong>02-naive-bayes-classifier</strong> - 데이터베이스에서의 ML 소개</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>03-join-optimization</strong> - 쿼리 성능 최적화</li>
+<li>실제 API 통합과 HMAC 결합</li>
+<li>Naive Bayes로 엔드투엔드 ML 파이프라인 구축</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>프로덕션 워크로드에 이 기능들 적용</li>
+<li>EXPLAIN 명령으로 쿼리 실행 계획 분석</li>
+<li>성능 벤치마킹 및 비교</li>
+<li>외부 ML 및 API 시스템과 통합</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2025-release-25.12/">ClickHouse 25.12 Release Call</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>Newsletter</strong>: <a href="https://clickhouse.com/blog/202512-newsletter">December 2025 Newsletter</a></li>
+<li><strong>Alexey's Favorites</strong>: <a href="https://clickhouse.com/blog/alexey-favorite-features-2025">Favorite Features 2025</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 검사할 수 있습니다</li>
+<li>모든 기능은 ClickHouse 25.12.1에서 검증되었습니다</li>
+</ul>
+<h3>🆕 25.12의 새로운 기능</h3>
+<ul>
+<li>HMAC, 향상된 텍스트 인덱싱, Delta Lake CDC를 포함한 <strong>26개의 새로운 기능</strong></li>
+<li>DPSize JOIN 알고리즘을 포함한 <strong>31개의 성능 최적화</strong></li>
+<li>안정성 및 신뢰성을 위한 <strong>129개의 버그 수정</strong></li>
+<li>실험 상태에서 <strong>텍스트 인덱스 베타</strong> 승격</li>
+<li>프로덕션 디버깅을 위한 <strong>고급 계측</strong></li>
+<li>새로운 저장 형식을 사용한 <strong>객체 스토리지 최적화</strong></li>
+</ul>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🎄</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.12"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

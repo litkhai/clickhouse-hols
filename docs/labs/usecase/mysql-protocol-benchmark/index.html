@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL vs ClickHouse Point Query 성능 비교 · ClickHouse HOLs</title>
+<meta name="description" content="MySQL vs ClickHouse Point Query 성능 비교 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/mysql-protocol-benchmark</code>
+    
+  </nav>
+  <div class="readme en"><h1>MySQL vs ClickHouse Point Query 성능 비교</h1>
+<p>게임 서버에서 플레이어 마지막 접속 정보 조회 성능 비교 테스트</p>
+<h2>테스트 목적</h2>
+<ul>
+<li><strong>유즈케이스</strong>: 앱에서 플레이어 캐릭터 마지막 접속 정보 조회</li>
+<li><strong>핵심 질문</strong>: ClickHouse가 Point Query (Primary Key 기반 단일 row 조회)에서 충분한 성능을 제공하는가?</li>
+<li><strong>ClickHouse 최적화</strong>: Primary Key ORDER BY + Bloom Filter Index</li>
+</ul>
+<h2>환경</h2>
+<ul>
+<li>데이터: 200만 유저</li>
+<li>동시성: 8, 16, 24, 32</li>
+<li>쿼리: player_id 기반 단일 row SELECT</li>
+</ul>
+<hr />
+<h2>실행 방법</h2>
+<h3>1. 컨테이너 시작</h3>
+<pre><code class="language-bash">cd usecase/mysql-protocol-benchmark
+docker-compose up -d
+</code></pre>
+<h3>2. ClickHouse 데이터 초기화 (1-2분)</h3>
+<pre><code class="language-bash">docker exec -i clickhouse-test clickhouse-client &lt; init/clickhouse/init.sql
+</code></pre>
+<h3>3. MySQL 데이터 초기화 (10-15분)</h3>
+<pre><code class="language-bash">docker exec -it mysql-test mysql -u testuser -ptestpass gamedb &lt; init/mysql/02_generate_data.sql
+</code></pre>
+<p>또는 MySQL 접속 후 직접 실행:</p>
+<pre><code class="language-bash">docker exec -it mysql-test mysql -u testuser -ptestpass gamedb
+mysql&gt; source /docker-entrypoint-initdb.d/02_generate_data.sql
+</code></pre>
+<h3>4. 연결 테스트</h3>
+<pre><code class="language-bash"># MySQL
+mysql -h localhost -P 3306 -u testuser -ptestpass gamedb -e &quot;SELECT COUNT(*) FROM player_last_login;&quot;
+
+# ClickHouse (MySQL Protocol)
+mysql -h localhost -P 9004 -u testuser -ptestpass gamedb -e &quot;SELECT count() FROM player_last_login;&quot;
+</code></pre>
+<h3>5. 벤치마크 실행</h3>
+<pre><code class="language-bash">pip install mysql-connector-python
+python benchmark.py
+</code></pre>
+<hr />
+<h2>ClickHouse 최적화 포인트</h2>
+<h3>1. Primary Key ORDER BY</h3>
+<pre><code class="language-sql">ORDER BY player_id
+</code></pre>
+<ul>
+<li>player_id 기반 Binary Search 가능</li>
+<li>Sparse Index로 해당 Granule 빠르게 탐색</li>
+</ul>
+<h3>2. Bloom Filter Index</h3>
+<pre><code class="language-sql">INDEX idx_player_id_bloom player_id TYPE bloom_filter(0.01) GRANULARITY 1
+</code></pre>
+<ul>
+<li>False Positive Rate 1%</li>
+<li>GRANULARITY 1: 각 granule마다 별도 bloom filter</li>
+<li>Point Query 시 불필요한 granule 스킵</li>
+</ul>
+<hr />
+<h2>디렉토리 구조</h2>
+<pre><code>mysql-protocol-benchmark/
+├── docker-compose.yml
+├── benchmark.py
+├── README.md
+└── init/
+    ├── clickhouse/
+    │   ├── config.xml
+    │   ├── users.xml
+    │   └── init.sql
+    └── mysql/
+        ├── 01_schema.sql
+        └── 02_generate_data.sql
+</code></pre>
+<hr />
+<h2>정리</h2>
+<pre><code class="language-bash">docker-compose down -v
+</code></pre></div>
+  <div class="readme ko"><h1>MySQL vs ClickHouse Point Query 성능 비교</h1>
+<p>게임 서버에서 플레이어 마지막 접속 정보 조회 성능 비교 테스트</p>
+<h2>테스트 목적</h2>
+<ul>
+<li><strong>유즈케이스</strong>: 앱에서 플레이어 캐릭터 마지막 접속 정보 조회</li>
+<li><strong>핵심 질문</strong>: ClickHouse가 Point Query (Primary Key 기반 단일 row 조회)에서 충분한 성능을 제공하는가?</li>
+<li><strong>ClickHouse 최적화</strong>: Primary Key ORDER BY + Bloom Filter Index</li>
+</ul>
+<h2>환경</h2>
+<ul>
+<li>데이터: 200만 유저</li>
+<li>동시성: 8, 16, 24, 32</li>
+<li>쿼리: player_id 기반 단일 row SELECT</li>
+</ul>
+<hr />
+<h2>실행 방법</h2>
+<h3>1. 컨테이너 시작</h3>
+<pre><code class="language-bash">cd usecase/mysql-protocol-benchmark
+docker-compose up -d
+</code></pre>
+<h3>2. ClickHouse 데이터 초기화 (1-2분)</h3>
+<pre><code class="language-bash">docker exec -i clickhouse-test clickhouse-client &lt; init/clickhouse/init.sql
+</code></pre>
+<h3>3. MySQL 데이터 초기화 (10-15분)</h3>
+<pre><code class="language-bash">docker exec -it mysql-test mysql -u testuser -ptestpass gamedb &lt; init/mysql/02_generate_data.sql
+</code></pre>
+<p>또는 MySQL 접속 후 직접 실행:</p>
+<pre><code class="language-bash">docker exec -it mysql-test mysql -u testuser -ptestpass gamedb
+mysql&gt; source /docker-entrypoint-initdb.d/02_generate_data.sql
+</code></pre>
+<h3>4. 연결 테스트</h3>
+<pre><code class="language-bash"># MySQL
+mysql -h localhost -P 3306 -u testuser -ptestpass gamedb -e &quot;SELECT COUNT(*) FROM player_last_login;&quot;
+
+# ClickHouse (MySQL Protocol)
+mysql -h localhost -P 9004 -u testuser -ptestpass gamedb -e &quot;SELECT count() FROM player_last_login;&quot;
+</code></pre>
+<h3>5. 벤치마크 실행</h3>
+<pre><code class="language-bash">pip install mysql-connector-python
+python benchmark.py
+</code></pre>
+<hr />
+<h2>ClickHouse 최적화 포인트</h2>
+<h3>1. Primary Key ORDER BY</h3>
+<pre><code class="language-sql">ORDER BY player_id
+</code></pre>
+<ul>
+<li>player_id 기반 Binary Search 가능</li>
+<li>Sparse Index로 해당 Granule 빠르게 탐색</li>
+</ul>
+<h3>2. Bloom Filter Index</h3>
+<pre><code class="language-sql">INDEX idx_player_id_bloom player_id TYPE bloom_filter(0.01) GRANULARITY 1
+</code></pre>
+<ul>
+<li>False Positive Rate 1%</li>
+<li>GRANULARITY 1: 각 granule마다 별도 bloom filter</li>
+<li>Point Query 시 불필요한 granule 스킵</li>
+</ul>
+<hr />
+<h2>디렉토리 구조</h2>
+<pre><code>mysql-protocol-benchmark/
+├── docker-compose.yml
+├── benchmark.py
+├── README.md
+└── init/
+    ├── clickhouse/
+    │   ├── config.xml
+    │   ├── users.xml
+    │   └── init.sql
+    └── mysql/
+        ├── 01_schema.sql
+        └── 02_generate_data.sql
+</code></pre>
+<hr />
+<h2>정리</h2>
+<pre><code class="language-bash">docker-compose down -v
+</code></pre></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/mysql-protocol-benchmark"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

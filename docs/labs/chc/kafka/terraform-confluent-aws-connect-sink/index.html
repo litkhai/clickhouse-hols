@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluent Platform with ClickHouse Sink Connector on AWS · ClickHouse HOLs</title>
+<meta name="description" content="Confluent Platform with ClickHouse Sink Connector on AWS — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/kafka/terraform-confluent-aws-connect-sink</code>
+    
+  </nav>
+  <div class="readme en"><h1>Confluent Platform with ClickHouse Sink Connector on AWS</h1>
+<p>This Terraform configuration deploys a complete Confluent Platform stack on AWS EC2 with ClickHouse Sink Connector pre-installed, enabling automatic data streaming from Kafka topics to ClickHouse Cloud.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Complete Confluent Platform</strong>: All core components (Kafka, ZooKeeper, Schema Registry, Connect, ksqlDB, Control Center, REST Proxy)</li>
+<li><strong>ClickHouse Sink Connector</strong>: Pre-installed and ready to stream data to ClickHouse Cloud</li>
+<li><strong>Automated Setup</strong>: One-command deployment with Docker Compose</li>
+<li><strong>Sample Data Producer</strong>: Automatically generates sample data to demonstrate the pipeline</li>
+<li><strong>SASL Authentication</strong>: Production-ready authentication with SASL/PLAIN (like Confluent Cloud)</li>
+<li><strong>Easy Management</strong>: Scripts for start, stop, and status checking</li>
+</ul>
+<h2>Architecture</h2>
+<pre><code>Sample Data Producer → Kafka Topic → ClickHouse Sink Connector → ClickHouse Cloud
+                          ↓
+                   Control Center (Monitoring)
+</code></pre>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>ClickHouse Cloud account (optional - can be configured later)</li>
+<li>SSH key pair for remote access (optional)</li>
+</ul>
+<h2>Quick Start</h2>
+<h3>1. Clone and Navigate</h3>
+<pre><code class="language-bash">cd terraform-confluent-aws-connect-sink
+</code></pre>
+<h3>2. Configure Variables</h3>
+<p>Copy the example configuration:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code> to customize your deployment:</p>
+<pre><code class="language-hcl"># AWS Configuration
+aws_region = &quot;us-east-1&quot;
+instance_name = &quot;confluent-clickhouse-demo&quot;
+instance_type = &quot;r5.xlarge&quot;
+key_pair_name = &quot;my-key-pair&quot;  # Optional: for SSH access
+
+# ClickHouse Cloud Configuration (optional - can be added later)
+clickhouse_host     = &quot;your-instance.clickhouse.cloud&quot;
+clickhouse_port     = 8443
+clickhouse_database = &quot;default&quot;
+clickhouse_username = &quot;default&quot;
+clickhouse_password = &quot;your-password&quot;
+clickhouse_table    = &quot;kafka_events&quot;
+clickhouse_use_ssl  = true
+</code></pre>
+<h3>3. Deploy</h3>
+<pre><code class="language-bash"># Set AWS credentials
+export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+
+# Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 10-15 minutes. Terraform will output all important URLs and connection information.</p>
+<h3>4. Access Confluent Control Center</h3>
+<p>After deployment completes:</p>
+<pre><code class="language-bash"># Get the Control Center URL
+terraform output control_center_url
+</code></pre>
+<p>Open the URL in your browser to access the Confluent Control Center Web UI, where you can:
+- Monitor Kafka topics and messages
+- View connector status
+- Manage ClickHouse Sink Connector
+- Track data flow from Kafka to ClickHouse</p>
+<h2>ClickHouse Cloud Setup</h2>
+<h3>Option 1: Configure During Deployment</h3>
+<p>Add ClickHouse Cloud credentials to <code>terraform.tfvars</code> before running <code>terraform apply</code>. The ClickHouse Sink Connector will be automatically created and started.</p>
+<h3>Option 2: Configure After Deployment</h3>
+<p>If you didn't configure ClickHouse during deployment, you can add it later:</p>
+<ol>
+<li>SSH into the instance:</li>
+</ol>
+<pre><code class="language-bash">ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt;
+</code></pre>
+<ol start="2">
+<li>Edit the connector creation script:</li>
+</ol>
+<pre><code class="language-bash">sudo nano /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<ol start="3">
+<li>Update the ClickHouse connection details and run:</li>
+</ol>
+<pre><code class="language-bash">sudo /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<h3>Create ClickHouse Table</h3>
+<p>Before the connector can write data, create a table in ClickHouse Cloud:</p>
+<pre><code class="language-sql">CREATE TABLE default.kafka_events
+(
+    event_id UInt64,
+    timestamp DateTime64(3),
+    user_id UInt32,
+    event_type String,
+    value UInt32,
+    metadata Tuple(source String, version String)
+)
+ENGINE = MergeTree()
+ORDER BY (timestamp, event_id);
+</code></pre>
+<h2>Connector Management</h2>
+<h3>Check Connector Status</h3>
+<pre><code class="language-bash"># Get the status command from Terraform outputs
+terraform output clickhouse_connector_status
+
+# Or directly
+curl http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector/status | jq '.'
+</code></pre>
+<h3>List All Connectors</h3>
+<pre><code class="language-bash">curl http://&lt;instance-dns&gt;:8083/connectors | jq '.'
+</code></pre>
+<h3>View Connector Configuration</h3>
+<pre><code class="language-bash">curl http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector | jq '.'
+</code></pre>
+<h3>Delete and Recreate Connector</h3>
+<pre><code class="language-bash"># Delete
+curl -X DELETE http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector
+
+# Recreate
+ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt; 'sudo /opt/confluent/create-clickhouse-sink.sh'
+</code></pre>
+<h2>Monitoring Data Flow</h2>
+<h3>1. Watch Kafka Producer Logs</h3>
+<pre><code class="language-bash">ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt; 'sudo journalctl -u confluent-producer -f'
+</code></pre>
+<h3>2. Check Kafka Topic Messages</h3>
+<pre><code class="language-bash"># From the EC2 instance
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:29092 \
+  --topic sample-data-topic \
+  --from-beginning
+</code></pre>
+<h3>3. Verify Data in ClickHouse Cloud</h3>
+<pre><code class="language-sql">-- Check record count
+SELECT count() FROM default.kafka_events;
+
+-- View recent events
+SELECT * FROM default.kafka_events ORDER BY timestamp DESC LIMIT 10;
+
+-- Analyze by event type
+SELECT event_type, count() as count FROM default.kafka_events GROUP BY event_type;
+</code></pre>
+<h2>Sample Data Format</h2>
+<p>The data producer generates JSON messages with this structure:</p>
+<pre><code class="language-json">{
+  &quot;event_id&quot;: 1,
+  &quot;timestamp&quot;: &quot;2025-01-15T10:30:00Z&quot;,
+  &quot;user_id&quot;: 123,
+  &quot;event_type&quot;: &quot;page_view&quot;,
+  &quot;value&quot;: 456,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;web&quot;,
+    &quot;version&quot;: &quot;1.0&quot;
+  }
+}
+</code></pre>
+<p>Event types include: <code>page_view</code>, <code>click</code>, <code>purchase</code>, <code>signup</code>, <code>logout</code></p>
+<h2>Configuration</h2>
+<h3>Terraform Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>Name tag for EC2 instance</td>
+<td>"confluent-server"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td>"r5.xlarge"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>SSH key pair name</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_host</code></td>
+<td>ClickHouse Cloud host</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_port</code></td>
+<td>ClickHouse Cloud port</td>
+<td>8443</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_database</code></td>
+<td>ClickHouse database</td>
+<td>"default"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_username</code></td>
+<td>ClickHouse username</td>
+<td>"default"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_password</code></td>
+<td>ClickHouse password</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_table</code></td>
+<td>Target table name</td>
+<td>"kafka_events"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_use_ssl</code></td>
+<td>Use SSL for ClickHouse</td>
+<td>true</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h3>Instance Type Recommendations</h3>
+<ul>
+<li><strong>Development</strong>: <code>t3.xlarge</code> (4 vCPU, 16 GB RAM)</li>
+<li><strong>Testing</strong>: <code>r5.xlarge</code> (4 vCPU, 32 GB RAM) - <strong>Default</strong></li>
+<li><strong>Production</strong>: <code>r5.2xlarge</code> or larger (8+ vCPU, 64+ GB RAM)</li>
+</ul>
+<h2>Service Endpoints</h2>
+<p>After deployment, access these services:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Control Center</td>
+<td>9021</td>
+<td>Web UI for management</td>
+</tr>
+<tr>
+<td>Kafka Connect</td>
+<td>8083</td>
+<td>Connector management API</td>
+</tr>
+<tr>
+<td>Schema Registry</td>
+<td>8081</td>
+<td>Schema management</td>
+</tr>
+<tr>
+<td>ksqlDB Server</td>
+<td>8088</td>
+<td>Stream processing</td>
+</tr>
+<tr>
+<td>Kafka Broker (SASL_SSL)</td>
+<td>9092</td>
+<td>Secure Kafka access</td>
+</tr>
+<tr>
+<td>Kafka Broker (SASL_PLAINTEXT)</td>
+<td>9093</td>
+<td>Kafka access (fallback)</td>
+</tr>
+</tbody>
+</table>
+<h2>Kafka Authentication</h2>
+<p>The deployment uses SASL/PLAIN authentication (like Confluent Cloud):</p>
+<pre><code class="language-bash"># Get credentials
+terraform output kafka_sasl_username
+terraform output -raw kafka_sasl_password
+</code></pre>
+<p>Default credentials:
+- <strong>Username</strong>: <code>admin</code>
+- <strong>Password</strong>: <code>admin-secret</code></p>
+<h2>Management Scripts</h2>
+<p>Once SSH connected, use these scripts:</p>
+<pre><code class="language-bash"># Check status of all services
+sudo /opt/confluent/status.sh
+
+# Stop Confluent Platform
+sudo /opt/confluent/stop.sh
+
+# Start Confluent Platform
+sudo /opt/confluent/start.sh
+
+# Create/recreate ClickHouse Sink Connector
+sudo /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<h2>Troubleshooting</h2>
+<h3>Connector Not Creating</h3>
+<ol>
+<li>Check Kafka Connect logs:</li>
+</ol>
+<pre><code class="language-bash">docker logs connect -f
+</code></pre>
+<ol start="2">
+<li>Verify ClickHouse connectivity:</li>
+</ol>
+<pre><code class="language-bash"># From the EC2 instance
+curl -v https://&lt;clickhouse-host&gt;:8443/
+</code></pre>
+<ol start="3">
+<li>Check connector plugins:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connector-plugins | jq '.'
+</code></pre>
+<h3>No Data Flowing to ClickHouse</h3>
+<ol>
+<li>Check connector status:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.'
+</code></pre>
+<ol start="2">
+<li>Look for errors in connector tasks:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.tasks[].trace'
+</code></pre>
+<ol start="3">
+<li>
+<p>Verify the ClickHouse table exists and schema matches</p>
+</li>
+<li>
+<p>Check Kafka topic has data:</p>
+</li>
+</ol>
+<pre><code class="language-bash">docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:29092 \
+  --topic sample-data-topic \
+  --max-messages 10
+</code></pre>
+<h3>Connector Shows FAILED Status</h3>
+<p>Common issues:
+- <strong>Authentication failed</strong>: Check ClickHouse username/password
+- <strong>Table not found</strong>: Create the table in ClickHouse
+- <strong>Network issues</strong>: Verify security groups allow outbound HTTPS
+- <strong>SSL/TLS errors</strong>: Ensure <code>clickhouse_use_ssl</code> matches your ClickHouse setup</p>
+<p>View detailed error:</p>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.tasks[0].trace'
+</code></pre>
+<h2>Demo Walkthrough</h2>
+<h3>Complete End-to-End Test</h3>
+<ol>
+<li><strong>Deploy the infrastructure</strong>:</li>
+</ol>
+<pre><code class="language-bash">terraform apply
+</code></pre>
+<ol start="2">
+<li><strong>Access Control Center</strong>:</li>
+</ol>
+<pre><code class="language-bash">open $(terraform output -raw control_center_url)
+</code></pre>
+<ol start="3">
+<li>
+<p><strong>Verify Kafka topic exists</strong>:
+   - Navigate to "Topics" in Control Center
+   - Find <code>sample-data-topic</code>
+   - View messages flowing in</p>
+</li>
+<li>
+<p><strong>Check connector status</strong>:
+   - Navigate to "Connect" → "connect-default"
+   - View <code>clickhouse-sink-connector</code>
+   - Verify status is "Running"</p>
+</li>
+<li>
+<p><strong>Query ClickHouse Cloud</strong>:</p>
+</li>
+</ol>
+<pre><code class="language-sql">SELECT count() FROM default.kafka_events;
+SELECT event_type, count(*) FROM default.kafka_events GROUP BY event_type;
+</code></pre>
+<ol start="6">
+<li><strong>Watch real-time data flow</strong>:</li>
+</ol>
+<pre><code class="language-bash"># Terminal 1: Watch Kafka producer
+ssh -i key.pem ubuntu@&lt;dns&gt; 'sudo journalctl -u confluent-producer -f'
+
+# Terminal 2: Query ClickHouse every few seconds
+watch -n 5 &quot;clickhouse-client --host &lt;host&gt; --query 'SELECT count() FROM default.kafka_events'&quot;
+</code></pre>
+<h2>Cost Considerations</h2>
+<p>Estimated AWS costs (us-east-1 region):</p>
+<ul>
+<li><strong>r5.xlarge instance</strong>: ~$0.25/hour (~$180/month)</li>
+<li><strong>EBS gp3 volume (100 GB)</strong>: ~$8/month</li>
+<li><strong>Data transfer</strong>: Variable based on usage</li>
+<li><strong>Total estimated cost</strong>: ~$190-200/month for 24/7 operation</li>
+</ul>
+<h3>Cost Optimization</h3>
+<ol>
+<li><strong>Stop when not in use</strong>: <code>terraform destroy</code> when done</li>
+<li><strong>Use smaller instance</strong>: Change to <code>t3.xlarge</code> for development</li>
+<li><strong>Reduce EBS volume</strong>: Adjust <code>ebs_volume_size</code> if less storage needed</li>
+</ol>
+<h2>Security Best Practices</h2>
+<h3>For Production Use</h3>
+<ol>
+<li><strong>Restrict CIDR blocks</strong>: Limit <code>allowed_cidr_blocks</code> to your IP ranges</li>
+<li><strong>Use strong passwords</strong>: Change default <code>kafka_sasl_password</code> and <code>clickhouse_password</code></li>
+<li><strong>Enable CloudWatch</strong>: Add monitoring and alerting</li>
+<li><strong>Use private subnets</strong>: Deploy in private subnet with bastion host</li>
+<li><strong>Secrets management</strong>: Store credentials in AWS Secrets Manager</li>
+<li><strong>Regular updates</strong>: Keep Confluent Platform version updated</li>
+</ol>
+<h3>Current Security Posture</h3>
+<p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
+<ul>
+<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Default SASL credentials</li>
+<li>Public IP with direct access</li>
+</ul>
+<h2>Outputs</h2>
+<p>After deployment, Terraform provides:</p>
+<ul>
+<li><code>control_center_url</code>: Control Center web UI URL</li>
+<li><code>kafka_connect_url</code>: Kafka Connect API URL</li>
+<li><code>kafka_bootstrap_servers</code>: Kafka bootstrap servers</li>
+<li><code>clickhouse_host</code>: Configured ClickHouse host</li>
+<li><code>clickhouse_connector_status</code>: Command to check connector status</li>
+<li><code>clickhouse_connector_commands</code>: Useful connector management commands</li>
+</ul>
+<p>View all outputs:</p>
+<pre><code class="language-bash">terraform output
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<p>This will:
+- Terminate the EC2 instance
+- Delete the security group
+- Remove all associated resources</p>
+<p><strong>Note</strong>: This is irreversible and will delete all data on the instance.</p>
+<h2>Advanced Configuration</h2>
+<h3>Custom Connector Configuration</h3>
+<p>Edit <code>/opt/confluent/create-clickhouse-sink.sh</code> on the EC2 instance to customize:</p>
+<ul>
+<li>Batch size</li>
+<li>Flush interval</li>
+<li>Error handling</li>
+<li>Data transformation</li>
+<li>Multiple topics</li>
+</ul>
+<p>Example custom configuration:</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;clickhouse-sink-connector&quot;,
+  &quot;config&quot;: {
+    &quot;connector.class&quot;: &quot;com.clickhouse.kafka.connect.ClickHouseSinkConnector&quot;,
+    &quot;tasks.max&quot;: &quot;2&quot;,
+    &quot;topics&quot;: &quot;sample-data-topic,another-topic&quot;,
+    &quot;hostname&quot;: &quot;your-instance.clickhouse.cloud&quot;,
+    &quot;port&quot;: &quot;8443&quot;,
+    &quot;database&quot;: &quot;default&quot;,
+    &quot;batch.size&quot;: &quot;10000&quot;,
+    &quot;buffer.flush.time&quot;: &quot;1000&quot;
+  }
+}
+</code></pre>
+<h3>Multiple Connectors</h3>
+<p>Create additional connectors for different topics:</p>
+<pre><code class="language-bash">curl -X POST http://localhost:8083/connectors \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{
+    &quot;name&quot;: &quot;another-clickhouse-sink&quot;,
+    &quot;config&quot;: {
+      &quot;connector.class&quot;: &quot;com.clickhouse.kafka.connect.ClickHouseSinkConnector&quot;,
+      &quot;topics&quot;: &quot;another-topic&quot;,
+      ...
+    }
+  }'
+</code></pre>
+<h2>Related Projects</h2>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws">terraform-confluent-aws</a>: Base Confluent Platform without ClickHouse</li>
+<li><a href="https://clickhouse.com/cloud">ClickHouse Cloud</a>: Managed ClickHouse service</li>
+</ul>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>Confluent Documentation: https://docs.confluent.io/</li>
+<li>ClickHouse Documentation: https://clickhouse.com/docs</li>
+<li>ClickHouse Kafka Connect: https://github.com/ClickHouse/clickhouse-kafka-connect</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <div class="readme ko"><h1>Confluent Platform with ClickHouse Sink Connector on AWS</h1>
+<p>This Terraform configuration deploys a complete Confluent Platform stack on AWS EC2 with ClickHouse Sink Connector pre-installed, enabling automatic data streaming from Kafka topics to ClickHouse Cloud.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Complete Confluent Platform</strong>: All core components (Kafka, ZooKeeper, Schema Registry, Connect, ksqlDB, Control Center, REST Proxy)</li>
+<li><strong>ClickHouse Sink Connector</strong>: Pre-installed and ready to stream data to ClickHouse Cloud</li>
+<li><strong>Automated Setup</strong>: One-command deployment with Docker Compose</li>
+<li><strong>Sample Data Producer</strong>: Automatically generates sample data to demonstrate the pipeline</li>
+<li><strong>SASL Authentication</strong>: Production-ready authentication with SASL/PLAIN (like Confluent Cloud)</li>
+<li><strong>Easy Management</strong>: Scripts for start, stop, and status checking</li>
+</ul>
+<h2>Architecture</h2>
+<pre><code>Sample Data Producer → Kafka Topic → ClickHouse Sink Connector → ClickHouse Cloud
+                          ↓
+                   Control Center (Monitoring)
+</code></pre>
+<h2>Prerequisites</h2>
+<ul>
+<li><a href="https://www.terraform.io/downloads.html">Terraform</a> &gt;= 1.0</li>
+<li>AWS Account with appropriate permissions</li>
+<li>AWS CLI configured with credentials</li>
+<li>ClickHouse Cloud account (optional - can be configured later)</li>
+<li>SSH key pair for remote access (optional)</li>
+</ul>
+<h2>Quick Start</h2>
+<h3>1. Clone and Navigate</h3>
+<pre><code class="language-bash">cd terraform-confluent-aws-connect-sink
+</code></pre>
+<h3>2. Configure Variables</h3>
+<p>Copy the example configuration:</p>
+<pre><code class="language-bash">cp terraform.tfvars.example terraform.tfvars
+</code></pre>
+<p>Edit <code>terraform.tfvars</code> to customize your deployment:</p>
+<pre><code class="language-hcl"># AWS Configuration
+aws_region = &quot;us-east-1&quot;
+instance_name = &quot;confluent-clickhouse-demo&quot;
+instance_type = &quot;r5.xlarge&quot;
+key_pair_name = &quot;my-key-pair&quot;  # Optional: for SSH access
+
+# ClickHouse Cloud Configuration (optional - can be added later)
+clickhouse_host     = &quot;your-instance.clickhouse.cloud&quot;
+clickhouse_port     = 8443
+clickhouse_database = &quot;default&quot;
+clickhouse_username = &quot;default&quot;
+clickhouse_password = &quot;your-password&quot;
+clickhouse_table    = &quot;kafka_events&quot;
+clickhouse_use_ssl  = true
+</code></pre>
+<h3>3. Deploy</h3>
+<pre><code class="language-bash"># Set AWS credentials
+export AWS_ACCESS_KEY_ID=&quot;your-access-key-id&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;your-secret-access-key&quot;
+
+# Initialize Terraform
+terraform init
+
+# Review the deployment plan
+terraform plan
+
+# Deploy the infrastructure
+terraform apply
+</code></pre>
+<p>The deployment takes about 10-15 minutes. Terraform will output all important URLs and connection information.</p>
+<h3>4. Access Confluent Control Center</h3>
+<p>After deployment completes:</p>
+<pre><code class="language-bash"># Get the Control Center URL
+terraform output control_center_url
+</code></pre>
+<p>Open the URL in your browser to access the Confluent Control Center Web UI, where you can:
+- Monitor Kafka topics and messages
+- View connector status
+- Manage ClickHouse Sink Connector
+- Track data flow from Kafka to ClickHouse</p>
+<h2>ClickHouse Cloud Setup</h2>
+<h3>Option 1: Configure During Deployment</h3>
+<p>Add ClickHouse Cloud credentials to <code>terraform.tfvars</code> before running <code>terraform apply</code>. The ClickHouse Sink Connector will be automatically created and started.</p>
+<h3>Option 2: Configure After Deployment</h3>
+<p>If you didn't configure ClickHouse during deployment, you can add it later:</p>
+<ol>
+<li>SSH into the instance:</li>
+</ol>
+<pre><code class="language-bash">ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt;
+</code></pre>
+<ol start="2">
+<li>Edit the connector creation script:</li>
+</ol>
+<pre><code class="language-bash">sudo nano /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<ol start="3">
+<li>Update the ClickHouse connection details and run:</li>
+</ol>
+<pre><code class="language-bash">sudo /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<h3>Create ClickHouse Table</h3>
+<p>Before the connector can write data, create a table in ClickHouse Cloud:</p>
+<pre><code class="language-sql">CREATE TABLE default.kafka_events
+(
+    event_id UInt64,
+    timestamp DateTime64(3),
+    user_id UInt32,
+    event_type String,
+    value UInt32,
+    metadata Tuple(source String, version String)
+)
+ENGINE = MergeTree()
+ORDER BY (timestamp, event_id);
+</code></pre>
+<h2>Connector Management</h2>
+<h3>Check Connector Status</h3>
+<pre><code class="language-bash"># Get the status command from Terraform outputs
+terraform output clickhouse_connector_status
+
+# Or directly
+curl http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector/status | jq '.'
+</code></pre>
+<h3>List All Connectors</h3>
+<pre><code class="language-bash">curl http://&lt;instance-dns&gt;:8083/connectors | jq '.'
+</code></pre>
+<h3>View Connector Configuration</h3>
+<pre><code class="language-bash">curl http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector | jq '.'
+</code></pre>
+<h3>Delete and Recreate Connector</h3>
+<pre><code class="language-bash"># Delete
+curl -X DELETE http://&lt;instance-dns&gt;:8083/connectors/clickhouse-sink-connector
+
+# Recreate
+ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt; 'sudo /opt/confluent/create-clickhouse-sink.sh'
+</code></pre>
+<h2>Monitoring Data Flow</h2>
+<h3>1. Watch Kafka Producer Logs</h3>
+<pre><code class="language-bash">ssh -i /path/to/your-key.pem ubuntu@&lt;instance-dns&gt; 'sudo journalctl -u confluent-producer -f'
+</code></pre>
+<h3>2. Check Kafka Topic Messages</h3>
+<pre><code class="language-bash"># From the EC2 instance
+docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:29092 \
+  --topic sample-data-topic \
+  --from-beginning
+</code></pre>
+<h3>3. Verify Data in ClickHouse Cloud</h3>
+<pre><code class="language-sql">-- Check record count
+SELECT count() FROM default.kafka_events;
+
+-- View recent events
+SELECT * FROM default.kafka_events ORDER BY timestamp DESC LIMIT 10;
+
+-- Analyze by event type
+SELECT event_type, count() as count FROM default.kafka_events GROUP BY event_type;
+</code></pre>
+<h2>Sample Data Format</h2>
+<p>The data producer generates JSON messages with this structure:</p>
+<pre><code class="language-json">{
+  &quot;event_id&quot;: 1,
+  &quot;timestamp&quot;: &quot;2025-01-15T10:30:00Z&quot;,
+  &quot;user_id&quot;: 123,
+  &quot;event_type&quot;: &quot;page_view&quot;,
+  &quot;value&quot;: 456,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;web&quot;,
+    &quot;version&quot;: &quot;1.0&quot;
+  }
+}
+</code></pre>
+<p>Event types include: <code>page_view</code>, <code>click</code>, <code>purchase</code>, <code>signup</code>, <code>logout</code></p>
+<h2>Configuration</h2>
+<h3>Terraform Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws_region</code></td>
+<td>AWS region for deployment</td>
+<td>null (uses env var)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_name</code></td>
+<td>Name tag for EC2 instance</td>
+<td>"confluent-server"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>instance_type</code></td>
+<td>EC2 instance type</td>
+<td>"r5.xlarge"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>key_pair_name</code></td>
+<td>SSH key pair name</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_host</code></td>
+<td>ClickHouse Cloud host</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_port</code></td>
+<td>ClickHouse Cloud port</td>
+<td>8443</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_database</code></td>
+<td>ClickHouse database</td>
+<td>"default"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_username</code></td>
+<td>ClickHouse username</td>
+<td>"default"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_password</code></td>
+<td>ClickHouse password</td>
+<td>null</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_table</code></td>
+<td>Target table name</td>
+<td>"kafka_events"</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>clickhouse_use_ssl</code></td>
+<td>Use SSL for ClickHouse</td>
+<td>true</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h3>Instance Type Recommendations</h3>
+<ul>
+<li><strong>Development</strong>: <code>t3.xlarge</code> (4 vCPU, 16 GB RAM)</li>
+<li><strong>Testing</strong>: <code>r5.xlarge</code> (4 vCPU, 32 GB RAM) - <strong>Default</strong></li>
+<li><strong>Production</strong>: <code>r5.2xlarge</code> or larger (8+ vCPU, 64+ GB RAM)</li>
+</ul>
+<h2>Service Endpoints</h2>
+<p>After deployment, access these services:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Control Center</td>
+<td>9021</td>
+<td>Web UI for management</td>
+</tr>
+<tr>
+<td>Kafka Connect</td>
+<td>8083</td>
+<td>Connector management API</td>
+</tr>
+<tr>
+<td>Schema Registry</td>
+<td>8081</td>
+<td>Schema management</td>
+</tr>
+<tr>
+<td>ksqlDB Server</td>
+<td>8088</td>
+<td>Stream processing</td>
+</tr>
+<tr>
+<td>Kafka Broker (SASL_SSL)</td>
+<td>9092</td>
+<td>Secure Kafka access</td>
+</tr>
+<tr>
+<td>Kafka Broker (SASL_PLAINTEXT)</td>
+<td>9093</td>
+<td>Kafka access (fallback)</td>
+</tr>
+</tbody>
+</table>
+<h2>Kafka Authentication</h2>
+<p>The deployment uses SASL/PLAIN authentication (like Confluent Cloud):</p>
+<pre><code class="language-bash"># Get credentials
+terraform output kafka_sasl_username
+terraform output -raw kafka_sasl_password
+</code></pre>
+<p>Default credentials:
+- <strong>Username</strong>: <code>admin</code>
+- <strong>Password</strong>: <code>admin-secret</code></p>
+<h2>Management Scripts</h2>
+<p>Once SSH connected, use these scripts:</p>
+<pre><code class="language-bash"># Check status of all services
+sudo /opt/confluent/status.sh
+
+# Stop Confluent Platform
+sudo /opt/confluent/stop.sh
+
+# Start Confluent Platform
+sudo /opt/confluent/start.sh
+
+# Create/recreate ClickHouse Sink Connector
+sudo /opt/confluent/create-clickhouse-sink.sh
+</code></pre>
+<h2>Troubleshooting</h2>
+<h3>Connector Not Creating</h3>
+<ol>
+<li>Check Kafka Connect logs:</li>
+</ol>
+<pre><code class="language-bash">docker logs connect -f
+</code></pre>
+<ol start="2">
+<li>Verify ClickHouse connectivity:</li>
+</ol>
+<pre><code class="language-bash"># From the EC2 instance
+curl -v https://&lt;clickhouse-host&gt;:8443/
+</code></pre>
+<ol start="3">
+<li>Check connector plugins:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connector-plugins | jq '.'
+</code></pre>
+<h3>No Data Flowing to ClickHouse</h3>
+<ol>
+<li>Check connector status:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.'
+</code></pre>
+<ol start="2">
+<li>Look for errors in connector tasks:</li>
+</ol>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.tasks[].trace'
+</code></pre>
+<ol start="3">
+<li>
+<p>Verify the ClickHouse table exists and schema matches</p>
+</li>
+<li>
+<p>Check Kafka topic has data:</p>
+</li>
+</ol>
+<pre><code class="language-bash">docker exec broker kafka-console-consumer \
+  --bootstrap-server localhost:29092 \
+  --topic sample-data-topic \
+  --max-messages 10
+</code></pre>
+<h3>Connector Shows FAILED Status</h3>
+<p>Common issues:
+- <strong>Authentication failed</strong>: Check ClickHouse username/password
+- <strong>Table not found</strong>: Create the table in ClickHouse
+- <strong>Network issues</strong>: Verify security groups allow outbound HTTPS
+- <strong>SSL/TLS errors</strong>: Ensure <code>clickhouse_use_ssl</code> matches your ClickHouse setup</p>
+<p>View detailed error:</p>
+<pre><code class="language-bash">curl http://localhost:8083/connectors/clickhouse-sink-connector/status | jq '.tasks[0].trace'
+</code></pre>
+<h2>Demo Walkthrough</h2>
+<h3>Complete End-to-End Test</h3>
+<ol>
+<li><strong>Deploy the infrastructure</strong>:</li>
+</ol>
+<pre><code class="language-bash">terraform apply
+</code></pre>
+<ol start="2">
+<li><strong>Access Control Center</strong>:</li>
+</ol>
+<pre><code class="language-bash">open $(terraform output -raw control_center_url)
+</code></pre>
+<ol start="3">
+<li>
+<p><strong>Verify Kafka topic exists</strong>:
+   - Navigate to "Topics" in Control Center
+   - Find <code>sample-data-topic</code>
+   - View messages flowing in</p>
+</li>
+<li>
+<p><strong>Check connector status</strong>:
+   - Navigate to "Connect" → "connect-default"
+   - View <code>clickhouse-sink-connector</code>
+   - Verify status is "Running"</p>
+</li>
+<li>
+<p><strong>Query ClickHouse Cloud</strong>:</p>
+</li>
+</ol>
+<pre><code class="language-sql">SELECT count() FROM default.kafka_events;
+SELECT event_type, count(*) FROM default.kafka_events GROUP BY event_type;
+</code></pre>
+<ol start="6">
+<li><strong>Watch real-time data flow</strong>:</li>
+</ol>
+<pre><code class="language-bash"># Terminal 1: Watch Kafka producer
+ssh -i key.pem ubuntu@&lt;dns&gt; 'sudo journalctl -u confluent-producer -f'
+
+# Terminal 2: Query ClickHouse every few seconds
+watch -n 5 &quot;clickhouse-client --host &lt;host&gt; --query 'SELECT count() FROM default.kafka_events'&quot;
+</code></pre>
+<h2>Cost Considerations</h2>
+<p>Estimated AWS costs (us-east-1 region):</p>
+<ul>
+<li><strong>r5.xlarge instance</strong>: ~$0.25/hour (~$180/month)</li>
+<li><strong>EBS gp3 volume (100 GB)</strong>: ~$8/month</li>
+<li><strong>Data transfer</strong>: Variable based on usage</li>
+<li><strong>Total estimated cost</strong>: ~$190-200/month for 24/7 operation</li>
+</ul>
+<h3>Cost Optimization</h3>
+<ol>
+<li><strong>Stop when not in use</strong>: <code>terraform destroy</code> when done</li>
+<li><strong>Use smaller instance</strong>: Change to <code>t3.xlarge</code> for development</li>
+<li><strong>Reduce EBS volume</strong>: Adjust <code>ebs_volume_size</code> if less storage needed</li>
+</ol>
+<h2>Security Best Practices</h2>
+<h3>For Production Use</h3>
+<ol>
+<li><strong>Restrict CIDR blocks</strong>: Limit <code>allowed_cidr_blocks</code> to your IP ranges</li>
+<li><strong>Use strong passwords</strong>: Change default <code>kafka_sasl_password</code> and <code>clickhouse_password</code></li>
+<li><strong>Enable CloudWatch</strong>: Add monitoring and alerting</li>
+<li><strong>Use private subnets</strong>: Deploy in private subnet with bastion host</li>
+<li><strong>Secrets management</strong>: Store credentials in AWS Secrets Manager</li>
+<li><strong>Regular updates</strong>: Keep Confluent Platform version updated</li>
+</ol>
+<h3>Current Security Posture</h3>
+<p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
+<ul>
+<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Default SASL credentials</li>
+<li>Public IP with direct access</li>
+</ul>
+<h2>Outputs</h2>
+<p>After deployment, Terraform provides:</p>
+<ul>
+<li><code>control_center_url</code>: Control Center web UI URL</li>
+<li><code>kafka_connect_url</code>: Kafka Connect API URL</li>
+<li><code>kafka_bootstrap_servers</code>: Kafka bootstrap servers</li>
+<li><code>clickhouse_host</code>: Configured ClickHouse host</li>
+<li><code>clickhouse_connector_status</code>: Command to check connector status</li>
+<li><code>clickhouse_connector_commands</code>: Useful connector management commands</li>
+</ul>
+<p>View all outputs:</p>
+<pre><code class="language-bash">terraform output
+</code></pre>
+<h2>Cleanup</h2>
+<p>To destroy all resources:</p>
+<pre><code class="language-bash">terraform destroy
+</code></pre>
+<p>This will:
+- Terminate the EC2 instance
+- Delete the security group
+- Remove all associated resources</p>
+<p><strong>Note</strong>: This is irreversible and will delete all data on the instance.</p>
+<h2>Advanced Configuration</h2>
+<h3>Custom Connector Configuration</h3>
+<p>Edit <code>/opt/confluent/create-clickhouse-sink.sh</code> on the EC2 instance to customize:</p>
+<ul>
+<li>Batch size</li>
+<li>Flush interval</li>
+<li>Error handling</li>
+<li>Data transformation</li>
+<li>Multiple topics</li>
+</ul>
+<p>Example custom configuration:</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;clickhouse-sink-connector&quot;,
+  &quot;config&quot;: {
+    &quot;connector.class&quot;: &quot;com.clickhouse.kafka.connect.ClickHouseSinkConnector&quot;,
+    &quot;tasks.max&quot;: &quot;2&quot;,
+    &quot;topics&quot;: &quot;sample-data-topic,another-topic&quot;,
+    &quot;hostname&quot;: &quot;your-instance.clickhouse.cloud&quot;,
+    &quot;port&quot;: &quot;8443&quot;,
+    &quot;database&quot;: &quot;default&quot;,
+    &quot;batch.size&quot;: &quot;10000&quot;,
+    &quot;buffer.flush.time&quot;: &quot;1000&quot;
+  }
+}
+</code></pre>
+<h3>Multiple Connectors</h3>
+<p>Create additional connectors for different topics:</p>
+<pre><code class="language-bash">curl -X POST http://localhost:8083/connectors \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{
+    &quot;name&quot;: &quot;another-clickhouse-sink&quot;,
+    &quot;config&quot;: {
+      &quot;connector.class&quot;: &quot;com.clickhouse.kafka.connect.ClickHouseSinkConnector&quot;,
+      &quot;topics&quot;: &quot;another-topic&quot;,
+      ...
+    }
+  }'
+</code></pre>
+<h2>Related Projects</h2>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/kafka/terraform-confluent-aws">terraform-confluent-aws</a>: Base Confluent Platform without ClickHouse</li>
+<li><a href="https://clickhouse.com/cloud">ClickHouse Cloud</a>: Managed ClickHouse service</li>
+</ul>
+<h2>Support</h2>
+<p>For issues or questions:</p>
+<ul>
+<li>Confluent Documentation: https://docs.confluent.io/</li>
+<li>ClickHouse Documentation: https://clickhouse.com/docs</li>
+<li>ClickHouse Kafka Connect: https://github.com/ClickHouse/clickhouse-kafka-connect</li>
+</ul>
+<h2>License</h2>
+<p>This configuration is provided as-is for educational and development purposes.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/kafka/terraform-confluent-aws-connect-sink"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

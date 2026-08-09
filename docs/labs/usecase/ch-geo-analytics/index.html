@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geospatial Analytics with ClickHouse — H3 Indexing Lab · ClickHouse HOLs</title>
+<meta name="description" content="Geospatial Analytics with ClickHouse — H3 Indexing Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/ch-geo-analytics</code>
+    
+  </nav>
+  <div class="readme en"><h1>Geospatial Analytics with ClickHouse — H3 Indexing Lab</h1>
+<hr />
+<p>A hands-on, end-to-end laboratory for geospatial analytics on ClickHouse, centered on <strong>H3 hexagonal indexing</strong>. Built around a synthetic 5 million-trip NYC ride-hailing dataset, it walks you through every geo primitive ClickHouse ships with — hex indexing, distance calculations, point-in-polygon, k-ring neighbor search, polygon-to-hex coverage, side-by-side comparison with Geohash and S2, and real-time aggregation via <code>AggregatingMergeTree</code> + Materialized Views.</p>
+<h3>🎯 Why this lab</h3>
+<p>ClickHouse is one of the very few OLAP databases that ships H3 (Uber's hexagonal spatial index), S2 (Google's quadrilateral index), and Geohash as first-class native functions. Mobility, IoT, retail-foot-traffic, and ad-tech teams already use all three at scale. This lab shows how to combine them with <code>MATERIALIZED</code> columns and <code>AggregatingMergeTree</code> to turn raw lat/lon points into queryable geo-analytic surfaces.</p>
+<h3>📊 Dataset</h3>
+<p>A synthetic NYC ride-hailing platform:
+- <strong>Trips</strong>: 5,000,000 (30 days, May 2026)
+- <strong>Hotspots</strong>: 15 named POIs (Times Square, JFK, LGA, …) used as cluster centers for weighted sampling
+- <strong>Service zones</strong>: 7 polygons (Midtown, Downtown, Williamsburg, JFK/LGA airports, etc.)
+- Each trip stores <code>pickup_lon/lat</code>, <code>dropoff_lon/lat</code>, plus <code>MATERIALIZED</code> H3 columns at <strong>res 6 / 8 / 10</strong>
+- Distribution is realistic: pickups cluster around hotspots with σ ≈ 800 m jitter; rush-hour surge multipliers (1.5× morning, 2.0× evening); fares scale with great-circle distance</p>
+<h3>📁 File Structure</h3>
+<pre><code>ch-geo-analytics/
+├── README.md                     # This file
+├── 01-schema.sql                 # trips + service_zones + hotspots tables
+├── 02-load.sql                   # 5M synthetic trips with weighted hotspot sampling
+├── 03-h3-basics.sql              # H3 fundamentals: encoding, hierarchy, k-ring, distance
+├── 04-demand-heatmap.sql         # Multi-resolution hex aggregation, top-N, OD flows
+├── 05-distance-and-routing.sql   # greatCircle / geo / h3PointDist / h3Line / hex steps
+├── 06-spatial-search.sql         # K-ring, pointInPolygon, OD matrix, hybrid pre-filter
+├── 07-indexing-systems.sql       # H3 vs Geohash vs S2 side-by-side
+├── 08-materialized-views.sql     # AggregatingMergeTree for real-time demand aggregates
+└── 99-cleanup.sql                # Drop everything
+</code></pre>
+<h3>🚀 Quick Start</h3>
+<pre><code class="language-bash">cd usecase/ch-geo-analytics
+
+# Sequential — uses the running ClickHouse from your local setup
+for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
+         04-demand-heatmap.sql 05-distance-and-routing.sql \
+         06-spatial-search.sql 07-indexing-systems.sql \
+         08-materialized-views.sql; do
+    echo &quot;▶ Running $f&quot;
+    clickhouse-client --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<p>Or against the bundled Docker stack (e.g. the <code>local/pg-clickhouse-lab</code> container):</p>
+<pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
+         04-demand-heatmap.sql 05-distance-and-routing.sql \
+         06-spatial-search.sql 07-indexing-systems.sql \
+         08-materialized-views.sql; do
+    cat &quot;$f&quot; | docker exec -i pgch-clickhouse clickhouse-client --multiquery
+done
+</code></pre>
+<h3>📖 Lab Walkthrough</h3>
+<h4>01 — Schema (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/01-schema.sql">01-schema.sql</a>)</h4>
+<p>Creates the <code>geo_analytics</code> database and three tables:</p>
+<pre><code class="language-sql">CREATE TABLE geo_analytics.trips (
+    trip_id        UInt64,
+    pickup_lon     Float64,
+    pickup_lat     Float64,
+    dropoff_lon    Float64,
+    dropoff_lat    Float64,
+    -- ... timestamps, fare, surge, payment, vehicle_type
+    pickup_h3_r6   UInt64 MATERIALIZED geoToH3(pickup_lon, pickup_lat, 6),
+    pickup_h3_r8   UInt64 MATERIALIZED geoToH3(pickup_lon, pickup_lat, 8),
+    pickup_h3_r10  UInt64 MATERIALIZED geoToH3(pickup_lon, pickup_lat, 10),
+    dropoff_h3_r8  UInt64 MATERIALIZED geoToH3(dropoff_lon, dropoff_lat, 8),
+    INDEX idx_pickup_h3_r8 pickup_h3_r8 TYPE minmax GRANULARITY 4
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(pickup_ts)
+ORDER BY  (pickup_h3_r8, pickup_ts, trip_id);
+</code></pre>
+<p>The <code>MATERIALIZED</code> H3 columns are the foundation: each is computed once at INSERT and lives on disk, so demand-heatmap queries scan only the relevant hex columns and never re-encode raw lat/lon.</p>
+<h4>02 — Synthetic data (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/02-load.sql">02-load.sql</a>)</h4>
+<p>Generates 5 M trips with weighted hotspot sampling. Implementation detail worth understanding:</p>
+<pre><code class="language-sql">-- 100-bucket lookup table: bucket[i] maps to a hotspot index by cumulative weight.
+-- Each row does an O(1) array lookup instead of a per-row correlated subquery.
+arrayMap(
+    i -&gt; arrayFirstIndex(
+             cum -&gt; cum &gt;= (i + 1) / 100.0,
+             arrayCumSum(arrayMap(w -&gt; w / arraySum(hs_weights), hs_weights))
+         ),
+    range(100)
+) AS bucket_lookup
+</code></pre>
+<p>Bias: 15 hotspots with weights <code>[10, 9, 9, 7, 6, ...]</code> produce realistic Manhattan-heavy distribution.</p>
+<h4>03 — H3 fundamentals (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/03-h3-basics.sql">03-h3-basics.sql</a>)</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geoToH3(lon, lat, res)</code></td>
+<td>encode point → UInt64 hex index</td>
+</tr>
+<tr>
+<td><code>h3ToGeo(h3)</code></td>
+<td>hex → center lat/lon</td>
+</tr>
+<tr>
+<td><code>h3ToString(h3)</code></td>
+<td>UInt64 → 15-char hex string (e.g. <code>88f05ab6adfffff</code>)</td>
+</tr>
+<tr>
+<td><code>h3EdgeLengthM(res)</code>, <code>h3HexAreaM2(res)</code></td>
+<td>reference table per resolution</td>
+</tr>
+<tr>
+<td><code>h3ToParent(h3, res)</code>, <code>h3ToChildren(h3, res)</code></td>
+<td>hierarchy navigation</td>
+</tr>
+<tr>
+<td><code>h3kRing(h3, k)</code></td>
+<td>all hexes within k rings (<code>= 3k² + 3k + 1</code> cells)</td>
+</tr>
+<tr>
+<td><code>h3Distance(a, b)</code></td>
+<td>hex-grid steps (integer)</td>
+</tr>
+<tr>
+<td><code>h3PointDistM(lat1, lon1, lat2, lon2)</code></td>
+<td>meters between hex centers</td>
+</tr>
+<tr>
+<td><code>h3IsValid</code>, <code>h3IsPentagon</code>, <code>h3GetBaseCell</code></td>
+<td>introspection</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Hierarchy quirk:</strong> H3 hex nesting is <em>approximate</em>. The res-10 hex of a raw point does NOT always have the res-8 hex of that same point as its <code>h3ToParent</code> — they can disagree near hex boundaries. For consistent roll-ups, store only the finest resolution and derive coarser ones via <code>h3ToParent()</code>.</p>
+</blockquote>
+<h4>04 — Demand heatmap (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/04-demand-heatmap.sql">04-demand-heatmap.sql</a>)</h4>
+<p>The killer pattern: aggregate millions of trips by hex.</p>
+<pre><code class="language-sql">SELECT h3ToString(pickup_h3_r8) AS hex,
+       h3ToGeo(pickup_h3_r8)    AS center_lat_lon,
+       count()                  AS pickups
+FROM   geo_analytics.trips
+GROUP  BY pickup_h3_r8
+ORDER  BY pickups DESC LIMIT 10;
+</code></pre>
+<p>Covered:
+- City-wide overview at res 6 (~3.2 km cells)
+- Block-level heatmap at res 8 (~460 m cells)
+- Multi-resolution roll-up via <code>h3ToParent</code> from a single stored r10 column
+- Hourly rank × hex (window function)
+- Pickup vs dropoff imbalance (driver supply/demand)
+- <code>h3ToGeoBoundary</code> → polygon overlay for Leaflet/Mapbox/deck.gl</p>
+<h4>05 — Distance &amp; routing (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/05-distance-and-routing.sql">05-distance-and-routing.sql</a>)</h4>
+<p>Three distance flavors:
+- <code>greatCircleDistance(lon, lat, lon, lat)</code> — spherical, fastest
+- <code>geoDistance(lon, lat, lon, lat)</code> — WGS84 ellipsoid, more accurate
+- <code>h3PointDistM(lat, lon, lat, lon)</code> — hex center to hex center (<strong>note: lat-first</strong>)
+- <code>h3Distance(h3a, h3b)</code> — hex grid steps (integer)</p>
+<p>Sub-queries include trip-length distribution, fare-per-km outlier detection, hex-step vs meter correlation, and round-trip (same-hex pickup/dropoff) detection.</p>
+<h4>06 — Spatial search (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/06-spatial-search.sql">06-spatial-search.sql</a>)</h4>
+<p>Three patterns:
+1. <strong>K-ring filter</strong> — <code>WHERE pickup_h3_r8 IN h3kRing(center, k)</code> for "all trips within ~k * edge meters of center"
+2. <strong>Point-in-polygon</strong> — <code>pointInPolygon((lon, lat), polygon)</code> for arbitrary service zones, including a full Origin-Destination matrix between every pair of zones
+3. <strong>Hybrid pre-filter</strong> — <code>h3PolygonToCells(polygon, res)</code> → <code>IN ()</code> hex pre-filter, then <code>pointInPolygon()</code> on survivors. Trades a fast hex-IN filter for a slower per-row geometry test.</p>
+<blockquote>
+<p><strong><code>h3PolygonToCells</code> gotcha:</strong> takes <code>Array(Tuple(LAT, LON))</code> — opposite of <code>geoToH3(lon, lat, res)</code> and <code>pointInPolygon((lon, lat), poly)</code>. If you store polygons as <code>(lon, lat)</code>, swap on the way in with <code>arrayMap(p -&gt; (p.2, p.1), polygon)</code>.</p>
+</blockquote>
+<h4>07 — H3 vs Geohash vs S2 (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/07-indexing-systems.sql">07-indexing-systems.sql</a>)</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>H3</th>
+<th>Geohash</th>
+<th>S2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cell shape</td>
+<td>Hexagon</td>
+<td>Rectangle</td>
+<td>Quadrilateral</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><code>UInt64</code></td>
+<td><code>String</code> (variable length)</td>
+<td><code>UInt64</code></td>
+</tr>
+<tr>
+<td>Hierarchy</td>
+<td>16 resolutions</td>
+<td>Prefix nesting</td>
+<td>30 levels</td>
+</tr>
+<tr>
+<td>Equal-area</td>
+<td>Yes (almost)</td>
+<td>No (varies by latitude)</td>
+<td>Yes (within tolerance)</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Mobility, demand heatmaps, k-ring neighbor analysis</td>
+<td>String-prefix searches, URL params, geocoding APIs</td>
+<td>Global services, Hilbert-curve coverage</td>
+</tr>
+</tbody>
+</table>
+<p>ClickHouse provides:
+- <code>geohashEncode(lon, lat, precision)</code> / <code>geohashDecode(s)</code> / <code>geohashesInBox(...)</code>
+- <code>geoToS2(lon, lat)</code> / <code>s2ToGeo(s2)</code> / <code>s2CapContains</code>, <code>s2CapUnion</code>, <code>s2CellsIntersect</code></p>
+<h4>08 — Real-time aggregation (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/08-materialized-views.sql">08-materialized-views.sql</a>)</h4>
+<p>Pre-aggregate trips by <code>(hour_bucket, hex_r8)</code> so dashboard queries scan ~72k rows instead of 5 M:</p>
+<pre><code class="language-sql">CREATE TABLE demand_by_hex_hour (
+    hour_bucket  DateTime,
+    hex_r8       UInt64,
+    pickups      AggregateFunction(count),
+    revenue      AggregateFunction(sum, Decimal(8, 2)),
+    avg_fare     AggregateFunction(avg, Decimal(8, 2)),
+    unique_users AggregateFunction(uniq, UInt32)
+) ENGINE = AggregatingMergeTree() ORDER BY (hour_bucket, hex_r8);
+
+CREATE MATERIALIZED VIEW demand_by_hex_hour_mv TO demand_by_hex_hour AS
+SELECT toStartOfHour(pickup_ts), pickup_h3_r8,
+       countState(), sumState(fare_amount),
+       avgState(fare_amount), uniqState(user_id)
+FROM   trips
+GROUP  BY ...
+</code></pre>
+<p>Queries use <code>countMerge</code>, <code>sumMerge</code>, <code>avgMerge</code>, <code>uniqMerge</code> to read aggregate state. The lab also includes a live-INSERT test that proves the MV picks up new trips automatically.</p>
+<h3>🔑 Gotchas worth remembering</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Coordinate order</strong></td>
+<td><code>geoToH3(lon, lat, res)</code> and <code>pointInPolygon((lon, lat), poly)</code> are <strong>lon-first</strong>. <code>h3PointDistM(lat, lon, lat, lon)</code> and <code>h3PolygonToCells([(lat, lon), …], res)</code> are <strong>lat-first</strong>.</td>
+</tr>
+<tr>
+<td><strong>Named-tuple polygons</strong></td>
+<td><code>h3PolygonToCells</code> requires unnamed <code>Tuple(Float64, Float64)</code>. Strip column names with <code>arrayMap(p -&gt; (p.1, p.2), polygon)</code>.</td>
+</tr>
+<tr>
+<td><strong>H3 hierarchy is approximate</strong></td>
+<td>The res-10 hex of a point may not roll up to the res-8 hex of that same point. Store the finest resolution and derive coarser ones via <code>h3ToParent()</code> for consistent results.</td>
+</tr>
+<tr>
+<td><strong><code>system.numbers</code> is infinite</strong></td>
+<td>Use <code>numbers(N)</code> table function instead of <code>system.numbers LIMIT N</code> — <code>count()</code> on the former terminates, the latter does not.</td>
+</tr>
+<tr>
+<td><strong>INSERT column order</strong></td>
+<td>The INSERT column list and SELECT projection list must align positionally. A swap silently produces wrong values.</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 Additional resources</h3>
+<ul>
+<li><a href="https://h3geo.org/">H3 documentation</a> — Uber's H3 reference (resolution table, geometry, API)</li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/geo">ClickHouse geo functions reference</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/geo/h3">ClickHouse H3 functions reference</a></li>
+<li><a href="http://s2geometry.io/">S2 Geometry library</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Geohash">Geohash specification</a></li>
+</ul>
+<h3>📝 Verification</h3>
+<p>All scripts verified end-to-end against ClickHouse 26.5.1.882 from an empty state:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Lines of output</th>
+<th>Errors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>8</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>03-h3-basics.sql</code></td>
+<td>54</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>04-demand-heatmap.sql</code></td>
+<td>161</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>05-distance-and-routing.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>06-spatial-search.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>07-indexing-systems.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>08-materialized-views.sql</code></td>
+<td>21</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>Happy Mapping! 🗺️</strong></p>
+<p>For questions, see the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse에서 지리정보 분석을 위한 종단간 실습 환경입니다. 핵심은 <strong>H3 육각 인덱싱</strong>이며, 합성된 NYC 라이드 헤일링 트립 500만 건을 사용해 ClickHouse가 기본 제공하는 지리 함수 전반 — hex 인덱싱, 거리 계산, 점-폴리곤 포함, k-ring 이웃 검색, 폴리곤→hex 변환, Geohash/S2와의 비교, <code>AggregatingMergeTree</code> + Materialized View를 통한 실시간 집계 — 을 모두 다룹니다.</p>
+<h3>🎯 왜 이 랩인가</h3>
+<p>H3 (Uber 육각 인덱스), S2 (Google 사각 인덱스), Geohash를 모두 1급 함수로 내장한 OLAP DB는 ClickHouse가 유일에 가깝습니다. 모빌리티, IoT, 리테일 풋트래픽, 광고테크 팀이 이 세 가지를 대규모로 사용 중이며, 본 랩은 <code>MATERIALIZED</code> 컬럼과 <code>AggregatingMergeTree</code>를 결합해 raw lat/lon 좌표를 쿼리 가능한 지리분석 표면으로 변환하는 방법을 보여줍니다.</p>
+<h3>📊 데이터셋</h3>
+<p>합성 NYC 라이드 헤일링 플랫폼:
+- <strong>트립</strong>: 5,000,000건 (2026년 5월의 30일)
+- <strong>핫스팟</strong>: 15개의 명명된 POI (타임스퀘어, JFK, LGA, …) — 가중치 샘플링의 클러스터 중심
+- <strong>서비스 존</strong>: 7개의 폴리곤 (미드타운, 다운타운, 윌리엄스버그, JFK/LGA 공항 등)
+- 각 트립에 <code>pickup_lon/lat</code>, <code>dropoff_lon/lat</code> 와 함께 <strong>res 6 / 8 / 10</strong> 의 <code>MATERIALIZED</code> H3 컬럼 저장
+- 현실적인 분포: 픽업이 핫스팟 주변에 σ ≈ 800m로 군집, 러시아워 서지 (아침 1.5×, 저녁 2.0×), 요금은 대권 거리에 비례</p>
+<h3>📁 파일 구조</h3>
+<pre><code>ch-geo-analytics/
+├── README.md                     # 이 문서
+├── 01-schema.sql                 # trips + service_zones + hotspots 테이블
+├── 02-load.sql                   # 500만 트립 합성 데이터 (가중치 샘플링)
+├── 03-h3-basics.sql              # H3 기본: 인코딩, 계층, k-ring, 거리
+├── 04-demand-heatmap.sql         # 다중 해상도 hex 집계, top-N, OD flow
+├── 05-distance-and-routing.sql   # greatCircle / geo / h3PointDist / h3Line / hex 단계
+├── 06-spatial-search.sql         # K-ring, pointInPolygon, OD 매트릭스, 하이브리드 사전 필터
+├── 07-indexing-systems.sql       # H3 vs Geohash vs S2 비교
+├── 08-materialized-views.sql     # AggregatingMergeTree로 실시간 수요 집계
+└── 99-cleanup.sql                # 모든 객체 삭제
+</code></pre>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd usecase/ch-geo-analytics
+
+# 순차 실행 — 로컬에서 실행 중인 ClickHouse 활용
+for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
+         04-demand-heatmap.sql 05-distance-and-routing.sql \
+         06-spatial-search.sql 07-indexing-systems.sql \
+         08-materialized-views.sql; do
+    echo &quot;▶ Running $f&quot;
+    clickhouse-client --multiquery --queries-file &quot;$f&quot;
+done
+</code></pre>
+<p>도커 컨테이너 (예: <code>local/pg-clickhouse-lab</code>)에 대해 실행하려면:</p>
+<pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
+         04-demand-heatmap.sql 05-distance-and-routing.sql \
+         06-spatial-search.sql 07-indexing-systems.sql \
+         08-materialized-views.sql; do
+    cat &quot;$f&quot; | docker exec -i pgch-clickhouse clickhouse-client --multiquery
+done
+</code></pre>
+<h3>📖 랩 워크스루</h3>
+<h4>01 — 스키마</h4>
+<p><code>geo_analytics</code> 데이터베이스와 세 개의 테이블을 생성. <code>MATERIALIZED</code> H3 컬럼이 핵심으로, INSERT 시점에 한 번 계산되어 디스크에 저장되므로 수요 히트맵 쿼리는 raw 좌표를 재인코딩하지 않고 hex 컬럼만 스캔합니다.</p>
+<h4>02 — 합성 데이터</h4>
+<p>500만 트립을 가중치 핫스팟 샘플링으로 생성. 핵심 트릭은 <strong>100칸 룩업 테이블</strong> — 행마다 correlated subquery를 돌리는 대신 O(1) 배열 룩업으로 핫스팟을 선택합니다.</p>
+<h4>03 — H3 기본</h4>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geoToH3(lon, lat, res)</code></td>
+<td>좌표 → UInt64 hex 인덱스</td>
+</tr>
+<tr>
+<td><code>h3ToGeo(h3)</code></td>
+<td>hex → 중심 lat/lon</td>
+</tr>
+<tr>
+<td><code>h3ToString(h3)</code></td>
+<td>UInt64 → 15자 hex 문자열</td>
+</tr>
+<tr>
+<td><code>h3EdgeLengthM(res)</code>, <code>h3HexAreaM2(res)</code></td>
+<td>해상도별 레퍼런스</td>
+</tr>
+<tr>
+<td><code>h3ToParent</code>, <code>h3ToChildren</code></td>
+<td>계층 탐색</td>
+</tr>
+<tr>
+<td><code>h3kRing(h3, k)</code></td>
+<td>k링 내부 hex (<code>= 3k² + 3k + 1</code>개)</td>
+</tr>
+<tr>
+<td><code>h3Distance(a, b)</code></td>
+<td>hex 단계 거리 (정수)</td>
+</tr>
+<tr>
+<td><code>h3PointDistM(lat1, lon1, lat2, lon2)</code></td>
+<td>hex 중심점 간 미터 거리</td>
+</tr>
+<tr>
+<td><code>h3IsValid</code>, <code>h3IsPentagon</code>, <code>h3GetBaseCell</code></td>
+<td>유효성 검사</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>계층 주의:</strong> H3 hex 중첩은 <em>근사적</em>입니다. 같은 raw 좌표를 r10과 r8로 따로 인코딩하면 경계 근처에서 <code>h3ToParent(r10, 8) ≠ r8</code>이 될 수 있습니다. 일관된 롤업을 위해서는 가장 세밀한 해상도만 저장하고 <code>h3ToParent()</code>로 거친 해상도를 유도하세요.</p>
+</blockquote>
+<h4>04 — 수요 히트맵</h4>
+<p>수백만 트립을 hex 단위로 집계하는 ClickHouse의 핵심 패턴. 포함:
+- 도시 전체 (res 6, ~3.2 km)
+- 블록 단위 (res 8, ~460 m)
+- r10 컬럼에서 <code>h3ToParent</code>로 멀티 해상도 롤업
+- 시간 × hex 윈도우 랭킹
+- 픽업/드롭오프 불균형 (드라이버 공급/수요)
+- <code>h3ToGeoBoundary</code> → Leaflet/Mapbox/deck.gl 폴리곤 오버레이</p>
+<h4>05 — 거리 &amp; 라우팅</h4>
+<p>거리 함수 세 가지:
+- <code>greatCircleDistance(lon, lat, ...)</code> — 구체, 가장 빠름
+- <code>geoDistance(lon, lat, ...)</code> — WGS84 타원체, 더 정확
+- <code>h3PointDistM(lat, lon, ...)</code> — hex 중심 간 (<strong>lat 먼저</strong>)
+- <code>h3Distance(h3a, h3b)</code> — hex 단계 (정수)</p>
+<p>트립 거리 분포, $/km 이상값 탐지, hex 단계 vs 미터 상관관계, 왕복 (동일 hex 픽업/드롭오프) 탐지 포함.</p>
+<h4>06 — 공간 검색</h4>
+<p>세 가지 패턴:
+1. <strong>K-ring 필터</strong> — <code>WHERE pickup_h3_r8 IN h3kRing(center, k)</code> 로 중심 주변 트립
+2. <strong>점-폴리곤</strong> — <code>pointInPolygon((lon, lat), polygon)</code> 으로 임의 서비스 존 + 전체 OD 매트릭스
+3. <strong>하이브리드 사전 필터</strong> — <code>h3PolygonToCells(polygon, res)</code> → <code>IN ()</code> hex 사전 필터 → 살아남은 행에만 <code>pointInPolygon()</code> 적용</p>
+<blockquote>
+<p><strong><code>h3PolygonToCells</code> 함정:</strong> <code>Array(Tuple(위도, 경도))</code> 를 받음. <code>geoToH3(경도, 위도, ...)</code> 및 <code>pointInPolygon((경도, 위도), ...)</code>와 인자 순서가 정반대. 폴리곤을 (경도, 위도)로 저장했다면 <code>arrayMap(p -&gt; (p.2, p.1), polygon)</code> 으로 swap 필수.</p>
+</blockquote>
+<h4>07 — H3 vs Geohash vs S2</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>H3</th>
+<th>Geohash</th>
+<th>S2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>셀 모양</td>
+<td>육각형</td>
+<td>사각형</td>
+<td>사각형</td>
+</tr>
+<tr>
+<td>저장</td>
+<td><code>UInt64</code></td>
+<td><code>String</code> (가변)</td>
+<td><code>UInt64</code></td>
+</tr>
+<tr>
+<td>계층</td>
+<td>16 해상도</td>
+<td>접두사 중첩</td>
+<td>30 단계</td>
+</tr>
+<tr>
+<td>동일면적</td>
+<td>거의 그렇다</td>
+<td>위도에 따라 변동</td>
+<td>허용 오차 내</td>
+</tr>
+<tr>
+<td>적합한 용도</td>
+<td>모빌리티, 수요 히트맵, k-ring 이웃</td>
+<td>문자열 접두사 검색, URL 파라미터, 지오코딩 API</td>
+<td>글로벌 서비스, 힐버트 커브</td>
+</tr>
+</tbody>
+</table>
+<p>ClickHouse 제공 함수:
+- <code>geohashEncode(lon, lat, precision)</code> / <code>geohashDecode(s)</code> / <code>geohashesInBox(...)</code>
+- <code>geoToS2(lon, lat)</code> / <code>s2ToGeo(s2)</code> / <code>s2CapContains</code>, <code>s2CapUnion</code>, <code>s2CellsIntersect</code></p>
+<h4>08 — 실시간 집계</h4>
+<p><code>(시간 버킷, hex_r8)</code> 단위로 사전 집계해 대시보드 쿼리가 500만 행 대신 ~72,000 행만 스캔하도록 합니다:</p>
+<pre><code class="language-sql">CREATE TABLE demand_by_hex_hour (
+    hour_bucket  DateTime,
+    hex_r8       UInt64,
+    pickups      AggregateFunction(count),
+    revenue      AggregateFunction(sum, Decimal(8, 2)),
+    ...
+) ENGINE = AggregatingMergeTree() ORDER BY (hour_bucket, hex_r8);
+
+CREATE MATERIALIZED VIEW demand_by_hex_hour_mv TO demand_by_hex_hour AS
+SELECT toStartOfHour(pickup_ts), pickup_h3_r8,
+       countState(), sumState(fare_amount), ...
+FROM trips GROUP BY ...
+</code></pre>
+<p>쿼리는 <code>countMerge</code>, <code>sumMerge</code>, <code>avgMerge</code>, <code>uniqMerge</code> 로 집계 상태를 읽습니다. 새 INSERT가 MV에 자동 반영되는지 확인하는 라이브 테스트도 포함.</p>
+<h3>🔑 기억할 함정들</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>노트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>좌표 순서</strong></td>
+<td><code>geoToH3(경도, 위도, 해상도)</code>와 <code>pointInPolygon((경도, 위도), ...)</code>는 <strong>경도 먼저</strong>. <code>h3PointDistM(위도, 경도, ...)</code>와 <code>h3PolygonToCells([(위도, 경도), …], 해상도)</code>는 <strong>위도 먼저</strong>.</td>
+</tr>
+<tr>
+<td><strong>Named Tuple 폴리곤</strong></td>
+<td><code>h3PolygonToCells</code>는 unnamed <code>Tuple(Float64, Float64)</code> 만 받음. 컬럼명 제거: <code>arrayMap(p -&gt; (p.1, p.2), polygon)</code>.</td>
+</tr>
+<tr>
+<td><strong>H3 계층 근사성</strong></td>
+<td>한 점의 res-10 hex의 <code>h3ToParent(8)</code>이 같은 점의 res-8 hex와 다를 수 있음. 가장 세밀한 해상도만 저장하고 <code>h3ToParent()</code>로 거친 해상도 유도.</td>
+</tr>
+<tr>
+<td><strong><code>system.numbers</code>는 무한</strong></td>
+<td><code>system.numbers LIMIT N</code> 대신 <code>numbers(N)</code> 사용 — 전자에서 <code>count()</code>는 종료되지 않음.</td>
+</tr>
+<tr>
+<td><strong>INSERT 컬럼 순서</strong></td>
+<td>INSERT 컬럼 리스트와 SELECT 프로젝션 리스트의 위치가 일치해야 함. swap되면 조용히 잘못된 값이 들어감.</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><a href="https://h3geo.org/">H3 documentation</a> — Uber의 H3 공식 레퍼런스</li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/geo">ClickHouse geo 함수 레퍼런스</a></li>
+<li><a href="https://clickhouse.com/docs/sql-reference/functions/geo/h3">ClickHouse H3 함수 레퍼런스</a></li>
+<li><a href="http://s2geometry.io/">S2 Geometry library</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Geohash">Geohash specification</a></li>
+</ul>
+<h3>📝 검증</h3>
+<p>빈 상태에서 ClickHouse 26.5.1.882 에 대해 모든 스크립트가 end-to-end 검증됨:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>출력 라인</th>
+<th>오류</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>8</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>03-h3-basics.sql</code></td>
+<td>54</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>04-demand-heatmap.sql</code></td>
+<td>161</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>05-distance-and-routing.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>06-spatial-search.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>07-indexing-systems.sql</code></td>
+<td>39</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>08-materialized-views.sql</code></td>
+<td>21</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>Happy Mapping! 🗺️</strong></p>
+<p>질문이나 이슈는 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/ch-geo-analytics"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

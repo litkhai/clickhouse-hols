@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.10 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.10 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.10</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.10.7.6</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.10 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory focuses on verified and working features newly added in ClickHouse 25.10 (released 2025-10-30).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.10 includes JOIN performance improvements, new data types for vector search, and several query convenience enhancements.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>QBit Data Type</strong> - New data type for vector search</li>
+<li><strong>Negative LIMIT/OFFSET</strong> - Reverse lookup using negative values</li>
+<li><strong>JOIN Improvements</strong> - Lazy materialization, filter push-down, automatic condition derivation</li>
+<li><strong>LIMIT BY ALL</strong> - New syntax for per-group record limiting</li>
+<li><strong>Auto Statistics</strong> - Automatic statistics collection and JOIN optimization</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 25.10
+cd local/releases/25.10
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-qbit-vector-search.sh
+./02-negative-limit-offset.sh
+./03-join-improvements.sh
+./04-limit-by-all.sh
+./05-auto-statistics.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../releases/25.10
+source 01-qbit-vector-search.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. QBit Vector Search (01-qbit-vector-search)</h4>
+<p><strong>New Feature:</strong> Efficient vector search through QBit data type</p>
+<p><strong>Test Content:</strong>
+- QBit data type creation and usage
+- L2 Distance (Euclidean distance) calculation
+- Cosine Distance calculation
+- Similarity search and vector operations</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-qbit-vector-search.sh
+# Or
+cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Vector embedding storage and search
+- Similarity calculation using distance functions
+- Memory-efficient vector storage</p>
+<hr />
+<h4>2. Negative LIMIT/OFFSET (02-negative-limit-offset)</h4>
+<p><strong>New Feature:</strong> Support for negative values in LIMIT and OFFSET</p>
+<p><strong>Test Content:</strong>
+- Retrieve last N records with negative LIMIT
+- Skip from end with negative OFFSET
+- Combined positive/negative usage
+- Pagination applications</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-negative-limit-offset.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>LIMIT -3</code>: Last 3 records
+- <code>OFFSET -2</code>: Skip 2 from end
+- Implement reverse pagination
+- Write tail queries without subqueries</p>
+<hr />
+<h4>3. JOIN Improvements (03-join-improvements)</h4>
+<p><strong>New Feature:</strong> JOIN performance optimization - Lazy materialization, Filter push-down, Automatic condition derivation</p>
+<p><strong>Test Content:</strong>
+- Memory/CPU optimization through lazy materialization
+- Filter push-down (PREWHERE-like optimization)
+- Automatic condition derivation for complex WHERE clauses
+- Multi-table JOIN optimization</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-join-improvements.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Delayed block replication during JOIN (lazy)
+- Utilize small filters for other table reads
+- Automatic condition propagation for query optimization
+- Verify execution plan with EXPLAIN</p>
+<hr />
+<h4>4. LIMIT BY ALL (04-limit-by-all)</h4>
+<p><strong>New Feature:</strong> New syntax for per-group record limiting</p>
+<p><strong>Test Content:</strong>
+- <code>LIMIT BY ALL</code> syntax usage
+- Grouping with multi-column combinations
+- Data sampling and deduplication
+- Session analysis applications</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./04-limit-by-all.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>LIMIT 2 BY ALL</code>: 2 records per distinct combination of the selected columns
+- Simple syntax instead of window functions
+- Data quality checks and sampling
+- Retrieve first/last records per group</p>
+<hr />
+<h4>5. Auto Statistics (05-auto-statistics)</h4>
+<p><strong>New Feature:</strong> Table-level automatic statistics collection settings</p>
+<p><strong>Test Content:</strong>
+- <code>auto_statistics_types</code> configuration
+- minmax, uniq, countmin statistics types
+- Statistics-based automatic JOIN order optimization
+- Query system.statistics table</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./05-auto-statistics.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Enable automatic statistics at table creation
+- Query optimization using statistics
+- Automatic JOIN order rearrangement
+- Check statistics metadata</p>
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-25-10
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.10/
+├── README.md                      # This document
+├── 00-setup.sh                    # ClickHouse 25.10 installation script
+├── 01-qbit-vector-search.sh       # QBit vector search test execution
+├── 01-qbit-vector-search.sql      # QBit vector search SQL
+├── 02-negative-limit-offset.sh    # Negative LIMIT/OFFSET test execution
+├── 02-negative-limit-offset.sql   # Negative LIMIT/OFFSET SQL
+├── 03-join-improvements.sh        # JOIN improvements test execution
+├── 03-join-improvements.sql       # JOIN improvements SQL
+├── 04-limit-by-all.sh             # LIMIT BY ALL test execution
+├── 04-limit-by-all.sql            # LIMIT BY ALL SQL
+├── 05-auto-statistics.sh          # Auto Statistics test execution
+└── 05-auto-statistics.sql         # Auto Statistics SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>02-negative-limit-offset</strong> - Start with simple syntax</li>
+<li><strong>04-limit-by-all</strong> - Understand data grouping</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>01-qbit-vector-search</strong> - Learn vector search concepts</li>
+<li><strong>03-join-improvements</strong> - Understand JOIN optimization</li>
+<li><strong>05-auto-statistics</strong> - Statistics-based optimization</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Combine all features for real production scenarios</li>
+<li>Analyze query execution plans with EXPLAIN</li>
+<li>Performance benchmarking and comparison</li>
+</ul>
+<h3>🆕 What's New in 25.10</h3>
+<ul>
+<li><strong><code>QBit</code> data type</strong> — quantised vectors for vector search</li>
+<li><strong>Negative <code>LIMIT</code> / <code>OFFSET</code></strong> — count from the end of the result (<a href="https://github.com/ClickHouse/ClickHouse/pull/88411">#88411</a>)</li>
+<li><strong><code>LIMIT BY ALL</code></strong> — expand the BY list to the selected expressions (<a href="https://github.com/ClickHouse/ClickHouse/pull/84079">#84079</a>)</li>
+<li><strong>Automatic statistics</strong> — build statistics on all suitable columns (<a href="https://github.com/ClickHouse/ClickHouse/pull/87241">#87241</a>)</li>
+<li><strong><code>naiveBayesClassifier</code></strong> — n-gram text classification (<a href="https://github.com/ClickHouse/ClickHouse/pull/78700">#78700</a>)</li>
+<li><strong><code>sparse_gram</code> bloom filter index</strong> — new skip index type (<a href="https://github.com/ClickHouse/ClickHouse/pull/79985">#79985</a>)</li>
+<li><strong>Apache Paimon support</strong> — query Paimon tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/84423">#84423</a>)</li>
+<li><strong><code>conv</code></strong> — convert numbers between bases 2-36 (<a href="https://github.com/ClickHouse/ClickHouse/pull/83058">#83058</a>)</li>
+<li><strong><code>quantilePrometheusHistogram</code></strong> — histogram quantile aggregate (<a href="https://github.com/ClickHouse/ClickHouse/pull/86294">#86294</a>)</li>
+<li><strong><code>studentTTestOneSample</code></strong> — one-sample t-test aggregate (<a href="https://github.com/ClickHouse/ClickHouse/pull/85436">#85436</a>)</li>
+<li><strong><code>Alias</code> table engine</strong> — proxy to another table (<a href="https://github.com/ClickHouse/ClickHouse/pull/87965">#87965</a>)</li>
+<li><strong>Case-insensitive <code>startsWith</code> / <code>endsWith</code></strong> — optimised variants (<a href="https://github.com/ClickHouse/ClickHouse/pull/87374">#87374</a>)</li>
+<li><strong>Cloud login from the client</strong> — <code>--login</code> with Cloud credentials (<a href="https://github.com/ClickHouse/ClickHouse/pull/82753">#82753</a>)</li>
+<li><strong><code>SYSTEM RECONNECT ZOOKEEPER</code></strong> — force a Keeper reconnect (<a href="https://github.com/ClickHouse/ClickHouse/pull/87318">#87318</a>)</li>
+<li><strong>Delta Lake metadata system table</strong> — inspect Delta metadata files (<a href="https://github.com/ClickHouse/ClickHouse/pull/87263">#87263</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-10">ClickHouse 25.10 Release</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2025-release-25.10/">25.10 Feature Deck</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.10.7.6</li>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default</li>
+</ul>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.10 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 10월 30일 출시된 ClickHouse 25.10에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.10은 JOIN 성능 개선, 벡터 검색을 위한 새로운 데이터 타입, 그리고 쿼리 편의성을 높이는 여러 기능들을 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>QBit Data Type</strong> - 벡터 검색을 위한 새로운 데이터 타입</li>
+<li><strong>Negative LIMIT/OFFSET</strong> - 음수 값을 사용한 역방향 조회</li>
+<li><strong>JOIN Improvements</strong> - Lazy materialization, filter push-down, 자동 조건 유도</li>
+<li><strong>LIMIT BY ALL</strong> - 그룹별 레코드 제한을 위한 새로운 문법</li>
+<li><strong>Auto Statistics</strong> - 자동 통계 수집 및 JOIN 최적화</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.10 설치 및 시작
+cd local/releases/25.10
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-qbit-vector-search.sh
+./02-negative-limit-offset.sh
+./03-join-improvements.sh
+./04-limit-by-all.sh
+./05-auto-statistics.sh
+</code></pre>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../releases/25.10
+source 01-qbit-vector-search.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. QBit Vector Search (01-qbit-vector-search)</h4>
+<p><strong>새로운 기능:</strong> QBit 데이터 타입을 통한 효율적인 벡터 검색</p>
+<p><strong>테스트 내용:</strong>
+- QBit 데이터 타입 생성 및 사용
+- L2 Distance (유클리드 거리) 계산
+- Cosine Distance 계산
+- 유사도 검색 및 벡터 연산</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-qbit-vector-search.sh
+# 또는
+cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 벡터 임베딩 저장 및 검색
+- 거리 함수를 이용한 유사도 계산
+- 메모리 효율적인 벡터 저장</p>
+<hr />
+<h4>2. Negative LIMIT/OFFSET (02-negative-limit-offset)</h4>
+<p><strong>새로운 기능:</strong> LIMIT과 OFFSET에 음수 값 사용 지원</p>
+<p><strong>테스트 내용:</strong>
+- 음수 LIMIT으로 마지막 N개 레코드 조회
+- 음수 OFFSET으로 끝에서부터 건너뛰기
+- 양수/음수 조합 사용
+- 페이지네이션 응용</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-negative-limit-offset.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>LIMIT -3</code>: 마지막 3개 레코드
+- <code>OFFSET -2</code>: 끝에서 2개 건너뛰기
+- 역방향 페이지네이션 구현
+- 서브쿼리 없이 tail 쿼리 작성</p>
+<hr />
+<h4>3. JOIN Improvements (03-join-improvements)</h4>
+<p><strong>새로운 기능:</strong> JOIN 성능 최적화 - Lazy materialization, Filter push-down, 자동 조건 유도</p>
+<p><strong>테스트 내용:</strong>
+- Lazy materialization을 통한 메모리/CPU 최적화
+- Filter push-down (PREWHERE-like optimization)
+- 복잡한 WHERE 절의 자동 조건 유도
+- 다중 테이블 JOIN 최적화</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-join-improvements.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- JOIN 시 블록 복제의 지연 수행 (lazy)
+- 작은 필터를 다른 테이블 읽기에 활용
+- 자동 조건 전파로 쿼리 최적화
+- EXPLAIN으로 실행 계획 확인</p>
+<hr />
+<h4>4. LIMIT BY ALL (04-limit-by-all)</h4>
+<p><strong>새로운 기능:</strong> 그룹별 레코드 제한을 위한 새로운 문법</p>
+<p><strong>테스트 내용:</strong>
+- <code>LIMIT BY ALL</code> 문법 사용
+- 다중 컬럼 조합으로 그룹핑
+- 데이터 샘플링 및 중복 제거
+- 세션 분석 응용</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./04-limit-by-all.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>LIMIT 2 BY ALL</code>: SELECT 목록의 고유 조합마다 2개씩
+- 윈도우 함수 대신 간단한 문법 사용
+- 데이터 품질 체크 및 샘플링
+- 그룹별 첫/마지막 레코드 조회</p>
+<hr />
+<h4>5. Auto Statistics (05-auto-statistics)</h4>
+<p><strong>새로운 기능:</strong> 테이블 수준 자동 통계 수집 설정</p>
+<p><strong>테스트 내용:</strong>
+- <code>auto_statistics_types</code> 설정
+- minmax, uniq, countmin 통계 타입
+- 통계 기반 JOIN 순서 자동 최적화
+- system.statistics 테이블 조회</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./05-auto-statistics.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 테이블 생성 시 자동 통계 활성화
+- 통계를 활용한 쿼리 최적화
+- JOIN 순서 자동 재배치
+- 통계 메타데이터 확인</p>
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-25-10
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.10/
+├── README.md                      # 이 문서
+├── 00-setup.sh                    # ClickHouse 25.10 설치 스크립트
+├── 01-qbit-vector-search.sh       # QBit 벡터 검색 테스트 실행
+├── 01-qbit-vector-search.sql      # QBit 벡터 검색 SQL
+├── 02-negative-limit-offset.sh    # Negative LIMIT/OFFSET 테스트 실행
+├── 02-negative-limit-offset.sql   # Negative LIMIT/OFFSET SQL
+├── 03-join-improvements.sh        # JOIN 개선 테스트 실행
+├── 03-join-improvements.sql       # JOIN 개선 SQL
+├── 04-limit-by-all.sh             # LIMIT BY ALL 테스트 실행
+├── 04-limit-by-all.sql            # LIMIT BY ALL SQL
+├── 05-auto-statistics.sh          # Auto Statistics 테스트 실행
+└── 05-auto-statistics.sql         # Auto Statistics SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>02-negative-limit-offset</strong> - 간단한 문법부터 시작</li>
+<li><strong>04-limit-by-all</strong> - 데이터 그룹핑 이해</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>01-qbit-vector-search</strong> - 벡터 검색 개념 학습</li>
+<li><strong>03-join-improvements</strong> - JOIN 최적화 이해</li>
+<li><strong>05-auto-statistics</strong> - 통계 기반 최적화</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>모든 기능을 조합하여 실제 프로덕션 시나리오 구현</li>
+<li>EXPLAIN 명령으로 쿼리 실행 계획 분석</li>
+<li>성능 벤치마킹 및 비교</li>
+</ul>
+<h3>🆕 25.10의 새로운 기능</h3>
+<ul>
+<li><strong><code>QBit</code> data type</strong> — quantised vectors for vector search</li>
+<li><strong>Negative <code>LIMIT</code> / <code>OFFSET</code></strong> — count from the end of the result (<a href="https://github.com/ClickHouse/ClickHouse/pull/88411">#88411</a>)</li>
+<li><strong><code>LIMIT BY ALL</code></strong> — expand the BY list to the selected expressions (<a href="https://github.com/ClickHouse/ClickHouse/pull/84079">#84079</a>)</li>
+<li><strong>Automatic statistics</strong> — build statistics on all suitable columns (<a href="https://github.com/ClickHouse/ClickHouse/pull/87241">#87241</a>)</li>
+<li><strong><code>naiveBayesClassifier</code></strong> — n-gram text classification (<a href="https://github.com/ClickHouse/ClickHouse/pull/78700">#78700</a>)</li>
+<li><strong><code>sparse_gram</code> bloom filter index</strong> — new skip index type (<a href="https://github.com/ClickHouse/ClickHouse/pull/79985">#79985</a>)</li>
+<li><strong>Apache Paimon support</strong> — query Paimon tables (<a href="https://github.com/ClickHouse/ClickHouse/pull/84423">#84423</a>)</li>
+<li><strong><code>conv</code></strong> — convert numbers between bases 2-36 (<a href="https://github.com/ClickHouse/ClickHouse/pull/83058">#83058</a>)</li>
+<li><strong><code>quantilePrometheusHistogram</code></strong> — histogram quantile aggregate (<a href="https://github.com/ClickHouse/ClickHouse/pull/86294">#86294</a>)</li>
+<li><strong><code>studentTTestOneSample</code></strong> — one-sample t-test aggregate (<a href="https://github.com/ClickHouse/ClickHouse/pull/85436">#85436</a>)</li>
+<li><strong><code>Alias</code> table engine</strong> — proxy to another table (<a href="https://github.com/ClickHouse/ClickHouse/pull/87965">#87965</a>)</li>
+<li><strong>Case-insensitive <code>startsWith</code> / <code>endsWith</code></strong> — optimised variants (<a href="https://github.com/ClickHouse/ClickHouse/pull/87374">#87374</a>)</li>
+<li><strong>Cloud login from the client</strong> — <code>--login</code> with Cloud credentials (<a href="https://github.com/ClickHouse/ClickHouse/pull/82753">#82753</a>)</li>
+<li><strong><code>SYSTEM RECONNECT ZOOKEEPER</code></strong> — force a Keeper reconnect (<a href="https://github.com/ClickHouse/ClickHouse/pull/87318">#87318</a>)</li>
+<li><strong>Delta Lake metadata system table</strong> — inspect Delta metadata files (<a href="https://github.com/ClickHouse/ClickHouse/pull/87263">#87263</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-10">ClickHouse 25.10 Release</a></li>
+<li><strong>Release Presentation</strong>: <a href="https://presentations.clickhouse.com/2025-release-25.10/">25.10 Feature Deck</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 있습니다</li>
+</ul>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.10"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

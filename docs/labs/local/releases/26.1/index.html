@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.1 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.1 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.1</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.1.12.23</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.1 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 26.1 new features. This directory focuses on verified and working features newly added in ClickHouse 26.1 (released 2026-01-29, the first release of 2026).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 26.1 includes significant enhancements in data management, text search capabilities, keeper operations, and performance optimizations. This release features new functions, expanded data type support, and improved query execution strategies.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>reverseBySeparator Function</strong> - New string function for flexible text manipulation</li>
+<li><strong>Text Index for Array Columns</strong> - Full-text search capabilities extended to arrays</li>
+<li><strong>HTTP API for ClickHouse Keeper</strong> - Built-in web UI and REST API for keeper monitoring</li>
+<li><strong>DeltaLake Deletion Vectors</strong> - Efficient row-level deletion support for data lakes</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 26.1
+cd local/releases/26.1
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-reverse-by-separator.sh
+./02-text-index-arrays.sh
+./03-keeper-http-api.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../local/releases/26.1
+source 01-reverse-by-separator.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. reverseBySeparator Function (01-reverse-by-separator)</h4>
+<p><strong>New Feature:</strong> Function that reverses the order of substrings in a string separated by a specified separator</p>
+<p><strong>Test Content:</strong>
+- Basic string reversal with various separators
+- Path manipulation (URL paths, file paths)
+- Domain name reversing (e.g., com.example.www)
+- CSV column reordering
+- Breadcrumb navigation reversal
+- Log format transformation</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-reverse-by-separator.sh
+# Or
+cat 01-reverse-by-separator.sql | docker exec -i clickhouse-26-1 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>reverseBySeparator(separator, string)</code> reverses substring order
+- Useful for path normalization and format conversion
+- Works with any string separator (/, ., -, etc.)
+- Preserves empty segments in the string
+- Can be combined with other string functions
+- Efficient for URL and path manipulation</p>
+<p><strong>Use Cases:</strong>
+- URL path manipulation and normalization
+- Reverse domain name lookups (PTR records)
+- File path transformations
+- Log format conversions
+- Breadcrumb navigation building
+- CSV/TSV column reordering
+- Namespace and package name handling
+- Hierarchical data restructuring</p>
+<hr />
+<h4>2. Text Index for Array Columns (02-text-index-arrays)</h4>
+<p><strong>New Feature:</strong> Text indexing capabilities extended to support Array data types for full-text search</p>
+<p><strong>Test Content:</strong>
+- Creating text indexes on Array(String) columns
+- Multi-keyword search in arrays
+- Tag and category search optimization
+- Product feature search
+- Comment and review text search
+- Performance comparison with and without indexes</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-text-index-arrays.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Text indexes now work on <code>Array(String)</code> columns
+- Significantly improves search performance on array data
+- Uses same syntax as regular text indexes
+- Supports various tokenizers (ngrams, tokens, etc.)
+- Can index tags, categories, and multi-value fields
+- Reduces query latency for array searches</p>
+<p><strong>Use Cases:</strong>
+- Product tag and category search
+- Multi-keyword article search
+- E-commerce filter optimization
+- Social media hashtag search
+- Document keyword indexing
+- User interest and preference search
+- Skills and capabilities matching
+- Content recommendation systems</p>
+<hr />
+<h4>3. HTTP API for ClickHouse Keeper (03-keeper-http-api)</h4>
+<p><strong>New Feature:</strong> Built-in HTTP API and embedded web interface for ClickHouse Keeper monitoring and management</p>
+<p><strong>Test Content:</strong>
+- Accessing Keeper status via HTTP API
+- Querying cluster configuration
+- Monitoring keeper metrics
+- Inspecting znode data
+- Health check endpoints
+- Web UI exploration</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-keeper-http-api.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Keeper now includes built-in HTTP API
+- Web UI available at keeper's HTTP port
+- REST endpoints for status, config, and metrics
+- No external tools required for monitoring
+- JSON responses for easy integration
+- Simplifies keeper operations and debugging</p>
+<p><strong>Use Cases:</strong>
+- Keeper health monitoring
+- Cluster configuration inspection
+- Operational dashboards
+- Automated health checks
+- Integration with monitoring tools (Prometheus, Grafana)
+- Troubleshooting keeper issues
+- Znode data inspection
+- Cluster status visualization</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-26-1
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>26.1/
+├── README.md                        # This document
+├── 00-setup.sh                      # ClickHouse 26.1 installation script
+├── 01-reverse-by-separator.sh       # reverseBySeparator function test
+├── 01-reverse-by-separator.sql      # reverseBySeparator SQL
+├── 02-text-index-arrays.sh          # Text index for arrays test
+├── 02-text-index-arrays.sql         # Text index for arrays SQL
+├── 03-keeper-http-api.sh            # Keeper HTTP API test
+└── 03-keeper-http-api.sql           # Keeper HTTP API SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>01-reverse-by-separator</strong> - Learn new string manipulation functions</li>
+<li><strong>02-text-index-arrays</strong> - Introduction to full-text search on arrays</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>03-keeper-http-api</strong> - Explore keeper management and monitoring</li>
+<li>Build search features with text indexes on arrays</li>
+<li>Integrate string functions into data processing pipelines</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Apply text indexes to production array columns</li>
+<li>Build keeper monitoring dashboards</li>
+<li>Performance optimization with new features</li>
+<li>Integrate keeper API with external monitoring systems</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://clickhouse.com/company/events/v26-01-community-release-call">ClickHouse 26.1 Community Call</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2026</a></li>
+<li><strong>Newsletter</strong>: <a href="https://clickhouse.com/blog/202601-newsletter">January 2026 Newsletter</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default for inspection</li>
+<li>All features verified on ClickHouse 26.1.12.23</li>
+</ul>
+<h3>🆕 What's New in 26.1</h3>
+<ul>
+<li><strong>New String Functions</strong> including reverseBySeparator for flexible text manipulation</li>
+<li><strong>Text Index Enhancements</strong> with Array column support</li>
+<li><strong>Keeper Improvements</strong> with built-in HTTP API and web UI</li>
+<li><strong>Performance Optimizations</strong> including skip indexes on data read (default enabled)</li>
+<li><strong>DeltaLake Support</strong> with deletion vectors for efficient row-level operations</li>
+<li><strong>Enhanced Type System</strong> with Variant type as default common type</li>
+<li><strong>Query Optimizations</strong> with improved JOIN filter pushdown and window functions</li>
+</ul>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 26.1 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 1월 29일 출시된 2026년 첫 번째 릴리스 ClickHouse 26.1에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 26.1은 데이터 관리, 텍스트 검색 기능, keeper 운영 및 성능 최적화에서 중요한 개선사항을 포함합니다. 이 릴리스는 새로운 함수, 확장된 데이터 타입 지원, 그리고 개선된 쿼리 실행 전략을 제공합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>reverseBySeparator Function</strong> - 유연한 텍스트 조작을 위한 새로운 문자열 함수</li>
+<li><strong>Text Index for Array Columns</strong> - 배열에 대한 전체 텍스트 검색 기능 확장</li>
+<li><strong>HTTP API for ClickHouse Keeper</strong> - keeper 모니터링을 위한 내장 웹 UI 및 REST API</li>
+<li><strong>DeltaLake Deletion Vectors</strong> - 데이터 레이크를 위한 효율적인 행 수준 삭제 지원</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 26.1 설치 및 시작
+cd local/releases/26.1
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-reverse-by-separator.sh
+./02-text-index-arrays.sh
+./03-keeper-http-api.sh
+</code></pre>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../local/releases/26.1
+source 01-reverse-by-separator.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. reverseBySeparator Function (01-reverse-by-separator)</h4>
+<p><strong>새로운 기능:</strong> 지정된 구분자로 분리된 문자열의 하위 문자열 순서를 반전시키는 함수</p>
+<p><strong>테스트 내용:</strong>
+- 다양한 구분자를 사용한 기본 문자열 반전
+- 경로 조작 (URL 경로, 파일 경로)
+- 도메인 이름 반전 (예: com.example.www)
+- CSV 컬럼 재정렬
+- 브레드크럼 내비게이션 반전
+- 로그 형식 변환</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-reverse-by-separator.sh
+# 또는
+cat 01-reverse-by-separator.sql | docker exec -i clickhouse-26-1 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>reverseBySeparator(separator, string)</code>으로 부분 문자열 순서 반전
+- 경로 정규화 및 형식 변환에 유용
+- 모든 문자열 구분자 (/, ., -, 등)와 함께 작동
+- 문자열의 빈 세그먼트 보존
+- 다른 문자열 함수와 결합 가능
+- URL 및 경로 조작에 효율적</p>
+<p><strong>사용 사례:</strong>
+- URL 경로 조작 및 정규화
+- 역방향 도메인 이름 조회 (PTR 레코드)
+- 파일 경로 변환
+- 로그 형식 변환
+- 브레드크럼 내비게이션 구축
+- CSV/TSV 컬럼 재정렬
+- 네임스페이스 및 패키지 이름 처리
+- 계층적 데이터 재구조화</p>
+<hr />
+<h4>2. Text Index for Array Columns (02-text-index-arrays)</h4>
+<p><strong>새로운 기능:</strong> 전체 텍스트 검색을 위해 Array 데이터 타입을 지원하도록 확장된 텍스트 인덱싱 기능</p>
+<p><strong>테스트 내용:</strong>
+- Array(String) 컬럼에 텍스트 인덱스 생성
+- 배열 내 다중 키워드 검색
+- 태그 및 카테고리 검색 최적화
+- 제품 기능 검색
+- 댓글 및 리뷰 텍스트 검색
+- 인덱스 유무에 따른 성능 비교</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-text-index-arrays.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 텍스트 인덱스가 이제 <code>Array(String)</code> 컬럼에서 작동
+- 배열 데이터 검색 성능을 크게 향상
+- 일반 텍스트 인덱스와 동일한 구문 사용
+- 다양한 토크나이저 지원 (ngrams, tokens 등)
+- 태그, 카테고리 및 다중 값 필드 인덱싱 가능
+- 배열 검색 쿼리 지연 시간 감소</p>
+<p><strong>사용 사례:</strong>
+- 제품 태그 및 카테고리 검색
+- 다중 키워드 기사 검색
+- 전자상거래 필터 최적화
+- 소셜 미디어 해시태그 검색
+- 문서 키워드 인덱싱
+- 사용자 관심사 및 선호도 검색
+- 기술 및 역량 매칭
+- 콘텐츠 추천 시스템</p>
+<hr />
+<h4>3. HTTP API for ClickHouse Keeper (03-keeper-http-api)</h4>
+<p><strong>새로운 기능:</strong> ClickHouse Keeper 모니터링 및 관리를 위한 내장 HTTP API 및 임베디드 웹 인터페이스</p>
+<p><strong>테스트 내용:</strong>
+- HTTP API를 통한 Keeper 상태 접근
+- 클러스터 구성 조회
+- Keeper 메트릭 모니터링
+- Znode 데이터 검사
+- 헬스 체크 엔드포인트
+- 웹 UI 탐색</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-keeper-http-api.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- Keeper에 이제 내장 HTTP API 포함
+- Keeper의 HTTP 포트에서 웹 UI 사용 가능
+- 상태, 구성 및 메트릭을 위한 REST 엔드포인트
+- 모니터링을 위한 외부 도구 불필요
+- 쉬운 통합을 위한 JSON 응답
+- Keeper 운영 및 디버깅 단순화</p>
+<p><strong>사용 사례:</strong>
+- Keeper 헬스 모니터링
+- 클러스터 구성 검사
+- 운영 대시보드
+- 자동화된 헬스 체크
+- 모니터링 도구와의 통합 (Prometheus, Grafana)
+- Keeper 이슈 트러블슈팅
+- Znode 데이터 검사
+- 클러스터 상태 시각화</p>
+<hr />
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-26-1
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>26.1/
+├── README.md                        # 이 문서
+├── 00-setup.sh                      # ClickHouse 26.1 설치 스크립트
+├── 01-reverse-by-separator.sh       # reverseBySeparator 함수 테스트
+├── 01-reverse-by-separator.sql      # reverseBySeparator SQL
+├── 02-text-index-arrays.sh          # 배열 텍스트 인덱스 테스트
+├── 02-text-index-arrays.sql         # 배열 텍스트 인덱스 SQL
+├── 03-keeper-http-api.sh            # Keeper HTTP API 테스트
+└── 03-keeper-http-api.sql           # Keeper HTTP API SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>01-reverse-by-separator</strong> - 새로운 문자열 조작 함수 학습</li>
+<li><strong>02-text-index-arrays</strong> - 배열에 대한 전체 텍스트 검색 소개</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>03-keeper-http-api</strong> - Keeper 관리 및 모니터링 탐색</li>
+<li>배열의 텍스트 인덱스로 검색 기능 구축</li>
+<li>데이터 처리 파이프라인에 문자열 함수 통합</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>프로덕션 배열 컬럼에 텍스트 인덱스 적용</li>
+<li>Keeper 모니터링 대시보드 구축</li>
+<li>새로운 기능으로 성능 최적화</li>
+<li>외부 모니터링 시스템과 Keeper API 통합</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Release Presentation</strong>: <a href="https://clickhouse.com/company/events/v26-01-community-release-call">ClickHouse 26.1 Community Call</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2026</a></li>
+<li><strong>Newsletter</strong>: <a href="https://clickhouse.com/blog/202601-newsletter">January 2026 Newsletter</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 검사할 수 있습니다</li>
+<li>모든 기능은 ClickHouse 26.1.1에서 검증되었습니다</li>
+</ul>
+<h3>🆕 26.1의 새로운 기능</h3>
+<ul>
+<li>유연한 텍스트 조작을 위한 reverseBySeparator를 포함한 <strong>새로운 문자열 함수</strong></li>
+<li>Array 컬럼 지원으로 <strong>텍스트 인덱스 강화</strong></li>
+<li>내장 HTTP API 및 웹 UI로 <strong>Keeper 개선</strong></li>
+<li>데이터 읽기 시 skip 인덱스 기본 활성화를 포함한 <strong>성능 최적화</strong></li>
+<li>효율적인 행 수준 작업을 위한 deletion vector가 있는 <strong>DeltaLake 지원</strong></li>
+<li>기본 공통 타입으로 Variant 타입을 사용한 <strong>향상된 타입 시스템</strong></li>
+<li>개선된 JOIN 필터 푸시다운 및 윈도우 함수로 <strong>쿼리 최적화</strong></li>
+</ul>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.1"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

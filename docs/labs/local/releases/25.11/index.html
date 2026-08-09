@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.11 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.11 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.11</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.11.2.24</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.11 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.11 new features. This directory focuses on verified and working features newly added in ClickHouse 25.11 (released 2025-11-27).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.11 includes important SQL compatibility improvements, Map type enhancements, spatial data support, and query convenience features.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>HAVING without GROUP BY</strong> - ANSI SQL compatibility for aggregate filtering</li>
+<li><strong>Fractional LIMIT</strong> - Percentage-based data sampling</li>
+<li><strong>Map Aggregation (sumMap)</strong> - Direct aggregation on Map types</li>
+<li><strong>Geometry Functions (readWKT*)</strong> - WKT format spatial data support</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 25.11
+cd local/releases/25.11
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-having-without-groupby.sh
+./02-fractional-limit.sh
+./03-map-aggregation.sh
+./04-geometry-functions.sh
+</code></pre>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../releases/25.11
+source 01-having-without-groupby.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. HAVING without GROUP BY (01-having-without-groupby)</h4>
+<p><strong>New Feature:</strong> HAVING clause can now be used without GROUP BY for ANSI SQL compatibility</p>
+<p><strong>Test Content:</strong>
+- Traditional HAVING with GROUP BY vs new HAVING without GROUP BY
+- Aggregate validation (sum, avg, count)
+- Multiple condition filtering
+- Data quality checks
+- PostgreSQL compatibility scenarios</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-having-without-groupby.sh
+# Or
+cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- Simplified syntax for aggregate filtering
+- <code>HAVING sum(amount) &gt; 1000</code> without GROUP BY
+- Better PostgreSQL migration support
+- Data quality validation patterns
+- Business rule validation</p>
+<p><strong>Use Cases:</strong>
+- Data quality validation
+- Aggregate threshold checks
+- Business rule validation
+- PostgreSQL query migration
+- ETL pipeline quality gates</p>
+<hr />
+<h4>2. Fractional LIMIT (02-fractional-limit)</h4>
+<p><strong>New Feature:</strong> LIMIT clause now accepts fractional values (0.0-1.0) for percentage-based sampling</p>
+<p><strong>Test Content:</strong>
+- Basic fractional LIMIT syntax (0.1 = 10%, 0.25 = 25%, etc.)
+- Data sampling for analysis
+- ML training/test data split
+- A/B testing group creation
+- Performance comparison (full vs sampled)</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-fractional-limit.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>LIMIT 0.1</code>: Returns 10% of rows
+- <code>LIMIT 0.25</code>: Returns 25% of rows
+- <code>LIMIT 0.5</code>: Returns 50% of rows
+- Intuitive percentage-based sampling
+- Useful for exploratory data analysis
+- ML data splitting made easy</p>
+<p><strong>Use Cases:</strong>
+- Exploratory data analysis on large datasets
+- Quick statistical sampling
+- Machine learning train/test split
+- A/B testing group creation
+- Data quality checks on samples
+- Performance testing with representative data
+- Ad-hoc analysis without full scan</p>
+<hr />
+<h4>3. Map Aggregation with sumMap (03-map-aggregation)</h4>
+<p><strong>New Feature:</strong> <code>sumMap()</code> aggregate function enables direct aggregation on Map types</p>
+<p><strong>Test Content:</strong>
+- sumMap aggregation on Map columns
+- E-commerce analytics with dynamic dimensions
+- Inventory tracking with Map operations
+- mapSubtract for calculating net changes
+- Semi-structured data analysis patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-map-aggregation.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>sumMap(map_column)</code> aggregates values by key
+- Clean syntax for semi-structured data
+- Supports <code>mapAdd</code>, <code>mapSubtract</code> for Map operations
+- Better performance than manual key extraction
+- Ideal for dynamic schemas and flexible data models</p>
+<p><strong>Use Cases:</strong>
+- E-commerce analytics with dynamic dimensions
+- IoT sensor data aggregation
+- User behavior tracking with flexible metrics
+- Multi-dimensional business intelligence
+- Product analytics with varying attributes
+- Financial data with dynamic categories</p>
+<hr />
+<h4>4. Geometry Functions (04-geometry-functions)</h4>
+<p><strong>New Feature:</strong> WKT (Well-Known Text) reading functions for spatial data: <code>readWKTPoint</code>, <code>readWKTPolygon</code>, etc.</p>
+<p><strong>Test Content:</strong>
+- Parse WKT format spatial data with readWKTPoint
+- Distance calculations using geoDistance
+- Points of Interest (POI) proximity queries
+- Geohash encoding for spatial indexing
+- Location-based services patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./04-geometry-functions.sh
+</code></pre>
+<p><strong>Key Learning Points:</strong>
+- <code>readWKTPoint('POINT(lon lat)')</code> parses WKT points
+- <code>geoDistance(lon1, lat1, lon2, lat2)</code> calculates distances
+- <code>geohashEncode(lon, lat, precision)</code> for spatial indexing
+- Tuple types for efficient coordinate storage
+- Integration with spatial analysis functions</p>
+<p><strong>Use Cases:</strong>
+- GIS and mapping applications
+- Location-based services and POI search
+- Spatial data analysis and proximity queries
+- Urban planning and zone management
+- Logistics and route optimization
+- Real estate and property management</p>
+<hr />
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash"># Check ClickHouse status
+cd ../../oss-mac-setup
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# View logs
+docker logs clickhouse-25-11
+
+# Stop
+./stop.sh
+
+# Complete removal
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.11/
+├── README.md                       # This document
+├── 00-setup.sh                     # ClickHouse 25.11 installation script
+├── 01-having-without-groupby.sh    # HAVING without GROUP BY test execution
+├── 01-having-without-groupby.sql   # HAVING without GROUP BY SQL
+├── 02-fractional-limit.sh          # Fractional LIMIT test execution
+├── 02-fractional-limit.sql         # Fractional LIMIT SQL
+├── 03-map-aggregation.sh           # Map Aggregation test execution
+├── 03-map-aggregation.sql          # Map Aggregation SQL
+├── 04-geometry-functions.sh        # Geometry Functions test execution
+└── 04-geometry-functions.sql       # Geometry Functions SQL
+</code></pre>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - Understand environment setup</li>
+<li><strong>02-fractional-limit</strong> - Start with intuitive sampling syntax</li>
+<li><strong>01-having-without-groupby</strong> - Learn SQL compatibility improvements</li>
+</ol>
+<h4>For Intermediate Users</h4>
+<ol>
+<li><strong>03-map-aggregation</strong> - Semi-structured data with Map types</li>
+<li><strong>04-geometry-functions</strong> - Spatial data and GIS concepts</li>
+<li>Combine features for real-world scenarios</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ul>
+<li>Apply these features to production workloads</li>
+<li>Analyze query execution plans with EXPLAIN</li>
+<li>Performance benchmarking and comparison</li>
+<li>Integrate with external GIS tools and systems</li>
+</ul>
+<h3>🆕 What's New in 25.11</h3>
+<ul>
+<li><strong><code>Geometry</code> data type</strong> — with WKB/WKT support (<a href="https://github.com/ClickHouse/ClickHouse/pull/83344">#83344</a>)</li>
+<li><strong><code>HAVING</code> without <code>GROUP BY</code></strong> — ANSI SQL aggregate filtering</li>
+<li><strong>Fractional <code>LIMIT</code> / <code>OFFSET</code></strong> — percentage-based sampling (<a href="https://github.com/ClickHouse/ClickHouse/pull/88755">#88755</a>)</li>
+<li><strong>Map aggregation</strong> — aggregate directly over <code>Map</code> columns</li>
+<li><strong><code>readWKT*</code> geometry functions</strong> — parse WKT into geometry types</li>
+<li><strong><code>naiveBayesClassifier</code></strong> — text classification function (<a href="https://github.com/ClickHouse/ClickHouse/pull/88677">#88677</a>)</li>
+<li><strong><code>EXECUTE AS</code></strong> — user impersonation statement (<a href="https://github.com/ClickHouse/ClickHouse/pull/70775">#70775</a>)</li>
+<li><strong>Microsoft OneLake catalog</strong> — new catalog subsystem (<a href="https://github.com/ClickHouse/ClickHouse/pull/89366">#89366</a>)</li>
+<li><strong><code>system.unicode</code></strong> — character property table (<a href="https://github.com/ClickHouse/ClickHouse/pull/80857">#80857</a>)</li>
+<li><strong><code>cume_dist</code></strong> — cumulative distribution window function (<a href="https://github.com/ClickHouse/ClickHouse/pull/88102">#88102</a>)</li>
+<li><strong><code>arrayRemove</code></strong> — remove elements from an array (<a href="https://github.com/ClickHouse/ClickHouse/pull/89585">#89585</a>)</li>
+<li><strong><code>flipCoordinates</code></strong> — swap coordinates in geometry arrays (<a href="https://github.com/ClickHouse/ClickHouse/pull/79634">#79634</a>)</li>
+<li><strong>Text index preprocessor argument</strong> — customise index preprocessing (<a href="https://github.com/ClickHouse/ClickHouse/pull/88272">#88272</a>)</li>
+<li><strong><code>CREATE OR REPLACE</code> for temporary tables</strong> — atomic replacement (<a href="https://github.com/ClickHouse/ClickHouse/pull/89450">#89450</a>)</li>
+<li><strong><code>into_outfile_create_parent_directories</code></strong> — create parent dirs for INTO OUTFILE (<a href="https://github.com/ClickHouse/ClickHouse/pull/88795">#88795</a>)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-11">ClickHouse 25.11 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>Map Functions</strong>: <a href="https://clickhouse.com/docs/en/sql-reference/functions/tuple-map-functions">Map Functions Reference</a></li>
+<li><strong>Geo Functions</strong>: <a href="https://clickhouse.com/docs/en/sql-reference/functions/geo">Geo Functions Reference</a></li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>Each script can be executed independently</li>
+<li>Read and modify SQL files directly to experiment</li>
+<li>Test data is generated within each SQL file</li>
+<li>Cleanup is commented out by default for inspection</li>
+<li>All features verified on ClickHouse 25.11.2.24</li>
+</ul>
+<h3>🤝 Contributing</h3>
+<p>If you have improvements or additional examples for this lab:
+1. Register an issue
+2. Submit a Pull Request
+3. Share feedback</p>
+<h3>📄 License</h3>
+<p>MIT License - Free to learn and modify</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>For questions or issues, please refer to the main <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.11 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 11월 27일 출시된 ClickHouse 25.11에서 검증된 작동 기능에 집중합니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.11은 SQL 호환성 개선, Map 타입 향상, 공간 데이터 지원, 쿼리 편의성 기능을 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>HAVING without GROUP BY</strong> - 집계 필터링을 위한 ANSI SQL 호환성</li>
+<li><strong>Fractional LIMIT</strong> - 퍼센트 기반 데이터 샘플링</li>
+<li><strong>Map Aggregation (sumMap)</strong> - Map 타입 직접 집계</li>
+<li><strong>Geometry Functions (readWKT*)</strong> - WKT 형식 공간 데이터 지원</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.11 설치 및 시작
+cd local/releases/25.11
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-having-without-groupby.sh
+./02-fractional-limit.sh
+./03-map-aggregation.sh
+./04-geometry-functions.sh
+</code></pre>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../releases/25.11
+source 01-having-without-groupby.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. HAVING without GROUP BY (01-having-without-groupby)</h4>
+<p><strong>새로운 기능:</strong> HAVING 절을 GROUP BY 없이 사용 가능 (ANSI SQL 호환성)</p>
+<p><strong>테스트 내용:</strong>
+- 기존 HAVING with GROUP BY vs 새로운 HAVING without GROUP BY
+- 집계 검증 (sum, avg, count)
+- 다중 조건 필터링
+- 데이터 품질 검사
+- PostgreSQL 호환성 시나리오</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-having-without-groupby.sh
+# 또는
+cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-client --multiline --multiquery
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- 집계 필터링을 위한 간소화된 문법
+- <code>HAVING sum(amount) &gt; 1000</code> (GROUP BY 없이)
+- 향상된 PostgreSQL 마이그레이션 지원
+- 데이터 품질 검증 패턴
+- 비즈니스 규칙 검증</p>
+<p><strong>사용 사례:</strong>
+- 데이터 품질 검증
+- 집계 임계값 검사
+- 비즈니스 규칙 검증
+- PostgreSQL 쿼리 마이그레이션
+- ETL 파이프라인 품질 게이트</p>
+<hr />
+<h4>2. Fractional LIMIT (02-fractional-limit)</h4>
+<p><strong>새로운 기능:</strong> LIMIT 절이 퍼센트 기반 샘플링을 위한 소수값(0.0-1.0) 지원</p>
+<p><strong>테스트 내용:</strong>
+- 기본 fractional LIMIT 문법 (0.1 = 10%, 0.25 = 25%, 등)
+- 분석을 위한 데이터 샘플링
+- ML 훈련/테스트 데이터 분할
+- A/B 테스트 그룹 생성
+- 성능 비교 (전체 vs 샘플)</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-fractional-limit.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>LIMIT 0.1</code>: 10%의 행 반환
+- <code>LIMIT 0.25</code>: 25%의 행 반환
+- <code>LIMIT 0.5</code>: 50%의 행 반환
+- 직관적인 퍼센트 기반 샘플링
+- 탐색적 데이터 분석에 유용
+- 간편한 ML 데이터 분할</p>
+<p><strong>사용 사례:</strong>
+- 대용량 데이터셋의 탐색적 데이터 분석
+- 빠른 통계적 샘플링
+- 머신러닝 훈련/테스트 분할
+- A/B 테스트 그룹 생성
+- 샘플 기반 데이터 품질 검사
+- 대표 데이터를 사용한 성능 테스트
+- 전체 스캔 없는 임시 분석</p>
+<hr />
+<h4>3. Map Aggregation with sumMap (03-map-aggregation)</h4>
+<p><strong>새로운 기능:</strong> <code>sumMap()</code> 집계 함수로 Map 타입 직접 집계 가능</p>
+<p><strong>테스트 내용:</strong>
+- Map 컬럼에 대한 sumMap 집계
+- 동적 차원을 가진 전자상거래 분석
+- Map 연산을 사용한 재고 추적
+- mapSubtract로 순변화량 계산
+- 반정형 데이터 분석 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-map-aggregation.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>sumMap(map_column)</code>로 키별 값 집계
+- 반정형 데이터를 위한 깔끔한 문법
+- <code>mapAdd</code>, <code>mapSubtract</code> 등 Map 연산 지원
+- 수동 키 추출보다 나은 성능
+- 동적 스키마와 유연한 데이터 모델에 이상적</p>
+<p><strong>사용 사례:</strong>
+- 동적 차원을 가진 전자상거래 분석
+- IoT 센서 데이터 집계
+- 유연한 메트릭을 가진 사용자 행동 추적
+- 다차원 비즈니스 인텔리전스
+- 다양한 속성을 가진 제품 분석
+- 동적 카테고리를 가진 금융 데이터</p>
+<hr />
+<h4>4. Geometry Functions (04-geometry-functions)</h4>
+<p><strong>새로운 기능:</strong> 공간 데이터를 위한 WKT(Well-Known Text) 읽기 함수: <code>readWKTPoint</code>, <code>readWKTPolygon</code> 등</p>
+<p><strong>테스트 내용:</strong>
+- readWKTPoint로 WKT 형식 공간 데이터 파싱
+- geoDistance를 사용한 거리 계산
+- POI(관심 지점) 근접 쿼리
+- 공간 인덱싱을 위한 Geohash 인코딩
+- 위치 기반 서비스 패턴</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./04-geometry-functions.sh
+</code></pre>
+<p><strong>주요 학습 포인트:</strong>
+- <code>readWKTPoint('POINT(lon lat)')</code>로 WKT 포인트 파싱
+- <code>geoDistance(lon1, lat1, lon2, lat2)</code>로 거리 계산
+- <code>geohashEncode(lon, lat, precision)</code>로 공간 인덱싱
+- 효율적인 좌표 저장을 위한 Tuple 타입
+- 공간 분석 함수와의 통합</p>
+<p><strong>사용 사례:</strong>
+- GIS 및 매핑 애플리케이션
+- 위치 기반 서비스 및 POI 검색
+- 공간 데이터 분석 및 근접 쿼리
+- 도시 계획 및 구역 관리
+- 물류 및 경로 최적화
+- 부동산 및 자산 관리</p>
+<hr />
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash"># ClickHouse 상태 확인
+cd ../../oss-mac-setup
+./status.sh
+
+# CLI 접속
+./client.sh 8123
+
+# 로그 확인
+docker logs clickhouse-25-11
+
+# 중지
+./stop.sh
+
+# 완전 삭제
+./stop.sh --cleanup
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.11/
+├── README.md                       # 이 문서
+├── 00-setup.sh                     # ClickHouse 25.11 설치 스크립트
+├── 01-having-without-groupby.sh    # HAVING without GROUP BY 테스트 실행
+├── 01-having-without-groupby.sql   # HAVING without GROUP BY SQL
+├── 02-fractional-limit.sh          # Fractional LIMIT 테스트 실행
+├── 02-fractional-limit.sql         # Fractional LIMIT SQL
+├── 03-map-aggregation.sh           # Map Aggregation 테스트 실행
+├── 03-map-aggregation.sql          # Map Aggregation SQL
+├── 04-geometry-functions.sh        # Geometry Functions 테스트 실행
+└── 04-geometry-functions.sql       # Geometry Functions SQL
+</code></pre>
+<h3>🎓 학습 경로</h3>
+<h4>초급 사용자</h4>
+<ol>
+<li><strong>00-setup.sh</strong> - 환경 구성 이해</li>
+<li><strong>02-fractional-limit</strong> - 직관적인 샘플링 문법부터 시작</li>
+<li><strong>01-having-without-groupby</strong> - SQL 호환성 개선 학습</li>
+</ol>
+<h4>중급 사용자</h4>
+<ol>
+<li><strong>03-map-aggregation</strong> - Map 타입을 사용한 반정형 데이터</li>
+<li><strong>04-geometry-functions</strong> - 공간 데이터 및 GIS 개념</li>
+<li>실제 시나리오에 기능 결합</li>
+</ol>
+<h4>고급 사용자</h4>
+<ul>
+<li>프로덕션 워크로드에 이 기능들 적용</li>
+<li>EXPLAIN 명령으로 쿼리 실행 계획 분석</li>
+<li>성능 벤치마킹 및 비교</li>
+<li>외부 GIS 도구 및 시스템과 통합</li>
+</ul>
+<h3>🆕 25.11의 새로운 기능</h3>
+<ul>
+<li><strong><code>Geometry</code> data type</strong> — with WKB/WKT support (<a href="https://github.com/ClickHouse/ClickHouse/pull/83344">#83344</a>)</li>
+<li><strong><code>HAVING</code> without <code>GROUP BY</code></strong> — ANSI SQL aggregate filtering</li>
+<li><strong>Fractional <code>LIMIT</code> / <code>OFFSET</code></strong> — percentage-based sampling (<a href="https://github.com/ClickHouse/ClickHouse/pull/88755">#88755</a>)</li>
+<li><strong>Map aggregation</strong> — aggregate directly over <code>Map</code> columns</li>
+<li><strong><code>readWKT*</code> geometry functions</strong> — parse WKT into geometry types</li>
+<li><strong><code>naiveBayesClassifier</code></strong> — text classification function (<a href="https://github.com/ClickHouse/ClickHouse/pull/88677">#88677</a>)</li>
+<li><strong><code>EXECUTE AS</code></strong> — user impersonation statement (<a href="https://github.com/ClickHouse/ClickHouse/pull/70775">#70775</a>)</li>
+<li><strong>Microsoft OneLake catalog</strong> — new catalog subsystem (<a href="https://github.com/ClickHouse/ClickHouse/pull/89366">#89366</a>)</li>
+<li><strong><code>system.unicode</code></strong> — character property table (<a href="https://github.com/ClickHouse/ClickHouse/pull/80857">#80857</a>)</li>
+<li><strong><code>cume_dist</code></strong> — cumulative distribution window function (<a href="https://github.com/ClickHouse/ClickHouse/pull/88102">#88102</a>)</li>
+<li><strong><code>arrayRemove</code></strong> — remove elements from an array (<a href="https://github.com/ClickHouse/ClickHouse/pull/89585">#89585</a>)</li>
+<li><strong><code>flipCoordinates</code></strong> — swap coordinates in geometry arrays (<a href="https://github.com/ClickHouse/ClickHouse/pull/79634">#79634</a>)</li>
+<li><strong>Text index preprocessor argument</strong> — customise index preprocessing (<a href="https://github.com/ClickHouse/ClickHouse/pull/88272">#88272</a>)</li>
+<li><strong><code>CREATE OR REPLACE</code> for temporary tables</strong> — atomic replacement (<a href="https://github.com/ClickHouse/ClickHouse/pull/89450">#89450</a>)</li>
+<li><strong><code>into_outfile_create_parent_directories</code></strong> — create parent dirs for INTO OUTFILE (<a href="https://github.com/ClickHouse/ClickHouse/pull/88795">#88795</a>)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Official Release Blog</strong>: <a href="https://clickhouse.com/blog/clickhouse-release-25-11">ClickHouse 25.11 Release</a></li>
+<li><strong>ClickHouse Documentation</strong>: <a href="https://clickhouse.com/docs">docs.clickhouse.com</a></li>
+<li><strong>Release Notes</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">Changelog 2025</a></li>
+<li><strong>Map Functions</strong>: <a href="https://clickhouse.com/docs/en/sql-reference/functions/tuple-map-functions">Map Functions Reference</a></li>
+<li><strong>Geo Functions</strong>: <a href="https://clickhouse.com/docs/en/sql-reference/functions/geo">Geo Functions Reference</a></li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>각 스크립트는 독립적으로 실행 가능합니다</li>
+<li>SQL 파일을 직접 읽고 수정하여 실험해보세요</li>
+<li>테스트 데이터는 각 SQL 파일 내에서 생성됩니다</li>
+<li>정리(cleanup)는 기본적으로 주석 처리되어 검사할 수 있습니다</li>
+<li>모든 기능은 ClickHouse 25.11.2에서 검증되었습니다</li>
+</ul>
+<h3>🤝 기여</h3>
+<p>이 랩에 대한 개선 사항이나 추가 예제가 있다면:
+1. 이슈 등록
+2. Pull Request 제출
+3. 피드백 공유</p>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자유롭게 학습 및 수정 가능</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<p>질문이나 이슈가 있으면 메인 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/README.md">clickhouse-hols README</a>를 참조하세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.11"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReplacingMergeTree Lab · ClickHouse HOLs</title>
+<meta name="description" content="ReplacingMergeTree Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/replacingmergetree</code>
+    
+  </nav>
+  <div class="readme en"><h1>ReplacingMergeTree Lab</h1>
+<hr />
+<p>A hands-on lab for the behaviour that surprises most ReplacingMergeTree users: deduplication is a <strong>merge-time</strong> side effect, not a write-time guarantee. Until parts merge, duplicate rows are visible, and every query that omits <code>FINAL</code> reads them.</p>
+<h3>📋 Overview</h3>
+<p>The lab inserts the same keys across several parts, then measures what queries return with and without <code>FINAL</code>, how long merges take to collapse the duplicates, what <code>OPTIMIZE TABLE FINAL</code> actually costs, and which <code>argMax</code> rewrite avoids <code>FINAL</code> altogether. Every step runs as plain SQL against any ClickHouse server.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong><code>FINAL</code> semantics</strong> — the same query with and without it, on the same data</li>
+<li><strong>Consistency drift at scale</strong> — 1M rows across overlapping batches</li>
+<li><strong>Merge observation</strong> — parts, in-flight merges, merge history, related settings</li>
+<li><strong><code>OPTIMIZE TABLE FINAL</code> and the <code>argMax</code> alternative</strong> — cost versus correctness</li>
+<li><strong>Operational monitoring</strong> — queries to detect duplicate exposure in production</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>A running ClickHouse server — the <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment works</li>
+<li><code>clickhouse-client</code> on your PATH, or run the files through the web UI</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash">cd workload/replacingmergetree
+
+clickhouse-client --queries-file 01-setup.sql
+clickhouse-client --queries-file 02-basic-operations.sql
+clickhouse-client --queries-file 03-large-scale-tests.sql
+clickhouse-client --queries-file 04-consistency-checks.sql
+clickhouse-client --queries-file 05-merge-monitoring.sql
+clickhouse-client --queries-file 06-optimization.sql
+clickhouse-client --queries-file 07-monitoring.sql
+
+# optional, drops the test database
+clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<h3>📚 Lab Details</h3>
+<h4>1. Setup (01-setup.sql)</h4>
+<p>Creates the <code>blog_test</code> database and two <code>ReplacingMergeTree(updated_at)</code> tables ordered by <code>(user_id, event_type)</code> — one small table for the semantic tests, one for the large-scale run.</p>
+<h4>2. Basic Operations (02-basic-operations.sql)</h4>
+<p>Three inserts of the same keys, each landing in its own part, then the same <code>SELECT</code> with and without <code>FINAL</code>. This is the smallest possible demonstration that a version column does not deduplicate on insert.</p>
+<h4>3. Large Scale Tests (03-large-scale-tests.sql)</h4>
+<p>100,000 initial rows, then overlapping update batches (500k and 1M row inserts), with part counts captured after each batch. Shows how duplicate exposure grows with ingest rate rather than staying constant.</p>
+<h4>4. Consistency Checks (04-consistency-checks.sql)</h4>
+<p>Per-key row counts, total row counts, and aggregate results computed both ways. The aggregate comparison is the important one: without <code>FINAL</code>, sums and counts are simply wrong, not merely stale.</p>
+<h4>5. Merge Monitoring (05-merge-monitoring.sql)</h4>
+<p><code>system.parts</code> with part age, <code>system.merges</code> for in-flight work, <code>system.part_log</code> for merge history, and the session settings that govern when merges are allowed to start.</p>
+<h4>6. Optimization (06-optimization.sql)</h4>
+<p><code>OPTIMIZE TABLE FINAL</code> before/after state on both tables, then the <code>argMax</code>-based rewrite that returns the latest version per key without <code>FINAL</code> and without waiting for a merge.</p>
+<h4>7. Monitoring (07-monitoring.sql)</h4>
+<p>Production-shaped queries: part-state monitoring, a duplicate-exposure check that compares row counts with and without <code>FINAL</code>, <code>query_log</code>-based performance comparison, and per-table statistics.</p>
+<h3>🔑 Key Learning Points</h3>
+<ul>
+<li><code>ReplacingMergeTree</code> collapses duplicates <strong>when parts merge</strong>, on an unspecified schedule — never on insert</li>
+<li>Reads without <code>FINAL</code> can return several versions of one key; aggregates over them are wrong, not approximate</li>
+<li><code>FINAL</code> is correct but costs a merge-on-read; <code>argMax</code> over the version column is often cheaper for a specific access pattern</li>
+<li><code>OPTIMIZE TABLE FINAL</code> is a manual, whole-table rewrite. It is a maintenance operation, not a query-time fix</li>
+<li>Duplicate exposure scales with insert frequency: more parts arriving means more windows where reads see duplicates</li>
+<li>Comparing <code>count()</code> with and without <code>FINAL</code> is a cheap production canary for this class of bug</li>
+</ul>
+<h3>📂 File Structure</h3>
+<pre><code>replacingmergetree/
+├── README.md                     # This document
+├── 01-setup.sql                  # Database + two ReplacingMergeTree tables
+├── 02-basic-operations.sql       # FINAL semantics across three parts
+├── 03-large-scale-tests.sql      # Overlapping batches up to 1M rows
+├── 04-consistency-checks.sql     # Row counts and aggregates, with/without FINAL
+├── 05-merge-monitoring.sql       # parts, merges, part_log, merge settings
+├── 06-optimization.sql           # OPTIMIZE TABLE FINAL and the argMax rewrite
+├── 07-monitoring.sql             # Operational monitoring queries
+└── 99-cleanup.sql                # Drop the test tables and database
+</code></pre>
+<h3>🔍 Related Labs</h3>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/dedup-engine">workload/dedup-engine</a> — compares deduplication engines against each other</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/delete-benchmark">workload/delete-benchmark</a> — DELETE mechanisms and their costs</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv">workload/mv-vs-rmv</a> — materialized vs refreshable materialized views</li>
+</ul>
+<h3>📝 Notes</h3>
+<ul>
+<li>The scripts assume the <code>blog_test</code> database is free to create and drop</li>
+<li><code>02</code> and <code>03</code> truncate their tables at the top, so they are safe to re-run</li>
+<li>Merge timing is not deterministic; if duplicates have already collapsed when you reach <code>04</code>, re-run <code>03</code> and query immediately</li>
+<li><code>99-cleanup.sql</code> is destructive and separate on purpose</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>ReplacingMergeTree에서 가장 많이 오해되는 지점을 직접 확인하는 실습입니다: 중복 제거는 쓰기 시점의 보장이 아니라 <strong>머지 시점</strong>의 부수 효과입니다. 파트가 머지되기 전까지 중복 행은 그대로 보이고, <code>FINAL</code>을 생략한 모든 쿼리가 그 중복을 읽습니다.</p>
+<h3>📋 개요</h3>
+<p>같은 키를 여러 파트에 걸쳐 삽입한 뒤, <code>FINAL</code> 유무에 따라 결과가 어떻게 달라지는지, 머지가 중복을 정리하는 데 얼마나 걸리는지, <code>OPTIMIZE TABLE FINAL</code>의 실제 비용은 무엇인지, <code>FINAL</code> 없이 최신 버전을 얻는 <code>argMax</code> 대안은 어떤 모습인지 측정합니다. 모든 단계는 일반 SQL이므로 어떤 ClickHouse 서버에서도 실행됩니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong><code>FINAL</code> 의미론</strong> — 동일 데이터에 대해 <code>FINAL</code> 유무 비교</li>
+<li><strong>대량 데이터에서의 정합성 이탈</strong> — 겹치는 배치로 100만 행</li>
+<li><strong>머지 관찰</strong> — 파트, 진행 중 머지, 머지 히스토리, 관련 설정</li>
+<li><strong><code>OPTIMIZE TABLE FINAL</code>과 <code>argMax</code> 대안</strong> — 비용 대 정확성</li>
+<li><strong>운영 모니터링</strong> — 프로덕션에서 중복 노출을 탐지하는 쿼리</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<pre><code class="language-bash">cd workload/replacingmergetree
+
+clickhouse-client --queries-file 01-setup.sql
+clickhouse-client --queries-file 02-basic-operations.sql
+clickhouse-client --queries-file 03-large-scale-tests.sql
+clickhouse-client --queries-file 04-consistency-checks.sql
+clickhouse-client --queries-file 05-merge-monitoring.sql
+clickhouse-client --queries-file 06-optimization.sql
+clickhouse-client --queries-file 07-monitoring.sql
+
+# 선택: 테스트 데이터베이스 삭제
+clickhouse-client --queries-file 99-cleanup.sql
+</code></pre>
+<h3>📚 실습 상세</h3>
+<ol>
+<li><strong>01-setup.sql</strong> — <code>blog_test</code> 데이터베이스와 <code>ReplacingMergeTree(updated_at)</code> 테이블 2개 생성 (<code>ORDER BY (user_id, event_type)</code>)</li>
+<li><strong>02-basic-operations.sql</strong> — 같은 키를 3번 삽입해 각각 별도 파트를 만든 뒤 <code>FINAL</code> 유무 비교. 버전 컬럼이 삽입 시 중복을 제거하지 않음을 최소 예제로 확인</li>
+<li><strong>03-large-scale-tests.sql</strong> — 초기 10만 행 후 겹치는 업데이트 배치(50만·100만 행), 배치별 파트 수 기록. 중복 노출이 적재 속도에 따라 늘어남을 확인</li>
+<li><strong>04-consistency-checks.sql</strong> — 키별 행 수, 전체 행 수, 집계 결과를 양쪽으로 비교. 특히 집계는 <code>FINAL</code> 없이는 오래된 값이 아니라 <strong>틀린 값</strong>이 나옵니다</li>
+<li><strong>05-merge-monitoring.sql</strong> — 파트 경과 시간이 포함된 <code>system.parts</code>, 진행 중 머지(<code>system.merges</code>), 머지 히스토리(<code>system.part_log</code>), 머지 시작 조건 설정</li>
+<li><strong>06-optimization.sql</strong> — 두 테이블의 <code>OPTIMIZE TABLE FINAL</code> 전후 상태, 그리고 머지를 기다리지 않고 키별 최신 버전을 얻는 <code>argMax</code> 재작성</li>
+<li><strong>07-monitoring.sql</strong> — 운영용 쿼리: 파트 상태 모니터링, <code>FINAL</code> 유무 행 수 비교를 통한 중복 노출 점검, <code>query_log</code> 기반 성능 비교, 테이블별 통계</li>
+</ol>
+<h3>🔑 핵심 학습 포인트</h3>
+<ul>
+<li><code>ReplacingMergeTree</code>는 <strong>파트가 머지될 때</strong> 중복을 정리하며, 그 시점은 명시되지 않습니다 — 삽입 시점이 아닙니다</li>
+<li><code>FINAL</code> 없는 읽기는 한 키의 여러 버전을 반환할 수 있고, 그 위의 집계는 근사값이 아니라 오답입니다</li>
+<li><code>FINAL</code>은 정확하지만 읽기 시점 머지 비용을 냅니다. 특정 접근 패턴에서는 버전 컬럼에 대한 <code>argMax</code>가 더 저렴합니다</li>
+<li><code>OPTIMIZE TABLE FINAL</code>은 전체 테이블을 수동으로 재작성하는 유지보수 작업입니다 — 쿼리 시점의 해결책이 아닙니다</li>
+<li>중복 노출은 삽입 빈도에 비례합니다: 파트가 자주 생길수록 읽기가 중복을 보는 구간이 늘어납니다</li>
+<li><code>FINAL</code> 유무의 <code>count()</code> 비교는 이 부류의 버그를 잡는 값싼 프로덕션 카나리아입니다</li>
+</ul>
+<h3>🔍 관련 실습</h3>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/dedup-engine">workload/dedup-engine</a> — 중복 제거 엔진 간 비교</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/delete-benchmark">workload/delete-benchmark</a> — DELETE 메커니즘과 비용</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv">workload/mv-vs-rmv</a> — MV와 RMV 비교</li>
+</ul>
+<h3>📝 참고사항</h3>
+<ul>
+<li>스크립트는 <code>blog_test</code> 데이터베이스를 생성·삭제할 수 있다고 가정합니다</li>
+<li><code>02</code>, <code>03</code>은 시작 시 테이블을 TRUNCATE하므로 재실행이 안전합니다</li>
+<li>머지 시점은 결정적이지 않습니다. <code>04</code>에 도달했을 때 이미 중복이 정리됐다면 <code>03</code>을 다시 실행하고 곧바로 조회하세요</li>
+<li><code>99-cleanup.sql</code>은 파괴적 작업이므로 의도적으로 분리해 두었습니다</li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

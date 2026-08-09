@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Release Labs · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Release Labs — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Release Labs</h1>
+<hr />
+<p>One directory per ClickHouse release, each a self-contained hands-on lab for that version's new features. Every lab installs its own server version, generates its own test data, and can be run independently.</p>
+<h3>🗂 Available Releases</h3>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Released</th>
+<th>Labs</th>
+<th>Verified</th>
+<th>Features Covered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7">26.7</a></td>
+<td>2026-07-22</td>
+<td>3</td>
+<td>26.7.1</td>
+<td><code>EXPLAIN ANALYZE</code>, <code>AT TIME ZONE</code> / <code>AT LOCAL</code>, <code>groupFormat</code> + <code>-Tuple</code> combinator</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.6">26.6</a></td>
+<td>2026-06-25</td>
+<td>3</td>
+<td>26.6.2</td>
+<td>Hypothetical indexes + <code>EXPLAIN WHATIF</code>, <code>ADD ENUM VALUES</code>, SQL compatibility (<code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>, <code>ESCAPE</code>, <code>date_part</code>)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.5">26.5</a></td>
+<td>2026-05-21</td>
+<td>3</td>
+<td>26.5.1.882</td>
+<td><code>filesystem()</code> table function, bare function names + <code>isPrime</code>, <code>tokenizeQuery</code> / <code>highlightQuery</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.4">26.4</a></td>
+<td>2026-04-30</td>
+<td>3</td>
+<td>26.4.3.37</td>
+<td><code>NATURAL JOIN</code> on <code>VALUES</code>, array functions, string/text functions</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.3">26.3</a></td>
+<td>2026-03-26</td>
+<td>3</td>
+<td>26.3.12.3</td>
+<td>Materialized CTE, natural sort key, Unicode functions</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.2">26.2</a></td>
+<td>2026-02-26</td>
+<td>3</td>
+<td>26.2.19.43</td>
+<td><code>primes()</code> function, XXH3-128 hash, <code>system.tokenizers</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.1">26.1</a></td>
+<td>2026-01-29</td>
+<td>3</td>
+<td>26.1.12.23</td>
+<td><code>reverseBySeparator</code>, text index for arrays, Keeper HTTP API</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.12">25.12</a></td>
+<td>2025-12-18</td>
+<td>3</td>
+<td>25.12.11.4</td>
+<td>HMAC function, Naive Bayes classifier, JOIN order optimization (DPSize)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.11">25.11</a></td>
+<td>2025-11-27</td>
+<td>4</td>
+<td>25.11.2.24</td>
+<td><code>HAVING</code> without <code>GROUP BY</code>, fractional <code>LIMIT</code>, Map aggregation, geometry functions</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.10">25.10</a></td>
+<td>2025-10-30</td>
+<td>5</td>
+<td>25.10.7.6</td>
+<td><code>QBit</code> vector search, negative <code>LIMIT</code>/<code>OFFSET</code>, JOIN improvements, <code>LIMIT BY ALL</code>, auto statistics</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.9">25.9</a></td>
+<td>2025-09-25</td>
+<td>4</td>
+<td>25.9.7.56</td>
+<td>Global join reordering, text index, streaming secondary indices, <code>arrayExcept</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8">25.8</a></td>
+<td>2025-08-28</td>
+<td>6</td>
+<td>25.8.28.1</td>
+<td>New Parquet reader, hive partitioning, temp data on S3, <code>UNION ALL</code> <code>_table</code>, data lake features, MinIO</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.7">25.7</a></td>
+<td>2025-07-24</td>
+<td>4</td>
+<td>25.7.8.71</td>
+<td>SQL <code>UPDATE</code>/<code>DELETE</code>, <code>count()</code> optimization, JOIN performance, bulk <code>UPDATE</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.6">25.6</a></td>
+<td>2025-06-26</td>
+<td>5</td>
+<td>25.6.13.41</td>
+<td><code>CoalescingMergeTree</code>, <code>Time</code>/<code>Time64</code> types, Bech32 encoding, <code>lag</code>/<code>lead</code>, consistent snapshot</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.5">25.5</a></td>
+<td>2025-05-22</td>
+<td>5</td>
+<td>25.5.11.15</td>
+<td>Vector similarity index, Hive Metastore catalog, implicit table, new functions, geo types in Parquet</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.4">25.4</a></td>
+<td>2025-04-30</td>
+<td>3</td>
+<td>25.4.13.22</td>
+<td>Array Levenshtein distance, <code>sparseGrams</code>, <code>toInterval</code> and editable database comments</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.3">25.3</a></td>
+<td>2025-03-20</td>
+<td>3</td>
+<td>25.3.14.14</td>
+<td>New functions (<code>arraySymmetricDifference</code>, <code>keccak256</code>), query condition cache, <code>estimateCompressionRatio</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.2">25.2</a></td>
+<td>2025-03-07</td>
+<td>3</td>
+<td>25.2.2.39</td>
+<td>Parquet Bloom filters, <code>Backup</code> database engine, <code>stringCompare</code> and the progress formats</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.1">25.1</a></td>
+<td>2025-02-07</td>
+<td>3</td>
+<td>25.1.8.25</td>
+<td>Automatic minmax indices, <code>Merge</code> tables unifying schemas as <code>Variant</code>, <code>sequenceMatchEvents</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verified</strong> names the exact server build every lab in that directory was run
+against, end to end, with zero exceptions. All nineteen have been. Getting
+there took fixing eleven of them: SQL that referenced functions and settings
+which do not exist, arguments in the wrong order, and aliases that shadowed the
+column they aggregated. Re-run any of them yourself with
+<code>.github/scripts/verify_release_lab.sh &lt;version&gt;</code>.</p>
+<h3>🚀 Running a Lab</h3>
+<pre><code class="language-bash">cd local/releases/26.7      # pick a version
+./00-setup.sh               # install + start that ClickHouse version
+./01-explain-analyze.sh     # run the labs in order
+./02-at-time-zone.sh
+./03-groupformat-tuple.sh
+</code></pre>
+<h3>🧱 How a Lab Is Built</h3>
+<p>Every version directory follows the same layout:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code></td>
+<td>Bilingual guide: overview, per-feature detail, learning points, use cases, full release feature list</td>
+</tr>
+<tr>
+<td><code>00-setup.sh</code></td>
+<td>Delegates to <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><code>../../oss-mac-setup</code></a>: <code>set.sh &lt;version&gt;</code> then <code>start.sh</code>, then verifies the running version</td>
+</tr>
+<tr>
+<td><code>NN-&lt;feature&gt;.sh</code></td>
+<td>Thin runner — pipes the matching <code>.sql</code> into <code>docker exec -i clickhouse-&lt;version&gt; clickhouse-client --multiline --multiquery</code></td>
+</tr>
+<tr>
+<td><code>NN-&lt;feature&gt;.sql</code></td>
+<td>The lab itself: numbered sections with <code>SELECT '===== N. Title ====='</code> banners, self-generated test data, cleanup left commented for inspection</td>
+</tr>
+</tbody>
+</table>
+<h3>⚠️ One Version at a Time</h3>
+<p><code>oss-mac-setup/set.sh</code> maps the container to <strong>8123/9000</strong> when a single version is configured, so only one release runs at a time. Switching versions means re-running that version's <code>00-setup.sh</code>. Container names follow the version with dots replaced by hyphens — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
+<h3>🔧 Connection Info</h3>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+<li><strong>Release Blogs</strong>: <a href="https://clickhouse.com/blog">clickhouse.com/blog</a></li>
+<li><strong>Release Presentations</strong>: <a href="https://presentations.clickhouse.com/">presentations.clickhouse.com</a></li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신기능을 직접 실행해 보는 독립 실습 랩을 제공합니다. 각 랩은 자체적으로 해당 서버 버전을 설치하고 테스트 데이터를 생성하므로 독립적으로 실행할 수 있습니다.</p>
+<h3>🗂 제공 릴리스</h3>
+<table>
+<thead>
+<tr>
+<th>버전</th>
+<th>출시일</th>
+<th>랩 수</th>
+<th>검증</th>
+<th>다루는 기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7">26.7</a></td>
+<td>2026-07-22</td>
+<td>3</td>
+<td>26.7.1</td>
+<td><code>EXPLAIN ANALYZE</code>, <code>AT TIME ZONE</code> / <code>AT LOCAL</code>, <code>groupFormat</code> + <code>-Tuple</code> 조합자</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.6">26.6</a></td>
+<td>2026-06-25</td>
+<td>3</td>
+<td>26.6.2</td>
+<td>가상 인덱스 + <code>EXPLAIN WHATIF</code>, <code>ADD ENUM VALUES</code>, SQL 호환성 (<code>SOME</code>/<code>ALL</code>, <code>* LIKE</code>, <code>ESCAPE</code>, <code>date_part</code>)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.5">26.5</a></td>
+<td>2026-05-21</td>
+<td>3</td>
+<td>26.5.1.882</td>
+<td><code>filesystem()</code> 테이블 함수, 베어 함수 이름 + <code>isPrime</code>, <code>tokenizeQuery</code> / <code>highlightQuery</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.4">26.4</a></td>
+<td>2026-04-30</td>
+<td>3</td>
+<td>26.4.3.37</td>
+<td><code>VALUES</code>에 대한 <code>NATURAL JOIN</code>, 배열 함수, 문자열/텍스트 함수</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.3">26.3</a></td>
+<td>2026-03-26</td>
+<td>3</td>
+<td>26.3.12.3</td>
+<td>구체화 CTE, 자연 정렬 키, 유니코드 함수</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.2">26.2</a></td>
+<td>2026-02-26</td>
+<td>3</td>
+<td>26.2.19.43</td>
+<td><code>primes()</code> 함수, XXH3-128 해시, <code>system.tokenizers</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.1">26.1</a></td>
+<td>2026-01-29</td>
+<td>3</td>
+<td>26.1.12.23</td>
+<td><code>reverseBySeparator</code>, 배열 텍스트 인덱스, Keeper HTTP API</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.12">25.12</a></td>
+<td>2025-12-18</td>
+<td>3</td>
+<td>25.12.11.4</td>
+<td>HMAC 함수, 나이브 베이즈 분류기, JOIN 순서 최적화 (DPSize)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.11">25.11</a></td>
+<td>2025-11-27</td>
+<td>4</td>
+<td>25.11.2.24</td>
+<td><code>GROUP BY</code> 없는 <code>HAVING</code>, 소수 <code>LIMIT</code>, Map 집계, 기하 함수</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.10">25.10</a></td>
+<td>2025-10-30</td>
+<td>5</td>
+<td>25.10.7.6</td>
+<td><code>QBit</code> 벡터 검색, 음수 <code>LIMIT</code>/<code>OFFSET</code>, JOIN 개선, <code>LIMIT BY ALL</code>, 자동 통계</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.9">25.9</a></td>
+<td>2025-09-25</td>
+<td>4</td>
+<td>25.9.7.56</td>
+<td>전역 조인 재정렬, 텍스트 인덱스, 스트리밍 보조 인덱스, <code>arrayExcept</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8">25.8</a></td>
+<td>2025-08-28</td>
+<td>6</td>
+<td>25.8.28.1</td>
+<td>신규 Parquet 리더, hive 파티셔닝, S3 임시 데이터, <code>UNION ALL</code> <code>_table</code>, 데이터 레이크, MinIO</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.7">25.7</a></td>
+<td>2025-07-24</td>
+<td>4</td>
+<td>25.7.8.71</td>
+<td>SQL <code>UPDATE</code>/<code>DELETE</code>, <code>count()</code> 최적화, JOIN 성능, 대량 <code>UPDATE</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.6">25.6</a></td>
+<td>2025-06-26</td>
+<td>5</td>
+<td>25.6.13.41</td>
+<td><code>CoalescingMergeTree</code>, <code>Time</code>/<code>Time64</code> 타입, Bech32 인코딩, <code>lag</code>/<code>lead</code>, 일관된 스냅샷</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.5">25.5</a></td>
+<td>2025-05-22</td>
+<td>5</td>
+<td>25.5.11.15</td>
+<td>벡터 유사도 인덱스, Hive Metastore 카탈로그, 암시적 테이블, 신규 함수, Parquet 지오 타입</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.4">25.4</a></td>
+<td>2025-04-30</td>
+<td>3</td>
+<td>25.4.13.22</td>
+<td>배열 Levenshtein 거리, <code>sparseGrams</code>, <code>toInterval</code>과 수정 가능한 DB 코멘트</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.3">25.3</a></td>
+<td>2025-03-20</td>
+<td>3</td>
+<td>25.3.14.14</td>
+<td>신규 함수(<code>arraySymmetricDifference</code>, <code>keccak256</code>), 쿼리 조건 캐시, <code>estimateCompressionRatio</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.2">25.2</a></td>
+<td>2025-03-07</td>
+<td>3</td>
+<td>25.2.2.39</td>
+<td>Parquet Bloom 필터, <code>Backup</code> 데이터베이스 엔진, <code>stringCompare</code>와 진행 포맷</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.1">25.1</a></td>
+<td>2025-02-07</td>
+<td>3</td>
+<td>25.1.8.25</td>
+<td>자동 minmax 인덱스, <code>Merge</code> 테이블의 <code>Variant</code> 스키마 통합, <code>sequenceMatchEvents</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>검증</strong>은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버
+빌드입니다. 19개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
+않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은
+문제였습니다. 직접 재현하려면
+<code>.github/scripts/verify_release_lab.sh &lt;버전&gt;</code> 을 실행하세요.</p>
+<h3>🚀 랩 실행</h3>
+<pre><code class="language-bash">cd local/releases/26.7      # 버전 선택
+./00-setup.sh               # 해당 ClickHouse 버전 설치 및 기동
+./01-explain-analyze.sh     # 순서대로 실행
+./02-at-time-zone.sh
+./03-groupformat-tuple.sh
+</code></pre>
+<h3>🧱 랩 구성 방식</h3>
+<p>모든 버전 디렉토리는 동일한 구조를 따릅니다.</p>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code></td>
+<td>영/한 가이드: 개요, 기능별 상세, 학습 포인트, 활용 사례, 릴리스 전체 기능 목록</td>
+</tr>
+<tr>
+<td><code>00-setup.sh</code></td>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><code>../../oss-mac-setup</code></a>에 위임 — <code>set.sh &lt;버전&gt;</code> 후 <code>start.sh</code>, 이어서 기동된 버전 검증</td>
+</tr>
+<tr>
+<td><code>NN-&lt;기능&gt;.sh</code></td>
+<td>얇은 실행 스크립트 — 대응 <code>.sql</code>을 <code>docker exec -i clickhouse-&lt;버전&gt; clickhouse-client --multiline --multiquery</code>로 전달</td>
+</tr>
+<tr>
+<td><code>NN-&lt;기능&gt;.sql</code></td>
+<td>랩 본문 — <code>SELECT '===== N. 제목 ====='</code> 배너로 구분된 번호 섹션, 자체 생성 테스트 데이터, 확인을 위해 주석 처리된 정리 구문</td>
+</tr>
+</tbody>
+</table>
+<h3>⚠️ 한 번에 한 버전</h3>
+<p><code>oss-mac-setup/set.sh</code>는 단일 버전이 구성된 경우 컨테이너를 <strong>8123/9000</strong>에 매핑하므로 한 번에 하나의 릴리스만 실행됩니다. 버전을 바꾸려면 해당 버전의 <code>00-setup.sh</code>를 다시 실행하세요. 컨테이너 이름은 버전의 점을 하이픈으로 바꾼 형태입니다 — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
+<h3>🔧 접속 정보</h3>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (비밀번호 없음)</li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><strong>Changelog</strong>: <a href="https://clickhouse.com/docs/whats-new/changelog">docs.clickhouse.com/whats-new/changelog</a></li>
+<li><strong>Release Blogs</strong>: <a href="https://clickhouse.com/blog">clickhouse.com/blog</a></li>
+<li><strong>Release Presentations</strong>: <a href="https://presentations.clickhouse.com/">presentations.clickhouse.com</a></li>
+</ul>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

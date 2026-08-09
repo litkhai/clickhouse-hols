@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Lake with MinIO and Multiple Catalogs · ClickHouse HOLs</title>
+<meta name="description" content="Data Lake with MinIO and Multiple Catalogs — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/datalake-minio-catalog</code>
+    
+  </nav>
+  <div class="readme en"><h1>Data Lake with MinIO and Multiple Catalogs</h1>
+<p><strong>English</strong> | <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.ko.md">한국어</a></p>
+<p>A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.</p>
+<p><strong>🔗 Integrated with:</strong> <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8">ClickHouse 25.8+ Labs</a> - Fully tested with ClickHouse 25.10 and 25.11</p>
+<hr />
+<h2>🚀 Quick Start</h2>
+<h3>Method 1: Single Catalog (setup.sh)</h3>
+<p>Recommended for focused work with one catalog</p>
+<pre><code class="language-bash"># 1. Configure (select 1 catalog)
+./setup.sh --configure
+
+# 2. Start
+./setup.sh --start
+
+# 3. Try example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Method 2: Multiple Catalogs (setup-multi-catalog.sh)</h3>
+<p>Recommended for comparing/testing multiple catalogs simultaneously</p>
+<pre><code class="language-bash"># 1. Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Or start specific catalogs
+./setup-multi-catalog.sh --start nessie unity hive
+
+# 2. Try example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<hr />
+<h2>📖 Features</h2>
+<ul>
+<li><strong>MinIO Object Storage</strong>: S3-compatible storage (ports 19000 API, 19001 Console)</li>
+<li><strong>5 Data Catalog Options</strong>:</li>
+<li><strong>Nessie</strong> (Default): Git-like versioning (port 19120)</li>
+<li><strong>Hive Metastore</strong>: Traditional, widely supported (port 9083)</li>
+<li><strong>Iceberg REST</strong>: Standard REST API (port 8181)</li>
+<li><strong>Polaris</strong>: Apache Polaris (ports 8182, 8183)</li>
+<li><strong>Unity Catalog</strong>: Databricks-compatible (port 8080)</li>
+<li><strong>Apache Iceberg</strong>: Table format for huge analytic datasets</li>
+<li><strong>Jupyter Notebooks</strong>: Interactive data exploration (port 8888)</li>
+<li><strong>ClickHouse Integration</strong>: Fully tested with 25.10 and 25.11</li>
+</ul>
+<hr />
+<h2>🎯 Usage Recommendations by Scenario</h2>
+<h3>Scenario 1: Focus on One Catalog</h3>
+<p><strong>Recommended</strong>: Use <code>setup.sh</code></p>
+<pre><code class="language-bash">./setup.sh --configure  # Select Unity Catalog
+./setup.sh --start
+</code></pre>
+<p><strong>Benefits</strong>:
+- Resource efficient
+- Focused on one catalog
+- Simple configuration</p>
+<h3>Scenario 2: Compare and Test Catalogs</h3>
+<p><strong>Recommended</strong>: Use <code>setup-multi-catalog.sh</code></p>
+<pre><code class="language-bash">./setup-multi-catalog.sh --start nessie unity hive
+</code></pre>
+<p><strong>Benefits</strong>:
+- Run multiple catalogs simultaneously
+- Easy feature comparison
+- Comprehensive testing</p>
+<h3>Scenario 3: Development and Experimentation</h3>
+<p><strong>Recommended</strong>: Use both tools as needed</p>
+<pre><code class="language-bash"># Main work: Use setup.sh for Unity Catalog
+./setup.sh --start  # Unity only
+
+# Comparison tests: Use setup-multi-catalog.sh
+./setup-multi-catalog.sh --start nessie unity
+</code></pre>
+<hr />
+<h2>📁 Project Structure</h2>
+<pre><code>datalake-minio-catalog/
+│
+├── 🔧 Core Setup Scripts
+│   ├── setup.sh                    # Single catalog setup
+│   ├── setup-multi-catalog.sh      # Multi-catalog setup
+│   ├── config.env                  # Single catalog config
+│   ├── config-multi-catalog.env    # Multi-catalog config
+│   └── docker-compose.yml          # Docker services
+│
+├── 📚 Documentation
+│   ├── README.md (this file)       # English docs
+│   ├── README.ko.md                # Korean docs
+│   └── docs/                       # Detailed docs
+│
+├── 🧪 Tests
+│   └── tests/
+│       ├── test-catalogs.sh        # All catalogs test
+│       └── test-unity-deltalake.sh # Unity + Delta Lake test
+│
+├── 💡 Examples
+│   └── examples/
+│       ├── basic-s3-read-write.sh  # Basic S3 operations
+│       └── delta-lake-simple.sh    # Delta Lake example
+│
+└── 📓 Jupyter Notebooks
+    └── notebooks/
+</code></pre>
+<hr />
+<h2>🎮 Command Guide</h2>
+<h3>setup.sh (Single Catalog)</h3>
+<pre><code class="language-bash"># Configure (required)
+./setup.sh --configure
+
+# Start
+./setup.sh --start
+
+# Stop
+./setup.sh --stop
+
+# Status
+./setup.sh --status
+
+# Clean data
+./setup.sh --clean
+</code></pre>
+<h3>setup-multi-catalog.sh (Multiple Catalogs)</h3>
+<pre><code class="language-bash"># Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Start specific catalogs
+./setup-multi-catalog.sh --start nessie unity
+
+# Stop
+./setup-multi-catalog.sh --stop
+
+# Status
+./setup-multi-catalog.sh --status
+
+# Configure (optional - has defaults)
+./setup-multi-catalog.sh --configure
+</code></pre>
+<hr />
+<h2>🔍 Service Endpoints</h2>
+<p>After starting services, access via:</p>
+<h3>MinIO</h3>
+<ul>
+<li><strong>Console UI</strong>: http://localhost:19001</li>
+<li><strong>API Endpoint</strong>: http://localhost:19000</li>
+<li><strong>Credentials</strong>: admin / password123</li>
+</ul>
+<h3>Data Catalogs</h3>
+<table>
+<thead>
+<tr>
+<th>Catalog</th>
+<th>Endpoint</th>
+<th>Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nessie</strong></td>
+<td>http://localhost:19120</td>
+<td>19120</td>
+</tr>
+<tr>
+<td><strong>Hive</strong></td>
+<td>thrift://localhost:9083</td>
+<td>9083</td>
+</tr>
+<tr>
+<td><strong>Iceberg REST</strong></td>
+<td>http://localhost:8181</td>
+<td>8181</td>
+</tr>
+<tr>
+<td><strong>Polaris</strong></td>
+<td>http://localhost:8182</td>
+<td>8182, 8183</td>
+</tr>
+<tr>
+<td><strong>Unity</strong></td>
+<td>http://localhost:8080</td>
+<td>8080</td>
+</tr>
+</tbody>
+</table>
+<h3>Jupyter Notebook</h3>
+<ul>
+<li><strong>URL</strong>: http://localhost:8888 (no password)</li>
+</ul>
+<hr />
+<h2>💡 Usage Examples</h2>
+<h3>Example 1: Basic S3 Read/Write</h3>
+<pre><code class="language-bash"># Start MinIO + catalog
+./setup.sh --start
+
+# Run example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Example 2: Delta Lake Operations</h3>
+<pre><code class="language-bash"># Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Run Delta Lake example
+./examples/delta-lake-simple.sh
+</code></pre>
+<h3>Example 3: Catalog Comparison</h3>
+<pre><code class="language-bash"># Start 3 catalogs simultaneously
+./setup-multi-catalog.sh --start nessie unity hive
+
+# Run comparison test
+./tests/test-catalogs.sh
+</code></pre>
+<hr />
+<h2>🧪 ClickHouse Integration Testing</h2>
+<h3>Tested Versions</h3>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Unity Catalog</th>
+<th>Delta Lake</th>
+<th>Status</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>25.11.2.24</strong></td>
+<td>✅ Full support</td>
+<td>✅ Full support</td>
+<td>✅ All tests passed</td>
+<td><strong>Recommended</strong></td>
+</tr>
+<tr>
+<td><strong>25.10.3.100</strong></td>
+<td>✅ Basic support</td>
+<td>⚠️ Limited support</td>
+<td>⚠️ 80% tests passed</td>
+<td>Use with caution</td>
+</tr>
+</tbody>
+</table>
+<h3>Unity Catalog + Delta Lake Testing</h3>
+<pre><code class="language-bash"># 1. Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# 2. Start ClickHouse
+cd ../oss-mac-setup
+./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+
+# 3. Run integration test
+./tests/test-unity-deltalake.sh
+
+# 4. View results
+cat docs/test-results/test-results-*.md
+</code></pre>
+<p>Detailed comparison: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
+<hr />
+<h2>📊 Catalog Comparison</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Nessie</th>
+<th>Hive</th>
+<th>Iceberg REST</th>
+<th>Polaris</th>
+<th>Unity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Versioning</strong></td>
+<td>✅ Git-like</td>
+<td>❌</td>
+<td>Limited</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Time Travel</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Branching</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>ACID</strong></td>
+<td>✅</td>
+<td>Limited</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Maturity</strong></td>
+<td>Modern</td>
+<td>Very mature</td>
+<td>Modern</td>
+<td>New</td>
+<td>Modern</td>
+</tr>
+<tr>
+<td><strong>Best For</strong></td>
+<td>Version control</td>
+<td>Legacy systems</td>
+<td>Standard API</td>
+<td>Iceberg-focused</td>
+<td>Databricks-compatible</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>🔄 Workflow Examples</h2>
+<h3>Workflow 1: Quick Test</h3>
+<pre><code class="language-bash"># Method A: Single catalog
+./setup.sh --configure &amp;&amp; ./setup.sh --start
+./examples/basic-s3-read-write.sh
+
+# Method B: Multiple catalogs
+./setup-multi-catalog.sh --start
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Workflow 2: Unity Catalog Deep Dive</h3>
+<pre><code class="language-bash"># Start Unity only
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Start ClickHouse and test
+cd ../oss-mac-setup &amp;&amp; ./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+./tests/test-unity-deltalake.sh
+</code></pre>
+<h3>Workflow 3: Catalog Comparison Analysis</h3>
+<pre><code class="language-bash"># Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Start ClickHouse
+cd ../oss-mac-setup &amp;&amp; ./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+
+# Run comprehensive test
+./tests/test-catalogs.sh
+</code></pre>
+<hr />
+<h2>🐛 Troubleshooting</h2>
+<h3>Services won't start</h3>
+<pre><code class="language-bash"># Check Docker
+docker ps
+
+# Check logs
+docker logs minio
+docker logs unity-catalog
+
+# Check status
+./setup.sh --status
+./setup-multi-catalog.sh --status
+</code></pre>
+<h3>Port conflicts</h3>
+<pre><code class="language-bash"># Check port usage
+lsof -i :19000
+
+# Reconfigure ports
+./setup.sh --configure
+# or
+./setup-multi-catalog.sh --configure
+</code></pre>
+<h3>ClickHouse connection issues</h3>
+<pre><code class="language-sql">-- From Docker container: use host.docker.internal
+SELECT * FROM s3(
+    'http://host.docker.internal:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
+
+-- From host: use localhost
+SELECT * FROM s3(
+    'http://localhost:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
+</code></pre>
+<hr />
+<h2>📚 Documentation</h2>
+<h3>English Documentation</h3>
+<ul>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.md">README.md</a></strong> (this file) - Main documentation</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/QUICKSTART_GUIDE.md">docs/QUICKSTART_GUIDE.md</a></strong> - Quick start</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/SPARK_SETUP.md">docs/SPARK_SETUP.md</a></strong> - Spark integration</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/UNITY_DELTALAKE_TEST_GUIDE.md">docs/UNITY_DELTALAKE_TEST_GUIDE.md</a></strong> - Unity testing</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></strong> - Version comparison</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/GETTING_STARTED.md">GETTING_STARTED.md</a></strong> - First-run walkthrough</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README-SIMPLE.md">README-SIMPLE.md</a></strong> - Simplified setup path (fewer catalogs)</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/STRUCTURE_SUMMARY.md">STRUCTURE_SUMMARY.md</a></strong> - Directory and service layout</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/CHANGES_v3.1.md">CHANGES_v3.1.md</a></strong> - Changes in v3.1</li>
+</ul>
+<h3>Korean Documentation (한글 문서)</h3>
+<ul>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.ko.md">README.ko.md</a></strong> - 한글 메인 문서</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/NAVIGATION_GUIDE.md">docs/NAVIGATION_GUIDE.md</a></strong> - 프로젝트 탐색 가이드</li>
+</ul>
+<hr />
+<h2>🎯 Recommendations Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Use Case</th>
+<th>Recommended Tool</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Single catalog work</strong></td>
+<td><code>setup.sh</code></td>
+<td>Resource efficient, focused</td>
+</tr>
+<tr>
+<td><strong>Catalog comparison</strong></td>
+<td><code>setup-multi-catalog.sh</code></td>
+<td>Simultaneous execution, easy comparison</td>
+</tr>
+<tr>
+<td><strong>Unity deep testing</strong></td>
+<td><code>setup.sh</code> + Unity</td>
+<td>Focused testing environment</td>
+</tr>
+<tr>
+<td><strong>Comprehensive testing</strong></td>
+<td><code>setup-multi-catalog.sh</code></td>
+<td>All catalogs at once</td>
+</tr>
+<tr>
+<td><strong>Development/Experimentation</strong></td>
+<td>Use both</td>
+<td>Flexible environment switching</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>✨ Version History</h2>
+<h3>v3.1 (2025-12-13) - Multi-Catalog Support</h3>
+<ul>
+<li>✨ Added <code>setup-multi-catalog.sh</code> - Run multiple catalogs simultaneously</li>
+<li>📚 Bilingual documentation (Korean/English)</li>
+<li>🎯 Purpose-specific usage guides</li>
+</ul>
+<h3>v3.0 (2025-12-13) - Reorganization</h3>
+<ul>
+<li>📁 Separated tests, examples, docs</li>
+<li>🧹 Cleaned up project structure</li>
+</ul>
+<h3>v2.0 (2025-12)</h3>
+<ul>
+<li>Added Polaris and Unity Catalog</li>
+<li>ClickHouse 25.10/25.11 testing</li>
+</ul>
+<h3>v1.0</h3>
+<ul>
+<li>Initial release with 3 catalogs</li>
+</ul>
+<hr />
+<h2>📖 Resources</h2>
+<ul>
+<li><a href="https://min.io/docs/minio/linux/index.html">MinIO Documentation</a></li>
+<li><a href="https://iceberg.apache.org/">Apache Iceberg</a></li>
+<li><a href="https://projectnessie.org/">Project Nessie</a></li>
+<li><a href="https://polaris.apache.org/">Apache Polaris</a></li>
+<li><a href="https://github.com/unitycatalog/unitycatalog">Unity Catalog</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/s3">ClickHouse S3 Integration</a></li>
+</ul>
+<hr />
+<h2>📝 License</h2>
+<p>Educational purposes demonstration project</p>
+<hr />
+<h2>🆘 Support</h2>
+<ul>
+<li><strong>Quick help</strong>: <code>./setup.sh --help</code> or <code>./setup-multi-catalog.sh --help</code></li>
+<li><strong>Documentation</strong>: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog/docs">docs/</a> directory</li>
+<li><strong>Testing</strong>: Run <code>./tests/test-catalogs.sh</code></li>
+<li><strong>Logs</strong>: <code>docker logs &lt;service-name&gt;</code></li>
+</ul></div>
+  <div class="readme ko"><h1>Data Lake with MinIO and Multiple Catalogs</h1>
+<p><strong>English</strong> | <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.ko.md">한국어</a></p>
+<p>A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.</p>
+<p><strong>🔗 Integrated with:</strong> <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.8">ClickHouse 25.8+ Labs</a> - Fully tested with ClickHouse 25.10 and 25.11</p>
+<hr />
+<h2>🚀 Quick Start</h2>
+<h3>Method 1: Single Catalog (setup.sh)</h3>
+<p>Recommended for focused work with one catalog</p>
+<pre><code class="language-bash"># 1. Configure (select 1 catalog)
+./setup.sh --configure
+
+# 2. Start
+./setup.sh --start
+
+# 3. Try example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Method 2: Multiple Catalogs (setup-multi-catalog.sh)</h3>
+<p>Recommended for comparing/testing multiple catalogs simultaneously</p>
+<pre><code class="language-bash"># 1. Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Or start specific catalogs
+./setup-multi-catalog.sh --start nessie unity hive
+
+# 2. Try example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<hr />
+<h2>📖 Features</h2>
+<ul>
+<li><strong>MinIO Object Storage</strong>: S3-compatible storage (ports 19000 API, 19001 Console)</li>
+<li><strong>5 Data Catalog Options</strong>:</li>
+<li><strong>Nessie</strong> (Default): Git-like versioning (port 19120)</li>
+<li><strong>Hive Metastore</strong>: Traditional, widely supported (port 9083)</li>
+<li><strong>Iceberg REST</strong>: Standard REST API (port 8181)</li>
+<li><strong>Polaris</strong>: Apache Polaris (ports 8182, 8183)</li>
+<li><strong>Unity Catalog</strong>: Databricks-compatible (port 8080)</li>
+<li><strong>Apache Iceberg</strong>: Table format for huge analytic datasets</li>
+<li><strong>Jupyter Notebooks</strong>: Interactive data exploration (port 8888)</li>
+<li><strong>ClickHouse Integration</strong>: Fully tested with 25.10 and 25.11</li>
+</ul>
+<hr />
+<h2>🎯 Usage Recommendations by Scenario</h2>
+<h3>Scenario 1: Focus on One Catalog</h3>
+<p><strong>Recommended</strong>: Use <code>setup.sh</code></p>
+<pre><code class="language-bash">./setup.sh --configure  # Select Unity Catalog
+./setup.sh --start
+</code></pre>
+<p><strong>Benefits</strong>:
+- Resource efficient
+- Focused on one catalog
+- Simple configuration</p>
+<h3>Scenario 2: Compare and Test Catalogs</h3>
+<p><strong>Recommended</strong>: Use <code>setup-multi-catalog.sh</code></p>
+<pre><code class="language-bash">./setup-multi-catalog.sh --start nessie unity hive
+</code></pre>
+<p><strong>Benefits</strong>:
+- Run multiple catalogs simultaneously
+- Easy feature comparison
+- Comprehensive testing</p>
+<h3>Scenario 3: Development and Experimentation</h3>
+<p><strong>Recommended</strong>: Use both tools as needed</p>
+<pre><code class="language-bash"># Main work: Use setup.sh for Unity Catalog
+./setup.sh --start  # Unity only
+
+# Comparison tests: Use setup-multi-catalog.sh
+./setup-multi-catalog.sh --start nessie unity
+</code></pre>
+<hr />
+<h2>📁 Project Structure</h2>
+<pre><code>datalake-minio-catalog/
+│
+├── 🔧 Core Setup Scripts
+│   ├── setup.sh                    # Single catalog setup
+│   ├── setup-multi-catalog.sh      # Multi-catalog setup
+│   ├── config.env                  # Single catalog config
+│   ├── config-multi-catalog.env    # Multi-catalog config
+│   └── docker-compose.yml          # Docker services
+│
+├── 📚 Documentation
+│   ├── README.md (this file)       # English docs
+│   ├── README.ko.md                # Korean docs
+│   └── docs/                       # Detailed docs
+│
+├── 🧪 Tests
+│   └── tests/
+│       ├── test-catalogs.sh        # All catalogs test
+│       └── test-unity-deltalake.sh # Unity + Delta Lake test
+│
+├── 💡 Examples
+│   └── examples/
+│       ├── basic-s3-read-write.sh  # Basic S3 operations
+│       └── delta-lake-simple.sh    # Delta Lake example
+│
+└── 📓 Jupyter Notebooks
+    └── notebooks/
+</code></pre>
+<hr />
+<h2>🎮 Command Guide</h2>
+<h3>setup.sh (Single Catalog)</h3>
+<pre><code class="language-bash"># Configure (required)
+./setup.sh --configure
+
+# Start
+./setup.sh --start
+
+# Stop
+./setup.sh --stop
+
+# Status
+./setup.sh --status
+
+# Clean data
+./setup.sh --clean
+</code></pre>
+<h3>setup-multi-catalog.sh (Multiple Catalogs)</h3>
+<pre><code class="language-bash"># Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Start specific catalogs
+./setup-multi-catalog.sh --start nessie unity
+
+# Stop
+./setup-multi-catalog.sh --stop
+
+# Status
+./setup-multi-catalog.sh --status
+
+# Configure (optional - has defaults)
+./setup-multi-catalog.sh --configure
+</code></pre>
+<hr />
+<h2>🔍 Service Endpoints</h2>
+<p>After starting services, access via:</p>
+<h3>MinIO</h3>
+<ul>
+<li><strong>Console UI</strong>: http://localhost:19001</li>
+<li><strong>API Endpoint</strong>: http://localhost:19000</li>
+<li><strong>Credentials</strong>: admin / password123</li>
+</ul>
+<h3>Data Catalogs</h3>
+<table>
+<thead>
+<tr>
+<th>Catalog</th>
+<th>Endpoint</th>
+<th>Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nessie</strong></td>
+<td>http://localhost:19120</td>
+<td>19120</td>
+</tr>
+<tr>
+<td><strong>Hive</strong></td>
+<td>thrift://localhost:9083</td>
+<td>9083</td>
+</tr>
+<tr>
+<td><strong>Iceberg REST</strong></td>
+<td>http://localhost:8181</td>
+<td>8181</td>
+</tr>
+<tr>
+<td><strong>Polaris</strong></td>
+<td>http://localhost:8182</td>
+<td>8182, 8183</td>
+</tr>
+<tr>
+<td><strong>Unity</strong></td>
+<td>http://localhost:8080</td>
+<td>8080</td>
+</tr>
+</tbody>
+</table>
+<h3>Jupyter Notebook</h3>
+<ul>
+<li><strong>URL</strong>: http://localhost:8888 (no password)</li>
+</ul>
+<hr />
+<h2>💡 Usage Examples</h2>
+<h3>Example 1: Basic S3 Read/Write</h3>
+<pre><code class="language-bash"># Start MinIO + catalog
+./setup.sh --start
+
+# Run example
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Example 2: Delta Lake Operations</h3>
+<pre><code class="language-bash"># Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Run Delta Lake example
+./examples/delta-lake-simple.sh
+</code></pre>
+<h3>Example 3: Catalog Comparison</h3>
+<pre><code class="language-bash"># Start 3 catalogs simultaneously
+./setup-multi-catalog.sh --start nessie unity hive
+
+# Run comparison test
+./tests/test-catalogs.sh
+</code></pre>
+<hr />
+<h2>🧪 ClickHouse Integration Testing</h2>
+<h3>Tested Versions</h3>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Unity Catalog</th>
+<th>Delta Lake</th>
+<th>Status</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>25.11.2.24</strong></td>
+<td>✅ Full support</td>
+<td>✅ Full support</td>
+<td>✅ All tests passed</td>
+<td><strong>Recommended</strong></td>
+</tr>
+<tr>
+<td><strong>25.10.3.100</strong></td>
+<td>✅ Basic support</td>
+<td>⚠️ Limited support</td>
+<td>⚠️ 80% tests passed</td>
+<td>Use with caution</td>
+</tr>
+</tbody>
+</table>
+<h3>Unity Catalog + Delta Lake Testing</h3>
+<pre><code class="language-bash"># 1. Start Unity Catalog
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# 2. Start ClickHouse
+cd ../oss-mac-setup
+./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+
+# 3. Run integration test
+./tests/test-unity-deltalake.sh
+
+# 4. View results
+cat docs/test-results/test-results-*.md
+</code></pre>
+<p>Detailed comparison: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
+<hr />
+<h2>📊 Catalog Comparison</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Nessie</th>
+<th>Hive</th>
+<th>Iceberg REST</th>
+<th>Polaris</th>
+<th>Unity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Versioning</strong></td>
+<td>✅ Git-like</td>
+<td>❌</td>
+<td>Limited</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Time Travel</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Branching</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>ACID</strong></td>
+<td>✅</td>
+<td>Limited</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Maturity</strong></td>
+<td>Modern</td>
+<td>Very mature</td>
+<td>Modern</td>
+<td>New</td>
+<td>Modern</td>
+</tr>
+<tr>
+<td><strong>Best For</strong></td>
+<td>Version control</td>
+<td>Legacy systems</td>
+<td>Standard API</td>
+<td>Iceberg-focused</td>
+<td>Databricks-compatible</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>🔄 Workflow Examples</h2>
+<h3>Workflow 1: Quick Test</h3>
+<pre><code class="language-bash"># Method A: Single catalog
+./setup.sh --configure &amp;&amp; ./setup.sh --start
+./examples/basic-s3-read-write.sh
+
+# Method B: Multiple catalogs
+./setup-multi-catalog.sh --start
+./examples/basic-s3-read-write.sh
+</code></pre>
+<h3>Workflow 2: Unity Catalog Deep Dive</h3>
+<pre><code class="language-bash"># Start Unity only
+./setup.sh --configure  # Select Unity
+./setup.sh --start
+
+# Start ClickHouse and test
+cd ../oss-mac-setup &amp;&amp; ./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+./tests/test-unity-deltalake.sh
+</code></pre>
+<h3>Workflow 3: Catalog Comparison Analysis</h3>
+<pre><code class="language-bash"># Start all catalogs
+./setup-multi-catalog.sh --start
+
+# Start ClickHouse
+cd ../oss-mac-setup &amp;&amp; ./set.sh 25.11 &amp;&amp; ./start.sh
+cd ../datalake-minio-catalog
+
+# Run comprehensive test
+./tests/test-catalogs.sh
+</code></pre>
+<hr />
+<h2>🐛 Troubleshooting</h2>
+<h3>Services won't start</h3>
+<pre><code class="language-bash"># Check Docker
+docker ps
+
+# Check logs
+docker logs minio
+docker logs unity-catalog
+
+# Check status
+./setup.sh --status
+./setup-multi-catalog.sh --status
+</code></pre>
+<h3>Port conflicts</h3>
+<pre><code class="language-bash"># Check port usage
+lsof -i :19000
+
+# Reconfigure ports
+./setup.sh --configure
+# or
+./setup-multi-catalog.sh --configure
+</code></pre>
+<h3>ClickHouse connection issues</h3>
+<pre><code class="language-sql">-- From Docker container: use host.docker.internal
+SELECT * FROM s3(
+    'http://host.docker.internal:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
+
+-- From host: use localhost
+SELECT * FROM s3(
+    'http://localhost:19000/warehouse/data.parquet',
+    'admin', 'password123', 'Parquet'
+);
+</code></pre>
+<hr />
+<h2>📚 Documentation</h2>
+<h3>English Documentation</h3>
+<ul>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.md">README.md</a></strong> (this file) - Main documentation</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/QUICKSTART_GUIDE.md">docs/QUICKSTART_GUIDE.md</a></strong> - Quick start</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/SPARK_SETUP.md">docs/SPARK_SETUP.md</a></strong> - Spark integration</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/UNITY_DELTALAKE_TEST_GUIDE.md">docs/UNITY_DELTALAKE_TEST_GUIDE.md</a></strong> - Unity testing</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></strong> - Version comparison</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/GETTING_STARTED.md">GETTING_STARTED.md</a></strong> - First-run walkthrough</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README-SIMPLE.md">README-SIMPLE.md</a></strong> - Simplified setup path (fewer catalogs)</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/STRUCTURE_SUMMARY.md">STRUCTURE_SUMMARY.md</a></strong> - Directory and service layout</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/CHANGES_v3.1.md">CHANGES_v3.1.md</a></strong> - Changes in v3.1</li>
+</ul>
+<h3>Korean Documentation (한글 문서)</h3>
+<ul>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.ko.md">README.ko.md</a></strong> - 한글 메인 문서</li>
+<li><strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/NAVIGATION_GUIDE.md">docs/NAVIGATION_GUIDE.md</a></strong> - 프로젝트 탐색 가이드</li>
+</ul>
+<hr />
+<h2>🎯 Recommendations Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Use Case</th>
+<th>Recommended Tool</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Single catalog work</strong></td>
+<td><code>setup.sh</code></td>
+<td>Resource efficient, focused</td>
+</tr>
+<tr>
+<td><strong>Catalog comparison</strong></td>
+<td><code>setup-multi-catalog.sh</code></td>
+<td>Simultaneous execution, easy comparison</td>
+</tr>
+<tr>
+<td><strong>Unity deep testing</strong></td>
+<td><code>setup.sh</code> + Unity</td>
+<td>Focused testing environment</td>
+</tr>
+<tr>
+<td><strong>Comprehensive testing</strong></td>
+<td><code>setup-multi-catalog.sh</code></td>
+<td>All catalogs at once</td>
+</tr>
+<tr>
+<td><strong>Development/Experimentation</strong></td>
+<td>Use both</td>
+<td>Flexible environment switching</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>✨ Version History</h2>
+<h3>v3.1 (2025-12-13) - Multi-Catalog Support</h3>
+<ul>
+<li>✨ Added <code>setup-multi-catalog.sh</code> - Run multiple catalogs simultaneously</li>
+<li>📚 Bilingual documentation (Korean/English)</li>
+<li>🎯 Purpose-specific usage guides</li>
+</ul>
+<h3>v3.0 (2025-12-13) - Reorganization</h3>
+<ul>
+<li>📁 Separated tests, examples, docs</li>
+<li>🧹 Cleaned up project structure</li>
+</ul>
+<h3>v2.0 (2025-12)</h3>
+<ul>
+<li>Added Polaris and Unity Catalog</li>
+<li>ClickHouse 25.10/25.11 testing</li>
+</ul>
+<h3>v1.0</h3>
+<ul>
+<li>Initial release with 3 catalogs</li>
+</ul>
+<hr />
+<h2>📖 Resources</h2>
+<ul>
+<li><a href="https://min.io/docs/minio/linux/index.html">MinIO Documentation</a></li>
+<li><a href="https://iceberg.apache.org/">Apache Iceberg</a></li>
+<li><a href="https://projectnessie.org/">Project Nessie</a></li>
+<li><a href="https://polaris.apache.org/">Apache Polaris</a></li>
+<li><a href="https://github.com/unitycatalog/unitycatalog">Unity Catalog</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/integrations/s3">ClickHouse S3 Integration</a></li>
+</ul>
+<hr />
+<h2>📝 License</h2>
+<p>Educational purposes demonstration project</p>
+<hr />
+<h2>🆘 Support</h2>
+<ul>
+<li><strong>Quick help</strong>: <code>./setup.sh --help</code> or <code>./setup-multi-catalog.sh --help</code></li>
+<li><strong>Documentation</strong>: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog/docs">docs/</a> directory</li>
+<li><strong>Testing</strong>: Run <code>./tests/test-catalogs.sh</code></li>
+<li><strong>Logs</strong>: <code>docker logs &lt;service-name&gt;</code></li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

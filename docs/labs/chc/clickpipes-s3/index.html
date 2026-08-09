@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickPipes S3 Checkpoint Test Suite · ClickHouse HOLs</title>
+<meta name="description" content="ClickPipes S3 Checkpoint Test Suite — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/clickpipes-s3</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickPipes S3 Checkpoint Test Suite</h1>
+<p>S3 ClickPipe의 Pause/Resume 시 체크포인트 동작을 검증하기 위한 자동화된 테스트 스위트입니다.</p>
+<h2>테스트 목적</h2>
+<p>S3 Object Storage ClickPipe를 중지(Pause) 후 재시작(Resume)했을 때:
+- ✅ 체크포인트가 기록되어 중지 시점부터 이어서 인입하는지
+- ❌ 처음부터 다시 인입하여 중복 데이터가 발생하는지</p>
+<p>를 확인하여 고객에게 명확한 답변을 제공합니다.</p>
+<h2>필수 요구사항</h2>
+<h3>1. 환경 준비</h3>
+<ul>
+<li>AWS CLI 설치 및 설정</li>
+<li>ClickHouse CLI 설치 (<code>clickhouse-client</code>)</li>
+<li><code>jq</code> 설치 (JSON 파싱용)</li>
+<li>ClickHouse Cloud 서비스 (실행 중)</li>
+<li>(선택) Terraform 설치 (Terraform으로 ClickPipe를 생성하려는 경우)</li>
+</ul>
+<h3>2. 필요한 정보</h3>
+<h4>AWS 정보</h4>
+<ul>
+<li><code>AWS_ACCESS_KEY_ID</code></li>
+<li><code>AWS_SECRET_ACCESS_KEY</code></li>
+<li><code>AWS_SESSION_TOKEN</code> (optional)</li>
+<li><code>AWS_REGION</code></li>
+<li>S3 버킷 이름</li>
+</ul>
+<h4>ClickHouse Cloud 정보</h4>
+<ul>
+<li>Organization ID</li>
+<li>Service ID</li>
+<li>API Key</li>
+<li>호스트 주소 (예: <code>xxx.clickhouse.cloud</code>)</li>
+<li>사용자 이름</li>
+<li>비밀번호</li>
+</ul>
+<h2>설치 및 설정</h2>
+<h3>1. .env 파일 생성</h3>
+<pre><code class="language-bash">cp .env.template .env
+</code></pre>
+<h3>2. .env 파일 편집</h3>
+<pre><code class="language-bash"># .env 파일을 열어 실제 값으로 채우기
+nano .env  # 또는 vi, code 등 원하는 에디터 사용
+</code></pre>
+<p>필수 항목:</p>
+<pre><code class="language-bash"># AWS Configuration
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-test-bucket-name
+
+# ClickHouse Cloud Configuration
+CHC_ORGANIZATION_ID=your_organization_id
+CHC_SERVICE_ID=your_service_id
+CHC_API_KEY=your_api_key_here
+CHC_HOST=your-service.clickhouse.cloud
+CHC_USER=default
+CHC_PASSWORD=your_password_here
+</code></pre>
+<h3>3. 요구사항 확인</h3>
+<pre><code class="language-bash">./00-check-requirements.sh
+</code></pre>
+<p>이 스크립트는 다음을 확인합니다:
+- 필수 도구 설치 여부 (AWS CLI, ClickHouse Client, jq)
+- .env 파일 존재 및 필수 변수 설정
+- AWS 자격증명 유효성
+- S3 버킷 접근 권한
+- ClickHouse 연결
+- ClickPipes API 접근</p>
+<h3>4. 스크립트 실행 권한 부여</h3>
+<pre><code class="language-bash">chmod +x *.sh
+</code></pre>
+<h2>사용 방법</h2>
+<h3>옵션 1: 전체 자동화 테스트 실행</h3>
+<pre><code class="language-bash">./run-full-test.sh
+</code></pre>
+<p>이 스크립트는 전체 테스트 프로세스를 안내하며, 각 단계마다 확인을 요청합니다.</p>
+<h3>옵션 2: 단계별 수동 실행</h3>
+<h4>Step 1: S3 테스트 데이터 생성</h4>
+<pre><code class="language-bash">./01-setup-s3-data.sh
+</code></pre>
+<ul>
+<li>12개의 JSON 파일 생성 (6개월 × 2일)</li>
+<li>S3에 업로드 (파티션 구조 포함)</li>
+</ul>
+<h4>Step 2: ClickHouse 테이블 생성</h4>
+<pre><code class="language-bash">./02-setup-clickhouse-table.sh
+</code></pre>
+<ul>
+<li><code>test_clickpipe_checkpoint</code> 테이블 생성</li>
+<li><code>_file</code>, <code>_path</code>, <code>_time</code> 컬럼 포함 (추적용)</li>
+</ul>
+<h4>Step 3: ClickPipe 생성</h4>
+<p><strong>방법 A: ClickPipes API 사용 (기본)</strong></p>
+<pre><code class="language-bash">./03-create-clickpipe.sh
+</code></pre>
+<p><strong>방법 B: Terraform 사용 (선택)</strong></p>
+<pre><code class="language-bash">./03-create-clickpipe-terraform.sh
+</code></pre>
+<p>두 방법 모두:
+- S3 → ClickHouse 파이프 생성
+- 자동으로 데이터 인입 시작
+- <code>.pipe_id</code> 파일에 Pipe ID 저장</p>
+<h4>Step 4: 상태 확인</h4>
+<pre><code class="language-bash">./04-check-pipe-status.sh
+</code></pre>
+<ul>
+<li>파이프 상태 및 인입 통계 확인</li>
+</ul>
+<h4>Step 5: 데이터 조회</h4>
+<pre><code class="language-bash"># 요약 보기
+./05-query-data.sh summary
+
+# 중복 확인
+./05-query-data.sh duplicates
+
+# 타임라인 보기
+./05-query-data.sh timeline
+
+# 전체 카운트
+./05-query-data.sh count
+
+# 모든 데이터
+./05-query-data.sh all
+</code></pre>
+<h4>Step 6: 파이프 일시정지</h4>
+<pre><code class="language-bash">./06-pause-pipe.sh
+</code></pre>
+<ul>
+<li>파이프를 일시정지하고 현재 상태 기록</li>
+</ul>
+<h4>Step 7: 파이프 재시작</h4>
+<pre><code class="language-bash"># 1-2분 대기 후 실행
+./07-resume-pipe.sh
+</code></pre>
+<ul>
+<li>파이프를 재시작하고 인입 재개</li>
+</ul>
+<h4>Step 8: 체크포인트 검증</h4>
+<pre><code class="language-bash"># 모든 데이터 인입이 완료된 후 실행
+./08-validate-checkpoint.sh
+</code></pre>
+<ul>
+<li>중복 데이터 검사</li>
+<li>파일 인입 완전성 확인</li>
+<li>Pause/Resume 타임라인 분석</li>
+<li>최종 결과 리포트</li>
+</ul>
+<h4>Step 9: 정리</h4>
+<pre><code class="language-bash">./09-cleanup.sh
+</code></pre>
+<ul>
+<li>ClickPipe 삭제</li>
+<li>테이블 삭제</li>
+<li>S3 데이터 삭제</li>
+<li>로컬 임시 파일 정리</li>
+</ul>
+<h2>파일 구조</h2>
+<pre><code>clickpipes-s3/
+├── .env.template                    # 환경 변수 템플릿
+├── .env                              # 실제 환경 변수 (생성 필요, git ignore됨)
+├── .gitignore                        # Git ignore 설정
+├── README.md                         # 이 파일
+├── QUICKSTART.md                     # 빠른 시작 가이드
+├── clickpipe-test-plan.md            # 원본 테스트 계획서
+├── 00-check-requirements.sh          # 요구사항 확인
+├── 01-setup-s3-data.sh               # S3 테스트 데이터 생성
+├── 02-setup-clickhouse-table.sh      # ClickHouse 테이블 생성
+├── 03-create-clickpipe.sh            # ClickPipe 생성 (API)
+├── 03-create-clickpipe-terraform.sh  # ClickPipe 생성 (Terraform)
+├── 04-check-pipe-status.sh           # 파이프 상태 확인
+├── 05-query-data.sh                  # 데이터 조회 (여러 쿼리 타입 지원)
+├── 06-pause-pipe.sh                  # 파이프 일시정지
+├── 07-resume-pipe.sh                 # 파이프 재시작
+├── 08-validate-checkpoint.sh         # 체크포인트 동작 검증
+├── 09-cleanup.sh                     # 리소스 정리
+├── run-full-test.sh                  # 전체 자동화 테스트
+└── terraform/                        # Terraform 설정 파일들
+    ├── main.tf
+    ├── variables.tf
+    ├── terraform.tfvars.example
+    └── README.md
+</code></pre>
+<h2>생성되는 임시 파일</h2>
+<p>테스트 실행 중 다음 파일들이 생성됩니다 (모두 .gitignore에 포함):
+- <code>.pipe_id</code> - 생성된 ClickPipe의 ID
+- <code>.pause_time</code> - 파이프 일시정지 시간 (UTC)
+- <code>.resume_time</code> - 파이프 재시작 시간 (UTC)
+- <code>.pipe_status_last.json</code> - 마지막 파이프 상태 (디버깅용)</p>
+<h2>예상 결과</h2>
+<h3>✅ 체크포인트가 작동하는 경우</h3>
+<pre><code>🎉 ✅ ALL TESTS PASSED!
+
+Conclusion:
+  - ClickPipes S3 successfully maintains checkpoints
+  - Pause/Resume works without data duplication
+  - All files were ingested exactly once
+
+Customer Guidance:
+  ✅ Safe to pause and resume S3 ClickPipes
+  ✅ No deduplication logic needed in the table
+  ✅ Checkpoint mechanism is reliable
+</code></pre>
+<h3>❌ 체크포인트가 작동하지 않는 경우</h3>
+<pre><code>⚠️  TESTS FAILED - Issues Detected
+
+  ❌ Checkpointing does not work - duplicates found
+     Customer must implement deduplication logic
+     Consider using ReplacingMergeTree or similar
+</code></pre>
+<h2>트러블슈팅</h2>
+<h3>AWS 권한 오류</h3>
+<ul>
+<li>S3 버킷에 대한 읽기/쓰기 권한 확인</li>
+<li>IAM 정책에 <code>s3:GetObject</code>, <code>s3:PutObject</code>, <code>s3:ListBucket</code> 권한 포함 필요</li>
+</ul>
+<h3>ClickHouse 연결 오류</h3>
+<ul>
+<li>호스트 주소가 올바른지 확인 (<code>*.clickhouse.cloud</code> 형식)</li>
+<li>비밀번호에 특수문자가 있다면 따옴표로 감싸기</li>
+<li>방화벽에서 8443 포트가 열려있는지 확인</li>
+</ul>
+<h3>ClickPipes API 오류</h3>
+<ul>
+<li>API Key가 유효한지 확인</li>
+<li>Organization ID와 Service ID가 정확한지 확인</li>
+<li><a href="https://clickhouse.cloud">ClickHouse Cloud Console</a>에서 확인 가능</li>
+</ul>
+<h3>jq 명령어 없음</h3>
+<pre><code class="language-bash"># macOS
+brew install jq
+
+# Ubuntu/Debian
+sudo apt-get install jq
+
+# CentOS/RHEL
+sudo yum install jq
+</code></pre>
+<h2>ClickPipes API 엔드포인트</h2>
+<p>테스트에서 사용하는 API 엔드포인트:</p>
+<ul>
+<li><strong>생성</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes</code></li>
+<li><strong>조회</strong>: <code>GET /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}</code></li>
+<li><strong>일시정지</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}/pause</code></li>
+<li><strong>재시작</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}/resume</code></li>
+<li><strong>삭제</strong>: <code>DELETE /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}</code></li>
+</ul>
+<p>API 문서: https://clickhouse.com/docs/integrations/clickpipes</p>
+<h2>주의사항</h2>
+<ol>
+<li><strong>비용</strong>: 테스트 실행 시 AWS S3 및 ClickHouse Cloud 사용료가 발생할 수 있습니다</li>
+<li><strong>정리</strong>: 테스트 완료 후 반드시 <code>./09-cleanup.sh</code>를 실행하여 리소스를 정리하세요</li>
+<li><strong>동시 실행</strong>: 같은 환경에서 여러 테스트를 동시에 실행하지 마세요</li>
+<li><strong>데이터 보존</strong>: 실제 프로덕션 환경에서는 테스트하지 마세요</li>
+</ol>
+<h2>라이센스</h2>
+<p>이 테스트 스위트는 ClickHouse Cloud 기능 검증을 위한 내부 도구입니다.</p>
+<h2>지원</h2>
+<p>문제가 발생하면 다음을 확인하세요:
+1. <code>.env</code> 파일의 모든 값이 정확한지 확인
+2. <code>04-check-pipe-status.sh</code>로 파이프 상태 확인
+3. <code>.pipe_status_last.json</code> 파일에서 상세 에러 메시지 확인
+4. ClickHouse Cloud Console에서 파이프 로그 확인</p></div>
+  <div class="readme ko"><h1>ClickPipes S3 Checkpoint Test Suite</h1>
+<p>S3 ClickPipe의 Pause/Resume 시 체크포인트 동작을 검증하기 위한 자동화된 테스트 스위트입니다.</p>
+<h2>테스트 목적</h2>
+<p>S3 Object Storage ClickPipe를 중지(Pause) 후 재시작(Resume)했을 때:
+- ✅ 체크포인트가 기록되어 중지 시점부터 이어서 인입하는지
+- ❌ 처음부터 다시 인입하여 중복 데이터가 발생하는지</p>
+<p>를 확인하여 고객에게 명확한 답변을 제공합니다.</p>
+<h2>필수 요구사항</h2>
+<h3>1. 환경 준비</h3>
+<ul>
+<li>AWS CLI 설치 및 설정</li>
+<li>ClickHouse CLI 설치 (<code>clickhouse-client</code>)</li>
+<li><code>jq</code> 설치 (JSON 파싱용)</li>
+<li>ClickHouse Cloud 서비스 (실행 중)</li>
+<li>(선택) Terraform 설치 (Terraform으로 ClickPipe를 생성하려는 경우)</li>
+</ul>
+<h3>2. 필요한 정보</h3>
+<h4>AWS 정보</h4>
+<ul>
+<li><code>AWS_ACCESS_KEY_ID</code></li>
+<li><code>AWS_SECRET_ACCESS_KEY</code></li>
+<li><code>AWS_SESSION_TOKEN</code> (optional)</li>
+<li><code>AWS_REGION</code></li>
+<li>S3 버킷 이름</li>
+</ul>
+<h4>ClickHouse Cloud 정보</h4>
+<ul>
+<li>Organization ID</li>
+<li>Service ID</li>
+<li>API Key</li>
+<li>호스트 주소 (예: <code>xxx.clickhouse.cloud</code>)</li>
+<li>사용자 이름</li>
+<li>비밀번호</li>
+</ul>
+<h2>설치 및 설정</h2>
+<h3>1. .env 파일 생성</h3>
+<pre><code class="language-bash">cp .env.template .env
+</code></pre>
+<h3>2. .env 파일 편집</h3>
+<pre><code class="language-bash"># .env 파일을 열어 실제 값으로 채우기
+nano .env  # 또는 vi, code 등 원하는 에디터 사용
+</code></pre>
+<p>필수 항목:</p>
+<pre><code class="language-bash"># AWS Configuration
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-test-bucket-name
+
+# ClickHouse Cloud Configuration
+CHC_ORGANIZATION_ID=your_organization_id
+CHC_SERVICE_ID=your_service_id
+CHC_API_KEY=your_api_key_here
+CHC_HOST=your-service.clickhouse.cloud
+CHC_USER=default
+CHC_PASSWORD=your_password_here
+</code></pre>
+<h3>3. 요구사항 확인</h3>
+<pre><code class="language-bash">./00-check-requirements.sh
+</code></pre>
+<p>이 스크립트는 다음을 확인합니다:
+- 필수 도구 설치 여부 (AWS CLI, ClickHouse Client, jq)
+- .env 파일 존재 및 필수 변수 설정
+- AWS 자격증명 유효성
+- S3 버킷 접근 권한
+- ClickHouse 연결
+- ClickPipes API 접근</p>
+<h3>4. 스크립트 실행 권한 부여</h3>
+<pre><code class="language-bash">chmod +x *.sh
+</code></pre>
+<h2>사용 방법</h2>
+<h3>옵션 1: 전체 자동화 테스트 실행</h3>
+<pre><code class="language-bash">./run-full-test.sh
+</code></pre>
+<p>이 스크립트는 전체 테스트 프로세스를 안내하며, 각 단계마다 확인을 요청합니다.</p>
+<h3>옵션 2: 단계별 수동 실행</h3>
+<h4>Step 1: S3 테스트 데이터 생성</h4>
+<pre><code class="language-bash">./01-setup-s3-data.sh
+</code></pre>
+<ul>
+<li>12개의 JSON 파일 생성 (6개월 × 2일)</li>
+<li>S3에 업로드 (파티션 구조 포함)</li>
+</ul>
+<h4>Step 2: ClickHouse 테이블 생성</h4>
+<pre><code class="language-bash">./02-setup-clickhouse-table.sh
+</code></pre>
+<ul>
+<li><code>test_clickpipe_checkpoint</code> 테이블 생성</li>
+<li><code>_file</code>, <code>_path</code>, <code>_time</code> 컬럼 포함 (추적용)</li>
+</ul>
+<h4>Step 3: ClickPipe 생성</h4>
+<p><strong>방법 A: ClickPipes API 사용 (기본)</strong></p>
+<pre><code class="language-bash">./03-create-clickpipe.sh
+</code></pre>
+<p><strong>방법 B: Terraform 사용 (선택)</strong></p>
+<pre><code class="language-bash">./03-create-clickpipe-terraform.sh
+</code></pre>
+<p>두 방법 모두:
+- S3 → ClickHouse 파이프 생성
+- 자동으로 데이터 인입 시작
+- <code>.pipe_id</code> 파일에 Pipe ID 저장</p>
+<h4>Step 4: 상태 확인</h4>
+<pre><code class="language-bash">./04-check-pipe-status.sh
+</code></pre>
+<ul>
+<li>파이프 상태 및 인입 통계 확인</li>
+</ul>
+<h4>Step 5: 데이터 조회</h4>
+<pre><code class="language-bash"># 요약 보기
+./05-query-data.sh summary
+
+# 중복 확인
+./05-query-data.sh duplicates
+
+# 타임라인 보기
+./05-query-data.sh timeline
+
+# 전체 카운트
+./05-query-data.sh count
+
+# 모든 데이터
+./05-query-data.sh all
+</code></pre>
+<h4>Step 6: 파이프 일시정지</h4>
+<pre><code class="language-bash">./06-pause-pipe.sh
+</code></pre>
+<ul>
+<li>파이프를 일시정지하고 현재 상태 기록</li>
+</ul>
+<h4>Step 7: 파이프 재시작</h4>
+<pre><code class="language-bash"># 1-2분 대기 후 실행
+./07-resume-pipe.sh
+</code></pre>
+<ul>
+<li>파이프를 재시작하고 인입 재개</li>
+</ul>
+<h4>Step 8: 체크포인트 검증</h4>
+<pre><code class="language-bash"># 모든 데이터 인입이 완료된 후 실행
+./08-validate-checkpoint.sh
+</code></pre>
+<ul>
+<li>중복 데이터 검사</li>
+<li>파일 인입 완전성 확인</li>
+<li>Pause/Resume 타임라인 분석</li>
+<li>최종 결과 리포트</li>
+</ul>
+<h4>Step 9: 정리</h4>
+<pre><code class="language-bash">./09-cleanup.sh
+</code></pre>
+<ul>
+<li>ClickPipe 삭제</li>
+<li>테이블 삭제</li>
+<li>S3 데이터 삭제</li>
+<li>로컬 임시 파일 정리</li>
+</ul>
+<h2>파일 구조</h2>
+<pre><code>clickpipes-s3/
+├── .env.template                    # 환경 변수 템플릿
+├── .env                              # 실제 환경 변수 (생성 필요, git ignore됨)
+├── .gitignore                        # Git ignore 설정
+├── README.md                         # 이 파일
+├── QUICKSTART.md                     # 빠른 시작 가이드
+├── clickpipe-test-plan.md            # 원본 테스트 계획서
+├── 00-check-requirements.sh          # 요구사항 확인
+├── 01-setup-s3-data.sh               # S3 테스트 데이터 생성
+├── 02-setup-clickhouse-table.sh      # ClickHouse 테이블 생성
+├── 03-create-clickpipe.sh            # ClickPipe 생성 (API)
+├── 03-create-clickpipe-terraform.sh  # ClickPipe 생성 (Terraform)
+├── 04-check-pipe-status.sh           # 파이프 상태 확인
+├── 05-query-data.sh                  # 데이터 조회 (여러 쿼리 타입 지원)
+├── 06-pause-pipe.sh                  # 파이프 일시정지
+├── 07-resume-pipe.sh                 # 파이프 재시작
+├── 08-validate-checkpoint.sh         # 체크포인트 동작 검증
+├── 09-cleanup.sh                     # 리소스 정리
+├── run-full-test.sh                  # 전체 자동화 테스트
+└── terraform/                        # Terraform 설정 파일들
+    ├── main.tf
+    ├── variables.tf
+    ├── terraform.tfvars.example
+    └── README.md
+</code></pre>
+<h2>생성되는 임시 파일</h2>
+<p>테스트 실행 중 다음 파일들이 생성됩니다 (모두 .gitignore에 포함):
+- <code>.pipe_id</code> - 생성된 ClickPipe의 ID
+- <code>.pause_time</code> - 파이프 일시정지 시간 (UTC)
+- <code>.resume_time</code> - 파이프 재시작 시간 (UTC)
+- <code>.pipe_status_last.json</code> - 마지막 파이프 상태 (디버깅용)</p>
+<h2>예상 결과</h2>
+<h3>✅ 체크포인트가 작동하는 경우</h3>
+<pre><code>🎉 ✅ ALL TESTS PASSED!
+
+Conclusion:
+  - ClickPipes S3 successfully maintains checkpoints
+  - Pause/Resume works without data duplication
+  - All files were ingested exactly once
+
+Customer Guidance:
+  ✅ Safe to pause and resume S3 ClickPipes
+  ✅ No deduplication logic needed in the table
+  ✅ Checkpoint mechanism is reliable
+</code></pre>
+<h3>❌ 체크포인트가 작동하지 않는 경우</h3>
+<pre><code>⚠️  TESTS FAILED - Issues Detected
+
+  ❌ Checkpointing does not work - duplicates found
+     Customer must implement deduplication logic
+     Consider using ReplacingMergeTree or similar
+</code></pre>
+<h2>트러블슈팅</h2>
+<h3>AWS 권한 오류</h3>
+<ul>
+<li>S3 버킷에 대한 읽기/쓰기 권한 확인</li>
+<li>IAM 정책에 <code>s3:GetObject</code>, <code>s3:PutObject</code>, <code>s3:ListBucket</code> 권한 포함 필요</li>
+</ul>
+<h3>ClickHouse 연결 오류</h3>
+<ul>
+<li>호스트 주소가 올바른지 확인 (<code>*.clickhouse.cloud</code> 형식)</li>
+<li>비밀번호에 특수문자가 있다면 따옴표로 감싸기</li>
+<li>방화벽에서 8443 포트가 열려있는지 확인</li>
+</ul>
+<h3>ClickPipes API 오류</h3>
+<ul>
+<li>API Key가 유효한지 확인</li>
+<li>Organization ID와 Service ID가 정확한지 확인</li>
+<li><a href="https://clickhouse.cloud">ClickHouse Cloud Console</a>에서 확인 가능</li>
+</ul>
+<h3>jq 명령어 없음</h3>
+<pre><code class="language-bash"># macOS
+brew install jq
+
+# Ubuntu/Debian
+sudo apt-get install jq
+
+# CentOS/RHEL
+sudo yum install jq
+</code></pre>
+<h2>ClickPipes API 엔드포인트</h2>
+<p>테스트에서 사용하는 API 엔드포인트:</p>
+<ul>
+<li><strong>생성</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes</code></li>
+<li><strong>조회</strong>: <code>GET /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}</code></li>
+<li><strong>일시정지</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}/pause</code></li>
+<li><strong>재시작</strong>: <code>POST /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}/resume</code></li>
+<li><strong>삭제</strong>: <code>DELETE /v1/organizations/{org_id}/services/{service_id}/clickpipes/{pipe_id}</code></li>
+</ul>
+<p>API 문서: https://clickhouse.com/docs/integrations/clickpipes</p>
+<h2>주의사항</h2>
+<ol>
+<li><strong>비용</strong>: 테스트 실행 시 AWS S3 및 ClickHouse Cloud 사용료가 발생할 수 있습니다</li>
+<li><strong>정리</strong>: 테스트 완료 후 반드시 <code>./09-cleanup.sh</code>를 실행하여 리소스를 정리하세요</li>
+<li><strong>동시 실행</strong>: 같은 환경에서 여러 테스트를 동시에 실행하지 마세요</li>
+<li><strong>데이터 보존</strong>: 실제 프로덕션 환경에서는 테스트하지 마세요</li>
+</ol>
+<h2>라이센스</h2>
+<p>이 테스트 스위트는 ClickHouse Cloud 기능 검증을 위한 내부 도구입니다.</p>
+<h2>지원</h2>
+<p>문제가 발생하면 다음을 확인하세요:
+1. <code>.env</code> 파일의 모든 값이 정확한지 확인
+2. <code>04-check-pipe-status.sh</code>로 파이프 상태 확인
+3. <code>.pipe_status_last.json</code> 파일에서 상세 에러 메시지 확인
+4. ClickHouse Cloud Console에서 파이프 로그 확인</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/clickpipes-s3"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse OSS Environment · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse OSS Environment — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/oss-mac-setup</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse OSS Environment</h1>
+<p>ClickHouse development environment optimized for macOS with seccomp security profile.</p>
+<h2>✨ Features</h2>
+<ul>
+<li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
+<li>📦 <strong>Version Control</strong> - Specify ClickHouse version or use latest</li>
+<li>🐳 <strong>Docker Named Volumes</strong> - Persistent data storage with proper macOS permissions</li>
+<li>🧹 <strong>Easy Cleanup</strong> - Built-in cleanup options for data management</li>
+<li>🌐 <strong>Multiple Interfaces</strong> - Web UI, HTTP API, and TCP access</li>
+</ul>
+<h2>🚀 Quick Start</h2>
+<pre><code class="language-bash"># 1. Setup (first time only) - defaults to latest version
+./set.sh
+
+# Or specify a version
+./set.sh 25.10
+
+# 2. Start
+./start.sh
+
+# 3. Connect
+./client.sh
+</code></pre>
+<h2>📍 Connection Information</h2>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h2>🛠 Management Scripts</h2>
+<h3>Setup</h3>
+<ul>
+<li><code>./set.sh [VERSION]</code> - Initial environment setup (first time only)</li>
+<li><code>./set.sh</code> - Install latest version</li>
+<li><code>./set.sh 25.10</code> - Install specific version</li>
+<li><code>./set.sh latest</code> - Explicitly install latest</li>
+</ul>
+<h3>Operations</h3>
+<ul>
+<li><code>./start.sh</code> - Start ClickHouse (creates seccomp profile automatically)</li>
+<li><code>./stop.sh</code> - Stop ClickHouse (preserves data)</li>
+<li><code>./stop.sh --cleanup</code> or <code>./stop.sh -c</code> - Stop and delete all data</li>
+<li><code>./status.sh</code> - Check container status, health, and resource usage</li>
+<li><code>./client.sh</code> - Connect to CLI client</li>
+<li><code>./cleanup.sh</code> - Complete data deletion (with confirmation prompt)</li>
+</ul>
+<h2>🔧 Advanced Usage</h2>
+<pre><code class="language-bash"># View real-time logs
+docker-compose logs -f
+
+# Execute SQL directly
+docker-compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
+
+# Access container shell
+docker-compose exec clickhouse bash
+</code></pre>
+<h2>📂 Data Storage</h2>
+<p>Data is stored in Docker Named Volumes for persistence:
+- <code>clickhouse-oss_clickhouse_data</code> - Database files
+- <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
+<h2>🔄 Updates</h2>
+<pre><code class="language-bash"># Update to new version
+docker-compose pull
+docker-compose up -d
+</code></pre>
+<h2>🔧 Troubleshooting</h2>
+<h3>get_mempolicy Error</h3>
+<p>This setup includes a custom seccomp profile that resolves the common <code>get_mempolicy: Operation not permitted</code> error. The profile allows necessary NUMA memory policy syscalls (<code>get_mempolicy</code>, <code>set_mempolicy</code>, <code>mbind</code>).</p>
+<h3>Container Won't Start</h3>
+<ol>
+<li>Check Docker is running: <code>docker info</code></li>
+<li>Check logs: <code>docker logs clickhouse-oss</code></li>
+<li>Verify seccomp profile exists: <code>ls -la seccomp-profile.json</code></li>
+</ol>
+<h3>Permission Issues on macOS</h3>
+<p>This setup uses Docker Named Volumes instead of bind mounts to avoid macOS permission issues with ClickHouse data directories.</p>
+<h2>📋 System Requirements</h2>
+<ul>
+<li>macOS (optimized for Apple Silicon and Intel)</li>
+<li>Docker Desktop for Mac</li>
+<li>4GB+ RAM recommended</li>
+<li>10GB+ disk space</li>
+</ul>
+<h2>🔐 Security</h2>
+<ul>
+<li>Includes custom seccomp profile for container security</li>
+<li>Default user with no password (suitable for development)</li>
+<li>Network isolation with dedicated Docker network</li>
+<li>Data persistence with named volumes</li>
+</ul></div>
+  <div class="readme ko"><h1>ClickHouse OSS Environment</h1>
+<p>ClickHouse development environment optimized for macOS with seccomp security profile.</p>
+<h2>✨ Features</h2>
+<ul>
+<li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
+<li>📦 <strong>Version Control</strong> - Specify ClickHouse version or use latest</li>
+<li>🐳 <strong>Docker Named Volumes</strong> - Persistent data storage with proper macOS permissions</li>
+<li>🧹 <strong>Easy Cleanup</strong> - Built-in cleanup options for data management</li>
+<li>🌐 <strong>Multiple Interfaces</strong> - Web UI, HTTP API, and TCP access</li>
+</ul>
+<h2>🚀 Quick Start</h2>
+<pre><code class="language-bash"># 1. Setup (first time only) - defaults to latest version
+./set.sh
+
+# Or specify a version
+./set.sh 25.10
+
+# 2. Start
+./start.sh
+
+# 3. Connect
+./client.sh
+</code></pre>
+<h2>📍 Connection Information</h2>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h2>🛠 Management Scripts</h2>
+<h3>Setup</h3>
+<ul>
+<li><code>./set.sh [VERSION]</code> - Initial environment setup (first time only)</li>
+<li><code>./set.sh</code> - Install latest version</li>
+<li><code>./set.sh 25.10</code> - Install specific version</li>
+<li><code>./set.sh latest</code> - Explicitly install latest</li>
+</ul>
+<h3>Operations</h3>
+<ul>
+<li><code>./start.sh</code> - Start ClickHouse (creates seccomp profile automatically)</li>
+<li><code>./stop.sh</code> - Stop ClickHouse (preserves data)</li>
+<li><code>./stop.sh --cleanup</code> or <code>./stop.sh -c</code> - Stop and delete all data</li>
+<li><code>./status.sh</code> - Check container status, health, and resource usage</li>
+<li><code>./client.sh</code> - Connect to CLI client</li>
+<li><code>./cleanup.sh</code> - Complete data deletion (with confirmation prompt)</li>
+</ul>
+<h2>🔧 Advanced Usage</h2>
+<pre><code class="language-bash"># View real-time logs
+docker-compose logs -f
+
+# Execute SQL directly
+docker-compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
+
+# Access container shell
+docker-compose exec clickhouse bash
+</code></pre>
+<h2>📂 Data Storage</h2>
+<p>Data is stored in Docker Named Volumes for persistence:
+- <code>clickhouse-oss_clickhouse_data</code> - Database files
+- <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
+<h2>🔄 Updates</h2>
+<pre><code class="language-bash"># Update to new version
+docker-compose pull
+docker-compose up -d
+</code></pre>
+<h2>🔧 Troubleshooting</h2>
+<h3>get_mempolicy Error</h3>
+<p>This setup includes a custom seccomp profile that resolves the common <code>get_mempolicy: Operation not permitted</code> error. The profile allows necessary NUMA memory policy syscalls (<code>get_mempolicy</code>, <code>set_mempolicy</code>, <code>mbind</code>).</p>
+<h3>Container Won't Start</h3>
+<ol>
+<li>Check Docker is running: <code>docker info</code></li>
+<li>Check logs: <code>docker logs clickhouse-oss</code></li>
+<li>Verify seccomp profile exists: <code>ls -la seccomp-profile.json</code></li>
+</ol>
+<h3>Permission Issues on macOS</h3>
+<p>This setup uses Docker Named Volumes instead of bind mounts to avoid macOS permission issues with ClickHouse data directories.</p>
+<h2>📋 System Requirements</h2>
+<ul>
+<li>macOS (optimized for Apple Silicon and Intel)</li>
+<li>Docker Desktop for Mac</li>
+<li>4GB+ RAM recommended</li>
+<li>10GB+ disk space</li>
+</ul>
+<h2>🔐 Security</h2>
+<ul>
+<li>Includes custom seccomp profile for container security</li>
+<li>Default user with no password (suitable for development)</li>
+<li>Network isolation with dedicated Docker network</li>
+<li>Data persistence with named volumes</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

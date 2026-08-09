@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 25.9 New Features Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 25.9 New Features Lab — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/25.9</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 25.9.7.56</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 25.9 New Features Lab</h1>
+<hr />
+<p>A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory focuses on verified and working features newly added in ClickHouse 25.9 (released 2025-09-25; 25 new features, 22 performance optimizations, 83 bug fixes).</p>
+<h3>📋 Overview</h3>
+<p>ClickHouse 25.9 includes automatic join optimization, full-text search indexes, streaming secondary indexes, and new array functions.</p>
+<h3>🎯 Key Features</h3>
+<ol>
+<li><strong>Automatic Global Join Reordering</strong> - Statistics-based join optimization</li>
+<li><strong>New Text Index</strong> - Experimental full-text search capabilities</li>
+<li><strong>Streaming Secondary Indices</strong> - Faster query startup with incremental index reading</li>
+<li><strong>arrayExcept Function</strong> - Efficient array filtering</li>
+</ol>
+<h3>🚀 Quick Start</h3>
+<h4>Prerequisites</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+<li>8GB+ RAM recommended</li>
+<li>10GB+ disk space</li>
+</ul>
+<h4>Setup and Run</h4>
+<pre><code class="language-bash"># 1. Install and start ClickHouse 25.9
+cd local/releases/25.9
+./00-setup.sh
+
+# 2. Run tests for each feature
+./01-join-reordering.sh      # Automatic join reordering
+./02-text-index.sh           # Text index (full-text search)
+./03-streaming-indices.sh    # Streaming secondary indexes
+./04-array-except.sh         # arrayExcept function
+</code></pre>
+<h4>What <code>./00-setup.sh</code> Does</h4>
+<p>The setup script performs the following:
+- Configure ClickHouse 25.9 using oss-mac-setup
+- Start ClickHouse on port 8123
+- Verify installation
+- Display connection information</p>
+<h4>Manual Execution (SQL only)</h4>
+<p>To execute SQL files directly:</p>
+<pre><code class="language-bash"># Connect to ClickHouse client
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# Execute SQL file
+cd ../releases/25.9
+source 01-join-reordering.sql
+</code></pre>
+<h3>📚 Feature Details</h3>
+<h4>1. Automatic Global Join Reordering (01-join-reordering)</h4>
+<p><strong>What it does:</strong> Automatically reorders multi-table joins based on table statistics and data volumes</p>
+<p><strong>Test Content:</strong>
+- Creates tables of different sizes (countries: 100, products: 10K, orders: 1M, customers: 50K)
+- Tests manual vs automatic join reordering
+- Demonstrates 4-way join optimization
+- Shows EXPLAIN output for join plans</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./01-join-reordering.sh
+</code></pre>
+<p><strong>Key Benefits:</strong>
+- Optimal join order automatically selected
+- Reduced memory usage
+- Faster query execution
+- No manual query rewriting needed</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-sql">-- Enable automatic join reordering
+SET query_plan_join_swap_table = 'auto';
+
+SELECT
+    c.continent,
+    p.category,
+    count() AS orders
+FROM orders o
+JOIN products p ON o.product_id = p.product_id
+JOIN countries c ON o.country_id = c.country_id
+GROUP BY c.continent, p.category;
+</code></pre>
+<hr />
+<h4>2. Text Index - Full-Text Search (02-text-index)</h4>
+<p><strong>What it does:</strong> Provides experimental full-text search capabilities with streaming-friendly design</p>
+<p><strong>Test Content:</strong>
+- Creates articles table with 10,000 records
+- Tests full-text search queries
+- Multi-term search patterns
+- Category and time-based text search
+- Author and tag analysis</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./02-text-index.sh
+</code></pre>
+<p><strong>Key Benefits:</strong>
+- Streaming-friendly architecture
+- Efficient skip index granules
+- Fast text matching
+- Better than simple LIKE queries</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-sql">CREATE TABLE articles
+(
+    article_id UInt64,
+    title String,
+    content String,
+    INDEX content_idx content TYPE text(tokenizer = 'default') GRANULARITY 1
+)
+ENGINE = MergeTree()
+ORDER BY article_id;
+
+-- Search for articles
+SELECT title, content
+FROM articles
+WHERE content LIKE '%ClickHouse%';
+</code></pre>
+<hr />
+<h4>3. Streaming Secondary Indices (03-streaming-indices)</h4>
+<p><strong>What it does:</strong> Reads indices incrementally alongside data scanning for faster query startup</p>
+<p><strong>Test Content:</strong>
+- Creates events table with 5M records
+- Compares streaming vs traditional index reading
+- LIMIT query optimization
+- Time-series analysis
+- User behavior patterns</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./03-streaming-indices.sh
+</code></pre>
+<p><strong>Key Benefits:</strong>
+- Faster query startup
+- Early query termination with LIMIT
+- Incremental index reading
+- Reduced memory overhead</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-sql">-- Enable streaming indices
+SET use_skip_indexes_on_data_read = 1;
+
+CREATE TABLE events
+(
+    event_id UInt64,
+    user_id UInt32,
+    event_type String,
+    INDEX user_idx user_id TYPE minmax GRANULARITY 4,
+    INDEX type_idx event_type TYPE set(100) GRANULARITY 4
+)
+ENGINE = MergeTree()
+ORDER BY event_id;
+
+-- Query benefits from streaming indices
+SELECT *
+FROM events
+WHERE user_id BETWEEN 1000 AND 2000
+LIMIT 100;
+</code></pre>
+<hr />
+<h4>4. arrayExcept Function (04-array-except)</h4>
+<p><strong>What it does:</strong> New function to filter arrays by removing elements from another array</p>
+<p><strong>Test Content:</strong>
+- Basic array filtering
+- User permission management
+- Product feature filtering
+- Tag management system
+- Security rule filtering</p>
+<p><strong>Execute:</strong></p>
+<pre><code class="language-bash">./04-array-except.sh
+</code></pre>
+<p><strong>Key Benefits:</strong>
+- Cleaner syntax than manual filtering
+- Efficient array operations
+- Works with any data type
+- Maintains element order</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-sql">-- Remove specific elements from array
+SELECT arrayExcept([1, 2, 3, 4, 5], [2, 4]) AS result;
+-- Result: [1, 3, 5]
+
+-- Permission management
+SELECT
+    user_name,
+    arrayExcept(all_permissions, revoked_permissions) AS active_permissions
+FROM user_permissions;
+</code></pre>
+<h3>🔧 Management</h3>
+<h4>ClickHouse Connection Info</h4>
+<p>After running <code>./00-setup.sh</code>:</p>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP Port</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>Useful Commands</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+
+# Check status
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# Stop ClickHouse
+./stop.sh
+</code></pre>
+<h4>Data Verification</h4>
+<pre><code class="language-bash"># Check tables
+docker exec -it clickhouse-25-9 clickhouse-client -q &quot;SHOW TABLES&quot;
+
+# Check version
+curl http://localhost:8123/
+</code></pre>
+<h3>📂 File Structure</h3>
+<pre><code>25.9/
+├── README.md                       # This document
+├── 00-setup.sh                     # ClickHouse 25.9 installation script
+├── 01-join-reordering.sh           # Join reordering runner
+├── 01-join-reordering.sql          # Join reordering SQL
+├── 02-text-index.sh                # Text index runner
+├── 02-text-index.sql               # Text index SQL
+├── 03-streaming-indices.sh         # Streaming secondary indices runner
+├── 03-streaming-indices.sql        # Streaming secondary indices SQL
+├── 04-array-except.sh              # arrayExcept runner
+└── 04-array-except.sql             # arrayExcept SQL
+</code></pre>
+<h3>📊 Test Data Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Table</th>
+<th>Rows</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Join Reordering</td>
+<td>countries</td>
+<td>100</td>
+<td>Country dimension</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>products</td>
+<td>10,000</td>
+<td>Product catalog</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>orders</td>
+<td>1,000,000</td>
+<td>Order facts</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>customers</td>
+<td>50,000</td>
+<td>Customer dimension</td>
+</tr>
+<tr>
+<td>Text Index</td>
+<td>articles</td>
+<td>10,000</td>
+<td>Article content</td>
+</tr>
+<tr>
+<td>Streaming Indices</td>
+<td>events</td>
+<td>5,000,000</td>
+<td>User events</td>
+</tr>
+<tr>
+<td>arrayExcept</td>
+<td>Various</td>
+<td>Various</td>
+<td>Permission/feature data</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 Feature Status</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Status</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Join Reordering</td>
+<td>Stable</td>
+<td><code>query_plan_join_swap_table = 'auto'</code> (default)</td>
+</tr>
+<tr>
+<td>Text Index</td>
+<td>Experimental</td>
+<td>Built into table definition</td>
+</tr>
+<tr>
+<td>Streaming Indices</td>
+<td>Stable</td>
+<td><code>use_skip_indexes_on_data_read = 1</code></td>
+</tr>
+<tr>
+<td>arrayExcept</td>
+<td>Stable</td>
+<td>N/A (built-in function)</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 What's New in 25.9</h3>
+<ul>
+<li><strong>Automatic global join reordering</strong> — reorders join graphs across tables</li>
+<li><strong>Streaming secondary indices</strong> — interleaves index checks with data reads</li>
+<li><strong>New text index</strong> — streaming-friendly, granule-structured full-text index</li>
+<li><strong><code>arrayExcept</code></strong> — difference between two arrays</li>
+<li><strong>Iceberg <code>ALTER UPDATE</code> and <code>DROP TABLE</code></strong> — wider data lake write support</li>
+<li><strong>Iceberg metadata log system table</strong> — introspect Iceberg metadata</li>
+<li><strong>ORC and Avro for Iceberg</strong> — additional data lake file formats</li>
+<li><strong>Unity catalog on Azure</strong> — Azure-hosted Unity catalog</li>
+<li><strong>Distributed <code>INSERT SELECT</code> for data lakes</strong> — distributed lake ingestion</li>
+<li><strong>Boolean settings without an argument</strong> — <code>SET describe_compact_output;</code></li>
+<li><strong>S3 storage class</strong> — specify classes such as <code>INTELLIGENT_TIERING</code></li>
+</ul>
+<h3>🔍 Additional Resources</h3>
+<ul>
+<li><a href="https://clickhouse.com/blog/clickhouse-release-25-09">ClickHouse 25.9 Release Blog</a></li>
+<li><a href="https://presentations.clickhouse.com/2025-release-25.9/">ClickHouse 25.9 Release Call</a></li>
+<li><a href="https://clickhouse.com/docs/">ClickHouse Documentation</a></li>
+<li><a href="https://github.com/ClickHouse/ClickHouse/releases">ClickHouse GitHub Releases</a></li>
+</ul>
+<h3>🎓 Learning Path</h3>
+<h4>For Beginners</h4>
+<ol>
+<li>Start with <strong>arrayExcept</strong> (easiest) - Array filtering basics</li>
+<li>Try <strong>Streaming Indices</strong> (intermediate) - Index optimization</li>
+<li>Explore <strong>Text Index</strong> (intermediate) - Full-text search implementation</li>
+<li>Advanced: <strong>Join Reordering</strong> (advanced) - Complex join optimization</li>
+</ol>
+<h4>For Advanced Users</h4>
+<ol>
+<li><strong>Join Reordering</strong> - Complex analytical query optimization</li>
+<li><strong>Text Index</strong> - Search functionality implementation</li>
+<li><strong>Streaming Indices</strong> - Performance tuning</li>
+</ol>
+<h3>🚨 Important Notes</h3>
+<ul>
+<li>All features verified on ClickHouse 25.9.7.56</li>
+<li><strong>Experimental Features</strong>: Join Reordering and Text Index are experimental in 25.9</li>
+<li><strong>Settings Required</strong>: Experimental features must be enabled with appropriate SET commands</li>
+<li><strong>Performance Testing</strong>: Perform performance tests with actual data scale</li>
+<li><strong>Production Use</strong>: Thorough testing required before production deployment</li>
+</ul>
+<p><strong>Key Settings:</strong>
+- <code>SET query_plan_join_swap_table = 'auto';</code> - Enable join reordering
+- <code>SET use_skip_indexes_on_data_read = 1;</code> - Enable streaming indices</p>
+<h3>🧹 Cleanup</h3>
+<p>To stop and remove ClickHouse 25.9:</p>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./stop.sh
+
+# Optional: Delete data
+./cleanup.sh
+</code></pre>
+<h3>📄 License</h3>
+<p>MIT License - See root directory for details</p>
+<h3>🤝 Contributing</h3>
+<p>Issues and pull requests welcome! Please refer to the main repository for contribution guidelines.</p>
+<h3>📬 Support</h3>
+<p>For questions or issues:
+1. Check this README and test output
+2. Review ClickHouse official documentation
+3. Create an issue in the main repository</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 25.9 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 9월 25일 출시된 ClickHouse 25.9(신기능 25건, 성능 최적화 22건, 버그 수정 83건)에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.</p>
+<h3>📋 개요</h3>
+<p>ClickHouse 25.9는 자동 조인 최적화, 전문 검색 인덱스, 스트리밍 보조 인덱스, 그리고 새로운 배열 함수를 포함합니다.</p>
+<h3>🎯 주요 기능</h3>
+<ol>
+<li><strong>Automatic Global Join Reordering</strong> - 통계 기반 조인 최적화</li>
+<li><strong>New Text Index</strong> - 실험적 전문 검색 기능</li>
+<li><strong>Streaming Secondary Indices</strong> - 증분 인덱스 읽기로 더 빠른 쿼리 시작</li>
+<li><strong>arrayExcept Function</strong> - 효율적인 배열 필터링</li>
+</ol>
+<h3>🚀 빠른 시작</h3>
+<h4>사전 요구사항</h4>
+<ul>
+<li>macOS (with Docker Desktop)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+<li>8GB+ RAM recommended</li>
+<li>10GB+ disk space</li>
+</ul>
+<h4>설정 및 실행</h4>
+<pre><code class="language-bash"># 1. ClickHouse 25.9 설치 및 시작
+cd local/releases/25.9
+./00-setup.sh
+
+# 2. 각 기능별 테스트 실행
+./01-join-reordering.sh      # 자동 조인 재정렬
+./02-text-index.sh           # 텍스트 인덱스 (전문 검색)
+./03-streaming-indices.sh    # 스트리밍 보조 인덱스
+./04-array-except.sh         # arrayExcept 함수
+</code></pre>
+<h4><code>./00-setup.sh</code> 수행 내용</h4>
+<p>Setup 스크립트는 다음을 수행합니다:
+- Configure ClickHouse 25.9 using oss-mac-setup
+- Start ClickHouse on port 8123
+- Verify installation
+- Display connection information</p>
+<h4>수동 실행 (SQL만)</h4>
+<p>SQL 파일을 직접 실행하려면:</p>
+<pre><code class="language-bash"># ClickHouse 클라이언트 접속
+cd ../../oss-mac-setup
+./client.sh 8123
+
+# SQL 파일 실행
+cd ../releases/25.9
+source 01-join-reordering.sql
+</code></pre>
+<h3>📚 기능 상세</h3>
+<h4>1. Automatic Global Join Reordering (01-join-reordering)</h4>
+<p><strong>기능:</strong> 테이블 통계와 데이터 볼륨을 기반으로 다중 테이블 조인을 자동으로 재정렬</p>
+<p><strong>테스트 내용:</strong>
+- Creates tables of different sizes (countries: 100, products: 10K, orders: 1M, customers: 50K)
+- Tests manual vs automatic join reordering
+- Demonstrates 4-way join optimization
+- Shows EXPLAIN output for join plans</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./01-join-reordering.sh
+</code></pre>
+<p><strong>주요 이점:</strong>
+- Optimal join order automatically selected
+- Reduced memory usage
+- Faster query execution
+- No manual query rewriting needed</p>
+<p><strong>예시:</strong></p>
+<pre><code class="language-sql">-- Enable automatic join reordering
+SET query_plan_join_swap_table = 'auto';
+
+SELECT
+    c.continent,
+    p.category,
+    count() AS orders
+FROM orders o
+JOIN products p ON o.product_id = p.product_id
+JOIN countries c ON o.country_id = c.country_id
+GROUP BY c.continent, p.category;
+</code></pre>
+<hr />
+<h4>2. Text Index - Full-Text Search (02-text-index)</h4>
+<p><strong>기능:</strong> 스트리밍 친화적 설계의 실험적 전문 검색 기능 제공</p>
+<p><strong>테스트 내용:</strong>
+- Creates articles table with 10,000 records
+- Tests full-text search queries
+- Multi-term search patterns
+- Category and time-based text search
+- Author and tag analysis</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./02-text-index.sh
+</code></pre>
+<p><strong>주요 이점:</strong>
+- Streaming-friendly architecture
+- Efficient skip index granules
+- Fast text matching
+- Better than simple LIKE queries</p>
+<p><strong>예시:</strong></p>
+<pre><code class="language-sql">CREATE TABLE articles
+(
+    article_id UInt64,
+    title String,
+    content String,
+    INDEX content_idx content TYPE text(tokenizer = 'default') GRANULARITY 1
+)
+ENGINE = MergeTree()
+ORDER BY article_id;
+
+-- Search for articles
+SELECT title, content
+FROM articles
+WHERE content LIKE '%ClickHouse%';
+</code></pre>
+<hr />
+<h4>3. Streaming Secondary Indices (03-streaming-indices)</h4>
+<p><strong>기능:</strong> 데이터 스캔과 함께 인덱스를 점진적으로 읽어 더 빠른 쿼리 시작</p>
+<p><strong>테스트 내용:</strong>
+- Creates events table with 5M records
+- Compares streaming vs traditional index reading
+- LIMIT query optimization
+- Time-series analysis
+- User behavior patterns</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./03-streaming-indices.sh
+</code></pre>
+<p><strong>주요 이점:</strong>
+- Faster query startup
+- Early query termination with LIMIT
+- Incremental index reading
+- Reduced memory overhead</p>
+<p><strong>예시:</strong></p>
+<pre><code class="language-sql">-- Enable streaming indices
+SET use_skip_indexes_on_data_read = 1;
+
+CREATE TABLE events
+(
+    event_id UInt64,
+    user_id UInt32,
+    event_type String,
+    INDEX user_idx user_id TYPE minmax GRANULARITY 4,
+    INDEX type_idx event_type TYPE set(100) GRANULARITY 4
+)
+ENGINE = MergeTree()
+ORDER BY event_id;
+
+-- Query benefits from streaming indices
+SELECT *
+FROM events
+WHERE user_id BETWEEN 1000 AND 2000
+LIMIT 100;
+</code></pre>
+<hr />
+<h4>4. arrayExcept Function (04-array-except)</h4>
+<p><strong>기능:</strong> 다른 배열의 요소를 제거하여 배열을 필터링하는 새로운 함수</p>
+<p><strong>테스트 내용:</strong>
+- Basic array filtering
+- User permission management
+- Product feature filtering
+- Tag management system
+- Security rule filtering</p>
+<p><strong>실행:</strong></p>
+<pre><code class="language-bash">./04-array-except.sh
+</code></pre>
+<p><strong>주요 이점:</strong>
+- Cleaner syntax than manual filtering
+- Efficient array operations
+- Works with any data type
+- Maintains element order</p>
+<p><strong>예시:</strong></p>
+<pre><code class="language-sql">-- Remove specific elements from array
+SELECT arrayExcept([1, 2, 3, 4, 5], [2, 4]) AS result;
+-- Result: [1, 3, 5]
+
+-- Permission management
+SELECT
+    user_name,
+    arrayExcept(all_permissions, revoked_permissions) AS active_permissions
+FROM user_permissions;
+</code></pre>
+<h3>🔧 관리</h3>
+<h4>ClickHouse 접속 정보</h4>
+<p><code>./00-setup.sh</code> 실행 후:</p>
+<ul>
+<li><strong>Web UI</strong>: http://localhost:8123/play</li>
+<li><strong>HTTP API</strong>: http://localhost:8123</li>
+<li><strong>TCP Port</strong>: localhost:9000</li>
+<li><strong>User</strong>: default (no password)</li>
+</ul>
+<h4>유용한 명령어</h4>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+
+# Check status
+./status.sh
+
+# Connect to CLI
+./client.sh 8123
+
+# Stop ClickHouse
+./stop.sh
+</code></pre>
+<h4>데이터 확인</h4>
+<pre><code class="language-bash"># Check tables
+docker exec -it clickhouse-25-9 clickhouse-client -q &quot;SHOW TABLES&quot;
+
+# Check version
+curl http://localhost:8123/
+</code></pre>
+<h3>📂 파일 구조</h3>
+<pre><code>25.9/
+├── README.md                       # 이 문서
+├── 00-setup.sh                     # ClickHouse 25.9 설치 스크립트
+├── 01-join-reordering.sh           # 조인 재정렬 실행 스크립트
+├── 01-join-reordering.sql          # 조인 재정렬 SQL
+├── 02-text-index.sh                # 텍스트 인덱스 실행 스크립트
+├── 02-text-index.sql               # 텍스트 인덱스 SQL
+├── 03-streaming-indices.sh         # 스트리밍 보조 인덱스 실행 스크립트
+├── 03-streaming-indices.sql        # 스트리밍 보조 인덱스 SQL
+├── 04-array-except.sh              # arrayExcept 실행 스크립트
+└── 04-array-except.sql             # arrayExcept SQL
+</code></pre>
+<h3>📊 테스트 데이터 요약</h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Table</th>
+<th>Rows</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Join Reordering</td>
+<td>countries</td>
+<td>100</td>
+<td>Country dimension</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>products</td>
+<td>10,000</td>
+<td>Product catalog</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>orders</td>
+<td>1,000,000</td>
+<td>Order facts</td>
+</tr>
+<tr>
+<td>Join Reordering</td>
+<td>customers</td>
+<td>50,000</td>
+<td>Customer dimension</td>
+</tr>
+<tr>
+<td>Text Index</td>
+<td>articles</td>
+<td>10,000</td>
+<td>Article content</td>
+</tr>
+<tr>
+<td>Streaming Indices</td>
+<td>events</td>
+<td>5,000,000</td>
+<td>User events</td>
+</tr>
+<tr>
+<td>arrayExcept</td>
+<td>Various</td>
+<td>Various</td>
+<td>Permission/feature data</td>
+</tr>
+</tbody>
+</table>
+<h3>🔍 기능 상태</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Status</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Join Reordering</td>
+<td>Stable</td>
+<td><code>query_plan_join_swap_table = 'auto'</code> (default)</td>
+</tr>
+<tr>
+<td>Text Index</td>
+<td>Experimental</td>
+<td>Built into table definition</td>
+</tr>
+<tr>
+<td>Streaming Indices</td>
+<td>Stable</td>
+<td><code>use_skip_indexes_on_data_read = 1</code></td>
+</tr>
+<tr>
+<td>arrayExcept</td>
+<td>Stable</td>
+<td>N/A (built-in function)</td>
+</tr>
+</tbody>
+</table>
+<h3>🆕 25.9의 새로운 기능</h3>
+<ul>
+<li><strong>Automatic global join reordering</strong> — reorders join graphs across tables</li>
+<li><strong>Streaming secondary indices</strong> — interleaves index checks with data reads</li>
+<li><strong>New text index</strong> — streaming-friendly, granule-structured full-text index</li>
+<li><strong><code>arrayExcept</code></strong> — difference between two arrays</li>
+<li><strong>Iceberg <code>ALTER UPDATE</code> and <code>DROP TABLE</code></strong> — wider data lake write support</li>
+<li><strong>Iceberg metadata log system table</strong> — introspect Iceberg metadata</li>
+<li><strong>ORC and Avro for Iceberg</strong> — additional data lake file formats</li>
+<li><strong>Unity catalog on Azure</strong> — Azure-hosted Unity catalog</li>
+<li><strong>Distributed <code>INSERT SELECT</code> for data lakes</strong> — distributed lake ingestion</li>
+<li><strong>Boolean settings without an argument</strong> — <code>SET describe_compact_output;</code></li>
+<li><strong>S3 storage class</strong> — specify classes such as <code>INTELLIGENT_TIERING</code></li>
+</ul>
+<h3>🔍 추가 자료</h3>
+<ul>
+<li><a href="https://clickhouse.com/blog/clickhouse-release-25-09">ClickHouse 25.9 Release Blog</a></li>
+<li><a href="https://presentations.clickhouse.com/2025-release-25.9/">ClickHouse 25.9 Release Call</a></li>
+<li><a href="https://clickhouse.com/docs/">ClickHouse Documentation</a></li>
+<li><a href="https://github.com/ClickHouse/ClickHouse/releases">ClickHouse GitHub Releases</a></li>
+</ul>
+<h3>🎓 학습 경로</h3>
+<h4>초급자용</h4>
+<ol>
+<li>Start with <strong>arrayExcept</strong> (가장 쉬움) - 배열 필터링 기초</li>
+<li>Try <strong>Streaming Indices</strong> (중급) - 인덱스 최적화</li>
+<li>Explore <strong>Text Index</strong> (중급) - 전문 검색 구현</li>
+<li>Advanced: <strong>Join Reordering</strong> (고급) - 복잡한 조인 최적화</li>
+</ol>
+<h4>고급 사용자용</h4>
+<ol>
+<li><strong>Join Reordering</strong> - 복잡한 분석 쿼리 최적화</li>
+<li><strong>Text Index</strong> - 검색 기능 구축</li>
+<li><strong>Streaming Indices</strong> - 성능 튜닝</li>
+</ol>
+<h3>🚨 중요 참고사항</h3>
+<ul>
+<li><strong>Experimental Features</strong>: Join Reordering과 Text Index는 25.9에서 실험적 기능입니다</li>
+<li><strong>Settings Required</strong>: 실험적 기능은 적절한 SET 명령으로 활성화해야 합니다</li>
+<li><strong>Performance Testing</strong>: 실제 데이터 규모로 성능 테스트를 수행하세요</li>
+<li><strong>Production Use</strong>: 프로덕션 환경에서 사용하기 전에 충분한 테스트를 거쳐야 합니다</li>
+</ul>
+<p><strong>주요 설정:</strong>
+- <code>SET query_plan_join_swap_table = 'auto';</code> - 조인 재정렬 활성화
+- <code>SET use_skip_indexes_on_data_read = 1;</code> - 스트리밍 인덱스 활성화</p>
+<h3>🧹 정리</h3>
+<p>ClickHouse 25.9를 중지하고 제거하려면:</p>
+<pre><code class="language-bash">cd ../../oss-mac-setup
+./stop.sh
+
+# Optional: 데이터 삭제
+./cleanup.sh
+</code></pre>
+<h3>📄 라이선스</h3>
+<p>MIT License - 자세한 내용은 루트 디렉토리를 참조하세요.</p>
+<h3>🤝 기여</h3>
+<p>Issues와 pull requests를 환영합니다! 기여 가이드라인은 메인 저장소를 참조해주세요.</p>
+<h3>📬 지원</h3>
+<p>질문이나 문제가 있으면:
+1. 이 README와 테스트 출력을 확인하세요
+2. ClickHouse 공식 문서를 검토하세요
+3. 메인 저장소에 이슈를 생성하세요</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/25.9"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

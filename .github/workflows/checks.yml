@@ -31,7 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: docs/index.html matches the indexes it is generated from
+      - run: pip install --quiet markdown
+      - name: docs/ matches what the repository would generate
         run: python3 .github/scripts/build_site.py --check
 
   shellcheck:

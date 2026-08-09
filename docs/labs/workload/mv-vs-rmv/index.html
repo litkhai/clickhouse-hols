@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MV vs RMV 리소스 효율성 비교 테스트 · ClickHouse HOLs</title>
+<meta name="description" content="MV vs RMV 리소스 효율성 비교 테스트 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/mv-vs-rmv</code>
+    
+  </nav>
+  <div class="readme en"><h1>MV vs RMV 리소스 효율성 비교 테스트</h1>
+<h1>MV vs RMV Resource Efficiency Comparison Test</h1>
+<p>ClickHouse의 Materialized View (MV)와 Refreshable Materialized View (RMV)의 리소스 효율성을 정량적으로 비교 분석하는 테스트 프로젝트입니다.</p>
+<p>This is a test project that quantitatively compares and analyzes the resource efficiency between ClickHouse's Materialized View (MV) and Refreshable Materialized View (RMV).</p>
+<hr />
+<h2>📋 프로젝트 개요 / Project Overview</h2>
+<h3>목적 / Purpose</h3>
+<ul>
+<li>MV (실시간 처리)와 RMV (배치 처리)의 리소스 사용 패턴 비교</li>
+<li>Part 생성 수, Disk 사용량, 쿼리 성능 등 정량적 지표 측정</li>
+<li>Use case별 최적의 선택 가이드 제공</li>
+</ul>
+<h3>핵심 질문 / Key Question</h3>
+<p><strong>"고빈도 INSERT 환경에서 RMV가 MV보다 리소스 효율적인가?"</strong></p>
+<p><strong>"Is RMV more resource-efficient than MV in high-frequency INSERT environments?"</strong></p>
+<hr />
+<h2>🎯 테스트 결과 요약 / Test Results Summary</h2>
+<p>✅ <strong>가설 입증 완료 / Hypothesis Confirmed</strong></p>
+<h3>Quick Test (5분, 300K rows)</h3>
+<table>
+<thead>
+<tr>
+<th>지표 / Metric</th>
+<th>MV</th>
+<th>RMV</th>
+<th>효율성 개선 / Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Part Count</strong></td>
+<td>5</td>
+<td>1</td>
+<td><strong>5배 감소 / 5x reduction</strong></td>
+</tr>
+<tr>
+<td><strong>Disk Usage</strong></td>
+<td>9.83 KiB</td>
+<td>1.94 KiB</td>
+<td><strong>5배 감소 / 5x reduction</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>Full Test (30분, 1.9M rows) ⭐</h3>
+<table>
+<thead>
+<tr>
+<th>지표 / Metric</th>
+<th>MV</th>
+<th>RMV</th>
+<th>효율성 개선 / Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Part Count</strong></td>
+<td>3</td>
+<td>1</td>
+<td><strong>3배 감소 / 3x reduction</strong></td>
+</tr>
+<tr>
+<td><strong>Disk Usage</strong></td>
+<td>11.63 KiB</td>
+<td>15.17 KiB</td>
+<td>비슷 (RMV가 더 많은 데이터 포함)</td>
+</tr>
+<tr>
+<td><strong>Aggregated Rows</strong></td>
+<td>1,200</td>
+<td>1,800</td>
+<td><strong>RMV가 1.5배 더 많은 커버리지</strong></td>
+</tr>
+</tbody>
+</table>
+<p>📊 <strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">전체 결과 보고서 보기</a></strong>
+📊 <strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/FINAL-TEST-REPORT.md">30분 Full Test 최종 보고서</a></strong> ⭐</p>
+<hr />
+<h2>🏗️ 프로젝트 구조 / Project Structure</h2>
+<pre><code>workload/mv-vs-rmv/
+├── README.md                           # 프로젝트 개요
+├── mv-rmv-test-plan.md                # 원본 테스트 계획
+├── detailed-test-plan.md              # 상세 실행 계획
+├── test-results-report.md             # 📊 최종 결과 보고서
+│
+├── setup/                             # 스키마 설정 SQL 스크립트
+│   ├── 01-create-database.sql        # Database 생성
+│   ├── 02-create-source-table.sql    # Source table 생성
+│   ├── 03-create-mv-tables.sql       # MV 생성
+│   ├── 04-create-rmv-tables.sql      # RMV 생성
+│   └── 05-create-monitoring-tables.sql # 모니터링 테이블 생성
+│
+├── scripts/                           # Python 실행 스크립트
+│   ├── quick_test.py                 # ✅ 5분 Quick 테스트
+│   ├── data_generator.py             # 30분 Full 테스트 데이터 생성
+│   ├── monitoring_collector.py       # 모니터링 데이터 수집
+│   └── run_test.py                   # 통합 실행 스크립트
+│
+└── queries/                           # 분석 쿼리
+    └── analyze_results.sql           # 결과 분석 쿼리 모음
+</code></pre>
+<hr />
+<h2>🚀 빠른 시작 / Quick Start</h2>
+<h3>1. 사전 준비 / Prerequisites</h3>
+<pre><code class="language-bash"># Python 패키지 설치
+pip3 install clickhouse-connect
+
+# 접속 정보는 환경변수로 주입합니다 (스크립트가 하드코딩하지 않습니다)
+# Connection settings are injected via environment variables
+cd scripts
+cp .env.example .env      # CH_HOST / CH_PASSWORD 등을 채워 넣으세요
+set -a &amp;&amp; . ./.env &amp;&amp; set +a
+</code></pre>
+<p><code>scripts/*.py</code>는 <code>CH_HOST</code>, <code>CH_USER</code>, <code>CH_PASSWORD</code>, <code>CH_DATABASE</code>를 읽고,
+<code>CH_HOST</code> 또는 <code>CH_PASSWORD</code>가 없으면 안내 메시지와 함께 종료합니다.</p>
+<h3>2. 스키마 설정 / Schema Setup</h3>
+<pre><code class="language-bash"># Database 및 테이블 생성
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/01-create-database.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/02-create-source-table.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/03-create-mv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/04-create-rmv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/05-create-monitoring-tables.sql
+</code></pre>
+<h3>3. Quick 테스트 실행 (5분) / Run Quick Test (5 minutes)</h3>
+<pre><code class="language-bash"># 스크립트에서 HOST와 PASSWORD 수정 후 실행
+cd scripts/
+python3 quick_test.py
+</code></pre>
+<h3>4. 결과 확인 / Check Results</h3>
+<pre><code class="language-bash"># 테이블 행 수 확인
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query &quot;
+SELECT 'Source' AS table_name, count() FROM mv_vs_rmv.events_source
+UNION ALL
+SELECT 'MV' AS table_name, count() FROM mv_vs_rmv.events_agg_mv
+UNION ALL
+SELECT 'RMV' AS table_name, count() FROM mv_vs_rmv.events_agg_rmv
+FORMAT Pretty&quot;
+
+# Part 수 비교
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query &quot;
+SELECT table, count() AS parts, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table
+ORDER BY table
+FORMAT Pretty&quot;
+</code></pre>
+<hr />
+<h2>📊 테스트 시나리오 / Test Scenarios</h2>
+<h3>Scenario 1: Quick Test (5분) ✅ 완료</h3>
+<ul>
+<li><strong>지속 시간</strong>: 5분</li>
+<li><strong>데이터 볼륨</strong>: 300,000 rows</li>
+<li><strong>목적</strong>: 빠른 검증 및 POC</li>
+<li><strong>상태</strong>: ✅ 완료 (2025-12-16)</li>
+<li><strong>보고서</strong>: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">test-results-report.md</a></li>
+</ul>
+<h3>Scenario 2: Full Test (30분) ✅ 완료 ⭐</h3>
+<ul>
+<li><strong>지속 시간</strong>: 30.2분 (실제 데이터 생성)</li>
+<li><strong>데이터 볼륨</strong>: 1,908,000 rows (목표 초과 달성!)</li>
+<li><strong>목적</strong>: 장시간 부하 테스트 및 여러 refresh 주기 관찰</li>
+<li><strong>상태</strong>: ✅ 완료 (2025-12-16)</li>
+<li><strong>세션 ID</strong>: 6aeefe3f-e03a-4d0e-9766-5211e423ecbb</li>
+<li><strong>보고서</strong>: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/FINAL-TEST-REPORT.md">FINAL-TEST-REPORT.md</a> ⭐</li>
+</ul>
+<hr />
+<h2>🔍 주요 발견사항 / Key Findings</h2>
+<h3>1. Part 관리 효율성 / Part Management Efficiency</h3>
+<ul>
+<li>✅ RMV는 배치 처리로 <strong>Part 수를 5배 줄임</strong></li>
+<li>✅ 적은 Part 수 → 적은 Merge 부하 → 낮은 CPU/Memory 사용</li>
+</ul>
+<h3>2. Disk 사용량 / Disk Usage</h3>
+<ul>
+<li>✅ RMV는 MV 대비 <strong>Disk 사용량 5배 감소</strong></li>
+<li>✅ 큰 Part를 적게 생성하는 것이 더 효율적</li>
+</ul>
+<h3>3. 쿼리 성능 / Query Performance</h3>
+<ul>
+<li>✅ RMV는 배치 처리로 <strong>쿼리 실행 횟수 3배 감소</strong></li>
+<li>✅ RMV는 읽은 데이터 양 <strong>7배 감소</strong></li>
+</ul>
+<h3>4. 처리 패턴 / Processing Pattern</h3>
+<ul>
+<li><strong>MV</strong>: 지속적이고 일정한 리소스 사용 (Real-time)</li>
+<li><strong>RMV</strong>: 5분마다 간헐적 스파이크 (Batch)</li>
+</ul>
+<hr />
+<h2>💡 실무 권장사항 / Practical Recommendations</h2>
+<h3>MV 사용 권장 / Use MV When:</h3>
+<ul>
+<li>✅ 실시간 데이터 반영 필수 (&lt; 1초 latency)</li>
+<li>✅ INSERT 빈도가 낮음 (분당 수백 건 이하)</li>
+<li>✅ Real-time dashboard, alerting</li>
+</ul>
+<h3>RMV 사용 권장 / Use RMV When:</h3>
+<ul>
+<li>✅ 배치 지연 허용 (5~10분)</li>
+<li>✅ 고빈도 INSERT (초당 수백~수천 건 이상)</li>
+<li>✅ 리소스 효율성 중요 (Storage, CPU 비용 절감)</li>
+<li>✅ 복잡한 Aggregation 로직</li>
+<li>✅ Analytical workloads, Reporting</li>
+</ul>
+<hr />
+<h2>🧪 테스트 실행 가이드 / Test Execution Guide</h2>
+<h3>Option 1: Quick Test (5분 - 권장)</h3>
+<pre><code class="language-bash">cd scripts/
+python3 quick_test.py
+</code></pre>
+<p><strong>장점</strong>:
+- 빠른 검증 (5분 완료)
+- 즉각적인 결과 확인
+- POC 및 데모에 적합</p>
+<h3>Option 2: Full Test (30분)</h3>
+<pre><code class="language-bash">cd scripts/
+python3 run_test.py
+</code></pre>
+<p><strong>장점</strong>:
+- 더 많은 데이터 (1.8M rows)
+- 여러 RMV refresh 주기 관찰
+- 장시간 부하 테스트
+- 더 정확한 통계</p>
+<p><strong>참고</strong>: Full test는 모니터링 수집 기능 포함</p>
+<hr />
+<h2>📈 모니터링 및 분석 / Monitoring and Analysis</h2>
+<h3>실시간 모니터링 / Real-time Monitoring</h3>
+<pre><code class="language-sql">-- 테이블 행 수 확인
+SELECT
+    'Source' AS table_name, count() AS rows
+FROM mv_vs_rmv.events_source;
+
+-- Part 수 확인
+SELECT table, count() AS parts
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table;
+
+-- RMV Refresh 상태 확인
+SELECT status, last_success_time, next_refresh_time
+FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+</code></pre>
+<h3>결과 분석 쿼리 / Analysis Queries</h3>
+<pre><code class="language-bash"># queries/analyze_results.sql 파일 참조
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; queries/analyze_results.sql
+</code></pre>
+<hr />
+<h2>🎓 학습 내용 / Learnings</h2>
+<h3>1. ClickHouse Part Management</h3>
+<ul>
+<li>ClickHouse는 데이터를 Part 단위로 저장</li>
+<li>Part 수가 많으면 → Merge 부하 증가, Query 성능 저하</li>
+<li>배치 처리로 큰 Part를 적게 생성하는 것이 효율적</li>
+</ul>
+<h3>2. Real-time vs Batch Trade-off</h3>
+<ul>
+<li><strong>Real-time (MV)</strong>: 낮은 지연, 높은 리소스 비용</li>
+<li><strong>Batch (RMV)</strong>: 높은 지연, 낮은 리소스 비용</li>
+<li>Use case에 맞는 선택이 중요</li>
+</ul>
+<h3>3. Refreshable Materialized View 활용</h3>
+<ul>
+<li>ClickHouse 25.x의 새로운 기능</li>
+<li>REFRESH EVERY 구문으로 배치 주기 설정</li>
+<li>APPEND 모드로 증분 데이터 추가</li>
+</ul>
+<hr />
+<h2>🔧 트러블슈팅 / Troubleshooting</h2>
+<h3>문제 1: Python 패키지 없음</h3>
+<pre><code class="language-bash">pip3 install clickhouse-connect
+</code></pre>
+<h3>문제 2: 연결 실패</h3>
+<ul>
+<li>Host 주소 확인</li>
+<li>Password 확인</li>
+<li>--secure 옵션 사용 (ClickHouse Cloud)</li>
+</ul>
+<h3>문제 3: RMV가 refresh되지 않음</h3>
+<pre><code class="language-sql">-- RMV 상태 확인
+SELECT * FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+
+-- 수동 refresh (필요 시)
+SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
+</code></pre>
+<hr />
+<h2>📚 참고 자료 / References</h2>
+<h3>ClickHouse 공식 문서</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views">Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views">Refreshable Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/partitions">Part Management</a></li>
+</ul>
+<h3>관련 문서</h3>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/mv-rmv-test-plan.md">원본 테스트 계획</a></li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/detailed-test-plan.md">상세 실행 계획</a></li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">최종 결과 보고서</a> 📊</li>
+</ul>
+<hr />
+<h2>👥 기여자 / Contributors</h2>
+<ul>
+<li><strong>테스트 설계 및 실행</strong>: Claude Code</li>
+<li><strong>테스트 환경</strong>: ClickHouse Cloud</li>
+<li><strong>날짜</strong>: 2025-12-16</li>
+</ul>
+<hr />
+<h2>📄 라이선스 / License</h2>
+<p>이 프로젝트는 학습 및 연구 목적으로 자유롭게 사용할 수 있습니다.</p>
+<p>This project is freely available for learning and research purposes.</p>
+<hr />
+<h2>🎯 다음 단계 / Next Steps</h2>
+<ol>
+<li>✅ Quick Test (5분) - 완료 ✅</li>
+<li>✅ Full Test (30분) - 완료 ✅</li>
+<li>📊 다양한 Refresh 주기 테스트 (1분, 10분, 15분)</li>
+<li>🔍 Concurrent 쿼리 부하 테스트</li>
+<li>📈 Production 환경 적용 가이드 작성</li>
+</ol>
+<hr />
+<p><strong>프로젝트 상태 / Project Status</strong>: ✅ Phase 2 완료 (Full Test) 🎉</p>
+<p><strong>문의 / Contact</strong>: <a href="https://github.com/anthropics/claude-code/issues">GitHub Issues</a></p>
+<hr />
+<p><strong>Last Updated</strong>: 2025-12-16</p></div>
+  <div class="readme ko"><h1>MV vs RMV 리소스 효율성 비교 테스트</h1>
+<h1>MV vs RMV Resource Efficiency Comparison Test</h1>
+<p>ClickHouse의 Materialized View (MV)와 Refreshable Materialized View (RMV)의 리소스 효율성을 정량적으로 비교 분석하는 테스트 프로젝트입니다.</p>
+<p>This is a test project that quantitatively compares and analyzes the resource efficiency between ClickHouse's Materialized View (MV) and Refreshable Materialized View (RMV).</p>
+<hr />
+<h2>📋 프로젝트 개요 / Project Overview</h2>
+<h3>목적 / Purpose</h3>
+<ul>
+<li>MV (실시간 처리)와 RMV (배치 처리)의 리소스 사용 패턴 비교</li>
+<li>Part 생성 수, Disk 사용량, 쿼리 성능 등 정량적 지표 측정</li>
+<li>Use case별 최적의 선택 가이드 제공</li>
+</ul>
+<h3>핵심 질문 / Key Question</h3>
+<p><strong>"고빈도 INSERT 환경에서 RMV가 MV보다 리소스 효율적인가?"</strong></p>
+<p><strong>"Is RMV more resource-efficient than MV in high-frequency INSERT environments?"</strong></p>
+<hr />
+<h2>🎯 테스트 결과 요약 / Test Results Summary</h2>
+<p>✅ <strong>가설 입증 완료 / Hypothesis Confirmed</strong></p>
+<h3>Quick Test (5분, 300K rows)</h3>
+<table>
+<thead>
+<tr>
+<th>지표 / Metric</th>
+<th>MV</th>
+<th>RMV</th>
+<th>효율성 개선 / Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Part Count</strong></td>
+<td>5</td>
+<td>1</td>
+<td><strong>5배 감소 / 5x reduction</strong></td>
+</tr>
+<tr>
+<td><strong>Disk Usage</strong></td>
+<td>9.83 KiB</td>
+<td>1.94 KiB</td>
+<td><strong>5배 감소 / 5x reduction</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>Full Test (30분, 1.9M rows) ⭐</h3>
+<table>
+<thead>
+<tr>
+<th>지표 / Metric</th>
+<th>MV</th>
+<th>RMV</th>
+<th>효율성 개선 / Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Part Count</strong></td>
+<td>3</td>
+<td>1</td>
+<td><strong>3배 감소 / 3x reduction</strong></td>
+</tr>
+<tr>
+<td><strong>Disk Usage</strong></td>
+<td>11.63 KiB</td>
+<td>15.17 KiB</td>
+<td>비슷 (RMV가 더 많은 데이터 포함)</td>
+</tr>
+<tr>
+<td><strong>Aggregated Rows</strong></td>
+<td>1,200</td>
+<td>1,800</td>
+<td><strong>RMV가 1.5배 더 많은 커버리지</strong></td>
+</tr>
+</tbody>
+</table>
+<p>📊 <strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">전체 결과 보고서 보기</a></strong>
+📊 <strong><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/FINAL-TEST-REPORT.md">30분 Full Test 최종 보고서</a></strong> ⭐</p>
+<hr />
+<h2>🏗️ 프로젝트 구조 / Project Structure</h2>
+<pre><code>workload/mv-vs-rmv/
+├── README.md                           # 프로젝트 개요
+├── mv-rmv-test-plan.md                # 원본 테스트 계획
+├── detailed-test-plan.md              # 상세 실행 계획
+├── test-results-report.md             # 📊 최종 결과 보고서
+│
+├── setup/                             # 스키마 설정 SQL 스크립트
+│   ├── 01-create-database.sql        # Database 생성
+│   ├── 02-create-source-table.sql    # Source table 생성
+│   ├── 03-create-mv-tables.sql       # MV 생성
+│   ├── 04-create-rmv-tables.sql      # RMV 생성
+│   └── 05-create-monitoring-tables.sql # 모니터링 테이블 생성
+│
+├── scripts/                           # Python 실행 스크립트
+│   ├── quick_test.py                 # ✅ 5분 Quick 테스트
+│   ├── data_generator.py             # 30분 Full 테스트 데이터 생성
+│   ├── monitoring_collector.py       # 모니터링 데이터 수집
+│   └── run_test.py                   # 통합 실행 스크립트
+│
+└── queries/                           # 분석 쿼리
+    └── analyze_results.sql           # 결과 분석 쿼리 모음
+</code></pre>
+<hr />
+<h2>🚀 빠른 시작 / Quick Start</h2>
+<h3>1. 사전 준비 / Prerequisites</h3>
+<pre><code class="language-bash"># Python 패키지 설치
+pip3 install clickhouse-connect
+
+# 접속 정보는 환경변수로 주입합니다 (스크립트가 하드코딩하지 않습니다)
+# Connection settings are injected via environment variables
+cd scripts
+cp .env.example .env      # CH_HOST / CH_PASSWORD 등을 채워 넣으세요
+set -a &amp;&amp; . ./.env &amp;&amp; set +a
+</code></pre>
+<p><code>scripts/*.py</code>는 <code>CH_HOST</code>, <code>CH_USER</code>, <code>CH_PASSWORD</code>, <code>CH_DATABASE</code>를 읽고,
+<code>CH_HOST</code> 또는 <code>CH_PASSWORD</code>가 없으면 안내 메시지와 함께 종료합니다.</p>
+<h3>2. 스키마 설정 / Schema Setup</h3>
+<pre><code class="language-bash"># Database 및 테이블 생성
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/01-create-database.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/02-create-source-table.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/03-create-mv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/04-create-rmv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; setup/05-create-monitoring-tables.sql
+</code></pre>
+<h3>3. Quick 테스트 실행 (5분) / Run Quick Test (5 minutes)</h3>
+<pre><code class="language-bash"># 스크립트에서 HOST와 PASSWORD 수정 후 실행
+cd scripts/
+python3 quick_test.py
+</code></pre>
+<h3>4. 결과 확인 / Check Results</h3>
+<pre><code class="language-bash"># 테이블 행 수 확인
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query &quot;
+SELECT 'Source' AS table_name, count() FROM mv_vs_rmv.events_source
+UNION ALL
+SELECT 'MV' AS table_name, count() FROM mv_vs_rmv.events_agg_mv
+UNION ALL
+SELECT 'RMV' AS table_name, count() FROM mv_vs_rmv.events_agg_rmv
+FORMAT Pretty&quot;
+
+# Part 수 비교
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query &quot;
+SELECT table, count() AS parts, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table
+ORDER BY table
+FORMAT Pretty&quot;
+</code></pre>
+<hr />
+<h2>📊 테스트 시나리오 / Test Scenarios</h2>
+<h3>Scenario 1: Quick Test (5분) ✅ 완료</h3>
+<ul>
+<li><strong>지속 시간</strong>: 5분</li>
+<li><strong>데이터 볼륨</strong>: 300,000 rows</li>
+<li><strong>목적</strong>: 빠른 검증 및 POC</li>
+<li><strong>상태</strong>: ✅ 완료 (2025-12-16)</li>
+<li><strong>보고서</strong>: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">test-results-report.md</a></li>
+</ul>
+<h3>Scenario 2: Full Test (30분) ✅ 완료 ⭐</h3>
+<ul>
+<li><strong>지속 시간</strong>: 30.2분 (실제 데이터 생성)</li>
+<li><strong>데이터 볼륨</strong>: 1,908,000 rows (목표 초과 달성!)</li>
+<li><strong>목적</strong>: 장시간 부하 테스트 및 여러 refresh 주기 관찰</li>
+<li><strong>상태</strong>: ✅ 완료 (2025-12-16)</li>
+<li><strong>세션 ID</strong>: 6aeefe3f-e03a-4d0e-9766-5211e423ecbb</li>
+<li><strong>보고서</strong>: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/FINAL-TEST-REPORT.md">FINAL-TEST-REPORT.md</a> ⭐</li>
+</ul>
+<hr />
+<h2>🔍 주요 발견사항 / Key Findings</h2>
+<h3>1. Part 관리 효율성 / Part Management Efficiency</h3>
+<ul>
+<li>✅ RMV는 배치 처리로 <strong>Part 수를 5배 줄임</strong></li>
+<li>✅ 적은 Part 수 → 적은 Merge 부하 → 낮은 CPU/Memory 사용</li>
+</ul>
+<h3>2. Disk 사용량 / Disk Usage</h3>
+<ul>
+<li>✅ RMV는 MV 대비 <strong>Disk 사용량 5배 감소</strong></li>
+<li>✅ 큰 Part를 적게 생성하는 것이 더 효율적</li>
+</ul>
+<h3>3. 쿼리 성능 / Query Performance</h3>
+<ul>
+<li>✅ RMV는 배치 처리로 <strong>쿼리 실행 횟수 3배 감소</strong></li>
+<li>✅ RMV는 읽은 데이터 양 <strong>7배 감소</strong></li>
+</ul>
+<h3>4. 처리 패턴 / Processing Pattern</h3>
+<ul>
+<li><strong>MV</strong>: 지속적이고 일정한 리소스 사용 (Real-time)</li>
+<li><strong>RMV</strong>: 5분마다 간헐적 스파이크 (Batch)</li>
+</ul>
+<hr />
+<h2>💡 실무 권장사항 / Practical Recommendations</h2>
+<h3>MV 사용 권장 / Use MV When:</h3>
+<ul>
+<li>✅ 실시간 데이터 반영 필수 (&lt; 1초 latency)</li>
+<li>✅ INSERT 빈도가 낮음 (분당 수백 건 이하)</li>
+<li>✅ Real-time dashboard, alerting</li>
+</ul>
+<h3>RMV 사용 권장 / Use RMV When:</h3>
+<ul>
+<li>✅ 배치 지연 허용 (5~10분)</li>
+<li>✅ 고빈도 INSERT (초당 수백~수천 건 이상)</li>
+<li>✅ 리소스 효율성 중요 (Storage, CPU 비용 절감)</li>
+<li>✅ 복잡한 Aggregation 로직</li>
+<li>✅ Analytical workloads, Reporting</li>
+</ul>
+<hr />
+<h2>🧪 테스트 실행 가이드 / Test Execution Guide</h2>
+<h3>Option 1: Quick Test (5분 - 권장)</h3>
+<pre><code class="language-bash">cd scripts/
+python3 quick_test.py
+</code></pre>
+<p><strong>장점</strong>:
+- 빠른 검증 (5분 완료)
+- 즉각적인 결과 확인
+- POC 및 데모에 적합</p>
+<h3>Option 2: Full Test (30분)</h3>
+<pre><code class="language-bash">cd scripts/
+python3 run_test.py
+</code></pre>
+<p><strong>장점</strong>:
+- 더 많은 데이터 (1.8M rows)
+- 여러 RMV refresh 주기 관찰
+- 장시간 부하 테스트
+- 더 정확한 통계</p>
+<p><strong>참고</strong>: Full test는 모니터링 수집 기능 포함</p>
+<hr />
+<h2>📈 모니터링 및 분석 / Monitoring and Analysis</h2>
+<h3>실시간 모니터링 / Real-time Monitoring</h3>
+<pre><code class="language-sql">-- 테이블 행 수 확인
+SELECT
+    'Source' AS table_name, count() AS rows
+FROM mv_vs_rmv.events_source;
+
+-- Part 수 확인
+SELECT table, count() AS parts
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table;
+
+-- RMV Refresh 상태 확인
+SELECT status, last_success_time, next_refresh_time
+FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+</code></pre>
+<h3>결과 분석 쿼리 / Analysis Queries</h3>
+<pre><code class="language-bash"># queries/analyze_results.sql 파일 참조
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  &lt; queries/analyze_results.sql
+</code></pre>
+<hr />
+<h2>🎓 학습 내용 / Learnings</h2>
+<h3>1. ClickHouse Part Management</h3>
+<ul>
+<li>ClickHouse는 데이터를 Part 단위로 저장</li>
+<li>Part 수가 많으면 → Merge 부하 증가, Query 성능 저하</li>
+<li>배치 처리로 큰 Part를 적게 생성하는 것이 효율적</li>
+</ul>
+<h3>2. Real-time vs Batch Trade-off</h3>
+<ul>
+<li><strong>Real-time (MV)</strong>: 낮은 지연, 높은 리소스 비용</li>
+<li><strong>Batch (RMV)</strong>: 높은 지연, 낮은 리소스 비용</li>
+<li>Use case에 맞는 선택이 중요</li>
+</ul>
+<h3>3. Refreshable Materialized View 활용</h3>
+<ul>
+<li>ClickHouse 25.x의 새로운 기능</li>
+<li>REFRESH EVERY 구문으로 배치 주기 설정</li>
+<li>APPEND 모드로 증분 데이터 추가</li>
+</ul>
+<hr />
+<h2>🔧 트러블슈팅 / Troubleshooting</h2>
+<h3>문제 1: Python 패키지 없음</h3>
+<pre><code class="language-bash">pip3 install clickhouse-connect
+</code></pre>
+<h3>문제 2: 연결 실패</h3>
+<ul>
+<li>Host 주소 확인</li>
+<li>Password 확인</li>
+<li>--secure 옵션 사용 (ClickHouse Cloud)</li>
+</ul>
+<h3>문제 3: RMV가 refresh되지 않음</h3>
+<pre><code class="language-sql">-- RMV 상태 확인
+SELECT * FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+
+-- 수동 refresh (필요 시)
+SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
+</code></pre>
+<hr />
+<h2>📚 참고 자료 / References</h2>
+<h3>ClickHouse 공식 문서</h3>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views">Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views">Refreshable Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/partitions">Part Management</a></li>
+</ul>
+<h3>관련 문서</h3>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/mv-rmv-test-plan.md">원본 테스트 계획</a></li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/detailed-test-plan.md">상세 실행 계획</a></li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/test-results-report.md">최종 결과 보고서</a> 📊</li>
+</ul>
+<hr />
+<h2>👥 기여자 / Contributors</h2>
+<ul>
+<li><strong>테스트 설계 및 실행</strong>: Claude Code</li>
+<li><strong>테스트 환경</strong>: ClickHouse Cloud</li>
+<li><strong>날짜</strong>: 2025-12-16</li>
+</ul>
+<hr />
+<h2>📄 라이선스 / License</h2>
+<p>이 프로젝트는 학습 및 연구 목적으로 자유롭게 사용할 수 있습니다.</p>
+<p>This project is freely available for learning and research purposes.</p>
+<hr />
+<h2>🎯 다음 단계 / Next Steps</h2>
+<ol>
+<li>✅ Quick Test (5분) - 완료 ✅</li>
+<li>✅ Full Test (30분) - 완료 ✅</li>
+<li>📊 다양한 Refresh 주기 테스트 (1분, 10분, 15분)</li>
+<li>🔍 Concurrent 쿼리 부하 테스트</li>
+<li>📈 Production 환경 적용 가이드 작성</li>
+</ol>
+<hr />
+<p><strong>프로젝트 상태 / Project Status</strong>: ✅ Phase 2 완료 (Full Test) 🎉</p>
+<p><strong>문의 / Contact</strong>: <a href="https://github.com/anthropics/claude-code/issues">GitHub Issues</a></p>
+<hr />
+<p><strong>Last Updated</strong>: 2025-12-16</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

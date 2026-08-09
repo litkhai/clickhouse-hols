@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL Protocol PREWHERE Testing · ClickHouse HOLs</title>
+<meta name="description" content="MySQL Protocol PREWHERE Testing — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/mysql-prewhere</code>
+    
+  </nav>
+  <div class="readme en"><h1>MySQL Protocol PREWHERE Testing</h1>
+<p>이 디렉토리는 ClickHouse의 MySQL 프로토콜을 통해 PREWHERE 기능을 테스트하는 스크립트들을 포함합니다.</p>
+<h2>개요</h2>
+<p>MySQL 클라이언트로 ClickHouse에 연결해도 PREWHERE 구문을 사용할 수 있습니다. MySQL 프로토콜은 단순히 연결 방식일 뿐, SQL 구문 자체는 ClickHouse 엔진이 처리하기 때문입니다.</p>
+<h2>테스트 구성</h2>
+<h3>스크립트 파일</h3>
+<ol>
+<li>
+<p><strong>00-setup.sh</strong> - 테스트 환경 구축
+   - 테스트용 데이터베이스 및 테이블 생성
+   - 샘플 데이터 삽입 (1M + 10M rows)
+   - 테이블 최적화</p>
+</li>
+<li>
+<p><strong>demo-simple.sh</strong> - 간단한 데모 (추천) ⭐
+   - 기본 PREWHERE 쿼리 데모
+   - MySQL vs Native 프로토콜 비교
+   - EXPLAIN으로 실행 계획 확인
+   - 즉시 실행 가능한 예제</p>
+</li>
+<li>
+<p><strong>01-test-mysql-protocol.sh</strong> - MySQL 프로토콜 테스트
+   - 기본 PREWHERE 구문 테스트
+   - EXPLAIN SYNTAX로 PREWHERE 확인
+   - 자동 최적화 테스트
+   - 복잡한 조건 테스트</p>
+</li>
+<li>
+<p><strong>02-performance-comparison.sh</strong> - 성능 비교
+   - WHERE only vs PREWHERE 성능 비교
+   - 자동 최적화 효과 측정
+   - 여러 시나리오에서 실행 시간 측정</p>
+</li>
+<li>
+<p><strong>03-verify-prewhere.sh</strong> - 기능 검증
+   - EXPLAIN PLAN에서 PREWHERE 확인
+   - 자동 최적화 검증
+   - 결과 일관성 확인
+   - 데이터 읽기량 비교</p>
+</li>
+<li>
+<p><strong>run-all-tests.sh</strong> - 전체 테스트 실행
+   - 모든 테스트를 순차적으로 실행
+   - 각 단계별 결과 확인</p>
+</li>
+</ol>
+<h2>사전 요구사항</h2>
+<ol>
+<li>ClickHouse가 로컬에서 실행 중이어야 합니다</li>
+<li>MySQL 프로토콜 포트(기본 9004)가 활성화되어야 합니다</li>
+<li>필요한 클라이언트:
+   - <code>clickhouse-client</code>
+   - <code>mysql</code> CLI client</li>
+</ol>
+<h2>실행 방법</h2>
+<h3>빠른 데모 (추천)</h3>
+<pre><code class="language-bash">cd usecase/mysql-prewhere
+
+# ClickHouse 시작 (Docker)
+docker start clickhouse-test
+
+# 환경 설정 및 데이터 생성
+./00-setup.sh
+
+# 간단한 데모 실행
+./demo-simple.sh
+</code></pre>
+<h3>전체 테스트 실행</h3>
+<pre><code class="language-bash">./run-all-tests.sh
+</code></pre>
+<h3>개별 테스트 실행</h3>
+<pre><code class="language-bash"># 1. 환경 설정
+./00-setup.sh
+
+# 2. 간단한 데모
+./demo-simple.sh
+
+# 3. MySQL 프로토콜 테스트
+./01-test-mysql-protocol.sh
+
+# 4. 검증 테스트
+./03-verify-prewhere.sh
+
+# 5. 성능 비교
+./02-performance-comparison.sh
+</code></pre>
+<h2>주요 테스트 내용</h2>
+<h3>1. PREWHERE 구문 지원 확인</h3>
+<pre><code class="language-sql">-- MySQL 클라이언트에서도 이렇게 쿼리 가능
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01'
+WHERE status = 'active';
+</code></pre>
+<h3>2. 자동 최적화 테스트</h3>
+<pre><code class="language-sql">SET optimize_move_to_prewhere = 1;  -- 기본값
+
+-- WHERE 조건이 자동으로 PREWHERE로 변환됨
+SELECT * FROM my_table
+WHERE date = '2024-01-01' AND status = 'active';
+</code></pre>
+<h3>3. 성능 비교</h3>
+<ul>
+<li>WHERE only (최적화 없음)</li>
+<li>명시적 PREWHERE</li>
+<li>자동 PREWHERE 최적화</li>
+</ul>
+<p>각 케이스에서 다음을 측정:
+- 실행 시간 (ms)
+- 읽은 행 수
+- 읽은 데이터 크기
+- 메모리 사용량</p>
+<h3>4. EXPLAIN으로 확인</h3>
+<pre><code class="language-sql">EXPLAIN SYNTAX
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01';
+
+EXPLAIN PLAN
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01';
+</code></pre>
+<h2>검증 항목</h2>
+<ol>
+<li>✅ PREWHERE 구문이 MySQL 프로토콜에서 작동하는가?</li>
+<li>✅ 자동 최적화가 정상 작동하는가?</li>
+<li>✅ PREWHERE와 WHERE의 결과가 일치하는가?</li>
+<li>✅ 성능 향상이 측정되는가?</li>
+<li>✅ system.query_log에서 실행 내역을 확인할 수 있는가?</li>
+</ol>
+<h2>연결 정보</h2>
+<h3>Native Protocol</h3>
+<pre><code class="language-bash">clickhouse-client --host=localhost --port=9000
+</code></pre>
+<h3>MySQL Protocol</h3>
+<pre><code class="language-bash">mysql -h localhost -P 9004 --protocol=TCP -u mysql_user
+</code></pre>
+<h2>고려사항</h2>
+<h3>optimize_move_to_prewhere 설정</h3>
+<p>ClickHouse는 기본적으로 적합한 WHERE 조건을 자동으로 PREWHERE로 변환합니다. 이 설정은 MySQL 프로토콜 연결에서도 동작합니다.</p>
+<pre><code class="language-sql">SET optimize_move_to_prewhere = 1;  -- 활성화 (기본값)
+SET optimize_move_to_prewhere = 0;  -- 비활성화
+</code></pre>
+<h3>MySQL 클라이언트 호환성</h3>
+<p>일부 MySQL 클라이언트나 ORM이 쿼리를 재작성하는 경우가 있으니, 실제 실행되는 쿼리를 <code>system.query_log</code>에서 확인하는 것이 좋습니다.</p>
+<h3>쿼리 실행 확인</h3>
+<pre><code class="language-sql">SELECT
+    event_time,
+    query_duration_ms,
+    read_rows,
+    substring(query, 1, 100) as query_snippet
+FROM system.query_log
+WHERE query LIKE '%prewhere_test%'
+    AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 10;
+</code></pre>
+<h2>정리</h2>
+<p>테스트 완료 후 테스트 데이터를 삭제하려면:</p>
+<pre><code class="language-sql">DROP TABLE IF EXISTS default.prewhere_test;
+DROP TABLE IF EXISTS default.prewhere_test_large;
+</code></pre>
+<h2>예상 결과</h2>
+<ul>
+<li>PREWHERE 사용 시 데이터 읽기량 감소 (30-70%)</li>
+<li>쿼리 실행 시간 단축 (20-50%)</li>
+<li>인덱스된 컬럼에서 더 큰 성능 향상</li>
+</ul>
+<h2>문제 해결</h2>
+<h3>MySQL 프로토콜 연결 실패</h3>
+<pre><code class="language-bash"># ClickHouse 설정 확인
+cat /etc/clickhouse-server/config.xml | grep mysql_port
+</code></pre>
+<h3>PREWHERE 구문 오류</h3>
+<ul>
+<li>ClickHouse 버전 확인 (PREWHERE는 오래된 기능으로 대부분의 버전에서 지원)</li>
+<li>EXPLAIN SYNTAX로 구문 변환 확인</li>
+</ul>
+<h3>성능 차이가 없는 경우</h3>
+<ul>
+<li>테이블 크기가 충분히 큰지 확인</li>
+<li>캐시 워밍업 확인</li>
+<li>필터링 조건의 선택도(selectivity) 확인</li>
+</ul></div>
+  <div class="readme ko"><h1>MySQL Protocol PREWHERE Testing</h1>
+<p>이 디렉토리는 ClickHouse의 MySQL 프로토콜을 통해 PREWHERE 기능을 테스트하는 스크립트들을 포함합니다.</p>
+<h2>개요</h2>
+<p>MySQL 클라이언트로 ClickHouse에 연결해도 PREWHERE 구문을 사용할 수 있습니다. MySQL 프로토콜은 단순히 연결 방식일 뿐, SQL 구문 자체는 ClickHouse 엔진이 처리하기 때문입니다.</p>
+<h2>테스트 구성</h2>
+<h3>스크립트 파일</h3>
+<ol>
+<li>
+<p><strong>00-setup.sh</strong> - 테스트 환경 구축
+   - 테스트용 데이터베이스 및 테이블 생성
+   - 샘플 데이터 삽입 (1M + 10M rows)
+   - 테이블 최적화</p>
+</li>
+<li>
+<p><strong>demo-simple.sh</strong> - 간단한 데모 (추천) ⭐
+   - 기본 PREWHERE 쿼리 데모
+   - MySQL vs Native 프로토콜 비교
+   - EXPLAIN으로 실행 계획 확인
+   - 즉시 실행 가능한 예제</p>
+</li>
+<li>
+<p><strong>01-test-mysql-protocol.sh</strong> - MySQL 프로토콜 테스트
+   - 기본 PREWHERE 구문 테스트
+   - EXPLAIN SYNTAX로 PREWHERE 확인
+   - 자동 최적화 테스트
+   - 복잡한 조건 테스트</p>
+</li>
+<li>
+<p><strong>02-performance-comparison.sh</strong> - 성능 비교
+   - WHERE only vs PREWHERE 성능 비교
+   - 자동 최적화 효과 측정
+   - 여러 시나리오에서 실행 시간 측정</p>
+</li>
+<li>
+<p><strong>03-verify-prewhere.sh</strong> - 기능 검증
+   - EXPLAIN PLAN에서 PREWHERE 확인
+   - 자동 최적화 검증
+   - 결과 일관성 확인
+   - 데이터 읽기량 비교</p>
+</li>
+<li>
+<p><strong>run-all-tests.sh</strong> - 전체 테스트 실행
+   - 모든 테스트를 순차적으로 실행
+   - 각 단계별 결과 확인</p>
+</li>
+</ol>
+<h2>사전 요구사항</h2>
+<ol>
+<li>ClickHouse가 로컬에서 실행 중이어야 합니다</li>
+<li>MySQL 프로토콜 포트(기본 9004)가 활성화되어야 합니다</li>
+<li>필요한 클라이언트:
+   - <code>clickhouse-client</code>
+   - <code>mysql</code> CLI client</li>
+</ol>
+<h2>실행 방법</h2>
+<h3>빠른 데모 (추천)</h3>
+<pre><code class="language-bash">cd usecase/mysql-prewhere
+
+# ClickHouse 시작 (Docker)
+docker start clickhouse-test
+
+# 환경 설정 및 데이터 생성
+./00-setup.sh
+
+# 간단한 데모 실행
+./demo-simple.sh
+</code></pre>
+<h3>전체 테스트 실행</h3>
+<pre><code class="language-bash">./run-all-tests.sh
+</code></pre>
+<h3>개별 테스트 실행</h3>
+<pre><code class="language-bash"># 1. 환경 설정
+./00-setup.sh
+
+# 2. 간단한 데모
+./demo-simple.sh
+
+# 3. MySQL 프로토콜 테스트
+./01-test-mysql-protocol.sh
+
+# 4. 검증 테스트
+./03-verify-prewhere.sh
+
+# 5. 성능 비교
+./02-performance-comparison.sh
+</code></pre>
+<h2>주요 테스트 내용</h2>
+<h3>1. PREWHERE 구문 지원 확인</h3>
+<pre><code class="language-sql">-- MySQL 클라이언트에서도 이렇게 쿼리 가능
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01'
+WHERE status = 'active';
+</code></pre>
+<h3>2. 자동 최적화 테스트</h3>
+<pre><code class="language-sql">SET optimize_move_to_prewhere = 1;  -- 기본값
+
+-- WHERE 조건이 자동으로 PREWHERE로 변환됨
+SELECT * FROM my_table
+WHERE date = '2024-01-01' AND status = 'active';
+</code></pre>
+<h3>3. 성능 비교</h3>
+<ul>
+<li>WHERE only (최적화 없음)</li>
+<li>명시적 PREWHERE</li>
+<li>자동 PREWHERE 최적화</li>
+</ul>
+<p>각 케이스에서 다음을 측정:
+- 실행 시간 (ms)
+- 읽은 행 수
+- 읽은 데이터 크기
+- 메모리 사용량</p>
+<h3>4. EXPLAIN으로 확인</h3>
+<pre><code class="language-sql">EXPLAIN SYNTAX
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01';
+
+EXPLAIN PLAN
+SELECT * FROM my_table
+PREWHERE date = '2024-01-01';
+</code></pre>
+<h2>검증 항목</h2>
+<ol>
+<li>✅ PREWHERE 구문이 MySQL 프로토콜에서 작동하는가?</li>
+<li>✅ 자동 최적화가 정상 작동하는가?</li>
+<li>✅ PREWHERE와 WHERE의 결과가 일치하는가?</li>
+<li>✅ 성능 향상이 측정되는가?</li>
+<li>✅ system.query_log에서 실행 내역을 확인할 수 있는가?</li>
+</ol>
+<h2>연결 정보</h2>
+<h3>Native Protocol</h3>
+<pre><code class="language-bash">clickhouse-client --host=localhost --port=9000
+</code></pre>
+<h3>MySQL Protocol</h3>
+<pre><code class="language-bash">mysql -h localhost -P 9004 --protocol=TCP -u mysql_user
+</code></pre>
+<h2>고려사항</h2>
+<h3>optimize_move_to_prewhere 설정</h3>
+<p>ClickHouse는 기본적으로 적합한 WHERE 조건을 자동으로 PREWHERE로 변환합니다. 이 설정은 MySQL 프로토콜 연결에서도 동작합니다.</p>
+<pre><code class="language-sql">SET optimize_move_to_prewhere = 1;  -- 활성화 (기본값)
+SET optimize_move_to_prewhere = 0;  -- 비활성화
+</code></pre>
+<h3>MySQL 클라이언트 호환성</h3>
+<p>일부 MySQL 클라이언트나 ORM이 쿼리를 재작성하는 경우가 있으니, 실제 실행되는 쿼리를 <code>system.query_log</code>에서 확인하는 것이 좋습니다.</p>
+<h3>쿼리 실행 확인</h3>
+<pre><code class="language-sql">SELECT
+    event_time,
+    query_duration_ms,
+    read_rows,
+    substring(query, 1, 100) as query_snippet
+FROM system.query_log
+WHERE query LIKE '%prewhere_test%'
+    AND type = 'QueryFinish'
+ORDER BY event_time DESC
+LIMIT 10;
+</code></pre>
+<h2>정리</h2>
+<p>테스트 완료 후 테스트 데이터를 삭제하려면:</p>
+<pre><code class="language-sql">DROP TABLE IF EXISTS default.prewhere_test;
+DROP TABLE IF EXISTS default.prewhere_test_large;
+</code></pre>
+<h2>예상 결과</h2>
+<ul>
+<li>PREWHERE 사용 시 데이터 읽기량 감소 (30-70%)</li>
+<li>쿼리 실행 시간 단축 (20-50%)</li>
+<li>인덱스된 컬럼에서 더 큰 성능 향상</li>
+</ul>
+<h2>문제 해결</h2>
+<h3>MySQL 프로토콜 연결 실패</h3>
+<pre><code class="language-bash"># ClickHouse 설정 확인
+cat /etc/clickhouse-server/config.xml | grep mysql_port
+</code></pre>
+<h3>PREWHERE 구문 오류</h3>
+<ul>
+<li>ClickHouse 버전 확인 (PREWHERE는 오래된 기능으로 대부분의 버전에서 지원)</li>
+<li>EXPLAIN SYNTAX로 구문 변환 확인</li>
+</ul>
+<h3>성능 차이가 없는 경우</h3>
+<ul>
+<li>테이블 크기가 충분히 큰지 확인</li>
+<li>캐시 워밍업 확인</li>
+<li>필터링 조건의 선택도(selectivity) 확인</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/mysql-prewhere"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

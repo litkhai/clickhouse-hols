@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real-time JSON Explode Demo — Confluent → ClickPipes → ClickHouse / 실시간 JSON 평탄화 데모 · ClickHouse HOLs</title>
+<meta name="description" content="Real-time JSON Explode Demo — Confluent → ClickPipes → ClickHouse / 실시간 JSON 평탄화 데모 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/json-explode-confluent-clickpipes</code>
+    
+  </nav>
+  <div class="readme en"><h1>Real-time JSON Explode Demo — Confluent → ClickPipes → ClickHouse / 실시간 JSON 평탄화 데모</h1>
+<p>Author: Ken Lee (ClickHouse SA) · License: MIT</p>
+<hr />
+<p>A fully-automated, one-command version of the webinar live demo <em>"Real-time data transformation and flattening-based analytics with ClickPipes and Materialized Views."</em> You produce nested order-event JSON locally, it flows through <strong>Confluent Cloud → ClickPipes → ClickHouse Cloud</strong>, and two Materialized Views transform and <strong>explode</strong> each order into per-line fact rows — with <strong>no scheduler, no batch job, no Spark cluster</strong>.</p>
+<p>Everything (schema, object names, credentials, demo behavior) is configured in a single gitignored <code>.env</code>. A bilingual (ko/en) <strong>web dashboard</strong> ships in <code>webapp/</code> and runs via Docker.</p>
+<blockquote>
+<p>The original narrative, run-of-show and talk track live in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/instruction.md">instruction.md</a>. This README covers <strong>how to run the automation</strong>.</p>
+</blockquote>
+<h3>Architecture</h3>
+<pre><code> local producer ──JSON──▶ Confluent Cloud (topic)
+                                │
+                                ▼  ClickPipes (created via ClickHouse Cloud OpenAPI)
+                      analytics.orders_raw          ← raw JSON landed as-is
+                                │  orders_transform_mv  (timezone / NULL cleanup / coalesce / if)
+                                ▼
+                      analytics.orders_staging      ← transformed (demo query ①)
+                                │  order_lines_mv       (JSON array ARRAY JOIN = explode)
+                                ▼
+                      analytics.order_lines_fact    ← per-line flattened (demo queries ②~⑤)
+</code></pre>
+<h3>Why two Materialized Views (difference from the original)</h3>
+<p>The original instruction does the <strong>transform in the ClickPipes UI</strong> and the <strong>explode in one MV</strong>. But the ClickPipes <strong>REST API (<code>fieldMappings</code>) only supports column name mapping — not per-column transform expressions</strong> (<code>sourceField → destinationField</code> only).</p>
+<p>So to make it <strong>fully API-automatable</strong>, the transform expressions moved into <code>orders_transform_mv</code>. ClickPipes lands the raw JSON into <code>orders_raw</code>, and both the transform and the explode run as ClickHouse MVs. The expressions are <strong>identical to instruction §2</strong> — this actually reinforces the message <em>"it's just a matter of where the same expressions run."</em></p>
+<h3>Prerequisites</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Values (→ <code>.env</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ClickHouse Cloud (SQL)</td>
+<td><code>CH_HOST</code>, <code>CH_PORT</code>, <code>CH_USER</code>, <code>CH_PASSWORD</code></td>
+</tr>
+<tr>
+<td>ClickHouse Cloud (OpenAPI, for ClickPipes automation)</td>
+<td><code>CH_API_KEY_ID</code>, <code>CH_API_KEY_SECRET</code>, <code>CH_ORG_ID</code>, <code>CH_SERVICE_ID</code></td>
+</tr>
+<tr>
+<td>Confluent Cloud Kafka</td>
+<td><code>KAFKA_BOOTSTRAP</code> (<code>:9092</code>), <code>KAFKA_API_KEY</code>, <code>KAFKA_API_SECRET</code>, <code>KAFKA_TOPIC</code></td>
+</tr>
+<tr>
+<td>Schema / names / behavior</td>
+<td>DB, table &amp; MV names, timezone, valid statuses, producer knobs</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The Kafka topic must already exist</strong> (this demo does not auto-create it):
+  <code>confluent kafka topic create order-events --partitions 3</code></li>
+<li><strong>Kafka API key must be a <em>cluster-scoped</em> key</strong>, not an org/Cloud API key (SASL/PLAIN on port 9092).</li>
+<li>ClickHouse API key: Console → Organization → API Keys. Org/Service IDs are in the console URLs.</li>
+</ul>
+<h3>Setup</h3>
+<pre><code class="language-bash">cd usecase/json-explode-confluent-clickpipes
+cp .env.example .env      # fill in the values above
+</code></pre>
+<h3>One-time provisioning (day before)</h3>
+<pre><code class="language-bash">python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+
+python scripts/00_setup_clickhouse.py   # DB + raw/staging/fact + 2 MVs (idempotent)
+python scripts/01_create_clickpipe.py   # ClickPipe via OpenAPI (topic needs ≥1 message to sample)
+</code></pre>
+<h3>Run — Option A: web dashboard (Docker, recommended)</h3>
+<pre><code class="language-bash">docker compose up -d --build     # → http://localhost:8080
+docker compose logs -f
+docker compose down
+</code></pre>
+<p>The dashboard (default Korean, switchable to English top-right):</p>
+<ul>
+<li><strong>Top menu</strong>: <code>Start</code> (=resume) / <code>Stop</code> (=pause) / <code>Cleanup</code>, plus a configurable <strong>interval</strong> (default <strong>3 s per message</strong> for an intuitive, one-at-a-time flow).</li>
+<li><strong>Left</strong>: the 4-stage pipeline — <strong>1 Client → 2 Kafka (live topic tail) → 3 Staging → 4 Fact</strong> — each table shows 5 rows then scrolls; auto-refreshes. Click a Kafka <code>raw</code> cell to see the <strong>full JSON</strong>.</li>
+<li><strong>Right</strong>: preset queries in <strong>3 categories</strong> (Status Monitoring / Performance / Business) — click to run.</li>
+</ul>
+<p>Secrets are <strong>not baked into the image</strong> (<code>.dockerignore</code> excludes <code>.env</code>); they are injected at runtime via <code>env_file</code> in <code>docker-compose.yml</code>.</p>
+<h3>Run — Option B: CLI scripts</h3>
+<pre><code class="language-bash">python scripts/start_demo.py          # preflight (conn + schema + pipe) then produce (default 3 s/msg)
+python scripts/start_demo.py --check  # preflight only
+python scripts/03_verify.py --watch   # repeat the aggregation query, watch numbers grow
+python scripts/clean.py               # truncate tables between runs (keeps pipe + schema)
+</code></pre>
+<h3>Preset queries</h3>
+<p>Also available as SQL files: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/sql/demo_explore.sql">sql/demo_explore.sql</a>, <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/sql/demo_queries.sql">sql/demo_queries.sql</a>.</p>
+<ul>
+<li><strong>Status Monitoring</strong> — row counts, per-stage freshness, orders by status, transform before/after, NULL-cleanup effect, explode_outer check, cancelled exclusion, reconciliation.</li>
+<li><strong>Performance</strong> — object overview, parts, compression ratio, per-column storage.</li>
+<li><strong>Business</strong> — revenue by category, AOV by tier, best sellers, orders/min, lines-per-order, basket breakdown.</li>
+</ul>
+<h3>File structure</h3>
+<pre><code>json-explode-confluent-clickpipes/
+├── instruction.md              # original webinar run-of-show
+├── .env.example                # config template (copy → .env)
+├── .gitignore / .dockerignore  # exclude secrets
+├── Dockerfile / docker-compose.yml
+├── requirements.txt
+├── sql/
+│   ├── schema.sql              # raw/staging/fact + 2 MVs (${...} templated)
+│   ├── demo_queries.sql        # core demo queries ①~⑤
+│   └── demo_explore.sql        # extended exploration queries
+├── scripts/
+│   ├── config.py               # .env loader + SQL renderer + CH client
+│   ├── clickpipe_api.py        # ClickPipes OpenAPI helper (create/state/delete)
+│   ├── order_generator.py      # order event generator (shared)
+│   ├── producer.py             # Kafka producer core (shared)
+│   ├── 00_setup_clickhouse.py  # create schema
+│   ├── 01_create_clickpipe.py  # create ClickPipe
+│   ├── 02_produce.py           # produce only
+│   ├── 03_verify.py            # run demo queries
+│   ├── start_demo.py           # ▶ one-click: preflight + start pipe + produce
+│   ├── clean.py                # truncate tables (repeat demos)
+│   └── 99_teardown.py          # delete ClickPipe + DROP objects
+└── webapp/
+    ├── app.py                  # Flask backend
+    ├── demo_state.py           # producer thread + Kafka tail + cleanup
+    ├── presets.py              # preset queries (bilingual)
+    ├── templates/index.html
+    └── static/{app.js,style.css}
+</code></pre>
+<h3>Cleanup / teardown</h3>
+<pre><code class="language-bash">python scripts/99_teardown.py            # delete ClickPipe + TRUNCATE (safe default)
+python scripts/99_teardown.py --drop     # + DROP tables/MVs
+python scripts/99_teardown.py --drop-db  # + DROP database
+</code></pre>
+<h3>Troubleshooting</h3>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kafka <code>SaslAuthenticationFailedError</code></td>
+<td>Use a <strong>cluster-scoped</strong> Kafka API key; bootstrap must be host<code>:9092</code> (no <code>https://</code>)</td>
+</tr>
+<tr>
+<td>ClickPipe create <code>no data received from source</code></td>
+<td>Topic is empty — seed a few messages first, or use <code>CLICKPIPE_OFFSET=from_beginning</code></td>
+</tr>
+<tr>
+<td>ClickPipe create <code>Columns are required...</code></td>
+<td>Handled: destination <code>columns</code> are sent with <code>fieldMappings</code></td>
+</tr>
+<tr>
+<td>staging/fact empty</td>
+<td>Check the ClickPipe is <code>Running</code> and the producer is running</td>
+</tr>
+<tr>
+<td><code>unit_price</code> is NULL</td>
+<td>Comma price parse — <code>toDecimal64OrNull</code> returns NULL on failure (intentional safety)</td>
+</tr>
+</tbody>
+</table>
+<p>Verified end-to-end on ClickHouse Cloud (v26.4) with Confluent Cloud.</p>
+<hr /></div>
+  <div class="readme ko"><p>웨비나 <em>"ClickPipes와 Materialized View로 구현하는 실시간 데이터 변환과 평탄화 기반 분석"</em> 라이브 데모를 <strong>명령 한 줄로 자동화</strong>한 버전입니다. 로컬에서 중첩된 주문 이벤트 JSON을 발행하면 <strong>Confluent Cloud → ClickPipes → ClickHouse Cloud</strong>로 흐르고, 두 개의 Materialized View가 이를 변환하고 주문을 라인 단위로 <strong>explode(평탄화)</strong>합니다 — <strong>스케줄러도, 배치 잡도, Spark 클러스터도 없이.</strong></p>
+<p>모든 것(스키마·오브젝트 이름·크리덴셜·동작)은 gitignore된 단일 <code>.env</code>에서 설정합니다. 이중언어(ko/en) <strong>웹 대시보드</strong>가 <code>webapp/</code>에 포함되어 Docker로 실행됩니다.</p>
+<blockquote>
+<p>원본 시나리오·멘트·타임라인은 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/instruction.md">instruction.md</a> 를 보세요. 이 문서는 <strong>자동 실행 방법</strong>을 다룹니다.</p>
+</blockquote>
+<h3>아키텍처</h3>
+<pre><code> 로컬 producer ──JSON──▶ Confluent Cloud (topic)
+                                │
+                                ▼  ClickPipes (ClickHouse Cloud OpenAPI로 자동 생성)
+                      analytics.orders_raw          ← 원본 JSON 그대로 적재
+                                │  orders_transform_mv  (타임존 / NULL 정리 / coalesce / if)
+                                ▼
+                      analytics.orders_staging      ← 변환 완료 (데모 쿼리 ①)
+                                │  order_lines_mv       (JSON 배열 ARRAY JOIN = explode)
+                                ▼
+                      analytics.order_lines_fact    ← 라인 단위 평탄화 (데모 쿼리 ②~⑤)
+</code></pre>
+<h3>왜 MV가 2개인가 (원본과의 차이)</h3>
+<p>원본 instruction은 <strong>변환을 ClickPipes UI</strong>에서, <strong>explode를 MV 하나</strong>로 수행합니다. 그런데 ClickPipes <strong>REST API(<code>fieldMappings</code>)는 컬럼 이름 매핑만 지원하고 컬럼별 변환 표현식은 지원하지 않습니다</strong> (<code>sourceField → destinationField</code> 뿐).</p>
+<p>그래서 <strong>API 완전 자동화</strong>를 위해 변환 표현식을 <code>orders_transform_mv</code>로 옮겼습니다. ClickPipes는 원본 JSON을 <code>orders_raw</code>에 넣고, 변환·explode는 모두 ClickHouse MV가 담당합니다. 표현식은 <strong>instruction §2와 완전히 동일</strong>하며, 오히려 <em>"같은 표현식이 어디서 실행되느냐의 차이일 뿐"</em> 이라는 메시지와 잘 맞습니다.</p>
+<h3>준비물</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값 (→ <code>.env</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ClickHouse Cloud (SQL)</td>
+<td><code>CH_HOST</code>, <code>CH_PORT</code>, <code>CH_USER</code>, <code>CH_PASSWORD</code></td>
+</tr>
+<tr>
+<td>ClickHouse Cloud (OpenAPI, ClickPipes 자동화)</td>
+<td><code>CH_API_KEY_ID</code>, <code>CH_API_KEY_SECRET</code>, <code>CH_ORG_ID</code>, <code>CH_SERVICE_ID</code></td>
+</tr>
+<tr>
+<td>Confluent Cloud Kafka</td>
+<td><code>KAFKA_BOOTSTRAP</code> (<code>:9092</code>), <code>KAFKA_API_KEY</code>, <code>KAFKA_API_SECRET</code>, <code>KAFKA_TOPIC</code></td>
+</tr>
+<tr>
+<td>스키마 / 이름 / 동작</td>
+<td>DB·테이블·MV 이름, 타임존, 유효 상태, producer 튜닝</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Kafka 토픽은 미리 존재</strong>해야 합니다(자동 생성 안 함):
+  <code>confluent kafka topic create order-events --partitions 3</code></li>
+<li><strong>Kafka API 키는 반드시 <em>클러스터 스코프</em> 키</strong>여야 합니다(조직/Cloud 키 아님, 9092 포트 SASL/PLAIN).</li>
+<li>ClickHouse API 키: 콘솔 → 조직 → API Keys. Org/Service ID는 콘솔 URL에서 확인.</li>
+</ul>
+<h3>설정</h3>
+<pre><code class="language-bash">cd usecase/json-explode-confluent-clickpipes
+cp .env.example .env      # 위 표의 값들을 채웁니다
+</code></pre>
+<h3>사전 준비 (전날, 1회)</h3>
+<pre><code class="language-bash">python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+
+python scripts/00_setup_clickhouse.py   # DB + raw/staging/fact + MV 2개 (멱등적)
+python scripts/01_create_clickpipe.py   # OpenAPI로 ClickPipe 생성 (토픽에 메시지 ≥1건 필요)
+</code></pre>
+<h3>실행 — 방법 A: 웹 대시보드 (Docker, 권장)</h3>
+<pre><code class="language-bash">docker compose up -d --build     # → http://localhost:8080
+docker compose logs -f
+docker compose down
+</code></pre>
+<p>대시보드 (기본 한국어, 우상단에서 English 전환 가능):</p>
+<ul>
+<li><strong>상단 메뉴</strong>: <code>Start</code>(=재개) / <code>Stop</code>(=일시정지) / <code>Cleanup</code>, 그리고 <strong>interval</strong> 설정(기본 <strong>3초에 1건</strong> — 한 건씩 흐르는 게 직관적).</li>
+<li><strong>좌측</strong>: 4단계 파이프라인 — <strong>1 Client → 2 Kafka(토픽 실시간 tail) → 3 Staging → 4 Fact</strong> — 각 테이블은 5줄까지 보이고 이후 스크롤, 자동 갱신. Kafka <code>raw</code> 셀을 클릭하면 <strong>전체 JSON</strong>을 봅니다.</li>
+<li><strong>우측</strong>: 프리셋 쿼리 <strong>3개 카테고리</strong>(상태 모니터링 / 성능 / 비즈니스) — 클릭하면 실행.</li>
+</ul>
+<p>시크릿은 <strong>이미지에 굽히지 않습니다</strong>(<code>.dockerignore</code>가 <code>.env</code> 제외). <code>docker-compose.yml</code>의 <code>env_file</code>로 <strong>실행 시에만 주입</strong>됩니다.</p>
+<h3>실행 — 방법 B: CLI 스크립트</h3>
+<pre><code class="language-bash">python scripts/start_demo.py          # 점검(연결+스키마+파이프) 후 발행 (기본 3초/건)
+python scripts/start_demo.py --check  # 점검만
+python scripts/03_verify.py --watch   # 집계 쿼리 반복 실행, 숫자 증가 시연
+python scripts/clean.py               # 반복 데모용 테이블 초기화 (파이프·스키마 유지)
+</code></pre>
+<h3>프리셋 쿼리</h3>
+<p>SQL 파일로도 제공: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/sql/demo_explore.sql">sql/demo_explore.sql</a>, <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/sql/demo_queries.sql">sql/demo_queries.sql</a>.</p>
+<ul>
+<li><strong>상태 모니터링</strong> — 행 수, 각 단계 최신성, 상태별 주문 분포, 변환 before/after, NULL 치환 효과, explode_outer 검증, cancelled 누락 검증, 정합성.</li>
+<li><strong>성능 관련 지표</strong> — 오브젝트 현황, 파트, 압축률, 컬럼별 저장 크기.</li>
+<li><strong>비즈니스 집계</strong> — 카테고리별 매출, 등급별 객단가, 베스트셀러, 분당 주문, 주문당 라인 수, 장바구니 구성.</li>
+</ul>
+<h3>파일 구성</h3>
+<pre><code>json-explode-confluent-clickpipes/
+├── instruction.md              # 원본 웨비나 데모 가이드
+├── .env.example                # 설정 템플릿 (복사 → .env)
+├── .gitignore / .dockerignore  # 시크릿 제외
+├── Dockerfile / docker-compose.yml
+├── requirements.txt
+├── sql/
+│   ├── schema.sql              # raw/staging/fact + MV 2개 (${...} 템플릿)
+│   ├── demo_queries.sql        # 핵심 데모 쿼리 ①~⑤
+│   └── demo_explore.sql        # 확장 탐색 쿼리
+├── scripts/
+│   ├── config.py               # .env 로더 + SQL 렌더러 + CH 클라이언트
+│   ├── clickpipe_api.py        # ClickPipes OpenAPI 헬퍼 (생성/상태/삭제)
+│   ├── order_generator.py      # 주문 이벤트 생성 로직 (공용)
+│   ├── producer.py             # Kafka 발행 코어 (공용)
+│   ├── 00_setup_clickhouse.py  # 스키마 생성
+│   ├── 01_create_clickpipe.py  # ClickPipe 생성
+│   ├── 02_produce.py           # 발행 전용
+│   ├── 03_verify.py            # 데모 쿼리 실행
+│   ├── start_demo.py           # ▶ 원클릭: 점검 + 파이프 가동 + 발행
+│   ├── clean.py                # 테이블 초기화 (반복 데모)
+│   └── 99_teardown.py          # ClickPipe 삭제 + 오브젝트 DROP
+└── webapp/
+    ├── app.py                  # Flask 백엔드
+    ├── demo_state.py           # producer 스레드 + Kafka tail + 초기화
+    ├── presets.py              # 프리셋 쿼리 (이중언어)
+    ├── templates/index.html
+    └── static/{app.js,style.css}
+</code></pre>
+<h3>정리 / 삭제</h3>
+<pre><code class="language-bash">python scripts/99_teardown.py            # ClickPipe 삭제 + TRUNCATE (안전 기본값)
+python scripts/99_teardown.py --drop     # + 테이블/MV DROP
+python scripts/99_teardown.py --drop-db  # + 데이터베이스 DROP
+</code></pre>
+<h3>트러블슈팅</h3>
+<table>
+<thead>
+<tr>
+<th>증상</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kafka <code>SaslAuthenticationFailedError</code></td>
+<td><strong>클러스터 스코프</strong> Kafka API 키 사용, bootstrap은 host<code>:9092</code> (<code>https://</code> 없이)</td>
+</tr>
+<tr>
+<td>ClickPipe 생성 <code>no data received from source</code></td>
+<td>토픽이 비어 있음 — 씨드 몇 건 넣거나 <code>CLICKPIPE_OFFSET=from_beginning</code></td>
+</tr>
+<tr>
+<td>ClickPipe 생성 <code>Columns are required...</code></td>
+<td>처리됨: <code>fieldMappings</code>와 함께 destination <code>columns</code> 전송</td>
+</tr>
+<tr>
+<td>staging/fact 비어 있음</td>
+<td>ClickPipe가 <code>Running</code>인지, producer가 돌고 있는지 확인</td>
+</tr>
+<tr>
+<td><code>unit_price</code>가 NULL</td>
+<td>콤마 가격 파싱 — <code>toDecimal64OrNull</code>은 실패 시 NULL (의도된 안전장치)</td>
+</tr>
+</tbody>
+</table>
+<p>ClickHouse Cloud(v26.4) + Confluent Cloud에서 전 구간 검증 완료.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/json-explode-confluent-clickpipes"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

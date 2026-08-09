@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse Deduplication Test Suite · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Deduplication Test Suite — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/dedup-engine</code>
+    
+  </nav>
+  <div class="readme en"><h1>ClickHouse Deduplication Test Suite</h1>
+<p>ClickHouse의 다양한 테이블 엔진과 Insert 패턴별 Deduplication 효과를 테스트하는 실행 가능한 테스트 스위트입니다.</p>
+<h2>📋 테스트 개요</h2>
+<h3>Phase 1: Engine 비교 테스트</h3>
+<ul>
+<li><strong>목적</strong>: 동일한 중복 데이터에 대해 각 Table Engine의 deduplication 동작 방식과 효과 비교</li>
+<li><strong>테스트 대상</strong>:</li>
+<li>MergeTree (Baseline)</li>
+<li>ReplacingMergeTree</li>
+<li>CollapsingMergeTree</li>
+<li>AggregatingMergeTree</li>
+</ul>
+<h3>Phase 2: Insert 패턴별 성능 테스트</h3>
+<ul>
+<li><strong>목적</strong>: Row-by-row vs Batch insert의 성능 차이 측정</li>
+<li><strong>테스트 패턴</strong>:</li>
+<li>Row-by-row insert</li>
+<li>Micro-batch insert (100 rows)</li>
+<li>Batch insert (10,000 rows)</li>
+<li>Async insert</li>
+</ul>
+<h3>Phase 3: 권장 아키텍처 검증</h3>
+<ul>
+<li><strong>목적</strong>: Landing → Main → Refreshable MV 아키텍처 검증</li>
+<li><strong>구조</strong>:
+  <code>[Landing Table] → [Main Table] → [Refreshable MV]
+  (MergeTree+TTL)   (ReplacingMT)   (Aggregation)</code></li>
+</ul>
+<h2>🚀 빠른 시작</h2>
+<h3>1. 환경 설정</h3>
+<h4>필수 요구사항</h4>
+<ul>
+<li>Python 3.7+</li>
+<li>ClickHouse Cloud 또는 Self-managed 인스턴스</li>
+</ul>
+<h4>패키지 설치</h4>
+<pre><code class="language-bash">pip3 install clickhouse-connect python-dotenv
+</code></pre>
+<h3>2. 연결 정보 설정</h3>
+<p><code>.env</code> 파일을 생성하고 ClickHouse 연결 정보를 입력합니다:</p>
+<pre><code class="language-bash">CH_HOST=your-host.clickhouse.cloud
+CH_PORT=8443
+CH_USERNAME=default
+CH_PASSWORD=your-password
+CH_DATABASE=default
+CH_SECURE=true
+</code></pre>
+<h3>3. 테스트 실행</h3>
+<h4>방법 1: 대화형 모드</h4>
+<pre><code class="language-bash">cd workload/dedup-engine
+python3 run_all_tests.py
+</code></pre>
+<p>메뉴가 표시되면 실행할 테스트를 선택합니다.</p>
+<h4>방법 2: CLI 모드</h4>
+<pre><code class="language-bash"># Phase 1만 실행
+python3 run_all_tests.py 1
+
+# Phase 2만 실행
+python3 run_all_tests.py 2
+
+# Phase 3만 실행
+python3 run_all_tests.py 3
+
+# 전체 테스트 실행
+python3 run_all_tests.py all
+</code></pre>
+<h4>방법 3: 개별 실행</h4>
+<pre><code class="language-bash"># Phase 1 실행
+python3 phase1_engine_comparison.py
+
+# Phase 2 실행
+python3 phase2_insert_patterns.py
+
+# Phase 3 실행
+python3 phase3_architecture.py
+</code></pre>
+<h2>📊 예상 결과</h2>
+<h3>Phase 1: Engine 비교</h3>
+<pre><code>Engine        | Raw Count | Dedup Count | After OPTIMIZE | Success
+---------------------------------------------------------------------
+MergeTree     | 13,000    | 10,000      | 13,000         | ❌
+ReplacingMT   | 10,000    | 10,000      | 10,000         | ✅
+CollapsingMT  | 10,000    | 10,000      | 10,000         | ✅
+AggregatingMT | 10,000    | 10,000      | 10,000         | ✅
+</code></pre>
+<h3>Phase 2: Insert 패턴</h3>
+<pre><code>Method       | Records | Time (s) | Rate (rows/s)
+--------------------------------------------------
+row_by_row   | 1,000   | ~60      | ~16
+micro_batch  | 10,000  | ~8       | ~1,200
+batch        | 10,000  | ~0.3     | ~35,000
+async_insert | 1,000   | ~10      | ~100
+</code></pre>
+<p><strong>성능 개선</strong>:
+- Batch insert가 row-by-row 대비 <strong>2,000배 이상</strong> 빠름
+- Micro-batch도 <strong>70배 이상</strong> 성능 개선</p>
+<h3>Phase 3: 아키텍처 검증</h3>
+<pre><code>항목           | 레코드 수 | 비고
+------------------------------------
+Landing        | 13,000    | 원본 데이터
+Main (Raw)     | 13,000    | MV로 전달
+Main (FINAL)   | 10,000    | Dedup 후
+Hourly Agg     | N         | Refreshable MV
+</code></pre>
+<h2>📁 파일 구조</h2>
+<pre><code>dedup-engine/
+├── .env                          # 연결 정보 (생성 필요)
+├── .gitignore
+├── config.py                     # 설정
+├── utils.py                      # 공통 유틸리티
+├── phase1_engine_comparison.py   # Phase 1 테스트
+├── phase2_insert_patterns.py     # Phase 2 테스트
+├── phase3_architecture.py        # Phase 3 테스트
+├── run_all_tests.py              # 통합 실행 스크립트
+├── README.md                     # 본 문서
+└── dedup_test_plan.md            # 전체 테스트 계획서
+</code></pre>
+<h2>🔧 설정 커스터마이징</h2>
+<p><code>config.py</code> 파일에서 테스트 데이터 설정을 변경할 수 있습니다:</p>
+<pre><code class="language-python">@dataclass
+class TestConfig:
+    # 테스트 데이터 설정
+    total_unique_records: int = 10000      # Unique 레코드 수
+    duplicate_rate: float = 0.3            # 중복 비율 (30%)
+    account_cardinality: int = 1000        # Account 종류
+    product_cardinality: int = 500         # Product 종류
+</code></pre>
+<h2>🧹 정리 (Cleanup)</h2>
+<p>테스트 후 생성된 테이블을 정리하려면:</p>
+<pre><code class="language-sql">-- ClickHouse 클라이언트에서 실행
+DROP DATABASE IF EXISTS dedup;
+</code></pre>
+<p>또는 개별 테이블 삭제:</p>
+<pre><code class="language-sql">-- Phase 1
+DROP TABLE IF EXISTS dedup.p1_baseline;
+DROP TABLE IF EXISTS dedup.p1_replacing;
+DROP TABLE IF EXISTS dedup.p1_collapsing;
+DROP TABLE IF EXISTS dedup.p1_aggregating;
+
+-- Phase 2
+DROP TABLE IF EXISTS dedup.p2_row_by_row;
+DROP TABLE IF EXISTS dedup.p2_micro_batch;
+DROP TABLE IF EXISTS dedup.p2_batch;
+DROP TABLE IF EXISTS dedup.p2_async_insert;
+
+-- Phase 3
+DROP VIEW IF EXISTS dedup.p3_hourly_agg;
+DROP VIEW IF EXISTS dedup.p3_landing_to_main_mv;
+DROP TABLE IF EXISTS dedup.p3_main;
+DROP TABLE IF EXISTS dedup.p3_landing;
+</code></pre>
+<h2>📝 주요 발견사항</h2>
+<h3>1. Engine 선택</h3>
+<ul>
+<li><strong>ReplacingMergeTree</strong>: ✅ 추천</li>
+<li>구현이 간단하고 효과적</li>
+<li>
+<p>FINAL 키워드로 중복 제거된 데이터 조회</p>
+</li>
+<li>
+<p><strong>CollapsingMergeTree</strong>: ⚠️ 조건부</p>
+</li>
+<li>Sign 관리가 복잡</li>
+<li>
+<p>Update/Delete 시나리오에 적합</p>
+</li>
+<li>
+<p><strong>AggregatingMergeTree</strong>: ⚠️ 조건부</p>
+</li>
+<li>집계 시나리오에 적합</li>
+<li>SimpleAggregateFunction 필요</li>
+</ul>
+<h3>2. Insert 패턴</h3>
+<ul>
+<li><strong>Batch Insert 강력 권장</strong></li>
+<li>2,000배 이상의 성능 개선</li>
+<li>
+<p>네트워크 오버헤드 최소화</p>
+</li>
+<li>
+<p><strong>Async Insert</strong></p>
+</li>
+<li>Row-by-row보다 5배 빠름</li>
+<li>하지만 Batch에 비해서는 느림</li>
+</ul>
+<h3>3. 권장 아키텍처</h3>
+<pre><code>[App] → [Landing + TTL] → [ReplacingMT] → [Refreshable MV]
+</code></pre>
+<ul>
+<li>Landing 테이블로 빠른 insert</li>
+<li>ReplacingMergeTree로 자동 dedup</li>
+<li>TTL로 자동 정리</li>
+<li>Refreshable MV로 정확한 집계</li>
+</ul>
+<h2>📚 참고 문서</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replacingmergetree">ReplacingMergeTree</a></li>
+<li><a href="https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view">Refreshable Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/cloud/bestpractices/asynchronous-inserts">Async Insert</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#table_engine-mergetree-ttl">TTL</a></li>
+</ul>
+<h2>🐛 문제 해결</h2>
+<h3>연결 실패</h3>
+<pre><code>✗ ClickHouse 연결 실패: Database dedup does not exist
+</code></pre>
+<p>→ <code>.env</code> 파일의 <code>CH_DATABASE</code>를 <code>default</code>로 설정</p>
+<h3>권한 오류</h3>
+<pre><code>DB::Exception: Not enough privileges
+</code></pre>
+<p>→ 사용자에게 데이터베이스 생성 권한 필요</p>
+<h3>Refreshable MV 오류</h3>
+<pre><code>Refreshable materialized views are not supported
+</code></pre>
+<p>→ ClickHouse 버전이 23.8 이상인지 확인</p>
+<h2>📧 문의</h2>
+<p>테스트 관련 문의사항은 ClickHouse Solutions Team에 연락주세요.</p></div>
+  <div class="readme ko"><h1>ClickHouse Deduplication Test Suite</h1>
+<p>ClickHouse의 다양한 테이블 엔진과 Insert 패턴별 Deduplication 효과를 테스트하는 실행 가능한 테스트 스위트입니다.</p>
+<h2>📋 테스트 개요</h2>
+<h3>Phase 1: Engine 비교 테스트</h3>
+<ul>
+<li><strong>목적</strong>: 동일한 중복 데이터에 대해 각 Table Engine의 deduplication 동작 방식과 효과 비교</li>
+<li><strong>테스트 대상</strong>:</li>
+<li>MergeTree (Baseline)</li>
+<li>ReplacingMergeTree</li>
+<li>CollapsingMergeTree</li>
+<li>AggregatingMergeTree</li>
+</ul>
+<h3>Phase 2: Insert 패턴별 성능 테스트</h3>
+<ul>
+<li><strong>목적</strong>: Row-by-row vs Batch insert의 성능 차이 측정</li>
+<li><strong>테스트 패턴</strong>:</li>
+<li>Row-by-row insert</li>
+<li>Micro-batch insert (100 rows)</li>
+<li>Batch insert (10,000 rows)</li>
+<li>Async insert</li>
+</ul>
+<h3>Phase 3: 권장 아키텍처 검증</h3>
+<ul>
+<li><strong>목적</strong>: Landing → Main → Refreshable MV 아키텍처 검증</li>
+<li><strong>구조</strong>:
+  <code>[Landing Table] → [Main Table] → [Refreshable MV]
+  (MergeTree+TTL)   (ReplacingMT)   (Aggregation)</code></li>
+</ul>
+<h2>🚀 빠른 시작</h2>
+<h3>1. 환경 설정</h3>
+<h4>필수 요구사항</h4>
+<ul>
+<li>Python 3.7+</li>
+<li>ClickHouse Cloud 또는 Self-managed 인스턴스</li>
+</ul>
+<h4>패키지 설치</h4>
+<pre><code class="language-bash">pip3 install clickhouse-connect python-dotenv
+</code></pre>
+<h3>2. 연결 정보 설정</h3>
+<p><code>.env</code> 파일을 생성하고 ClickHouse 연결 정보를 입력합니다:</p>
+<pre><code class="language-bash">CH_HOST=your-host.clickhouse.cloud
+CH_PORT=8443
+CH_USERNAME=default
+CH_PASSWORD=your-password
+CH_DATABASE=default
+CH_SECURE=true
+</code></pre>
+<h3>3. 테스트 실행</h3>
+<h4>방법 1: 대화형 모드</h4>
+<pre><code class="language-bash">cd workload/dedup-engine
+python3 run_all_tests.py
+</code></pre>
+<p>메뉴가 표시되면 실행할 테스트를 선택합니다.</p>
+<h4>방법 2: CLI 모드</h4>
+<pre><code class="language-bash"># Phase 1만 실행
+python3 run_all_tests.py 1
+
+# Phase 2만 실행
+python3 run_all_tests.py 2
+
+# Phase 3만 실행
+python3 run_all_tests.py 3
+
+# 전체 테스트 실행
+python3 run_all_tests.py all
+</code></pre>
+<h4>방법 3: 개별 실행</h4>
+<pre><code class="language-bash"># Phase 1 실행
+python3 phase1_engine_comparison.py
+
+# Phase 2 실행
+python3 phase2_insert_patterns.py
+
+# Phase 3 실행
+python3 phase3_architecture.py
+</code></pre>
+<h2>📊 예상 결과</h2>
+<h3>Phase 1: Engine 비교</h3>
+<pre><code>Engine        | Raw Count | Dedup Count | After OPTIMIZE | Success
+---------------------------------------------------------------------
+MergeTree     | 13,000    | 10,000      | 13,000         | ❌
+ReplacingMT   | 10,000    | 10,000      | 10,000         | ✅
+CollapsingMT  | 10,000    | 10,000      | 10,000         | ✅
+AggregatingMT | 10,000    | 10,000      | 10,000         | ✅
+</code></pre>
+<h3>Phase 2: Insert 패턴</h3>
+<pre><code>Method       | Records | Time (s) | Rate (rows/s)
+--------------------------------------------------
+row_by_row   | 1,000   | ~60      | ~16
+micro_batch  | 10,000  | ~8       | ~1,200
+batch        | 10,000  | ~0.3     | ~35,000
+async_insert | 1,000   | ~10      | ~100
+</code></pre>
+<p><strong>성능 개선</strong>:
+- Batch insert가 row-by-row 대비 <strong>2,000배 이상</strong> 빠름
+- Micro-batch도 <strong>70배 이상</strong> 성능 개선</p>
+<h3>Phase 3: 아키텍처 검증</h3>
+<pre><code>항목           | 레코드 수 | 비고
+------------------------------------
+Landing        | 13,000    | 원본 데이터
+Main (Raw)     | 13,000    | MV로 전달
+Main (FINAL)   | 10,000    | Dedup 후
+Hourly Agg     | N         | Refreshable MV
+</code></pre>
+<h2>📁 파일 구조</h2>
+<pre><code>dedup-engine/
+├── .env                          # 연결 정보 (생성 필요)
+├── .gitignore
+├── config.py                     # 설정
+├── utils.py                      # 공통 유틸리티
+├── phase1_engine_comparison.py   # Phase 1 테스트
+├── phase2_insert_patterns.py     # Phase 2 테스트
+├── phase3_architecture.py        # Phase 3 테스트
+├── run_all_tests.py              # 통합 실행 스크립트
+├── README.md                     # 본 문서
+└── dedup_test_plan.md            # 전체 테스트 계획서
+</code></pre>
+<h2>🔧 설정 커스터마이징</h2>
+<p><code>config.py</code> 파일에서 테스트 데이터 설정을 변경할 수 있습니다:</p>
+<pre><code class="language-python">@dataclass
+class TestConfig:
+    # 테스트 데이터 설정
+    total_unique_records: int = 10000      # Unique 레코드 수
+    duplicate_rate: float = 0.3            # 중복 비율 (30%)
+    account_cardinality: int = 1000        # Account 종류
+    product_cardinality: int = 500         # Product 종류
+</code></pre>
+<h2>🧹 정리 (Cleanup)</h2>
+<p>테스트 후 생성된 테이블을 정리하려면:</p>
+<pre><code class="language-sql">-- ClickHouse 클라이언트에서 실행
+DROP DATABASE IF EXISTS dedup;
+</code></pre>
+<p>또는 개별 테이블 삭제:</p>
+<pre><code class="language-sql">-- Phase 1
+DROP TABLE IF EXISTS dedup.p1_baseline;
+DROP TABLE IF EXISTS dedup.p1_replacing;
+DROP TABLE IF EXISTS dedup.p1_collapsing;
+DROP TABLE IF EXISTS dedup.p1_aggregating;
+
+-- Phase 2
+DROP TABLE IF EXISTS dedup.p2_row_by_row;
+DROP TABLE IF EXISTS dedup.p2_micro_batch;
+DROP TABLE IF EXISTS dedup.p2_batch;
+DROP TABLE IF EXISTS dedup.p2_async_insert;
+
+-- Phase 3
+DROP VIEW IF EXISTS dedup.p3_hourly_agg;
+DROP VIEW IF EXISTS dedup.p3_landing_to_main_mv;
+DROP TABLE IF EXISTS dedup.p3_main;
+DROP TABLE IF EXISTS dedup.p3_landing;
+</code></pre>
+<h2>📝 주요 발견사항</h2>
+<h3>1. Engine 선택</h3>
+<ul>
+<li><strong>ReplacingMergeTree</strong>: ✅ 추천</li>
+<li>구현이 간단하고 효과적</li>
+<li>
+<p>FINAL 키워드로 중복 제거된 데이터 조회</p>
+</li>
+<li>
+<p><strong>CollapsingMergeTree</strong>: ⚠️ 조건부</p>
+</li>
+<li>Sign 관리가 복잡</li>
+<li>
+<p>Update/Delete 시나리오에 적합</p>
+</li>
+<li>
+<p><strong>AggregatingMergeTree</strong>: ⚠️ 조건부</p>
+</li>
+<li>집계 시나리오에 적합</li>
+<li>SimpleAggregateFunction 필요</li>
+</ul>
+<h3>2. Insert 패턴</h3>
+<ul>
+<li><strong>Batch Insert 강력 권장</strong></li>
+<li>2,000배 이상의 성능 개선</li>
+<li>
+<p>네트워크 오버헤드 최소화</p>
+</li>
+<li>
+<p><strong>Async Insert</strong></p>
+</li>
+<li>Row-by-row보다 5배 빠름</li>
+<li>하지만 Batch에 비해서는 느림</li>
+</ul>
+<h3>3. 권장 아키텍처</h3>
+<pre><code>[App] → [Landing + TTL] → [ReplacingMT] → [Refreshable MV]
+</code></pre>
+<ul>
+<li>Landing 테이블로 빠른 insert</li>
+<li>ReplacingMergeTree로 자동 dedup</li>
+<li>TTL로 자동 정리</li>
+<li>Refreshable MV로 정확한 집계</li>
+</ul>
+<h2>📚 참고 문서</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replacingmergetree">ReplacingMergeTree</a></li>
+<li><a href="https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view">Refreshable Materialized Views</a></li>
+<li><a href="https://clickhouse.com/docs/en/cloud/bestpractices/asynchronous-inserts">Async Insert</a></li>
+<li><a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#table_engine-mergetree-ttl">TTL</a></li>
+</ul>
+<h2>🐛 문제 해결</h2>
+<h3>연결 실패</h3>
+<pre><code>✗ ClickHouse 연결 실패: Database dedup does not exist
+</code></pre>
+<p>→ <code>.env</code> 파일의 <code>CH_DATABASE</code>를 <code>default</code>로 설정</p>
+<h3>권한 오류</h3>
+<pre><code>DB::Exception: Not enough privileges
+</code></pre>
+<p>→ 사용자에게 데이터베이스 생성 권한 필요</p>
+<h3>Refreshable MV 오류</h3>
+<pre><code>Refreshable materialized views are not supported
+</code></pre>
+<p>→ ClickHouse 버전이 23.8 이상인지 확인</p>
+<h2>📧 문의</h2>
+<p>테스트 관련 문의사항은 ClickHouse Solutions Team에 연락주세요.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/dedup-engine"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. MIT licensed. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. MIT 라이선스. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
