@@ -151,11 +151,15 @@ FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='
 def shell(title, body, depth, description):
     """Wrap page content in the shared chrome. `depth` = directories below docs/."""
     up = "../" * depth
+    # "except where a directory says otherwise" is not boilerplate: the TPC-DS
+    # queries are GPL-3.0 and this footer is on their page too.
     footer = bi(
         "Generated from the repository by <code>.github/scripts/build_site.py</code>. "
-        'MIT licensed. <a href="https://github.com/%s">Source on GitHub</a>.' % REPO,
+        '<a href="%s/LICENSE">MIT</a>, except where a directory says otherwise. '
+        '<a href="https://github.com/%s">Source on GitHub</a>.' % (BLOB, REPO),
         "저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. "
-        'MIT 라이선스. <a href="https://github.com/%s">GitHub 저장소</a>.' % REPO)
+        '<a href="%s/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. '
+        '<a href="https://github.com/%s">GitHub 저장소</a>.' % (BLOB, REPO))
     return """<!DOCTYPE html>
 <html lang="en" data-theme="auto">
 <head>

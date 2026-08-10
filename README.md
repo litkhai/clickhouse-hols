@@ -186,7 +186,17 @@ Issues and pull requests are welcome.
 
 ### 📝 License
 
-MIT License — see individual lab directories for specific license information.
+[MIT](LICENSE), with one exception.
+
+The 99 query files under [`tpcds/queries/`](tpcds/queries/) are adapted from
+[Altinity/tpc-ds](https://github.com/Altinity/tpc-ds) and stay under **GPL-3.0**
+([text](tpcds/queries/LICENSE)); MIT cannot be applied to them. TPC-DS is a
+trademark of the Transaction Processing Performance Council, and its
+specification and `dsdgen` toolkit carry TPC's own terms — the lab has you
+fetch the toolkit yourself rather than shipping it.
+
+Everything else is MIT. The labs pull ClickHouse and other software at run time,
+each under its own licence; nothing third-party is vendored here.
 
 ### 🌐 Additional Resources
 
@@ -378,7 +388,18 @@ git config core.hooksPath .githooks
 
 ### 📝 라이선스
 
-MIT License — 실습별 라이선스 정보는 각 디렉토리를 참조하세요.
+[MIT](LICENSE), 단 한 가지 예외가 있습니다.
+
+[`tpcds/queries/`](tpcds/queries/) 아래 99개 쿼리 파일은
+[Altinity/tpc-ds](https://github.com/Altinity/tpc-ds)에서 가져와 수정한 것으로
+**GPL-3.0**을 그대로 따릅니다([전문](tpcds/queries/LICENSE)). 이 파일들에는 MIT를
+적용할 수 없습니다. TPC-DS는 Transaction Processing Performance Council의
+상표이며, 명세와 `dsdgen` 툴킷에는 TPC 자체 약관이 적용됩니다 — 그래서 이 실습은
+툴킷을 포함하지 않고 직접 내려받게 합니다.
+
+그 외는 모두 MIT입니다. 각 실습은 실행 시점에 ClickHouse 등 소프트웨어를
+내려받으며 그것들은 각자의 라이선스를 따릅니다. 서드파티 코드를 이 저장소에
+포함해 두지는 않았습니다.
 
 ### 🌐 추가 자료
 

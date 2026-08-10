@@ -242,9 +242,14 @@ For detailed query specifications and expected behavior, refer to:
 
 ## License
 
-These queries are adapted from the Altinity TPC-DS repository.
+**GPL-3.0, not the repository's MIT licence.** These queries are adapted from
+[Altinity/tpc-ds](https://github.com/Altinity/tpc-ds), which is GPL-3.0, so the
+licence carries over to this directory. The full text is in [LICENSE](LICENSE)
+here; the [root LICENSE](../../LICENSE) does not apply to these files.
 
-Original repository: https://github.com/Altinity/tpc-ds (GPL-3.0 License)
+TPC-DS is a trademark of the Transaction Processing Performance Council. The
+benchmark specification and the `dsdgen` toolkit are subject to TPC's own terms
+and are not distributed here.
 
 ## Summary
 
