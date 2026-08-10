@@ -471,7 +471,7 @@ watch -n 5 &quot;clickhouse-client --host &lt;host&gt; --query 'SELECT count() F
 <h3>Current Security Posture</h3>
 <p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
 <ul>
-<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Every broker port open to whatever <code>allowed_cidr_blocks</code> is set to (<code>0.0.0.0/0</code> is rejected)</li>
 <li>Default SASL credentials</li>
 <li>Public IP with direct access</li>
 </ul>
@@ -986,7 +986,7 @@ watch -n 5 &quot;clickhouse-client --host &lt;host&gt; --query 'SELECT count() F
 <h3>Current Security Posture</h3>
 <p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
 <ul>
-<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Every broker port open to whatever <code>allowed_cidr_blocks</code> is set to (<code>0.0.0.0/0</code> is rejected)</li>
 <li>Default SASL credentials</li>
 <li>Public IP with direct access</li>
 </ul>

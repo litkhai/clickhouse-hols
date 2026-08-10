@@ -109,7 +109,7 @@ ebs_volume_size = 250               # Change to desired EBS size (GB)
 key_pair_name   = &quot;YOUR_KEY_PAIR_NAME&quot;
 
 # Network Configuration
-allowed_cidr_blocks = [&quot;0.0.0.0/0&quot;]  # Allows access from any IP (public endpoint)
+allowed_cidr_blocks = [&quot;203.0.113.4/32&quot;]  # required — your own address (curl -s ifconfig.me)
 use_elastic_ip      = false  # Set to true for production to get stable IP
 
 # MinIO Configuration
@@ -173,8 +173,8 @@ minio_data_dir      = &quot;/mnt/data&quot;
 </tr>
 <tr>
 <td><code>allowed_cidr_blocks</code></td>
-<td>CIDR blocks allowed to access</td>
-<td><code>["0.0.0.0/0"]</code> (public)</td>
+<td>Who may reach MinIO and SSH. <code>0.0.0.0/0</code> is rejected</td>
+<td>- (required)</td>
 </tr>
 <tr>
 <td><code>minio_root_user</code></td>
@@ -443,7 +443,7 @@ ebs_volume_size = 250               # Change to desired EBS size (GB)
 key_pair_name   = &quot;YOUR_KEY_PAIR_NAME&quot;
 
 # Network Configuration
-allowed_cidr_blocks = [&quot;0.0.0.0/0&quot;]  # Allows access from any IP (public endpoint)
+allowed_cidr_blocks = [&quot;203.0.113.4/32&quot;]  # required — your own address (curl -s ifconfig.me)
 use_elastic_ip      = false  # Set to true for production to get stable IP
 
 # MinIO Configuration
@@ -507,8 +507,8 @@ minio_data_dir      = &quot;/mnt/data&quot;
 </tr>
 <tr>
 <td><code>allowed_cidr_blocks</code></td>
-<td>CIDR blocks allowed to access</td>
-<td><code>["0.0.0.0/0"]</code> (public)</td>
+<td>Who may reach MinIO and SSH. <code>0.0.0.0/0</code> is rejected</td>
+<td>- (required)</td>
 </tr>
 <tr>
 <td><code>minio_root_user</code></td>

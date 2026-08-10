@@ -231,9 +231,9 @@ python3 test_kafka_sasl.py
 </tr>
 <tr>
 <td><code>allowed_cidr_blocks</code></td>
-<td>CIDR blocks for access</td>
-<td>["0.0.0.0/0"]</td>
-<td>No</td>
+<td>Who may reach SSH and the broker ports. <code>0.0.0.0/0</code> is rejected</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
 </tr>
 <tr>
 <td><code>use_elastic_ip</code></td>
@@ -563,7 +563,7 @@ sudo journalctl -u confluent-producer -f
 <h3>Current Security Posture</h3>
 <p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
 <ul>
-<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Every broker port open to whatever <code>allowed_cidr_blocks</code> is set to (<code>0.0.0.0/0</code> is rejected)</li>
 <li>No authentication enabled</li>
 <li>No encryption in transit</li>
 <li>Public IP with direct access</li>
@@ -800,9 +800,9 @@ python3 test_kafka_sasl.py
 </tr>
 <tr>
 <td><code>allowed_cidr_blocks</code></td>
-<td>CIDR blocks for access</td>
-<td>["0.0.0.0/0"]</td>
-<td>No</td>
+<td>Who may reach SSH and the broker ports. <code>0.0.0.0/0</code> is rejected</td>
+<td>-</td>
+<td><strong>Yes</strong></td>
 </tr>
 <tr>
 <td><code>use_elastic_ip</code></td>
@@ -1132,7 +1132,7 @@ sudo journalctl -u confluent-producer -f
 <h3>Current Security Posture</h3>
 <p>⚠️ <strong>Warning</strong>: Default configuration is for development/testing only</p>
 <ul>
-<li>All ports open to <code>0.0.0.0/0</code></li>
+<li>Every broker port open to whatever <code>allowed_cidr_blocks</code> is set to (<code>0.0.0.0/0</code> is rejected)</li>
 <li>No authentication enabled</li>
 <li>No encryption in transit</li>
 <li>Public IP with direct access</li>
