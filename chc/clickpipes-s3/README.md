@@ -308,3 +308,7 @@ API 문서: https://clickhouse.com/docs/integrations/clickpipes
 2. `04-check-pipe-status.sh`로 파이프 상태 확인
 3. `.pipe_status_last.json` 파일에서 상세 에러 메시지 확인
 4. ClickHouse Cloud Console에서 파이프 로그 확인
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

@@ -388,7 +388,11 @@ ollama pull <model-name>
 
 ## 라이선스
 
-이 프로젝트는 각 구성 요소의 라이선스를 따릅니다:
+이 랩이 담고 있는 파일 — compose 파일, 스크립트, 설정 템플릿, 이 문서 — 는
+[MIT](../../LICENSE)로, 저장소 전체와 동일합니다.
+
+실행 시점에 내려받는 소프트웨어는 각자의 라이선스를 따르며, 여기에 복사해 두지
+않았습니다:
 - LibreChat: MIT License
 - Ollama: MIT License
 - ClickHouse: Apache License 2.0

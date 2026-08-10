@@ -102,3 +102,7 @@ This setup uses Docker Named Volumes instead of bind mounts to avoid macOS permi
 - Default user with no password (suitable for development)
 - Network isolation with dedicated Docker network
 - Data persistence with named volumes
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

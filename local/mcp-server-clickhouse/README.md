@@ -163,3 +163,17 @@ docker-compose logs mcp-clickhouse
 
 ### 헬스 체크 실패
 서버 초기화를 위해 시작 후 10-15초 대기하세요.
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository. Only the Dockerfile, the
+compose file and this README are covered: the server itself is
+[ClickHouse/mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse) (Apache-2.0),
+installed at image build time rather than copied in here.
+
+## 라이선스
+
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다. 적용 대상은 Dockerfile, compose 파일,
+이 README뿐입니다. 서버 본체는
+[ClickHouse/mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse)(Apache-2.0)이며,
+여기에 복사해 두지 않고 이미지 빌드 시점에 설치합니다.

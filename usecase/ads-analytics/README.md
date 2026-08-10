@@ -176,7 +176,7 @@ All scripts verified end-to-end against **ClickHouse 26.6.1.778** from an empty 
 
 ### 📝 License
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 
@@ -363,7 +363,7 @@ CREATE TABLE daily_campaign_cube (
 
 ### 📝 라이선스
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 작성자
 

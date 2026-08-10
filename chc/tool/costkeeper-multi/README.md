@@ -669,3 +669,7 @@ The failed service will have missing data for that 15-minute period.
 **Last Updated**: 2025-12-07
 **Version**: 2.0-multi
 **Status**: Production Ready
+
+## License
+
+[MIT](../../../LICENSE) — same as the rest of the repository.

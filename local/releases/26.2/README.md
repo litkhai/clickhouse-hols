@@ -192,6 +192,11 @@ docker logs clickhouse-26-2
 - Cleanup is commented out by default for inspection
 - All features verified on ClickHouse 26.2.19.43
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -299,6 +304,11 @@ cd local/releases/26.2
 - 테스트 데이터는 각 SQL 파일 내에서 생성됨
 - 정리(cleanup) 구문은 기본적으로 주석 처리됨
 - 모든 기능은 ClickHouse 26.2.19에서 검증됨
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

@@ -474,7 +474,7 @@ If you have improvements or additional examples for this lab:
 
 ### 📄 License
 
-MIT License - Free to learn and modify
+[MIT](../../../LICENSE) — free to learn from and modify.
 
 ---
 
@@ -953,7 +953,7 @@ WHERE table = 'your_table'
 
 ### 📄 라이선스
 
-MIT License - 자유롭게 학습 및 수정 가능
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

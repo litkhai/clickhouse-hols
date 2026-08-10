@@ -211,6 +211,11 @@ docker logs clickhouse-26-6
 - `01-hypothetical-indexes.sql` must run as a single session — hypothetical indexes disappear when the connection closes
 - `EXPLAIN WHATIF` reads real data to produce its estimate, so expect a few seconds on the 1M-row table
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -356,6 +361,11 @@ cd local/releases/26.6
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - `01-hypothetical-indexes.sql`은 반드시 단일 세션으로 실행해야 합니다 — 커넥션이 닫히면 가상 인덱스는 사라집니다
 - `EXPLAIN WHATIF`는 실제 데이터를 읽어 산정하므로 100만 행 테이블에서 수 초가 걸릴 수 있습니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

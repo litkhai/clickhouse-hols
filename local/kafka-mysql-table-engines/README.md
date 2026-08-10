@@ -405,7 +405,7 @@ python3 scripts/kafka_producer.py --num-events 100000
 
 ## 📝 라이선스
 
-이 프로젝트는 학습 및 테스트 목적으로 제공됩니다.
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.
 
 ---
 

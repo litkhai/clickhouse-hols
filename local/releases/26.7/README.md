@@ -210,6 +210,11 @@ docker logs clickhouse-26-7
 - `EXPLAIN ANALYZE` runs the query it is given; `01-explain-analyze.sql` therefore executes every example against the 2M-row table
 - `02-at-time-zone.sql` changes `session_timezone` and resets it to `UTC` at the end of the section
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -356,6 +361,11 @@ cd local/releases/26.7
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - `EXPLAIN ANALYZE`는 대상 쿼리를 실제로 실행합니다 — `01-explain-analyze.sql`은 모든 예제를 200만 행 테이블에 대해 실행합니다
 - `02-at-time-zone.sql`은 `session_timezone`을 변경한 뒤 해당 섹션 끝에서 `UTC`로 되돌립니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

@@ -192,6 +192,11 @@ docker logs clickhouse-25-2
 - `01` leaves Parquet files in `user_files`; remove with `docker exec clickhouse-25-2 rm /var/lib/clickhouse/user_files/bloom_*.parquet`
 - `02` writes a backup to `/var/lib/clickhouse/backups/snapshot_v1`, which its runner clears before each run
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -323,6 +328,11 @@ ClickHouse가 생성하는 Parquet 파일에 Bloom 필터를 기록하고(`outpu
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - `01`은 `user_files`에 Parquet 파일을 남깁니다 — 정리: `docker exec clickhouse-25-2 rm /var/lib/clickhouse/user_files/bloom_*.parquet`
 - `02`는 `/var/lib/clickhouse/backups/snapshot_v1`에 백업을 만들며, 실행 스크립트가 매번 먼저 지웁니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

@@ -255,7 +255,7 @@ docker compose down -v         # also drop volumes (ClickHouse data + Superset m
 <blockquote>
 <p><strong>핵심 함정:</strong> ClickHouse geo 함수(<code>pointInPolygon</code>, <code>geoToH3</code>, polygon dictionary)는 <strong>WGS84 경위도(degree, EPSG:4326)</strong> 를 전제한다. EPSG:5179(UTM-K, 미터) 좌표를 넣으면 <strong>에러 없이 조용히 틀린 결과</strong>를 낸다. 따라서 데이터는 반드시 4326 상태로 적재한다.</p>
 </blockquote>
-<p>작성자: Ken Lee (ClickHouse SA) · 라이선스: MIT</p>
+<p>작성자: Ken Lee (ClickHouse SA) · 라이선스: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> (단 <code>data/sig_4326.geojson</code> 제외 — <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/data/README.md"><code>data/README.md</code></a>)</p>
 <h3>구성</h3>
 <table>
 <thead>
@@ -461,7 +461,9 @@ docker compose down -v         # 볼륨(ClickHouse 데이터 + Superset 메타DB
 </code></pre>
 <ul>
 <li>이번 랩은 <strong>시군구(251개)</strong> 단위. 읍면동(수천 개, vertex 폭증 → 단순화 필요)은 1차 범위에서 제외.</li>
-<li>데이터 출처: <a href="https://github.com/southkorea/southkorea-maps"><code>southkorea/southkorea-maps</code></a> <code>kostat/2013</code> 시군구 GeoJSON(WGS84, 단순화본).</li>
+<li>데이터 출처: <a href="https://github.com/southkorea/southkorea-maps"><code>southkorea/southkorea-maps</code></a> <code>kostat/2013</code> 시군구 GeoJSON(WGS84, 단순화본).
+  이 경계 데이터에는 저장소의 MIT가 적용되지 않습니다 — 조건은 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/data/README.md"><code>data/README.md</code></a> 참조.
+  랩의 나머지(스키마·로더·Superset 설정·문서)는 MIT입니다.</li>
 </ul></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/korea-geo"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/usecase/ch-geo-analytics/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Geospatial Analytics with ClickHouse — H3 Indexing Lab</span></a><a class="step next" href="../../../labs/usecase/gnome-variants/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Genome Variants Lab - ClickHouse Hands-on Lab</span></a></nav>

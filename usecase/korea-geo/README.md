@@ -192,7 +192,7 @@ docker compose down -v         # also drop volumes (ClickHouse data + Superset m
 
 > **핵심 함정:** ClickHouse geo 함수(`pointInPolygon`, `geoToH3`, polygon dictionary)는 **WGS84 경위도(degree, EPSG:4326)** 를 전제한다. EPSG:5179(UTM-K, 미터) 좌표를 넣으면 **에러 없이 조용히 틀린 결과**를 낸다. 따라서 데이터는 반드시 4326 상태로 적재한다.
 
-작성자: Ken Lee (ClickHouse SA) · 라이선스: MIT
+작성자: Ken Lee (ClickHouse SA) · 라이선스: [MIT](../../LICENSE) (단 `data/sig_4326.geojson` 제외 — [`data/README.md`](data/README.md))
 
 ### 구성
 
@@ -365,3 +365,5 @@ docker compose down -v         # 볼륨(ClickHouse 데이터 + Superset 메타DB
 
 - 이번 랩은 **시군구(251개)** 단위. 읍면동(수천 개, vertex 폭증 → 단순화 필요)은 1차 범위에서 제외.
 - 데이터 출처: [`southkorea/southkorea-maps`](https://github.com/southkorea/southkorea-maps) `kostat/2013` 시군구 GeoJSON(WGS84, 단순화본).
+  이 경계 데이터에는 저장소의 MIT가 적용되지 않습니다 — 조건은 [`data/README.md`](data/README.md) 참조.
+  랩의 나머지(스키마·로더·Superset 설정·문서)는 MIT입니다.

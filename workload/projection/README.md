@@ -274,7 +274,7 @@ If memory issues occur during large data inserts:
 
 ### 📝 License
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 
@@ -552,7 +552,7 @@ EXPLAIN indexes = 1 SELECT ...;
 
 ### 📝 라이선스
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 작성자
 

@@ -464,3 +464,7 @@ The Device360 PoC successfully demonstrates production-ready performance on Clic
 **Test Completed**: December 12, 2025
 **Status**: Production-ready ✅
 **Documentation Version**: 1.0
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

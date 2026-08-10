@@ -306,7 +306,7 @@ You can create additional tables with other granularity values like 512, 2048, e
 
 ### 📝 License
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 
@@ -617,7 +617,7 @@ WHERE player_id IN (10, 100, 1000, 10000, 100000)
 
 ### 📝 라이선스
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 작성자
 

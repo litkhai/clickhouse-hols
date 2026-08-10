@@ -273,7 +273,7 @@ DROP DATABASE IF EXISTS customer360;
 
 ### 📝 License
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 
@@ -551,7 +551,7 @@ DROP DATABASE IF EXISTS customer360;
 
 ### 📝 라이선스
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 작성자
 

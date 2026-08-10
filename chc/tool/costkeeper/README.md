@@ -1207,3 +1207,7 @@ costkeeper/
 **CostKeeper v2.0** - Keep your ClickHouse Cloud costs under control! 💰
 
 Last Updated: 2025-12-06
+
+## License
+
+[MIT](../../../LICENSE) — same as the rest of the repository.

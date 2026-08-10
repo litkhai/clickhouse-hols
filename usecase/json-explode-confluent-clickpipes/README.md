@@ -299,3 +299,11 @@ python scripts/99_teardown.py --drop-db  # + 데이터베이스 DROP
 | `unit_price`가 NULL | 콤마 가격 파싱 — `toDecimal64OrNull`은 실패 시 NULL (의도된 안전장치) |
 
 ClickHouse Cloud(v26.4) + Confluent Cloud에서 전 구간 검증 완료.
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.
+
+## 라이선스
+
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.

@@ -218,3 +218,7 @@ cat /etc/clickhouse-server/config.xml | grep mysql_port
 - 테이블 크기가 충분히 큰지 확인
 - 캐시 워밍업 확인
 - 필터링 조건의 선택도(selectivity) 확인
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

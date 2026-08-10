@@ -248,7 +248,7 @@ SET max_memory_usage = 20000000000; -- 20GB
 
 ### 📝 License
 
-This project is provided for educational and hands-on lab purposes.
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 

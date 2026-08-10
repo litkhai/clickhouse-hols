@@ -205,6 +205,11 @@ docker logs clickhouse-26-5
 - Cleanup is commented out for inspection
 - The `filesystem()` test creates files in `user_files` — remove with `docker exec clickhouse-26-5 rm /var/lib/clickhouse/user_files/demo_*` if desired
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -320,6 +325,11 @@ cd local/releases/26.5
 - 모든 기능은 ClickHouse 26.5.1에서 검증
 - 각 스크립트는 독립적으로 실행 가능
 - `filesystem()` 테스트는 `user_files`에 파일을 생성합니다 — 정리: `docker exec clickhouse-26-5 rm /var/lib/clickhouse/user_files/demo_*`
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

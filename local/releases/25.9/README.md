@@ -361,7 +361,7 @@ cd ../../oss-mac-setup
 
 ### 📄 License
 
-MIT License - See root directory for details
+[MIT](../../../LICENSE) — same as the rest of the repository.
 
 ### 🤝 Contributing
 
@@ -732,7 +732,7 @@ cd ../../oss-mac-setup
 
 ### 📄 라이선스
 
-MIT License - 자세한 내용은 루트 디렉토리를 참조하세요.
+[MIT](../../../LICENSE) — 저장소 전체와 동일합니다.
 
 ### 🤝 기여
 

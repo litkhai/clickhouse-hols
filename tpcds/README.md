@@ -261,4 +261,12 @@ clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_PORT --user $CLICKH
 
 ## License
 
-TPC-DS is a trademark of the Transaction Processing Performance Council (TPC). The benchmark specifications and tools are subject to TPC licensing terms.
+The scripts and documentation here are [MIT](../LICENSE), like the rest of the
+repository — **except [`queries/`](queries/), which is GPL-3.0** because those 99
+files are adapted from [Altinity/tpc-ds](https://github.com/Altinity/tpc-ds).
+See [`queries/LICENSE`](queries/LICENSE).
+
+TPC-DS is a trademark of the Transaction Processing Performance Council (TPC).
+The benchmark specification and the `dsdgen` toolkit are subject to TPC's own
+terms and are not distributed here — `02-generate-data.sh` has you build dsdgen
+yourself from [gregrahn/tpcds-kit](https://github.com/gregrahn/tpcds-kit).

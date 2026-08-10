@@ -326,9 +326,9 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 
 ## 📄 라이선스 / License
 
-이 프로젝트는 학습 및 연구 목적으로 자유롭게 사용할 수 있습니다.
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.
 
-This project is freely available for learning and research purposes.
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ---
 

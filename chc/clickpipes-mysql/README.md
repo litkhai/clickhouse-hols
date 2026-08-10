@@ -151,3 +151,7 @@ GROUP BY ()
 ```bash
 docker compose down -v  # 볼륨까지 삭제
 ```
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

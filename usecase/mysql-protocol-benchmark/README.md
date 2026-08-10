@@ -110,3 +110,7 @@ mysql-protocol-benchmark/
 ```bash
 docker-compose down -v
 ```
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

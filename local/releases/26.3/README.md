@@ -185,6 +185,11 @@ docker logs clickhouse-26-3
 - All features verified on ClickHouse 26.3.12.3
 - Each script runs independently; cleanup is commented out for inspection
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -289,6 +294,11 @@ CTE를 한 번 평가해 임시 테이블에 저장하고 모든 참조에서 �
 - 26.3은 2026년 **LTS** 릴리스 (1년 지원)
 - 모든 기능은 ClickHouse 26.3.12에서 검증
 - 각 스크립트는 독립적으로 실행 가능
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

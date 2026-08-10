@@ -189,6 +189,11 @@ docker logs clickhouse-25-3
 - Cleanup is commented out for inspection
 - The changelog also lists low-cardinality decimal support, but `LowCardinality(Decimal(10, 2))` is still rejected on 25.3.14 with `ILLEGAL_TYPE_OF_ARGUMENT`, so it is not exercised here
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -318,6 +323,11 @@ cd local/releases/25.3
 - 테스트 데이터는 각 SQL 파일 안에서 생성
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - changelog에는 low-cardinality decimal 지원도 있지만, 25.3.14에서 `LowCardinality(Decimal(10, 2))`는 여전히 `ILLEGAL_TYPE_OF_ARGUMENT`로 거부되어 여기서는 다루지 않습니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

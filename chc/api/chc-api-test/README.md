@@ -194,7 +194,7 @@ pip3 install requests
 
 ## 라이선스
 
-MIT License
+[MIT](../../../LICENSE) — same as the rest of the repository.
 
 ## 기여
 

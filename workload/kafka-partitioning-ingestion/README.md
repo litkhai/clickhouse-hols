@@ -171,7 +171,7 @@ high-throughput streaming steady-state**.
 
 ### 📝 License
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 Author
 
@@ -332,7 +332,7 @@ within-part granule skipping이 point lookup을 처리합니다. 정렬의 이�
 
 ### 📝 라이선스
 
-MIT License
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ### 👤 작성자
 

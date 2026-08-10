@@ -198,6 +198,11 @@ docker logs clickhouse-26-4
 - Test data is generated within each SQL file
 - Cleanup is commented out for inspection
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -307,6 +312,11 @@ cd local/releases/26.4
 - 모든 기능은 ClickHouse 26.4.3에서 검증
 - 각 스크립트는 독립적으로 실행 가능
 - 정리(cleanup)는 기본적으로 주석 처리됨
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

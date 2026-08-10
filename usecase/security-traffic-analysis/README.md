@@ -563,7 +563,7 @@ clickhouse-client --queries-file 99-cleanup.sql
 
 ### 📝 License
 
-MIT License - See repository root for details
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ---
 
@@ -1135,7 +1135,7 @@ clickhouse-client --queries-file 99-cleanup.sql
 
 ### 📝 라이선스
 
-MIT License - 자세한 내용은 저장소 루트 참조
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.
 
 ---
 

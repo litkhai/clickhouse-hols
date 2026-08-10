@@ -189,6 +189,11 @@ docker logs clickhouse-25-4
 - Cleanup is commented out for inspection
 - `03` creates two databases (`documented`, `analytics_marts`); the cleanup block at the end of the file drops them
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -319,6 +324,11 @@ cd local/releases/25.4
 - 테스트 데이터는 각 SQL 파일 안에서 생성
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - `03`은 데이터베이스 2개(`documented`, `analytics_marts`)를 만듭니다 — 파일 끝의 정리 블록에서 삭제합니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 

@@ -249,3 +249,11 @@ ClickHouse Cloud 환경에서 `async_insert=1, wait_for_async_insert=0` 설정�
 - 테스트 완료 후 3초 대기하여 비동기 버퍼가 flush되도록 합니다.
 - 대용량 테스트는 시스템 리소스를 많이 사용하므로 주의가 필요합니다.
 - 실제 프로덕션 환경에서는 워크로드에 맞게 파라미터를 조정해야 합니다.
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.
+
+## 라이선스
+
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.

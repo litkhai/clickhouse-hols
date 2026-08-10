@@ -430,7 +430,7 @@ SELECT * FROM s3(
 
 ## 📝 License
 
-Educational purposes demonstration project
+[MIT](../../LICENSE) — same as the rest of the repository.
 
 ---
 

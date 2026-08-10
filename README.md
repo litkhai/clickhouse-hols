@@ -188,15 +188,23 @@ Issues and pull requests are welcome.
 
 [MIT](LICENSE), with one exception.
 
-The 99 query files under [`tpcds/queries/`](tpcds/queries/) are adapted from
-[Altinity/tpc-ds](https://github.com/Altinity/tpc-ds) and stay under **GPL-3.0**
-([text](tpcds/queries/LICENSE)); MIT cannot be applied to them. TPC-DS is a
-trademark of the Transaction Processing Performance Council, and its
-specification and `dsdgen` toolkit carry TPC's own terms — the lab has you
+Two directories hold material this repository did not write and cannot
+relicense:
+
+| Path | Licence | Origin |
+| --- | --- | --- |
+| [`tpcds/queries/`](tpcds/queries/) — 99 query files | **GPL-3.0** ([text](tpcds/queries/LICENSE)) | adapted from [Altinity/tpc-ds](https://github.com/Altinity/tpc-ds) |
+| [`usecase/korea-geo/data/`](usecase/korea-geo/data/) — one GeoJSON | **KOSTAT terms**, no SPDX licence ([details](usecase/korea-geo/data/README.md)) | [southkorea/southkorea-maps](https://github.com/southkorea/southkorea-maps), originally KOSTAT census boundaries |
+
+TPC-DS is a trademark of the Transaction Processing Performance Council, and
+its specification and `dsdgen` toolkit carry TPC's own terms — the lab has you
 fetch the toolkit yourself rather than shipping it.
 
-Everything else is MIT. The labs pull ClickHouse and other software at run time,
-each under its own licence; nothing third-party is vendored here.
+Everything else is MIT, and each lab's README says so. Labs install ClickHouse
+and other software at run time under its own licence — the MCP lab pip-installs
+[mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse) (Apache-2.0), for
+instance — but apart from the two rows above, nothing third-party is committed
+here.
 
 ### 🌐 Additional Resources
 
@@ -390,16 +398,22 @@ git config core.hooksPath .githooks
 
 [MIT](LICENSE), 단 한 가지 예외가 있습니다.
 
-[`tpcds/queries/`](tpcds/queries/) 아래 99개 쿼리 파일은
-[Altinity/tpc-ds](https://github.com/Altinity/tpc-ds)에서 가져와 수정한 것으로
-**GPL-3.0**을 그대로 따릅니다([전문](tpcds/queries/LICENSE)). 이 파일들에는 MIT를
-적용할 수 없습니다. TPC-DS는 Transaction Processing Performance Council의
-상표이며, 명세와 `dsdgen` 툴킷에는 TPC 자체 약관이 적용됩니다 — 그래서 이 실습은
-툴킷을 포함하지 않고 직접 내려받게 합니다.
+직접 작성하지 않았고 라이선스를 바꿀 권한도 없는 자료가 두 디렉토리에 있습니다.
 
-그 외는 모두 MIT입니다. 각 실습은 실행 시점에 ClickHouse 등 소프트웨어를
-내려받으며 그것들은 각자의 라이선스를 따릅니다. 서드파티 코드를 이 저장소에
-포함해 두지는 않았습니다.
+| 경로 | 라이선스 | 출처 |
+| --- | --- | --- |
+| [`tpcds/queries/`](tpcds/queries/) — 쿼리 99개 | **GPL-3.0** ([전문](tpcds/queries/LICENSE)) | [Altinity/tpc-ds](https://github.com/Altinity/tpc-ds)에서 가져와 수정 |
+| [`usecase/korea-geo/data/`](usecase/korea-geo/data/) — GeoJSON 1개 | **KOSTAT 조건**, SPDX 라이선스 없음 ([설명](usecase/korea-geo/data/README.md)) | [southkorea/southkorea-maps](https://github.com/southkorea/southkorea-maps), 원본은 통계청 센서스 경계 |
+
+TPC-DS는 Transaction Processing Performance Council의 상표이며, 명세와
+`dsdgen` 툴킷에는 TPC 자체 약관이 적용됩니다 — 그래서 이 실습은 툴킷을 포함하지
+않고 직접 내려받게 합니다.
+
+그 외는 모두 MIT이고, 각 실습 README에 그렇게 적어두었습니다. 실습이 실행 시점에
+내려받는 소프트웨어는 각자의 라이선스를 따릅니다 — 예를 들어 MCP 실습은
+[mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse)(Apache-2.0)를
+pip으로 설치합니다. 위 두 줄을 빼면 서드파티 코드를 이 저장소에 커밋해 두지
+않았습니다.
 
 ### 🌐 추가 자료
 

@@ -254,3 +254,7 @@ Refreshable materialized views are not supported
 ## 📧 문의
 
 테스트 관련 문의사항은 ClickHouse Solutions Team에 연락주세요.
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.

@@ -165,3 +165,7 @@ terraform init -upgrade
 
 - ClickHouse Terraform Provider: https://registry.terraform.io/providers/ClickHouse/clickhouse
 - ClickHouse Cloud API: https://clickhouse.com/docs/integrations/clickpipes
+
+## License
+
+[MIT](../../../LICENSE) — same as the rest of the repository.

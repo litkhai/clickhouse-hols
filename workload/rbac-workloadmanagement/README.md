@@ -404,4 +404,4 @@ SELECT * FROM system.row_policies WHERE table = 'sales';
 
 ## 📝 라이선스
 
-이 실습 자료는 학습 목적으로 자유롭게 사용할 수 있습니다.
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.

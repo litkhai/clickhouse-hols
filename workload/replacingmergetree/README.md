@@ -181,3 +181,11 @@ clickhouse-client --queries-file 99-cleanup.sql
 ---
 
 **Happy Learning! 🚀**
+
+## License
+
+[MIT](../../LICENSE) — same as the rest of the repository.
+
+## 라이선스
+
+[MIT](../../LICENSE) — 저장소 전체와 동일합니다.

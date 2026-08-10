@@ -186,6 +186,11 @@ docker logs clickhouse-25-1
 - Cleanup is commented out for inspection
 - `generateSerialID` needs a configured Keeper and is therefore not exercised by these labs
 
+
+### 📄 License
+
+[MIT](../../../LICENSE) — free to learn from and modify.
+
 ---
 
 **Happy Learning! 🚀**
@@ -311,6 +316,11 @@ MergeTree 설정 `add_minmax_index_for_numeric_columns`와 `add_minmax_index_for
 - 테스트 데이터는 각 SQL 파일 안에서 생성
 - 정리(cleanup) 구문은 확인을 위해 주석 처리
 - `generateSerialID`는 Keeper 설정이 필요해 이 랩에서는 다루지 않습니다
+
+
+### 📄 라이선스
+
+[MIT](../../../LICENSE) — 자유롭게 학습하고 수정하세요.
 
 ---
 
