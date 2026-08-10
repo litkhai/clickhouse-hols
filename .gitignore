@@ -21,10 +21,18 @@ local/oss-mac-setup/logs/
 **/clickhouse-data/
 **/clickhouse-logs/
 
-# Terraform working state
+# Terraform working state. A saved plan carries the whole state inside it, so
+# ignoring *.tfstate alone is not enough — that is how a tfplan holding real
+# account IDs, bucket names and role ARNs got committed here once.
 **/.terraform/
 *.tfstate
 *.tfstate.*
+tfplan
+*.tfplan
+# Editor leftovers next to a tfvars file: terraform.tfvars.save is not matched
+# by *.tfvars, and two of them were committed as corrupted vim buffers.
+*.tfvars.*
+!*.tfvars.example
 
 # Local artifacts
 *.bak
