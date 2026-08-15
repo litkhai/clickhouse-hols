@@ -42,6 +42,8 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.5/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.6/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.7/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/managed-postgres/postgis-fdw-bike/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/managed-postgres/provisioning/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/tpcds/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/ads-analytics/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/ch-geo-analytics/</loc></url>

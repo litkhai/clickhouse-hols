@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostGIS + pg_clickhouse — Seoul public bike · ClickHouse HOLs</title>
+<meta name="description" content="PostGIS + pg_clickhouse — Seoul public bike — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>managed-postgres/postgis-fdw-bike</code>
+    
+  </nav>
+  <div class="readme en"><h1>PostGIS + pg_clickhouse — Seoul public bike</h1>
+<p>Geography stays in Postgres; the counting moves to ClickHouse. A dashboard shows,
+per query, which side actually answered.</p>
+<hr />
+<p><strong>The claim:</strong> you do not have to choose between Postgres and ClickHouse. Keep
+the geography in Postgres, send only the counting to ClickHouse, and neither
+side does the thing it is bad at.</p>
+<pre><code>bike.stations   2,789 rows, PostGIS points      ← barely changes
+bike.trips      24M rows and growing            ← only ever counted
+                joined on an integer station id
+</code></pre>
+<p>That join key is the whole trick. It is an integer, so no geometry ever has to
+reach the aggregating side.</p>
+<pre><code>   PostGIS (local only)      pg_clickhouse (FDW)        ClickHouse
+   ────────────────────      ───────────────────        ──────────
+   geometry: geom            small result comes back ←  trips + stations
+   Voronoi, KNN, DBSCAN,                                GROUP BY *and* the
+   ST_Distance, azimuth                                 join both run here
+</code></pre>
+<p><strong>And it works.</strong> Same SQL, both sides, 28-day window over 24M rows:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>plan</th>
+<th>rows it moved</th>
+<th>time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Postgres, local tables</td>
+<td>10 nodes — hash join, sort, aggregate</td>
+<td>3,459,577 through the sort</td>
+<td>9.6 s</td>
+</tr>
+<tr>
+<td>ClickHouse, foreign tables</td>
+<td><strong>one Foreign Scan</strong></td>
+<td>15 rows back</td>
+<td>1.3 s</td>
+</tr>
+</tbody>
+</table>
+<p>ClickHouse's own <code>system.query_log</code> confirms it independently: 24.11M rows read
+<em>there</em>, 15 returned. All five aggregates push down, including the
+<code>extract(hour FROM started_at + interval '9 hours')</code> the KST filters generate —
+it arrives as <code>toHour(started_at + 32400)</code>.</p>
+<p><strong>Verified 2026-08-15</strong> against a live ClickHouse Managed Postgres service in
+<code>ap-northeast-2</code>: PostgreSQL 18.4, PostGIS 3.6.4, pg_clickhouse 0.3, pg_cron 1.6.</p>
+<h3>Quickstart</h3>
+<pre><code class="language-bash">ln -s ../provisioning/config.env config.env   # or fill in config.env.example
+
+./scripts/fetch-data.sh                       # ~275 MB, about 45s
+./scripts/load-stations.sh                    # 2,789 rows into PostGIS
+./scripts/load-trips.sh                       # 1.6M rows, about 55s
+./scripts/backfill-trips.sh                   # fill every missing day since
+./scripts/catch-up.sh                         # close the gap to now
+
+./scripts/psql.sh -f /sql/30-generator-in-db.sql          # server-side feed
+./scripts/psql.sh -c &quot;SELECT bike.generator_schedule('1 minute')&quot;
+</code></pre>
+<p>Then, to let the aggregates move (needs a ClickHouse service with the two tables
+already replicated into it by ClickPipes):</p>
+<pre><code class="language-bash">./scripts/psql.sh -v ch_host=... -v ch_pass=... -f /sql/40-fdw-clickhouse.sql
+</code></pre>
+<p><code>psql</code> runs in a container, so nothing needs installing. Output masks the
+hostname, which carries the service name and id. Credentials live in a
+gitignored <code>config.env</code> — this repository is public.</p>
+<h3>The dashboard</h3>
+<pre><code class="language-bash">cd ui &amp;&amp; FOREIGN_SCHEMA=ch docker compose --env-file ../config.env up --build
+open http://localhost:8080
+</code></pre>
+<p>Korean by default; <code>?lang=en</code> or the KO/EN switch in the header for English.</p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dashboard</strong></td>
+<td>Map and charts on one grid: station demand from PostGIS, trips per bucket, hour of day, busiest districts, trip length</td>
+</tr>
+<tr>
+<td><strong>Maps</strong></td>
+<td>The four spatial queries, each with the SQL and plan that produced it</td>
+</tr>
+<tr>
+<td><strong>Statistics</strong></td>
+<td>The five aggregates, with a switch for <strong>which side answers</strong> — <code>bike</code> locally or <code>ch</code> on ClickHouse</td>
+</tr>
+<tr>
+<td><strong>Pushdown</strong></td>
+<td>The same query on both sides at once: timings, the Remote SQL actually sent, and how many rows each plan moved</td>
+</tr>
+<tr>
+<td><strong>Log</strong></td>
+<td>Every query the session ran, with its verdict, widest plan node and what crossed the wire</td>
+</tr>
+</tbody>
+</table>
+<p>One filter drives all of them: a range preset (1d / 1w / 1mo / 3mo / 6mo / 1y /
+custom, counted back from the newest trip), a bucket constrained to fit that
+range, districts, hours, weekday or weekend, and a minimum group size.</p>
+<p><strong>Only the pulse polls.</strong> It is index work and costs about 200 ms. Anything that
+scans waits for <strong>Run query</strong>, because at 24M rows a daily rollup is 5 s and
+<code>count(DISTINCT started_at::date)</code> is 14 s — measured, which is why they are not
+on a timer. Leaving <code>FOREIGN_SCHEMA</code> unset is fine; the page then says plainly
+that there is nothing to push down to, rather than reporting a failed pushdown.</p>
+<h3>Why this dataset</h3>
+<p>Seoul's public bike history is one row per trip with a start and an end station,
+which makes the split the lab is about fall out naturally:</p>
+<table>
+<thead>
+<tr>
+<th>Side</th>
+<th>What it holds</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PostGIS</strong></td>
+<td>대여소 — station points, districts, addresses</td>
+<td>2,789 rows, static</td>
+</tr>
+<tr>
+<td><strong>Facts</strong></td>
+<td>대여이력 — one row per trip</td>
+<td>~1.6M rows <em>per month</em></td>
+</tr>
+</tbody>
+</table>
+<p>Both datasets are 서울 열린데이터광장 open data under <strong>공공누리 제1유형</strong>:
+attribution, commercial use and modification allowed. No API key and no account.</p>
+<h3>The two query sets</h3>
+<table>
+<thead>
+<tr>
+<th>Query set</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sql/10-spatial-postgres.sql</code></td>
+<td>Five spatial queries that <strong>cannot</strong> leave Postgres — Voronoi service areas, KNN through the GiST index, DBSCAN clusters, detour factor against the geodesic, net flow and its bearing</td>
+</tr>
+<tr>
+<td><code>sql/20-aggregate-pushdown.sql</code></td>
+<td>Five aggregates that <strong>should</strong> run on ClickHouse — nothing but <code>WHERE</code>, <code>GROUP BY</code>, <code>HAVING</code> and plain aggregates over millions of rows</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Proving the second half moved:</strong></p>
+<pre><code class="language-bash">./scripts/explain-pushdown.sh
+</code></pre>
+<p><code>EXPLAIN (VERBOSE)</code> prints the SQL the wrapper will send. If <code>Remote SQL</code> carries
+the <code>GROUP BY</code>, ClickHouse did the work. If it only selects columns and there is
+an <code>Aggregate</code> above it, every row crossed the network and Postgres counted them
+— slower than never moving the table. Nothing warns you about this; you have to
+look. The Pushdown tab does the same thing per query, and adds the row counts.</p>
+<p><strong>What breaks pushdown is mixing in a <em>local</em> table, not joining as such.</strong>
+ClickPipes replicates <code>bike.stations</code> too, so naming a station is remote work
+like everything else. What cannot move is the geometry: <code>geom</code> has no ClickHouse
+equivalent.</p>
+<h3>The tables</h3>
+<p><code>bike.stations</code> mirrors the spreadsheet and adds <code>geom geometry(Point, 4326)</code>,
+built from the published lat/lon. <code>bike.trips</code> keeps all sixteen source columns
+in their original order, plus a surrogate <code>trip_id</code>.</p>
+<p>The surrogate key is not decoration. The source has no natural one — all five of
+<code>bike_id</code>, both timestamps and both station ids still leave 96 rows non-unique,
+and those are real distinct trips that differ only in the distance recorded. And
+logical replication needs a replica identity: without a primary key ClickPipes
+refuses the table outright. Adding it to 1.64M rows took 7.7s.</p>
+<p>There is <strong>no foreign key</strong> from trips to stations. The history references
+stations the current master no longer lists — they get retired, and the master
+is a snapshot — so the constraint would reject real rows. 17 station numbers in
+January's history are absent from the master, across 26,346 trips.</p>
+<h3>Filling the gap, and keeping it filled</h3>
+<p><code>backfill-trips.sh</code> asks the database which days between the first loaded trip
+and yesterday have no rows, and writes only those. Taking <code>max(started_at) + 1</code>
+as the starting point would have been simpler and was wrong — one streaming test
+had already put rows on today's date, which made February through August look
+covered.</p>
+<pre><code>$ ./scripts/backfill-trips.sh --explain
+  weekday 60388 / weekend 37893 trips per day
+  days       : 195 missing, 2026-02-01 .. 2026-08-14
+  estimate   : 22,202,682 trips at scale 1.0
+  extrapolated months (no published data): [7, 8]
+</code></pre>
+<p>Full volume is 22M rows, and every one replicates downstream, so it asks before
+starting. <code>--scale 0.1</code> gives the same shape at a tenth the size.</p>
+<p><strong>How the trips are made.</strong> A generated trip is a real trip with a new
+timestamp, drawn from the pool of real trips that started in the same hour of
+the same kind of day. Every field here correlates with every other — morning
+trips run to subway stations and last eight minutes, Sunday afternoon trips run
+along the river and last forty — so drawing each column from its own
+distribution would reproduce all the histograms and none of the joint structure.
+The OD matrix would go uniform and the aggregates this lab exists to demonstrate
+would flatten out.</p>
+<p>Measured against the real month, a generated week matches closely:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>real (Jan)</th>
+<th>generated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>share of weekday trips at 08:00</td>
+<td>28.16%</td>
+<td>28.20%</td>
+</tr>
+<tr>
+<td>share at 18:00</td>
+<td>26.55%</td>
+<td>26.49%</td>
+</tr>
+<tr>
+<td>mean duration</td>
+<td>17.1 min</td>
+<td>17.0 min</td>
+</tr>
+<tr>
+<td>mean distance</td>
+<td>1,724 m</td>
+<td>1,718 m</td>
+</tr>
+<tr>
+<td>round trips</td>
+<td>8.6%</td>
+<td>8.7%</td>
+</tr>
+</tbody>
+</table>
+<p>What is <em>not</em> measured is the month-to-month scale — only January is loaded. The
+published monthly file sizes stand in for trip counts, and July and August are
+extrapolated because they are not published yet. <code>--explain</code> names the guessed
+months.</p>
+<h3>Time zones</h3>
+<p><code>started_at</code> and <code>ended_at</code> are <strong>UTC</strong>. The source publishes Korean local time
+and the column carries no zone, so the distinction had to be decided rather than
+inherited: ClickHouse attaches a timezone to <code>DateTime</code>, and KST wall-clock
+arriving there would quietly mean nine hours earlier.</p>
+<p>Seoul is UTC+9 with no daylight saving, so the weekday peaks sit at 23:00 and
+09:00 UTC. Everything the dashboard shows converts back — a KST day is the UTC
+range <code>[D−9h, D+1−9h)</code>, done in one place.</p>
+<p>Getting this wrong is silent. The in-database generator first read
+<code>AT TIME ZONE 'Asia/Seoul'</code> while the table was still KST, and generated the
+07:00 shape at 16:45 — the rows looked entirely plausible.</p>
+<h3>Replicating out</h3>
+<p>ClickPipes/PeerDB picks up both tables once each has a primary key. From the
+Postgres side, a running mirror looks like this:</p>
+<pre><code class="language-sql">SELECT slot_name, plugin, active,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS unconsumed
+FROM pg_replication_slots;
+
+SELECT application_name, state, replay_lag FROM pg_stat_replication;
+</code></pre>
+<p><code>confirmed_flush_lsn</code> advances in steps rather than continuously, because the
+consumer confirms once a batch has landed downstream — watching it for five
+seconds and concluding it is stuck is a mistake worth not making.</p>
+<p>Watch two things. An <strong>inactive slot retains WAL indefinitely</strong> and will fill the
+disk, so <code>SELECT count(*) FROM pg_replication_slots WHERE NOT active</code> belongs in
+whatever you monitor. And the publication here names its tables explicitly; a
+<code>FOR ALL TABLES</code> publication would sweep up the generator's working tables too,
+which is why they live in a separate <code>bikegen</code> schema.</p>
+<h3>Files</h3>
+<pre><code>sql/01-schema.sql             stations (PostGIS) + trips, UTC noted on the column
+sql/02-verify.sql             what loaded, and where the data disagrees with itself
+sql/10-spatial-postgres.sql   five queries that stay
+sql/20-aggregate-pushdown.sql five that travel
+sql/30-generator-in-db.sql    pg_cron + procedure, model tables in bikegen
+sql/40-fdw-clickhouse.sql     ch.trips / ch.stations over the ClickHouse copy
+
+scripts/fetch-data.sh         download, with filename verification
+scripts/load-stations.sh      xlsx → PostGIS, geometry + GiST index
+scripts/load-trips.sh         CP949 → UTF-8, KST → UTC, staged then cast
+scripts/backfill-trips.sh     fill missing days
+scripts/catch-up.sh           fill the hours since the newest trip
+scripts/shift-to-utc.sh       one-off conversion, primary-key batches
+scripts/generate-trips.sh     client-side live feed
+scripts/explain-pushdown.sh   did it push down?
+scripts/psql.sh               psql in a container
+
+ui/app.py                     stdlib + psycopg; walks EXPLAIN JSON for the verdict
+ui/index.html                 dashboard, maps, statistics, pushdown, log
+</code></pre>
+<h3>Notes on the source</h3>
+<p>The portal serves files over a plain POST, keyed by an internal sequence number
+per file plus an <code>infSeq</code> per dataset. Those numbers are pinned in
+<code>fetch-data.sh</code> because the portal exposes no lookup for them. Get <code>infSeq</code>
+wrong and it does not error — it serves <strong>a different dataset's file</strong>. The first
+attempt while writing this pulled down an unrelated 1 GB binary. The script
+checks the filename in the response and refuses anything unexpected.</p>
+<p>The CSVs are CP949.</p>
+<h3>Further reading</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/managed-postgres/postgis-fdw-bike/WRITEUP.md">WRITEUP.md</a> — how it was built, in order, with the mistakes left
+in: why this dataset, what the platform provided, the UTC decision, how the
+synthetic trips are modelled, what it took to prove pushdown, and what the
+dashboard forced. Written as source material for a longer article.</p>
+<h3>📄 License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository. The data is not
+redistributed here; <code>fetch-data.sh</code> pulls it from 서울 열린데이터광장 under
+공공누리 제1유형, and <code>data/</code> is gitignored.</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>주장:</strong> Postgres냐 ClickHouse냐를 고를 필요가 없습니다. 지리는 Postgres에 두고
+집계만 ClickHouse로 보내면, 양쪽 모두 잘 못하는 일을 하지 않습니다.</p>
+<pre><code>bike.stations   2,789행, PostGIS 포인트     ← 거의 안 변함
+bike.trips      2,400만 행, 계속 증가       ← 집계만 함
+                정수 대여소번호로 조인
+</code></pre>
+<p>조인 키가 정수라는 게 핵심입니다. 지오메트리가 집계하는 쪽으로 건너갈 일이
+없습니다.</p>
+<pre><code>   PostGIS (로컬 전용)       pg_clickhouse (FDW)      ClickHouse
+   ─────────────────────     ───────────────────      ──────────
+   지오메트리: geom          작은 결과만 회수    ←    trips + stations
+   Voronoi, KNN, DBSCAN,                              GROUP BY 도 조인도
+   ST_Distance, 방위각                                여기서 실행
+</code></pre>
+<p><strong>그리고 실제로 됩니다.</strong> 같은 SQL, 양쪽, 2,400만 행 중 28일 구간:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>플랜</th>
+<th>옮긴 행</th>
+<th>시간</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Postgres, 로컬 테이블</td>
+<td>노드 10개 — 해시 조인·정렬·집계</td>
+<td>정렬을 통과한 3,459,577행</td>
+<td>9.6초</td>
+</tr>
+<tr>
+<td>ClickHouse, foreign table</td>
+<td><strong>Foreign Scan 하나</strong></td>
+<td>회수 15행</td>
+<td>1.3초</td>
+</tr>
+</tbody>
+</table>
+<p>ClickHouse 자신의 <code>system.query_log</code>가 독립적으로 확인해 줍니다 — <em>저쪽에서</em>
+24.11M 행을 읽고 15행 반환. 집계 다섯 개가 모두 푸시다운되며, KST 필터가 만드는
+<code>extract(hour FROM started_at + interval '9 hours')</code>도 포함입니다 —
+<code>toHour(started_at + 32400)</code>으로 도착합니다.</p>
+<p><strong>2026-08-15 검증</strong>, <code>ap-northeast-2</code>의 실제 ClickHouse Managed Postgres 서비스
+기준: PostgreSQL 18.4, PostGIS 3.6.4, pg_clickhouse 0.3, pg_cron 1.6.</p>
+<h3>빠른 시작</h3>
+<pre><code class="language-bash">ln -s ../provisioning/config.env config.env   # 또는 config.env.example 작성
+
+./scripts/fetch-data.sh                       # 약 275 MB, 45초
+./scripts/load-stations.sh                    # 2,789행 PostGIS 적재
+./scripts/load-trips.sh                       # 164만 행, 약 55초
+./scripts/backfill-trips.sh                   # 이후 빠진 날짜 전부 채움
+./scripts/catch-up.sh                         # 지금까지의 공백 메움
+
+./scripts/psql.sh -f /sql/30-generator-in-db.sql          # 서버 사이드 피드
+./scripts/psql.sh -c &quot;SELECT bike.generator_schedule('1 minute')&quot;
+</code></pre>
+<p>집계를 옮기려면 (ClickPipes로 두 테이블이 이미 복제된 ClickHouse 서비스가
+필요합니다):</p>
+<pre><code class="language-bash">./scripts/psql.sh -v ch_host=... -v ch_pass=... -f /sql/40-fdw-clickhouse.sql
+</code></pre>
+<p><code>psql</code>은 컨테이너로 실행하므로 설치할 게 없습니다. 호스트명에 서비스 이름과 id가
+들어 있어 출력은 마스킹됩니다. 자격증명은 gitignore된 <code>config.env</code>에 둡니다 — 이
+저장소는 공개입니다.</p>
+<h3>대시보드</h3>
+<pre><code class="language-bash">cd ui &amp;&amp; FOREIGN_SCHEMA=ch docker compose --env-file ../config.env up --build
+open http://localhost:8080
+</code></pre>
+<p>기본 언어는 한국어이고, <code>?lang=en</code> 또는 헤더의 KO/EN 전환으로 영어를 볼 수
+있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>탭</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>대시보드</strong></td>
+<td>맵과 차트를 한 그리드에: PostGIS 대여소 수요, 기간별 대여, 시간대별, 자치구 순위, 이용 시간</td>
+</tr>
+<tr>
+<td><strong>지도</strong></td>
+<td>공간 쿼리 4종 — 각각 그 지도를 만든 SQL과 실행 계획을 함께</td>
+</tr>
+<tr>
+<td><strong>통계</strong></td>
+<td>집계 5종. <strong>어느 쪽이 답하는지</strong> 전환 — 로컬 <code>bike</code> 또는 ClickHouse <code>ch</code></td>
+</tr>
+<tr>
+<td><strong>푸시다운</strong></td>
+<td>같은 쿼리를 양쪽에서 동시에: 소요 시간, 실제로 전송된 Remote SQL, 각 플랜이 옮긴 행 수</td>
+</tr>
+<tr>
+<td><strong>로그</strong></td>
+<td>세션이 실행한 모든 쿼리 — 판정, 최대 플랜 노드, 네트워크를 건넌 행</td>
+</tr>
+</tbody>
+</table>
+<p>필터 하나가 전부를 움직입니다. 기간 프리셋(1일 / 1주 / 1개월 / 3개월 / 6개월 /
+1년 / 사용자 지정, 최신 대여에서 거슬러 계산), 그 기간에 맞게 제한된 버킷,
+자치구, 시간대, 평일/주말, 그룹 최소 건수.</p>
+<p><strong>폴링하는 것은 pulse뿐입니다.</strong> 인덱스 작업이라 약 200 ms입니다. 스캔하는 것은
+전부 <strong>쿼리 실행</strong>을 기다립니다. 2,400만 행에서 일별 롤업이 5초,
+<code>count(DISTINCT started_at::date)</code>가 14초이기 때문입니다 — 측정값이고, 그래서
+타이머에 걸지 않았습니다. <code>FOREIGN_SCHEMA</code>를 비워 둬도 됩니다. 그러면 화면이
+푸시다운 실패라고 보고하는 대신 보낼 대상이 없다고 명확히 말합니다.</p>
+<h3>왜 이 데이터인가</h3>
+<p>서울 따릉이 대여이력은 대여 한 건이 한 행이고 출발·반납 대여소를 갖고 있어, 이
+랩이 다루는 분리가 자연스럽게 나옵니다.</p>
+<table>
+<thead>
+<tr>
+<th>쪽</th>
+<th>담는 것</th>
+<th>크기</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PostGIS</strong></td>
+<td>대여소 — 포인트, 자치구, 주소</td>
+<td>2,789행, 정적</td>
+</tr>
+<tr>
+<td><strong>팩트</strong></td>
+<td>대여이력 — 대여 한 건이 한 행</td>
+<td><strong>월</strong> 164만 행</td>
+</tr>
+</tbody>
+</table>
+<p>두 데이터셋 모두 서울 열린데이터광장 공개 데이터, <strong>공공누리 제1유형</strong>입니다 —
+출처 표시 후 상업적 이용과 변형 가능. API 키도 계정도 필요 없습니다.</p>
+<h3>쿼리 세트 둘</h3>
+<table>
+<thead>
+<tr>
+<th>쿼리 세트</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sql/10-spatial-postgres.sql</code></td>
+<td>Postgres를 떠날 수 <strong>없는</strong> 공간 쿼리 5개 — Voronoi 세력권, GiST 최근접, DBSCAN 군집, 측지선 대비 우회율, 순유출입과 방위</td>
+</tr>
+<tr>
+<td><code>sql/20-aggregate-pushdown.sql</code></td>
+<td>ClickHouse에서 돌아야 <strong>하는</strong> 집계 5개 — 수백만 행에 대해 <code>WHERE</code>·<code>GROUP BY</code>·<code>HAVING</code>과 기본 집계만</td>
+</tr>
+</tbody>
+</table>
+<p><strong>후자가 실제로 넘어갔는지 증명:</strong></p>
+<pre><code class="language-bash">./scripts/explain-pushdown.sh
+</code></pre>
+<p><code>EXPLAIN (VERBOSE)</code>는 래퍼가 보낼 SQL을 출력합니다. <code>Remote SQL</code>에 <code>GROUP BY</code>가
+있으면 ClickHouse가 처리한 것입니다. 컬럼만 뽑고 위에 <code>Aggregate</code>가 있으면 모든
+행이 네트워크를 건너와 Postgres가 센 것이며, 테이블을 옮기지 않느니만 못합니다.
+<strong>아무도 경고해 주지 않으니 직접 봐야 합니다.</strong> 푸시다운 탭이 쿼리별로 같은 일을
+하고 행 수까지 붙여 줍니다.</p>
+<p><strong>푸시다운을 깨는 것은 조인 자체가 아니라 <em>로컬</em> 테이블을 섞는 것입니다.</strong>
+ClickPipes가 <code>bike.stations</code>도 복제하므로 대여소 이름을 붙이는 것도 다른 모든 것과
+마찬가지로 원격 작업입니다. 옮길 수 없는 건 지오메트리입니다 — <code>geom</code>에는
+ClickHouse 대응물이 없습니다.</p>
+<h3>테이블</h3>
+<p><code>bike.stations</code>는 스프레드시트를 그대로 옮기고 공개된 위경도로 만든
+<code>geom geometry(Point, 4326)</code>을 더합니다. <code>bike.trips</code>는 원본 16개 컬럼을 원래
+순서대로 두고 대리키 <code>trip_id</code>를 더합니다.</p>
+<p>대리키는 장식이 아닙니다. 원본에 자연키가 없습니다 — <code>bike_id</code>와 두 타임스탬프,
+두 대여소번호를 다 써도 96행이 중복으로 남고, 그것들은 기록된 거리만 다른 진짜
+별개의 대여입니다. 그리고 논리 복제에는 replica identity가 필요합니다. 기본키가
+없으면 ClickPipes가 테이블을 아예 거부합니다. 164만 행에 추가하는 데 7.7초.</p>
+<p>trips에서 stations로 가는 <strong>외래키는 없습니다.</strong> 이력에는 현재 마스터에 없는
+대여소가 나옵니다 — 폐지되기도 하고 마스터는 스냅숏이니까요 — 제약이 있으면 진짜
+행을 거부하게 됩니다. 1월 이력의 대여소번호 17개가 마스터에 없고, 26,346건에
+해당합니다.</p>
+<h3>빠진 구간 채우기, 그리고 계속 채우기</h3>
+<p><code>backfill-trips.sh</code>는 처음 적재된 대여부터 어제까지 중 행이 없는 날을 DB에 묻고
+그 날짜만 씁니다. <code>max(started_at) + 1</code>을 시작점으로 잡는 쪽이 더 간단했고
+틀렸습니다 — 스트리밍 테스트가 이미 오늘 날짜에 행을 넣어 둬서 2월부터 8월까지가
+채워진 것처럼 보였습니다.</p>
+<pre><code>$ ./scripts/backfill-trips.sh --explain
+  weekday 60388 / weekend 37893 trips per day
+  days       : 195 missing, 2026-02-01 .. 2026-08-14
+  estimate   : 22,202,682 trips at scale 1.0
+  extrapolated months (no published data): [7, 8]
+</code></pre>
+<p>전체 규모는 2,200만 행이고 전부 하류로 복제되므로 시작 전에 확인을 받습니다.
+<code>--scale 0.1</code>이면 같은 모양을 10분의 1 크기로 만듭니다.</p>
+<p><strong>대여를 만드는 방법.</strong> 생성된 대여는 새 타임스탬프를 가진 실제 대여이고, 같은
+종류의 날 같은 시각에 출발한 실제 대여 풀에서 뽑습니다. 여기서는 모든 필드가 서로
+상관됩니다 — 아침 대여는 지하철역으로 가고 8분이 걸리며, 일요일 오후 대여는
+강변을 따라 40분이 걸립니다 — 그래서 컬럼마다 자기 분포에서 뽑으면 히스토그램은 다
+맞고 결합 구조는 하나도 남지 않습니다. OD 행렬이 균일해지고, 이 랩이 존재하는
+이유인 바로 그 집계가 평평해집니다.</p>
+<p>실제 한 달과 비교하면 생성된 한 주가 근접합니다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>실제 (1월)</th>
+<th>생성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>평일 08시 비중</td>
+<td>28.16%</td>
+<td>28.20%</td>
+</tr>
+<tr>
+<td>18시 비중</td>
+<td>26.55%</td>
+<td>26.49%</td>
+</tr>
+<tr>
+<td>평균 이용시간</td>
+<td>17.1분</td>
+<td>17.0분</td>
+</tr>
+<tr>
+<td>평균 거리</td>
+<td>1,724 m</td>
+<td>1,718 m</td>
+</tr>
+<tr>
+<td>왕복 비율</td>
+<td>8.6%</td>
+<td>8.7%</td>
+</tr>
+</tbody>
+</table>
+<p>측정되지 <em>않은</em> 것은 월별 규모입니다 — 1월만 적재했으니까요. 공개된 월별 파일
+크기가 대여 건수를 대신하고, 7·8월은 아직 공개되지 않아 외삽입니다.
+<code>--explain</code>이 추정한 달의 이름을 밝힙니다.</p>
+<h3>시간대</h3>
+<p><code>started_at</code>과 <code>ended_at</code>은 <strong>UTC</strong>입니다. 원본은 한국 지역시로 발행되고 컬럼에
+존이 없어서, 이 구분은 물려받는 대신 결정해야 했습니다. ClickHouse는 <code>DateTime</code>에
+타임존을 붙이므로, KST 벽시계가 저기 도착하면 조용히 아홉 시간 이르다는 뜻이
+됩니다.</p>
+<p>서울은 서머타임 없는 UTC+9이라 평일 피크가 UTC 23:00과 09:00에 있습니다.
+대시보드가 보여주는 것은 전부 되돌려 표시합니다 — KST의 하루는 UTC 구간
+<code>[D−9h, D+1−9h)</code>이고, 변환은 한 곳에서만 합니다.</p>
+<p>이걸 틀리면 조용합니다. DB 내장 생성기가 테이블이 아직 KST일 때
+<code>AT TIME ZONE 'Asia/Seoul'</code>을 읽어 16:45에 07:00의 모양을 생성했습니다. 행들은
+아주 그럴듯해 보였습니다.</p>
+<h3>복제 내보내기</h3>
+<p>ClickPipes/PeerDB는 각 테이블에 기본키가 있으면 가져갑니다. Postgres 쪽에서 보면
+돌고 있는 미러는 이렇게 보입니다.</p>
+<pre><code class="language-sql">SELECT slot_name, plugin, active,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS unconsumed
+FROM pg_replication_slots;
+
+SELECT application_name, state, replay_lag FROM pg_stat_replication;
+</code></pre>
+<p><code>confirmed_flush_lsn</code>은 연속이 아니라 계단식으로 전진합니다. 소비자가 배치가
+하류에 안착한 뒤에 확인하기 때문입니다 — 5초 보고 멈췄다고 결론 내리지 않는 편이
+좋습니다.</p>
+<p>두 가지를 봐야 합니다. <strong>비활성 슬롯은 WAL을 무한히 붙잡아</strong> 디스크를 채웁니다.
+<code>SELECT count(*) FROM pg_replication_slots WHERE NOT active</code>는 모니터링에 넣을
+가치가 있습니다. 그리고 여기 publication은 테이블을 명시적으로 나열합니다.
+<code>FOR ALL TABLES</code>였다면 생성기의 작업 테이블까지 쓸어 담았을 것이고, 그래서 그것들은
+별도 <code>bikegen</code> 스키마에 있습니다.</p>
+<h3>파일</h3>
+<pre><code>sql/01-schema.sql             stations(PostGIS) + trips, 컬럼 주석에 UTC 명시
+sql/02-verify.sql             무엇이 적재됐고 데이터가 어디서 모순되는지
+sql/10-spatial-postgres.sql   남아야 하는 쿼리 5개
+sql/20-aggregate-pushdown.sql 옮겨야 하는 쿼리 5개
+sql/30-generator-in-db.sql    pg_cron + 프로시저, 모델 테이블은 bikegen
+sql/40-fdw-clickhouse.sql     ClickHouse 복제본 위의 ch.trips / ch.stations
+
+scripts/fetch-data.sh         다운로드, 파일명 검증 포함
+scripts/load-stations.sh      xlsx → PostGIS, 지오메트리 + GiST 인덱스
+scripts/load-trips.sh         CP949 → UTF-8, KST → UTC, 스테이징 후 캐스팅
+scripts/backfill-trips.sh     빠진 날짜 채우기
+scripts/catch-up.sh           최신 대여 이후 시각 단위 공백 채우기
+scripts/shift-to-utc.sh       1회 변환, PK 구간 단위
+scripts/generate-trips.sh     클라이언트 측 실시간 피드
+scripts/explain-pushdown.sh   푸시다운 됐나?
+scripts/psql.sh               컨테이너 psql
+
+ui/app.py                     표준 라이브러리 + psycopg. EXPLAIN JSON을 순회해 판정
+ui/index.html                 대시보드·지도·통계·푸시다운·로그
+</code></pre>
+<h3>원본에 대한 참고</h3>
+<p>포털은 평범한 POST로 파일을 주는데, 파일별 내부 시퀀스 번호와 데이터셋별
+<code>infSeq</code>로 식별됩니다. 포털이 조회 수단을 제공하지 않아 그 번호들은
+<code>fetch-data.sh</code>에 고정되어 있습니다. <code>infSeq</code>를 틀리면 에러가 나지 않고 <strong>다른
+데이터셋의 파일</strong>을 줍니다. 이 문서를 쓰는 중 첫 시도에서 관계없는 1 GB 바이너리를
+받았습니다. 스크립트는 응답의 파일명을 확인하고 예상 밖이면 거부합니다.</p>
+<p>CSV는 CP949입니다.</p>
+<h3>더 읽을거리</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/managed-postgres/postgis-fdw-bike/WRITEUP.md">WRITEUP.md</a> — 만든 과정을 순서대로, 틀렸던 것도 그대로: 데이터 선정
+이유, 플랫폼이 제공한 것, UTC 결정, 합성 대여 모델링, 푸시다운을 증명하기까지,
+그리고 대시보드가 강제한 것들. 더 긴 글의 원재료로 썼습니다.</p>
+<h3>📄 라이선스</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소의 나머지와 동일합니다. 데이터는 여기에 재배포하지
+않습니다. <code>fetch-data.sh</code>가 서울 열린데이터광장에서 공공누리 제1유형으로 받아오고
+<code>data/</code>는 gitignore되어 있습니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/managed-postgres/provisioning/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Provisioning — ClickHouse Managed Postgres</span></a><a class="step next" href="../../../labs/tpcds/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">TPC-DS Benchmark for ClickHouse</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
