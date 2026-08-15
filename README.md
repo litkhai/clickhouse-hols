@@ -68,6 +68,7 @@ A distinct product rather than a Cloud integration, which is why it sits beside
 |-----|----------------|
 | [managed-postgres/provisioning](managed-postgres/provisioning/) | Create a service over the Cloud API, connect and verify |
 | [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS beside 24M Seoul bike trips: geometry stays in Postgres, aggregates push down to ClickHouse through `pg_clickhouse`. Includes a dashboard that shows which side answered each query, and the plan proving it |
+| [managed-postgres/ny-citi-bike-workshop](managed-postgres/ny-citi-bike-workshop/) | The same split on a **live** feed — New York Citi Bike, keyless public JSON refreshed every 60s — across both managed products. A self-service workshop in [its own repository](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) |
 
 ### 📊 Benchmark (`tpcds/`)
 
@@ -290,6 +291,7 @@ Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그
 |-----|----------------|
 | [managed-postgres/provisioning](managed-postgres/provisioning/) | Cloud API로 서비스 생성, 접속·검증 |
 | [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS와 2,400만 건의 따릉이 대여이력: 지오메트리는 Postgres에 남고 집계는 `pg_clickhouse`로 ClickHouse에 내려갑니다. 쿼리마다 어느 쪽이 답했는지와 그 근거인 실행 계획을 보여주는 대시보드 포함 |
+| [managed-postgres/ny-citi-bike-workshop](managed-postgres/ny-citi-bike-workshop/) | 같은 분업을 **실시간** 피드로 — 뉴욕 Citi Bike, 키 없이 열린 공개 JSON, 60초마다 갱신 — 두 관리형 제품에 걸쳐 진행. [별도 저장소](https://github.com/litkhai/lightweight-workshop-ny-citi-bike)의 자율 실습 워크숍 |
 
 ### 📊 벤치마크 (`tpcds/`)
 
