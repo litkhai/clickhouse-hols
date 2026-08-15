@@ -21,6 +21,28 @@ regex = '''\b[a-z0-9]{0,11}[0-9][a-z0-9]{0,11}\.[a-z0-9-]+\.(aws|gcp|azure)\.cli
 tags = ["clickhouse", "endpoint"]
 
 [[rules]]
+id = "clickhouse-managed-postgres-host"
+description = "ClickHouse Managed Postgres service hostname"
+# A different suffix from the analytics services: the region sits before an
+# extra `pg` label, as in
+# <name>.<id>.c0.ap-northeast-2.aws.pg.clickhouse.cloud
+# so the clickhouse-cloud-host rule above does not reach it.
+regex = '''\b[a-z0-9-]+\.[a-z0-9]+\.c[0-9]+\.[a-z0-9-]+\.(aws|gcp|azure)\.pg\.clickhouse\.cloud'''
+tags = ["clickhouse", "postgres", "endpoint"]
+
+[[rules]]
+id = "postgres-password-assignment"
+description = "Non-empty Postgres password assigned in code or config"
+regex = '''(?i)(PGPASSWORD|POSTGRES_PASSWORD|PG_PASSWORD|postgres[_-]?password)\s*[:=]\s*["']?[^"'\s$<{}-][^"'\s$<{}]{7,}["']?'''
+tags = ["postgres", "credential"]
+
+[[rules]]
+id = "postgres-connection-uri"
+description = "Postgres connection URI with an inline password"
+regex = '''postgres(ql)?://[A-Za-z0-9_.-]+:[^@\s/"']{6,}@[A-Za-z0-9_.-]+'''
+tags = ["postgres", "credential"]
+
+[[rules]]
 id = "clickhouse-cloud-api-key-secret"
 description = "ClickHouse Cloud API key secret"
 regex = '''(?i)(api[_-]?key[_-]?secret|CHC_API_KEY_SECRET|CLICKHOUSE_API_KEY_SECRET)\s*[:=]\s*["']?[A-Za-z0-9]{40,50}["']?'''
@@ -69,4 +91,9 @@ regexes = [
     '''123456789012''',
     # the example service id used across the docs
     '''abc123\.''',
+    # Postgres' own default credential, used by the local compose stacks whose
+    # containers only listen on the compose network. Anchored to the end of the
+    # match so a real password in the same field is still reported.
+    '''[:=]\s*["']?postgres["']?$''',
+    '''postgres(ql)?://postgres:postgres@''',
 ]
