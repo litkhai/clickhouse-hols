@@ -148,6 +148,8 @@ scans waits for <strong>Run query</strong>, because at 24M rows a daily rollup i
 <code>count(DISTINCT started_at::date)</code> is 14 s — measured, which is why they are not
 on a timer. Leaving <code>FOREIGN_SCHEMA</code> unset is fine; the page then says plainly
 that there is nothing to push down to, rather than reporting a failed pushdown.</p>
+<p>How it is built — the endpoints, how the verdict comes out of the plan tree,
+and why the SQL binds on the client — is in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/managed-postgres/postgis-fdw-bike/ui/README.md">ui/README.md</a>.</p>
 <h3>Why this dataset</h3>
 <p>Seoul's public bike history is one row per trip with a start and an end station,
 which makes the split the lab is about fall out naturally:</p>
@@ -456,6 +458,8 @@ open http://localhost:8080
 <code>count(DISTINCT started_at::date)</code>가 14초이기 때문입니다 — 측정값이고, 그래서
 타이머에 걸지 않았습니다. <code>FOREIGN_SCHEMA</code>를 비워 둬도 됩니다. 그러면 화면이
 푸시다운 실패라고 보고하는 대신 보낼 대상이 없다고 명확히 말합니다.</p>
+<p>어떻게 만들었는지 — 엔드포인트, 실행 계획 트리에서 판정을 끌어내는 방식, SQL을
+클라이언트에서 바인딩하는 이유 — 는 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/managed-postgres/postgis-fdw-bike/ui/README.md">ui/README.md</a>에 있습니다.</p>
 <h3>왜 이 데이터인가</h3>
 <p>서울 따릉이 대여이력은 대여 한 건이 한 행이고 출발·반납 대여소를 갖고 있어, 이
 랩이 다루는 분리가 자연스럽게 나옵니다.</p>
