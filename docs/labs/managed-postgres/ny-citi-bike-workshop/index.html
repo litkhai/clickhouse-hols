@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NY Citi Bike workshop — lives in its own repository · ClickHouse HOLs</title>
+<meta name="description" content="NY Citi Bike workshop — lives in its own repository — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>managed-postgres/ny-citi-bike-workshop</code>
+    
+  </nav>
+  <div class="readme en"><h1>NY Citi Bike workshop — lives in its own repository</h1>
+<hr />
+<p><strong>➜ <a href="https://github.com/litkhai/lightweight-workshop-ny-citi-bike">litkhai/lightweight-workshop-ny-citi-bike</a></strong>
+· <strong><a href="https://litkhai.github.io/lightweight-workshop-ny-citi-bike/">documentation site</a></strong></p>
+<p>This directory is a pointer. The workshop itself is a separate repository, in
+the same <code>lightweight-workshop-*</code> shape as
+<a href="https://github.com/litkhai/lightweight-workshop-llmops-in-a-box">LLMOps in a Box</a>:
+self-contained, English-only, published as its own documentation site, and
+handed to external participants who clone it on its own.</p>
+<h3>What it covers</h3>
+<p>The same split as <a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike"><code>postgis-fdw-bike/</code></a> — geometry in
+Postgres, counting on ClickHouse — but on a feed that is <strong>actually live</strong> and
+against <strong>both</strong> managed products end to end.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data</td>
+<td>New York Citi Bike <a href="https://gbfs.org">GBFS</a> — ~2,500 docks, public JSON, <strong>no API key</strong>, refreshed every 60s</td>
+</tr>
+<tr>
+<td>Fact table</td>
+<td>one row per station per snapshot, roughly 3.6M rows/day</td>
+</tr>
+<tr>
+<td>Postgres</td>
+<td>ClickHouse Managed Postgres — PostGIS points, the live collector, the publication</td>
+</tr>
+<tr>
+<td>ClickHouse</td>
+<td>ClickHouse Cloud — ClickPipes Postgres CDC, then <code>pg_clickhouse</code> foreign tables back in the Postgres session</td>
+</tr>
+<tr>
+<td>Evidence</td>
+<td>every query badged with a verdict read out of the execution plan</td>
+</tr>
+</tbody>
+</table>
+<p>Eight modules, about two hours. Two of them are <strong>console walkthroughs</strong>:
+creating cloud services and connecting a ClickPipe are tied to a participant's
+own account and billing, so the workshop clicks through them rather than asking
+a public repository to hold an organization-wide API key.</p>
+<h3>How it differs from <code>postgis-fdw-bike/</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike"><code>postgis-fdw-bike/</code></a></th>
+<th>the workshop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Audience</td>
+<td>this repository's readers</td>
+<td>external participants, own accounts</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>Seoul 따릉이 history — real <strong>trip events</strong></td>
+<td>Citi Bike GBFS — <strong>live snapshots</strong>, events derived by diffing</td>
+</tr>
+<tr>
+<td>Volume</td>
+<td>1.6M trips/month, backfilled to ~24M</td>
+<td>~3.6M rows/day, accumulating live</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>bilingual EN/KO</td>
+<td>English only</td>
+</tr>
+<tr>
+<td>Cloud half</td>
+<td>Postgres side done, ClickHouse side in progress</td>
+<td>written end to end, cloud modules unverified</td>
+</tr>
+</tbody>
+</table>
+<p>The two are complements. The Seoul lab has genuine trip events and the deeper
+write-up; the workshop has a feed anyone can point at right now and a guided
+path through both managed products.</p>
+<h3>📄 License</h3>
+<p>The workshop is <a href="https://github.com/litkhai/lightweight-workshop-ny-citi-bike/blob/main/LICENSE">MIT</a>
+in its own repository. Citi Bike data is published by Lyft Bikes and Scooters,
+LLC under GBFS and is fetched at run time, not redistributed.</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>➜ <a href="https://github.com/litkhai/lightweight-workshop-ny-citi-bike">litkhai/lightweight-workshop-ny-citi-bike</a></strong>
+· <strong><a href="https://litkhai.github.io/lightweight-workshop-ny-citi-bike/">문서 사이트</a></strong></p>
+<p>이 디렉토리는 포인터입니다. 워크숍 본체는 별도 저장소에 있으며,
+<a href="https://github.com/litkhai/lightweight-workshop-llmops-in-a-box">LLMOps in a Box</a>와
+같은 <code>lightweight-workshop-*</code> 형태입니다 — 독립 실행, 영문 전용, 자체 문서
+사이트 발행, 외부 참가자가 단독으로 클론해 사용.</p>
+<h3>다루는 내용</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike"><code>postgis-fdw-bike/</code></a>와 같은 분업(지리는 Postgres,
+집계는 ClickHouse)이지만, <strong>실제로 살아 있는</strong> 피드를 쓰고 <strong>두 관리형 제품을
+끝까지</strong> 연결합니다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>데이터</td>
+<td>뉴욕 Citi Bike <a href="https://gbfs.org">GBFS</a> — 약 2,500개 거치대, 공개 JSON, <strong>API 키 불필요</strong>, 60초마다 갱신</td>
+</tr>
+<tr>
+<td>팩트 테이블</td>
+<td>스냅샷당 대여소 1행, 하루 약 360만 행</td>
+</tr>
+<tr>
+<td>Postgres</td>
+<td>ClickHouse Managed Postgres — PostGIS 포인트, 실시간 수집기, 퍼블리케이션</td>
+</tr>
+<tr>
+<td>ClickHouse</td>
+<td>ClickHouse Cloud — ClickPipes Postgres CDC, 이어서 <code>pg_clickhouse</code> 외래 테이블로 Postgres 세션에 복귀</td>
+</tr>
+<tr>
+<td>근거</td>
+<td>모든 쿼리에 실행 계획에서 읽어낸 판정 표시</td>
+</tr>
+</tbody>
+</table>
+<p>8개 모듈, 약 2시간. 그중 둘은 <strong>콘솔 화면 안내</strong>입니다. 클라우드 서비스 생성과
+ClickPipes 연결은 참가자 본인 계정·과금에 묶인 작업이라, 공개 저장소에 조직
+전체 권한 API 키를 두는 대신 콘솔을 함께 클릭하는 방식으로 구성했습니다.</p>
+<h3><code>postgis-fdw-bike/</code>와의 차이</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike"><code>postgis-fdw-bike/</code></a></th>
+<th>워크숍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>대상</td>
+<td>이 저장소 독자</td>
+<td>외부 참가자, 각자 계정</td>
+</tr>
+<tr>
+<td>데이터</td>
+<td>서울 따릉이 이력 — 실제 <strong>이동 이벤트</strong></td>
+<td>Citi Bike GBFS — <strong>실시간 스냅샷</strong>, 이벤트는 차분으로 유도</td>
+</tr>
+<tr>
+<td>규모</td>
+<td>월 164만 건, 약 2,400만까지 백필</td>
+<td>하루 약 360만 행, 실시간 누적</td>
+</tr>
+<tr>
+<td>언어</td>
+<td>영/한 병기</td>
+<td>영문 전용</td>
+</tr>
+<tr>
+<td>ClickHouse 쪽</td>
+<td>Postgres 쪽 완료, ClickHouse 쪽 진행 중</td>
+<td>끝까지 작성, 클라우드 모듈은 미검증</td>
+</tr>
+</tbody>
+</table>
+<p>둘은 상호 보완입니다. 서울 랩은 진짜 이동 이벤트와 더 깊은 회고가 있고,
+워크숍은 지금 당장 누구나 붙일 수 있는 피드와 두 관리형 제품을 관통하는 안내
+경로가 있습니다.</p>
+<h3>📄 라이선스</h3>
+<p>워크숍은 자체 저장소에서
+<a href="https://github.com/litkhai/lightweight-workshop-ny-citi-bike/blob/main/LICENSE">MIT</a>입니다.
+Citi Bike 데이터는 Lyft Bikes and Scooters, LLC가 GBFS로 발행하며 실행 시점에
+받아옵니다 — 재배포하지 않습니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/ny-citi-bike-workshop"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/managed-postgres/postgis-fdw-bike/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">PostGIS + pg_clickhouse — Seoul public bike</span></a><a class="step next" href="../../../labs/tpcds/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">TPC-DS Benchmark for ClickHouse</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

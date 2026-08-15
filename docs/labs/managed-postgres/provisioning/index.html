@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provisioning — ClickHouse Managed Postgres · ClickHouse HOLs</title>
+<meta name="description" content="Provisioning — ClickHouse Managed Postgres — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>managed-postgres/provisioning</code>
+    
+  </nav>
+  <div class="readme en"><h1>Provisioning — ClickHouse Managed Postgres</h1>
+<hr />
+<p>Creating a Managed Postgres service through the ClickHouse Cloud API, and
+confirming you can reach it.</p>
+<p><strong>Verified 2026-08-15</strong> against a live service in <code>ap-northeast-2</code>: server
+<strong>PostgreSQL 18.4</strong>, TLS 1.3, <code>wal_level = logical</code>, <code>max_connections = 500</code>,
+<code>pg_clickhouse</code> 0.3 available and <code>pg_stat_ch</code> 0.3 installed. The API shapes
+below come from the live OpenAPI spec at <code>https://api.clickhouse.cloud/v1</code>;
+the create call itself is <strong>documented but not executed here</strong> — the service
+tested against already existed, and creating one costs money.</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.env.example</code></td>
+<td>Template. Copy to <code>config.env</code>, which is gitignored</td>
+</tr>
+<tr>
+<td><code>01-connect-test.sh</code></td>
+<td>Connects, reports the server, and does a write round trip</td>
+</tr>
+</tbody>
+</table>
+<h3>Creating a service over the API</h3>
+<p>Postgres services live under the same ClickHouse Cloud API as analytics
+services, with the same <a href="https://clickhouse.com/docs/cloud/manage/openapi">organization API key</a>
+as basic auth.</p>
+<pre><code class="language-bash">KEY_ID=...        # organization API key
+KEY_SECRET=...
+ORG_ID=...        # Console → Organization details
+
+curl -s --user &quot;$KEY_ID:$KEY_SECRET&quot; \
+  -H 'Content-Type: application/json' \
+  &quot;https://api.clickhouse.cloud/v1/organizations/$ORG_ID/postgres&quot; \
+  -d '{
+        &quot;name&quot;:            &quot;seoul-oltp&quot;,
+        &quot;provider&quot;:        &quot;aws&quot;,
+        &quot;region&quot;:          &quot;ap-northeast-2&quot;,
+        &quot;size&quot;:            &quot;m6gd.large&quot;,
+        &quot;postgresVersion&quot;: &quot;18&quot;,
+        &quot;haType&quot;:          &quot;none&quot;
+      }' | jq
+</code></pre>
+<p>Request fields, from the spec:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>yes</td>
+<td>Alphanumeric with spaces. Immutable</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>yes</td>
+<td><code>aws</code> only</td>
+</tr>
+<tr>
+<td><code>region</code></td>
+<td>yes</td>
+<td>Free-form string; no enum in the spec, so an invalid one only fails on the call</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td>yes</td>
+<td>80 instance types, <code>c6gd.large</code> … <code>r8gd.48xlarge</code></td>
+</tr>
+<tr>
+<td><code>postgresVersion</code></td>
+<td>no</td>
+<td><code>18</code>, <code>17</code></td>
+</tr>
+<tr>
+<td><code>haType</code></td>
+<td>no</td>
+<td><code>none</code>, <code>async</code>, <code>sync</code></td>
+</tr>
+<tr>
+<td><code>pgConfig</code>, <code>pgBouncerConfig</code>, <code>tags</code></td>
+<td>no</td>
+<td>Postgres and PgBouncer runtime settings</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>The response contains the password.</strong> Along with <code>connectionString</code>,
+<code>username</code> and <code>hostname</code>. Capture it into <code>config.env</code> or a secret store on
+the spot — do not tee the response into a file that gets committed, and do
+not paste it into an issue. <code>PATCH .../{postgresId}/password</code> rotates it if
+it does leak.</p>
+</blockquote>
+<p>The other endpoints on the same path:</p>
+<pre><code>GET    /v1/organizations/{orgId}/postgres                    list
+GET    /v1/organizations/{orgId}/postgres/{pgId}             details, incl. state
+PATCH  /v1/organizations/{orgId}/postgres/{pgId}/state       start / stop
+PATCH  /v1/organizations/{orgId}/postgres/{pgId}/password    rotate the superuser password
+GET    /v1/organizations/{orgId}/postgres/{pgId}/caCertificates
+GET    /v1/organizations/{orgId}/postgres/{pgId}/metrics     time series
+GET    /v1/organizations/{orgId}/postgres/{pgId}/slowQueryPatterns
+POST   /v1/organizations/{orgId}/postgres/{pgId}/readReplica
+DELETE /v1/organizations/{orgId}/postgres/{pgId}             delete
+</code></pre>
+<p>Terraform covers the same ground with the <code>clickhouse_postgres_service</code>
+resource in provider ≥ 3.21.0, which is
+<a href="https://clickhouse.com/docs/products/managed-postgres/terraform">alpha</a>.</p>
+<h3>Connecting</h3>
+<pre><code class="language-bash">cp config.env.example config.env
+$EDITOR config.env          # host, password from the console or the create response
+./01-connect-test.sh
+</code></pre>
+<p><code>psql</code> runs in a container, so nothing needs installing on the host. Output is
+masked: the hostname carries the service name and id, so the script prints
+<code>&lt;service&gt;.&lt;id&gt;.…</code> rather than the real thing.</p>
+<pre><code>host    : &lt;service&gt;.&lt;id&gt;.c0.ap-northeast-2.aws.pg.clickhouse.cloud
+port    : 5432   user: postgres   sslmode: require
+
+── server ─────────────────────────────────────────
+version   | 18.4 (Ubuntu 18.4-1.pgdg22.04+1)
+superuser | on
+read_only | false
+tls       | TLSv1.3
+wal_level | logical
+max_conns | 500
+
+── extensions ─────────────────────────────────────
+pg_clickhouse | 0.3 | -
+pg_stat_ch    | 0.3 | 0.3
+plpgsql       | 1.0 | 1.0
+
+OK: connected, queried and wrote.
+</code></pre>
+<h3>What the connection tells you</h3>
+<ul>
+<li><strong>Standard Postgres 18.</strong> Not a fork or a wire-compatible layer — an ordinary
+  <code>psql</code> connects and <code>pg_stat_ssl</code>, temp tables and <code>current_setting()</code> all
+  behave normally.</li>
+<li><strong>TLS is mandatory.</strong> The service refuses plaintext. <code>require</code> encrypts
+  without checking the certificate; for <code>verify-full</code>, fetch the CA from the
+  <code>caCertificates</code> endpoint.</li>
+<li><strong><code>wal_level = logical</code> out of the box</strong>, so logical replication and ClickPipes
+  need no restart to enable.</li>
+<li><strong><code>pg_clickhouse</code> is available but not installed.</strong> <code>CREATE EXTENSION</code> when a
+  lab needs it, rather than assuming it is there.</li>
+</ul>
+<h3>Notes</h3>
+<ul>
+<li>Costs money while it runs. <code>PATCH .../state</code> stops a service you want to keep
+  but not pay for; <code>DELETE</code> removes it.</li>
+<li><code>region</code> has no enum in the spec, so a typo is only caught by the API.</li>
+<li>Public beta, AWS only, at time of writing.</li>
+</ul>
+<h3>📄 License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse Cloud API로 Managed Postgres 서비스를 만드는 방법과, 실제로 접속이
+되는지 확인하는 스크립트입니다.</p>
+<p><strong>2026-08-15 검증</strong> — <code>ap-northeast-2</code>의 실제 서비스에 접속해 확인했습니다.
+<strong>PostgreSQL 18.4</strong>, TLS 1.3, <code>wal_level = logical</code>, <code>max_connections = 500</code>,
+<code>pg_clickhouse</code> 0.3 사용 가능, <code>pg_stat_ch</code> 0.3 설치됨. 아래 API 스키마는
+<code>https://api.clickhouse.cloud/v1</code>의 라이브 OpenAPI 스펙에서 가져온 것이며,
+<strong>생성 호출 자체는 문서화만 하고 실행하지 않았습니다</strong> — 테스트한 서비스는 이미
+존재하던 것이고, 새로 만들면 과금됩니다.</p>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.env.example</code></td>
+<td>템플릿. <code>config.env</code>로 복사해서 사용하며 그 파일은 gitignore됩니다</td>
+</tr>
+<tr>
+<td><code>01-connect-test.sh</code></td>
+<td>접속해서 서버 정보를 출력하고 쓰기까지 왕복 확인</td>
+</tr>
+</tbody>
+</table>
+<h3>API로 서비스 생성</h3>
+<p>Postgres 서비스는 분석용 서비스와 같은 ClickHouse Cloud API 아래에 있고, 인증도
+같은 <a href="https://clickhouse.com/docs/cloud/manage/openapi">조직 API 키</a> basic auth입니다.</p>
+<pre><code class="language-bash">KEY_ID=...        # 조직 API 키
+KEY_SECRET=...
+ORG_ID=...        # 콘솔 → Organization details
+
+curl -s --user &quot;$KEY_ID:$KEY_SECRET&quot; \
+  -H 'Content-Type: application/json' \
+  &quot;https://api.clickhouse.cloud/v1/organizations/$ORG_ID/postgres&quot; \
+  -d '{
+        &quot;name&quot;:            &quot;seoul-oltp&quot;,
+        &quot;provider&quot;:        &quot;aws&quot;,
+        &quot;region&quot;:          &quot;ap-northeast-2&quot;,
+        &quot;size&quot;:            &quot;m6gd.large&quot;,
+        &quot;postgresVersion&quot;: &quot;18&quot;,
+        &quot;haType&quot;:          &quot;none&quot;
+      }' | jq
+</code></pre>
+<p>스펙 기준 요청 필드:</p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>필수</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>✔</td>
+<td>영숫자와 공백. 변경 불가</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>✔</td>
+<td><code>aws</code> 만</td>
+</tr>
+<tr>
+<td><code>region</code></td>
+<td>✔</td>
+<td>자유 문자열. 스펙에 enum이 없어 잘못된 값은 호출해야 알 수 있음</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td>✔</td>
+<td>80종, <code>c6gd.large</code> … <code>r8gd.48xlarge</code></td>
+</tr>
+<tr>
+<td><code>postgresVersion</code></td>
+<td></td>
+<td><code>18</code>, <code>17</code></td>
+</tr>
+<tr>
+<td><code>haType</code></td>
+<td></td>
+<td><code>none</code>, <code>async</code>, <code>sync</code></td>
+</tr>
+<tr>
+<td><code>pgConfig</code>, <code>pgBouncerConfig</code>, <code>tags</code></td>
+<td></td>
+<td>Postgres·PgBouncer 런타임 설정</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>응답에 비밀번호가 담겨 옵니다.</strong> <code>connectionString</code>, <code>username</code>, <code>hostname</code>도
+함께 옵니다. 받는 즉시 <code>config.env</code>나 시크릿 저장소로 옮기세요. 응답을 파일로
+흘려 커밋하거나 이슈에 붙여넣지 마세요. 유출됐다면
+<code>PATCH .../{postgresId}/password</code>로 교체할 수 있습니다.</p>
+</blockquote>
+<p>같은 경로의 나머지 엔드포인트:</p>
+<pre><code>GET    /v1/organizations/{orgId}/postgres                    목록
+GET    /v1/organizations/{orgId}/postgres/{pgId}             상세 (state 포함)
+PATCH  /v1/organizations/{orgId}/postgres/{pgId}/state       시작 / 정지
+PATCH  /v1/organizations/{orgId}/postgres/{pgId}/password    superuser 비밀번호 교체
+GET    /v1/organizations/{orgId}/postgres/{pgId}/caCertificates
+GET    /v1/organizations/{orgId}/postgres/{pgId}/metrics     시계열 메트릭
+GET    /v1/organizations/{orgId}/postgres/{pgId}/slowQueryPatterns
+POST   /v1/organizations/{orgId}/postgres/{pgId}/readReplica
+DELETE /v1/organizations/{orgId}/postgres/{pgId}             삭제
+</code></pre>
+<p>Terraform도 같은 범위를 지원합니다 — provider ≥ 3.21.0의
+<code>clickhouse_postgres_service</code> 리소스이며
+<a href="https://clickhouse.com/docs/products/managed-postgres/terraform">alpha</a> 단계입니다.</p>
+<h3>접속</h3>
+<pre><code class="language-bash">cp config.env.example config.env
+$EDITOR config.env          # 콘솔이나 생성 응답에서 받은 호스트·비밀번호
+./01-connect-test.sh
+</code></pre>
+<p><code>psql</code>은 컨테이너로 실행하므로 호스트에 설치할 게 없습니다. 호스트명에 서비스
+이름과 id가 들어 있어서, 출력은 <code>&lt;service&gt;.&lt;id&gt;.…</code> 로 마스킹됩니다.</p>
+<h3>접속으로 알 수 있는 것</h3>
+<ul>
+<li><strong>표준 Postgres 18.</strong> 포크나 와이어 호환 계층이 아니라, 일반 <code>psql</code>이 그대로
+  붙고 <code>pg_stat_ssl</code>·임시 테이블·<code>current_setting()</code>이 모두 정상 동작합니다.</li>
+<li><strong>TLS 필수.</strong> 평문 접속은 거부됩니다. <code>require</code>는 암호화만 하고 인증서를
+  검증하지 않으니, <code>verify-full</code>이 필요하면 <code>caCertificates</code> 엔드포인트에서 CA를
+  받으세요.</li>
+<li><strong><code>wal_level = logical</code>이 기본</strong>이라 논리 복제와 ClickPipes를 쓰는 데 재시작이
+  필요 없습니다.</li>
+<li><strong><code>pg_clickhouse</code>는 사용 가능하지만 미설치 상태.</strong> 필요한 랩에서
+  <code>CREATE EXTENSION</code>으로 켜야 하며, 이미 있다고 가정하면 안 됩니다.</li>
+</ul>
+<h3>참고</h3>
+<ul>
+<li>실행 중에는 과금됩니다. 유지하되 비용을 줄이려면 <code>PATCH .../state</code>로 정지하고,
+  아예 없앨 거면 <code>DELETE</code>를 씁니다.</li>
+<li><code>region</code>에는 enum이 없어서 오타는 API 호출에서만 걸립니다.</li>
+<li>작성 시점 기준 public beta이며 AWS만 지원합니다.</li>
+</ul>
+<h3>📄 라이선스</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/provisioning"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/chc/tool/ch2otel/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">CH2OTEL - ClickHouse System Metrics to OpenTelemetry Converter</span></a><a class="step next" href="../../../labs/managed-postgres/postgis-fdw-bike/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">PostGIS + pg_clickhouse — Seoul public bike</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
