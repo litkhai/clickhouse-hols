@@ -18,12 +18,13 @@ These labs cover both **ClickHouse OSS** and **ClickHouse Cloud**, from a first 
 
 ```
 clickhouse-hols/
-├── local/       # Local Docker environments and per-release feature labs
-├── chc/         # ClickHouse Cloud integrations (API, Kafka, lakes, S3, tools)
-├── tpcds/       # TPC-DS benchmark
-├── usecase/     # End-to-end use cases (analytics, search, geo, LLM observability)
-├── workload/    # Focused performance and behaviour experiments
-└── workshop/    # Multi-service workshops and PoCs
+├── local/            # Local Docker environments and per-release feature labs
+├── chc/              # ClickHouse Cloud integrations (API, Kafka, lakes, S3, tools)
+├── managed-postgres/ # ClickHouse Managed Postgres — provisioning, PostGIS, pg_clickhouse
+├── tpcds/            # TPC-DS benchmark
+├── usecase/          # End-to-end use cases (analytics, search, geo, LLM observability)
+├── workload/         # Focused performance and behaviour experiments
+└── workshop/         # Multi-service workshops and PoCs
 ```
 
 ### 🏠 Local Environments (`local/`)
@@ -57,6 +58,16 @@ clickhouse-hols/
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | Service cost monitoring |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | Cost monitoring across multiple services |
 | [chc/tool/ch2otel](chc/tool/ch2otel/) | ClickHouse system metrics to OpenTelemetry |
+
+### 🐘 Managed Postgres (`managed-postgres/`)
+
+A distinct product rather than a Cloud integration, which is why it sits beside
+`chc/` instead of inside it.
+
+| Lab | What it covers |
+|-----|----------------|
+| [managed-postgres/provisioning](managed-postgres/provisioning/) | Create a service over the Cloud API, connect and verify |
+| [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS beside 24M Seoul bike trips: geometry stays in Postgres, aggregates push down to ClickHouse through `pg_clickhouse`. Includes a dashboard that shows which side answered each query, and the plan proving it |
 
 ### 📊 Benchmark (`tpcds/`)
 
@@ -132,6 +143,8 @@ Then pick a lab, read its `README.md`, and follow its Quick Start. Nothing is gl
 **Cloud** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/) → [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)
 
 **Advanced** → [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) → [workload/replacingmergetree](workload/replacingmergetree/) → [chc/tool/costkeeper](chc/tool/costkeeper/)
+
+**Postgres** → [managed-postgres/provisioning](managed-postgres/provisioning/) → [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/)
 
 ### 🧱 Lab Conventions
 
@@ -228,12 +241,13 @@ ClickHouse를 학습하고 탐색하기 위한 실습(Hands-On Lab) 모음입니
 
 ```
 clickhouse-hols/
-├── local/       # 로컬 Docker 환경 및 릴리스별 기능 랩
-├── chc/         # ClickHouse Cloud 통합 (API, Kafka, 레이크, S3, 도구)
-├── tpcds/       # TPC-DS 벤치마크
-├── usecase/     # 엔드투엔드 활용 사례 (분석, 검색, 지리, LLM 관측성)
-├── workload/    # 집중 성능·동작 실험
-└── workshop/    # 다중 서비스 워크숍 및 PoC
+├── local/            # 로컬 Docker 환경 및 릴리스별 기능 랩
+├── chc/              # ClickHouse Cloud 통합 (API, Kafka, 레이크, S3, 도구)
+├── managed-postgres/ # ClickHouse Managed Postgres — 프로비저닝, PostGIS, pg_clickhouse
+├── tpcds/            # TPC-DS 벤치마크
+├── usecase/          # 엔드투엔드 활용 사례 (분석, 검색, 지리, LLM 관측성)
+├── workload/         # 집중 성능·동작 실험
+└── workshop/         # 다중 서비스 워크숍 및 PoC
 ```
 
 ### 🏠 로컬 환경 (`local/`)
@@ -267,6 +281,15 @@ clickhouse-hols/
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | 서비스 비용 모니터링 |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | 다중 서비스 비용 모니터링 |
 | [chc/tool/ch2otel](chc/tool/ch2otel/) | ClickHouse 시스템 지표를 OpenTelemetry로 변환 |
+
+### 🐘 Managed Postgres (`managed-postgres/`)
+
+Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그 옆에 둡니다.
+
+| 랩 | 다루는 내용 |
+|-----|----------------|
+| [managed-postgres/provisioning](managed-postgres/provisioning/) | Cloud API로 서비스 생성, 접속·검증 |
+| [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS와 2,400만 건의 따릉이 대여이력: 지오메트리는 Postgres에 남고 집계는 `pg_clickhouse`로 ClickHouse에 내려갑니다. 쿼리마다 어느 쪽이 답했는지와 그 근거인 실행 계획을 보여주는 대시보드 포함 |
 
 ### 📊 벤치마크 (`tpcds/`)
 
