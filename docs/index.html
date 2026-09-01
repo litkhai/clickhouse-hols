@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClickHouse Hands-On Labs</title>
-<meta name="description" content="Hands-on ClickHouse labs: 19 per-release feature labs (25.1 to 26.7), Cloud integrations, workload benchmarks and workshops.">
+<meta name="description" content="Hands-on ClickHouse labs: 20 per-release feature labs (25.1 to 26.8), Cloud integrations, workload benchmarks and workshops.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
 <link rel="stylesheet" href="assets/site.css">
@@ -35,9 +35,9 @@
     <h1><span class="en">Hands-on ClickHouse labs</span><span class="ko">ClickHouse 실습 랩</span></h1>
     <p><span class="en">One directory per ClickHouse release, plus Cloud integrations, workload experiments and workshops. Every lab brings up what it needs, generates its own data, and can be run on its own.</span><span class="ko">ClickHouse 릴리스마다 디렉토리 하나, 여기에 Cloud 연동·워크로드 실험·워크숍을 더했습니다. 각 랩은 필요한 환경을 스스로 띄우고 테스트 데이터를 생성하므로 독립적으로 실행됩니다.</span></p>
     <div class="stats">
-      <div class="stat"><b>19</b><span><span class="en">release labs</span><span class="ko">릴리스 랩</span></span></div>
-      <div class="stat"><b>25.1 → 26.7</b><span><span class="en">versions covered</span><span class="ko">다루는 버전</span></span></div>
-      <div class="stat"><b>69</b><span><span class="en">runnable SQL labs</span><span class="ko">실행 가능한 SQL 랩</span></span></div>
+      <div class="stat"><b>20</b><span><span class="en">release labs</span><span class="ko">릴리스 랩</span></span></div>
+      <div class="stat"><b>25.1 → 26.8</b><span><span class="en">versions covered</span><span class="ko">다루는 버전</span></span></div>
+      <div class="stat"><b>72</b><span><span class="en">runnable SQL labs</span><span class="ko">실행 가능한 SQL 랩</span></span></div>
     </div>
   </div>
 
@@ -57,6 +57,13 @@
       <tr><th><span class="en">Version</span><span class="ko">버전</span></th><th><span class="en">Released</span><span class="ko">출시일</span></th><th><span class="en">Labs</span><span class="ko">랩</span></th><th><span class="en">Verified</span><span class="ko">검증</span></th><th><span class="en">Features covered</span><span class="ko">다루는 기능</span></th></tr>
     </thead>
     <tbody>
+        <tr data-kw="aifilter airedact aisimilarity all between bigquery current database date32 explain extend following formatqueryfromjson groups handler iejoin ko_kr lts materializedpostgresql max_insert_threads multipoint nothas parsequerytojson postgresql preceding range remote_url_allow_hosts row rows splitbystring syntax system.tokenizers union update">
+          <td><a class="ver" href="labs/local/releases/26.8/index.html">26.8</a></td>
+          <td class="num">2026-08-30</td>
+          <td class="num">3</td>
+          <td><span class="badge ok">26.8.2.7</span></td>
+          <td><span class="en">Pipe operators <code>|&gt;</code>, <code>GROUPS</code> window frame mode, <code>japanese</code> / <code>chinese</code> / <code>icu</code> tokenizers</span><span class="ko">파이프 연산자 <code>|&gt;</code>, <code>GROUPS</code> 윈도우 프레임, <code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저</span></td>
+        </tr>
         <tr data-kw="analyze analyze.sql arraymax arraymin avgtuple aws_msk_iam cancel cols... constraint csv datetime datetime64 dictgetroot dictionaries dictionary dotproducttransposed explain geojson geometryintersectcartesian geometryintersectspherical geotomgrs geotoutm groupformat hashjoin int8 jsoneachrow kafka_sasl_mechanism local maxtuple mgrstogeo mintuple modify naive_bayes naivebayesclassifierwithallprobs naivebayesclassifierwithprob naivebayesngrams pause qbit queryrunner randomhadamardtransform readfrommergetree refresh remotesecure role session_timezone skip_unavailable_shards_mode spillinghashjoin start stop sumtuple sumtupleif system system.query_log system.stemmers ties time todate totimezone totypename tounixtimestamp tsv unload user utc utmtogeo xxhash64spark zone zone.sql">
           <td><a class="ver" href="labs/local/releases/26.7/index.html">26.7</a></td>
           <td class="num">2026-07-22</td>
@@ -206,9 +213,9 @@
             <a href="labs/local/oss-mac-setup/index.html"><code>local/oss-mac-setup</code></a>
             <p><span class="en">ClickHouse OSS on macOS via Docker; <code>set.sh &lt;version&gt;</code> switches versions and every release lab builds on it</span><span class="ko">macOS Docker 기반 ClickHouse OSS. <code>set.sh &lt;버전&gt;</code>으로 버전을 전환하며, 모든 릴리스 랩이 이 환경을 사용</span></p>
           </li>
-          <li data-kw="add all analyze arrayexcept arraysymmetricdifference coalescingmergetree date_part delete enum escape estimatecompressionratio explain groupformat having highlightquery isprime join keccak256 local natural offset qbit readme.md reversebyseparator sequencematchevents set.sh setup.sh some sparsegrams start.sh stringcompare system.tokenizers time time64 tointerval tokenizequery union update verify_release_lab.sh whatif zone">
+          <li data-kw="add all analyze arrayexcept arraysymmetricdifference coalescingmergetree date_part delete enum escape estimatecompressionratio explain groupformat groups having highlightquery isprime join keccak256 local natural offset qbit readme.md reversebyseparator sequencematchevents set.sh setup.sh some sparsegrams start.sh stringcompare system.tokenizers time time64 tointerval tokenizequery union update verify_release_lab.sh whatif zone">
             <a href="labs/local/releases/index.html"><code>local/releases</code></a>
-            <p><span class="en"><strong>19 per-release feature labs, 25.1 → 26.7</strong> — one directory per release, each with runnable SQL for that version&#x27;s new features. All 19 have been executed against their own server build; the <a href="labs/local/releases/index.html">index</a> records which</span><span class="ko"><strong>릴리스별 기능 랩 19개, 25.1 → 26.7</strong> — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 19개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 <a href="labs/local/releases/index.html">인덱스</a>에 표기</span></p>
+            <p><span class="en"><strong>20 per-release feature labs, 25.1 → 26.8</strong> — one directory per release, each with runnable SQL for that version&#x27;s new features. All 20 have been executed against their own server build; the <a href="labs/local/releases/index.html">index</a> records which</span><span class="ko"><strong>릴리스별 기능 랩 20개, 25.1 → 26.8</strong> — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 20개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 <a href="labs/local/releases/index.html">인덱스</a>에 표기</span></p>
           </li>
           <li data-kw="catalog.sh catalogs.sh minio setup.sh v1.0 v2.0 v3.0 v3.1">
             <a href="labs/local/datalake-minio-catalog/index.html"><code>local/datalake-minio-catalog</code></a>
@@ -451,7 +458,7 @@
   <section id="g-start">
   <h2><span class="en">Getting started</span><span class="ko">시작하기</span></h2>
   <pre><code>git clone https://github.com/litkhai/clickhouse-hols.git
-cd clickhouse-hols/local/releases/26.7
+cd clickhouse-hols/local/releases/26.8
 ./00-setup.sh</code></pre>
   <p class="lede"><span class="en">Then run the numbered scripts in order. Every lab documents its own setup and teardown; nothing is global.</span><span class="ko">이후 번호 순서대로 스크립트를 실행하세요. 각 랩이 자체 설정과 정리 방법을 문서화하며, 전역 설정은 없습니다.</span></p>
   </section>

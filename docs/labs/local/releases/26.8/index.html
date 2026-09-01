@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.8 LTS · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.8 LTS — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.8</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.8.2.7</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.8 LTS</h1>
+<hr />
+<p><strong>Released 2026-08-30 · LTS · verified here against 26.8.2.7</strong></p>
+<p>26.8 is an LTS release and a large one — the changelog runs to 21 backward
+incompatible changes, 46 new features and 89 performance improvements. This lab
+takes three of them that you can see working in a single container, and that
+change how you write queries rather than how fast they run.</p>
+<table>
+<thead>
+<tr>
+<th>Lab</th>
+<th>Feature</th>
+<th>Why it is here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/01-pipe-operators.sql">01</a></td>
+<td>Pipe operators <code>\|&gt;</code></td>
+<td>The biggest syntax change in years. Queries read in the order data flows</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/02-groups-window-frame.sql">02</a></td>
+<td><code>GROUPS</code> window frame mode</td>
+<td>The third frame mode SQL defines, and the one ClickHouse was missing</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/03-cjk-tokenizers.sql">03</a></td>
+<td><code>japanese</code>, <code>chinese</code>, <code>icu</code> tokenizers</td>
+<td>The difference between a working Korean text index and a useless one</td>
+</tr>
+</tbody>
+</table>
+<h3>Quick start</h3>
+<pre><code class="language-bash">./00-setup.sh              # brings up ClickHouse 26.8 via local/oss-mac-setup
+./01-pipe-operators.sh
+./02-groups-window-frame.sh
+./03-cjk-tokenizers.sh
+</code></pre>
+<p>Each <code>NN-*.sh</code> pipes the matching <code>.sql</code> into <code>clickhouse-client</code>. Read the SQL
+— the comments are the lab.</p>
+<hr />
+<h3>01 · Pipe operators</h3>
+<pre><code class="language-sql">FROM trips
+|&gt; WHERE n &gt; 2
+|&gt; AGGREGATE sum(n) AS total GROUP BY city
+|&gt; ORDER BY total DESC
+</code></pre>
+<p>SQL reads in an order nobody writes in. You start at <code>SELECT</code>, jump back to
+<code>FROM</code>, then to <code>WHERE</code>, then return to the select list once you know what you
+are grouping by. Pipe syntax lets the text run in the order the data flows.</p>
+<p><strong>The operators.</strong> The parser will list them if you give it something it does
+not recognise:</p>
+<pre><code class="language-text">WHERE, SELECT, EXTEND, SET, DROP, AS, AGGREGATE, DISTINCT,
+ORDER BY, LIMIT, OFFSET, UNION, INTERSECT, EXCEPT, and the JOIN family
+</code></pre>
+<p>Three of those have no classic equivalent and are worth knowing:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EXTEND expr AS name</code></td>
+<td>add a column, keep everything else — no need to re-list the columns</td>
+</tr>
+<tr>
+<td><code>SET col = expr</code></td>
+<td>overwrite a column in place</td>
+</tr>
+<tr>
+<td><code>DROP col</code></td>
+<td>remove a column</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The practical argument is not elegance, it is append-only editing.</strong> Every
+prefix of a pipe chain is a complete query:</p>
+<pre><code class="language-sql">FROM trips;
+FROM trips |&gt; WHERE n &gt;= 5;
+FROM trips |&gt; WHERE n &gt;= 5 |&gt; AGGREGATE sum(n) AS total GROUP BY city;
+FROM trips |&gt; WHERE n &gt;= 5 |&gt; AGGREGATE sum(n) AS total GROUP BY city |&gt; ORDER BY total DESC;
+</code></pre>
+<p>Each line is the previous one plus a step. Nothing above ever has to be edited.
+Building a query stops being a cycle of jumping back to the top.</p>
+<p><strong>It is sugar.</strong> <code>EXPLAIN SYNTAX</code> rewrites a pipe chain into the classic form:</p>
+<pre><code class="language-text">SELECT city, sum(n) AS total FROM (SELECT * FROM (SELECT * FROM trips)
+WHERE greater(n, 2)) GROUP BY city
+</code></pre>
+<p>Same AST, same plan, same performance. Nothing to weigh up except readability
+— and on a single-table lookup the classic form is still shorter, which is
+worth saying out loud before someone rewrites a codebase.</p>
+<p>!!! note
+    <code>EXPLAIN SYNTAX</code> itself changed in 26.8: it now returns <strong>one <code>String</code>
+    record</strong> with embedded newlines instead of one record per line. If you had
+    something parsing its output, that is a breaking change.</p>
+<hr />
+<h3>02 · <code>GROUPS</code> window frame mode</h3>
+<p>SQL defines three ways to size a window frame. ClickHouse had two.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ROWS</code></td>
+<td>physical rows</td>
+</tr>
+<tr>
+<td><code>RANGE</code></td>
+<td>rows whose <strong>value</strong> is within the given distance</td>
+</tr>
+<tr>
+<td><code>GROUPS</code></td>
+<td><strong>peer groups</strong> — sets of rows sharing the same <code>ORDER BY</code> value</td>
+</tr>
+</tbody>
+</table>
+<p>The difference only shows up when there are ties, gaps, or both. Values
+<code>1, 5, 5, 100</code> with <code>BETWEEN 1 PRECEDING AND 1 FOLLOWING</code>:</p>
+<table>
+<thead>
+<tr>
+<th>n</th>
+<th><code>ROWS</code></th>
+<th><code>RANGE</code></th>
+<th><code>GROUPS</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr>
+<td>100</td>
+<td>2</td>
+<td>1</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p><code>RANGE</code> collapses at the gap — nothing is within ±1 of 100, so the frame is the
+row itself. <code>GROUPS</code> does not care how far away 100 is, only that it is the
+next distinct value.</p>
+<p><strong>Where it is the correct answer.</strong> Ranked results with ties. "Compare each
+score against the ranks either side of it" is a <code>GROUPS</code> question — you mean
+the neighbouring rank, not a score one point away and not a fixed row count:</p>
+<pre><code class="language-text">player  score  GROUPS neighbours      ROWS neighbours
+a       100    [a,b,c,d]              [a,b]
+b       100    [a,b,c,d]              [a,b,c]
+c       100    [a,b,c,d]              [b,c,d]
+d        80    [a,b,c,d,e,f]          [c,d,e]
+</code></pre>
+<p><code>GROUPS</code> returns the same complete answer for all three tied players. <code>ROWS</code>
+slices arbitrarily through the tie and gives each of them a different one.</p>
+<p><strong>The detail that surprises people.</strong> Under <code>GROUPS</code> and <code>RANGE</code>,
+<code>CURRENT ROW</code> is not one row — it is every row tied with it:</p>
+<pre><code class="language-sql">-- three rows all equal to 7
+count() OVER (ORDER BY n GROUPS BETWEEN CURRENT ROW AND CURRENT ROW)  -- 3
+count() OVER (ORDER BY n ROWS   BETWEEN CURRENT ROW AND CURRENT ROW)  -- 1
+</code></pre>
+<p><strong>On evenly spaced data <code>RANGE</code> and <code>GROUPS</code> are the same function</strong>, which is
+why the distinction is easy to miss until it produces a wrong number.</p>
+<hr />
+<h3>03 · <code>japanese</code>, <code>chinese</code> and <code>icu</code> tokenizers</h3>
+<p>For anyone indexing Korean, Japanese or Chinese, this is the release that makes
+text indexes usable.</p>
+<p><strong>What used to happen to Korean:</strong></p>
+<pre><code class="language-text">unicodeWord  ['클','릭','하','우','스','벡','터','검','색','은','빠','르','다']
+asciiCJK     ['클','릭','하','우','스','벡','터','검','색','은','빠','르','다']
+chinese      ['클릭하우스','벡터','검색은','빠르다']
+icu(ko)      ['클릭하우스','벡터','검색은','빠르다']
+</code></pre>
+<p>Thirteen tokens for four words. An index built on per-syllable tokens matches
+almost everything and prunes almost nothing — the worst of both. Korean does
+put spaces between words, which is why this is easy to get wrong: it looks like
+a space-splitting tokenizer should have been fine.</p>
+<p><strong>Building the index.</strong> The tokenizer argument is a function call:</p>
+<pre><code class="language-sql">INDEX idx body TYPE text(tokenizer = icu('ko')) GRANULARITY 1   -- correct
+INDEX idx body TYPE text(tokenizer = 'icu', locale = 'ko')      -- rejected
+</code></pre>
+<p><strong>Two things about <code>icu</code> worth knowing before you tune it.</strong></p>
+<p>The locale is mandatory — <code>tokens(s, 'icu')</code> errors with <em>"requires a mandatory
+locale argument"</em>. And it must be a <strong>constant</strong>; passing a column gives
+<em>"Expected: const String, got: String"</em>.</p>
+<p>And then it does not change the Korean result. <code>ko</code>, <code>ko_KR</code>, <code>en</code>, <code>ja</code> and
+<code>zh</code> all return identical tokens, because ICU's Korean word-break comes from a
+built-in dictionary rather than from the locale tag.</p>
+<h4>The limitation to plan around</h4>
+<pre><code class="language-sql">SELECT count() FROM docs WHERE hasToken(body, '검색');   -- 0
+SELECT id    FROM docs WHERE hasToken(body, '검색은');   -- 1
+</code></pre>
+<p>Korean particles (조사) stay glued to the noun. <code>검색은</code>, <code>검색을</code> and <code>검색이</code>
+are three different tokens and none of them is <code>검색</code>.</p>
+<p><strong>This is word segmentation, not morphological analysis.</strong> ICU finds word
+boundaries; it does not know that 은/을/이 are grammar rather than spelling.
+Options, in the order most people should consider them:</p>
+<ol>
+<li>Search with the particle, if users type whole phrases.</li>
+<li>Pre-process a second column with a Korean morphological analyser
+   (mecab-ko, nori, kiwi) outside ClickHouse and index that with
+   <code>splitByString</code>. You keep control and pay an ingest step.</li>
+<li>Use <code>ngrams</code> for recall-first search and accept the index size.</li>
+</ol>
+<p>What you should not do is assume <code>icu('ko')</code> behaves like a Korean analyser. It
+is a large improvement over per-syllable splitting, and it is not that.</p>
+<h4>The other two</h4>
+<p>For Chinese the dedicated tokenizer is better than ICU:</p>
+<pre><code class="language-text">chinese  ['点击','之家','向量','搜索','很快']
+icu(zh)  ['点','击','之家','向量','搜索','很快']
+</code></pre>
+<p>ICU splits 点击 into two characters. For Korean the two were identical. Test on
+your own corpus rather than picking by name.</p>
+<p><code>japanese</code> is listed in <code>system.tokenizers</code> but needs a dictionary supplied in
+the server configuration:</p>
+<pre><code class="language-text">Code: 139. The Japanese tokenizer requires a dictionary configured under
+&lt;tokenizer&gt;&lt;japanese&gt; in the server configuration
+</code></pre>
+<p>so it does not work out of the box in this container. <code>icu</code> handles Japanese
+without extra configuration, which is the pragmatic choice for a mixed corpus.</p>
+<hr />
+<h3>Also in 26.8, not covered by these labs</h3>
+<p>Worth knowing about, in rough order of how likely they are to affect you:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>max_insert_threads</code> default <code>1</code> → <code>auto</code></strong></td>
+<td><code>INSERT SELECT</code> is now parallel by default. Backward incompatible, and the one most likely to change your ingest behaviour without you asking</td>
+</tr>
+<tr>
+<td>Lightweight <code>UPDATE</code> patch parts, v2 format</td>
+<td>Peak memory bounded by the largest equal-sort-key run instead of the whole patch</td>
+</tr>
+<tr>
+<td><code>Date32</code> range widened</td>
+<td><code>[1900-01-01, 2299-12-31]</code> → <code>[0000-01-01, 9999-12-31]</code></td>
+</tr>
+<tr>
+<td><code>PostgreSQL</code> / <code>MaterializedPostgreSQL</code> engines respect <code>remote_url_allow_hosts</code></td>
+<td><code>CREATE DATABASE</code> now rejects disallowed hosts</td>
+</tr>
+<tr>
+<td><code>IEJoin</code></td>
+<td>Join algorithm for inequality comparisons</td>
+</tr>
+<tr>
+<td><code>gini</code></td>
+<td>Aggregate function for the Gini coefficient</td>
+</tr>
+<tr>
+<td><code>notHas</code>, array-of-integers subscript, <code>MultiPoint</code></td>
+<td>Small conveniences, all present and working</td>
+</tr>
+<tr>
+<td><code>bigquery</code> table function and <code>BigQuery</code> engine</td>
+<td></td>
+</tr>
+<tr>
+<td><code>aiSimilarity</code>, <code>aiFilter</code>, <code>aiRedact</code></td>
+<td>LLM-backed functions; need an external provider, so out of scope for an offline lab</td>
+</tr>
+<tr>
+<td><code>CREATE HANDLER</code></td>
+<td>Custom HTTP handlers as DDL</td>
+</tr>
+<tr>
+<td><code>parseQueryToJSON</code> / <code>formatQueryFromJSON</code></td>
+<td>AST to JSON and back</td>
+</tr>
+</tbody>
+</table>
+<h3>Verified</h3>
+<p>Every query in the three <code>.sql</code> files was run against <strong>26.8.2.7</strong> in the
+container this lab sets up, and the outputs quoted above are from those runs.
+Two of them needed fixing along the way, and both are noted in the SQL:
+<code>UNION ALL</code> does not expose its column aliases to a trailing <code>ORDER BY</code>, and
+<code>tokens()</code> will not take a locale from a column.</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>2026-08-30 릴리스 · LTS · 여기서는 26.8.2.7로 검증</strong></p>
+<p>26.8은 LTS이고 규모가 큽니다 — changelog에 하위 호환성 변경 21개, 신기능 46개,
+성능 개선 89개가 있습니다. 이 랩은 그중 <strong>컨테이너 하나에서 눈으로 확인할 수
+있고</strong>, 속도가 아니라 쿼리를 쓰는 방식을 바꾸는 세 가지를 다룹니다.</p>
+<table>
+<thead>
+<tr>
+<th>랩</th>
+<th>기능</th>
+<th>선정 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/01-pipe-operators.sql">01</a></td>
+<td>파이프 연산자 <code>\|&gt;</code></td>
+<td>수년 만의 가장 큰 문법 변화. 쿼리가 데이터 흐름 순서로 읽힘</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/02-groups-window-frame.sql">02</a></td>
+<td><code>GROUPS</code> 윈도우 프레임</td>
+<td>SQL이 정의한 세 번째 프레임 모드, ClickHouse에 없던 것</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/03-cjk-tokenizers.sql">03</a></td>
+<td><code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저</td>
+<td>쓸모 있는 한국어 텍스트 인덱스와 무용지물의 차이</td>
+</tr>
+</tbody>
+</table>
+<h3>빠른 시작</h3>
+<pre><code class="language-bash">./00-setup.sh              # local/oss-mac-setup으로 26.8 기동
+./01-pipe-operators.sh
+./02-groups-window-frame.sh
+./03-cjk-tokenizers.sh
+</code></pre>
+<p>각 <code>NN-*.sh</code>는 같은 이름의 <code>.sql</code>을 <code>clickhouse-client</code>에 넘깁니다. SQL을
+읽으세요 — 주석이 곧 랩입니다.</p>
+<hr />
+<h3>01 · 파이프 연산자</h3>
+<pre><code class="language-sql">FROM trips
+|&gt; WHERE n &gt; 2
+|&gt; AGGREGATE sum(n) AS total GROUP BY city
+|&gt; ORDER BY total DESC
+</code></pre>
+<p>SQL은 아무도 쓰지 않는 순서로 읽힙니다. <code>SELECT</code>에서 시작해 <code>FROM</code>으로
+돌아갔다가 <code>WHERE</code>로 갔다가, 무엇으로 그룹핑할지 정해진 뒤에야 다시 select
+목록으로 옵니다. 파이프 문법은 텍스트가 데이터 흐름 순서로 흐르게 합니다.</p>
+<p><strong>연산자 목록.</strong> 파서에 모르는 것을 주면 알려줍니다.</p>
+<pre><code class="language-text">WHERE, SELECT, EXTEND, SET, DROP, AS, AGGREGATE, DISTINCT,
+ORDER BY, LIMIT, OFFSET, UNION, INTERSECT, EXCEPT, 그리고 JOIN 계열
+</code></pre>
+<p>이 중 셋은 고전 문법에 대응물이 없어 알아둘 만합니다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EXTEND expr AS name</code></td>
+<td>컬럼 추가, 나머지는 유지 — 컬럼을 다시 나열할 필요 없음</td>
+</tr>
+<tr>
+<td><code>SET col = expr</code></td>
+<td>컬럼을 제자리에서 덮어씀</td>
+</tr>
+<tr>
+<td><code>DROP col</code></td>
+<td>컬럼 제거</td>
+</tr>
+</tbody>
+</table>
+<p><strong>실용적 논거는 우아함이 아니라 "덧붙이기만 하는 편집"입니다.</strong> 파이프 체인의
+모든 접두사가 완결된 쿼리입니다.</p>
+<pre><code class="language-sql">FROM trips;
+FROM trips |&gt; WHERE n &gt;= 5;
+FROM trips |&gt; WHERE n &gt;= 5 |&gt; AGGREGATE sum(n) AS total GROUP BY city;
+FROM trips |&gt; WHERE n &gt;= 5 |&gt; AGGREGATE sum(n) AS total GROUP BY city |&gt; ORDER BY total DESC;
+</code></pre>
+<p>각 줄은 이전 줄에 한 단계를 더한 것입니다. 위쪽은 절대 고칠 일이 없습니다.
+쿼리 작성이 맨 위로 되돌아가는 반복에서 벗어납니다.</p>
+<p><strong>문법 설탕입니다.</strong> <code>EXPLAIN SYNTAX</code>가 파이프 체인을 고전 형태로 되돌립니다.</p>
+<pre><code class="language-text">SELECT city, sum(n) AS total FROM (SELECT * FROM (SELECT * FROM trips)
+WHERE greater(n, 2)) GROUP BY city
+</code></pre>
+<p>같은 AST, 같은 계획, 같은 성능입니다. 저울질할 것은 가독성뿐이고, 단일 테이블
+조회는 고전 문법이 여전히 더 짧습니다 — 누군가 코드베이스를 갈아엎기 전에
+말해둘 필요가 있습니다.</p>
+<p>!!! note
+    <code>EXPLAIN SYNTAX</code> 자체가 26.8에서 바뀌었습니다. 줄마다 레코드 하나가 아니라
+    개행이 포함된 <strong><code>String</code> 레코드 하나</strong>를 반환합니다. 출력을 파싱하던 게
+    있다면 깨지는 변경입니다.</p>
+<hr />
+<h3>02 · <code>GROUPS</code> 윈도우 프레임 모드</h3>
+<p>SQL은 윈도우 프레임 크기를 정하는 방법을 셋 정의합니다. ClickHouse엔 둘이
+있었습니다.</p>
+<table>
+<thead>
+<tr>
+<th>모드</th>
+<th>세는 대상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ROWS</code></td>
+<td>물리적 행</td>
+</tr>
+<tr>
+<td><code>RANGE</code></td>
+<td><strong>값</strong>이 주어진 거리 안에 있는 행</td>
+</tr>
+<tr>
+<td><code>GROUPS</code></td>
+<td><strong>피어 그룹</strong> — <code>ORDER BY</code> 값이 같은 행들의 묶음</td>
+</tr>
+</tbody>
+</table>
+<p>차이는 동점이나 간격이 있을 때만 드러납니다. 값 <code>1, 5, 5, 100</code>에
+<code>BETWEEN 1 PRECEDING AND 1 FOLLOWING</code>:</p>
+<table>
+<thead>
+<tr>
+<th>n</th>
+<th><code>ROWS</code></th>
+<th><code>RANGE</code></th>
+<th><code>GROUPS</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr>
+<td>100</td>
+<td>2</td>
+<td>1</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p><code>RANGE</code>는 간격에서 무너집니다 — 100의 ±1 안에 아무것도 없어 프레임이 자기 행
+하나입니다. <code>GROUPS</code>는 100이 얼마나 먼지 신경 쓰지 않고, 다음 구별되는 값이라는
+것만 봅니다.</p>
+<p><strong>이게 정답인 경우.</strong> 동점이 있는 순위표입니다. "각 점수를 양옆 순위와 비교"는
+<code>GROUPS</code> 질문입니다 — 1점 차이 나는 점수도, 고정된 행 수도 아니고 이웃한
+<em>순위</em>를 뜻하니까요.</p>
+<pre><code class="language-text">player  score  GROUPS 이웃            ROWS 이웃
+a       100    [a,b,c,d]              [a,b]
+b       100    [a,b,c,d]              [a,b,c]
+c       100    [a,b,c,d]              [b,c,d]
+d        80    [a,b,c,d,e,f]          [c,d,e]
+</code></pre>
+<p><code>GROUPS</code>는 동점인 세 명 모두에게 같은 완전한 답을 줍니다. <code>ROWS</code>는 동점을
+임의로 잘라 각자에게 다른 답을 줍니다.</p>
+<p><strong>사람들이 놀라는 지점.</strong> <code>GROUPS</code>와 <code>RANGE</code>에서 <code>CURRENT ROW</code>는 한 행이 아니라
+<strong>동점인 모든 행</strong>입니다.</p>
+<pre><code class="language-sql">-- 값이 전부 7인 세 행
+count() OVER (ORDER BY n GROUPS BETWEEN CURRENT ROW AND CURRENT ROW)  -- 3
+count() OVER (ORDER BY n ROWS   BETWEEN CURRENT ROW AND CURRENT ROW)  -- 1
+</code></pre>
+<p><strong>값이 고르게 분포하면 <code>RANGE</code>와 <code>GROUPS</code>는 같은 함수입니다.</strong> 그래서 이 구분은
+틀린 숫자가 나오기 전까지 놓치기 쉽습니다.</p>
+<hr />
+<h3>03 · <code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저</h3>
+<p>한국어·일본어·중국어를 색인하는 사람에게 이 릴리스는 텍스트 인덱스를 쓸 수 있게
+만든 릴리스입니다.</p>
+<p><strong>기존에 한국어에 벌어지던 일:</strong></p>
+<pre><code class="language-text">unicodeWord  ['클','릭','하','우','스','벡','터','검','색','은','빠','르','다']
+asciiCJK     ['클','릭','하','우','스','벡','터','검','색','은','빠','르','다']
+chinese      ['클릭하우스','벡터','검색은','빠르다']
+icu(ko)      ['클릭하우스','벡터','검색은','빠르다']
+</code></pre>
+<p>네 단어에 토큰 13개입니다. 음절 단위 토큰으로 만든 인덱스는 거의 모든 것에
+매칭되고 거의 아무것도 걸러내지 못합니다 — 양쪽의 최악입니다. 한국어는 단어
+사이에 띄어쓰기를 하기 때문에 이게 틀리기 쉽습니다. 공백 분할 토크나이저로
+충분해 보이거든요.</p>
+<p><strong>인덱스 만들기.</strong> 토크나이저 인자는 함수 호출입니다.</p>
+<pre><code class="language-sql">INDEX idx body TYPE text(tokenizer = icu('ko')) GRANULARITY 1   -- 맞음
+INDEX idx body TYPE text(tokenizer = 'icu', locale = 'ko')      -- 거부됨
+</code></pre>
+<p><strong><code>icu</code>에 대해 튜닝 전에 알아둘 두 가지.</strong></p>
+<p>로케일은 <strong>필수</strong>입니다 — <code>tokens(s, 'icu')</code>는 <em>"requires a mandatory locale
+argument"</em>로 실패합니다. 그리고 <strong>상수</strong>여야 합니다. 컬럼을 넘기면
+<em>"Expected: const String, got: String"</em>이 납니다.</p>
+<p>그런데 한국어 결과는 로케일에 따라 바뀌지 않습니다. <code>ko</code>, <code>ko_KR</code>, <code>en</code>, <code>ja</code>,
+<code>zh</code> 전부 동일한 토큰을 냅니다. ICU의 한국어 단어 분리가 로케일 태그가 아니라
+내장 사전에서 오기 때문입니다.</p>
+<h4>반드시 감안해야 할 한계</h4>
+<pre><code class="language-sql">SELECT count() FROM docs WHERE hasToken(body, '검색');   -- 0
+SELECT id    FROM docs WHERE hasToken(body, '검색은');   -- 1
+</code></pre>
+<p>조사가 명사에 붙어 있습니다. <code>검색은</code>, <code>검색을</code>, <code>검색이</code>는 서로 다른 세 토큰
+이고 그중 어느 것도 <code>검색</code>이 아닙니다.</p>
+<p><strong>이건 단어 분리이지 형태소 분석이 아닙니다.</strong> ICU는 단어 경계를 찾을 뿐,
+은/을/이가 철자가 아니라 문법이라는 것은 모릅니다. 고려할 선택지를 순서대로:</p>
+<ol>
+<li>사용자가 구 단위로 입력한다면 조사를 포함해 검색.</li>
+<li>ClickHouse 밖에서 한국어 형태소 분석기(mecab-ko, nori, kiwi)로 전처리한
+   컬럼을 하나 더 두고 <code>splitByString</code>으로 색인. 통제권을 갖는 대신 적재 단계를
+   지불합니다.</li>
+<li>재현율 우선이면 <code>ngrams</code>를 쓰고 인덱스 크기를 감수.</li>
+</ol>
+<p>하지 말아야 할 것은 <code>icu('ko')</code>가 한국어 분석기처럼 동작하리라 가정하는
+것입니다. 음절 분할보다 크게 나아진 것이지, 그것은 아닙니다.</p>
+<h4>나머지 둘</h4>
+<p>중국어에서는 전용 토크나이저가 ICU보다 낫습니다.</p>
+<pre><code class="language-text">chinese  ['点击','之家','向量','搜索','很快']
+icu(zh)  ['点','击','之家','向量','搜索','很快']
+</code></pre>
+<p>ICU는 点击을 두 글자로 쪼갭니다. 한국어에서는 둘이 동일했습니다. 이름으로
+고르지 말고 자기 코퍼스에서 시험하세요.</p>
+<p><code>japanese</code>는 <code>system.tokenizers</code>에 있지만 서버 설정에 사전이 필요합니다.</p>
+<pre><code class="language-text">Code: 139. The Japanese tokenizer requires a dictionary configured under
+&lt;tokenizer&gt;&lt;japanese&gt; in the server configuration
+</code></pre>
+<p>그래서 이 컨테이너에서는 바로 안 됩니다. <code>icu</code>는 추가 설정 없이 일본어를
+처리하므로, 혼합 코퍼스에는 그쪽이 현실적입니다.</p>
+<hr />
+<h3>26.8의 다른 변화 (이 랩에서 다루지 않음)</h3>
+<p>영향을 받을 가능성이 큰 순서로:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>max_insert_threads</code> 기본값 <code>1</code> → <code>auto</code></strong></td>
+<td><code>INSERT SELECT</code>가 기본 병렬화. 하위 호환성 변경이고, 요청하지 않았는데 적재 동작이 바뀔 가능성이 가장 큼</td>
+</tr>
+<tr>
+<td>경량 <code>UPDATE</code> patch part v2 포맷</td>
+<td>피크 메모리가 전체 patch가 아니라 최대 동일-정렬키 구간으로 제한</td>
+</tr>
+<tr>
+<td><code>Date32</code> 범위 확대</td>
+<td><code>[1900-01-01, 2299-12-31]</code> → <code>[0000-01-01, 9999-12-31]</code></td>
+</tr>
+<tr>
+<td><code>PostgreSQL</code>/<code>MaterializedPostgreSQL</code> 엔진이 <code>remote_url_allow_hosts</code> 존중</td>
+<td><code>CREATE DATABASE</code>가 허용되지 않은 호스트를 거부</td>
+</tr>
+<tr>
+<td><code>IEJoin</code></td>
+<td>부등호 비교 조인 알고리즘</td>
+</tr>
+<tr>
+<td><code>gini</code></td>
+<td>지니 계수 집계 함수</td>
+</tr>
+<tr>
+<td><code>notHas</code>, 정수 배열 첨자, <code>MultiPoint</code></td>
+<td>소소한 편의 기능, 모두 동작 확인</td>
+</tr>
+<tr>
+<td><code>bigquery</code> 테이블 함수와 <code>BigQuery</code> 엔진</td>
+<td></td>
+</tr>
+<tr>
+<td><code>aiSimilarity</code>·<code>aiFilter</code>·<code>aiRedact</code></td>
+<td>LLM 기반 함수. 외부 제공자가 필요해 오프라인 랩 범위 밖</td>
+</tr>
+<tr>
+<td><code>CREATE HANDLER</code></td>
+<td>커스텀 HTTP 핸들러를 DDL로</td>
+</tr>
+<tr>
+<td><code>parseQueryToJSON</code> / <code>formatQueryFromJSON</code></td>
+<td>AST ↔ JSON</td>
+</tr>
+</tbody>
+</table>
+<h3>검증</h3>
+<p>세 <code>.sql</code> 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 <strong>26.8.2.7</strong>에서
+실행했고, 위에 인용한 출력은 그 실행 결과입니다. 그 과정에서 두 가지를 고쳐야
+했고 둘 다 SQL에 적어뒀습니다. <code>UNION ALL</code>은 컬럼 별칭을 뒤따르는 <code>ORDER BY</code>에
+노출하지 않으며, <code>tokens()</code>는 로케일을 컬럼에서 받지 않습니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><span class="step empty"></span><a class="step next" href="../../../../labs/local/releases/26.7/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse 26.7 New Features Lab</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

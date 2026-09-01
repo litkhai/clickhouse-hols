@@ -52,6 +52,13 @@
 </thead>
 <tbody>
 <tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">26.8</a></td>
+<td>2026-08-30</td>
+<td>3</td>
+<td>26.8.2.7</td>
+<td>Pipe operators <code>|&gt;</code>, <code>GROUPS</code> window frame mode, <code>japanese</code> / <code>chinese</code> / <code>icu</code> tokenizers</td>
+</tr>
+<tr>
 <td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7">26.7</a></td>
 <td>2026-07-22</td>
 <td>3</td>
@@ -187,7 +194,7 @@
 </tbody>
 </table>
 <p><strong>Verified</strong> names the exact server build every lab in that directory was run
-against, end to end, with zero exceptions. All nineteen have been. Getting
+against, end to end, with zero exceptions. All twenty have been. Getting
 there took fixing eleven of them: SQL that referenced functions and settings
 which do not exist, arguments in the wrong order, and aliases that shadowed the
 column they aggregated. Re-run any of them yourself with
@@ -256,6 +263,13 @@ column they aggregated. Re-run any of them yourself with
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">26.8</a></td>
+<td>2026-08-30</td>
+<td>3</td>
+<td>26.8.2.7</td>
+<td>파이프 연산자 <code>|&gt;</code>, <code>GROUPS</code> 윈도우 프레임, <code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저</td>
+</tr>
 <tr>
 <td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.7">26.7</a></td>
 <td>2026-07-22</td>
@@ -392,7 +406,7 @@ column they aggregated. Re-run any of them yourself with
 </tbody>
 </table>
 <p><strong>검증</strong>은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버
-빌드입니다. 19개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
+빌드입니다. 20개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
 않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은
 문제였습니다. 직접 재현하려면
 <code>.github/scripts/verify_release_lab.sh &lt;버전&gt;</code> 을 실행하세요.</p>

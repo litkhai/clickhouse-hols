@@ -12,6 +12,7 @@ One directory per ClickHouse release, each a self-contained hands-on lab for tha
 
 | Version | Released | Labs | Verified | Features Covered |
 |---------|----------|------|----------|------------------|
+| [26.8](26.8/) | 2026-08-30 | 3 | 26.8.2.7 | Pipe operators `|>`, `GROUPS` window frame mode, `japanese` / `chinese` / `icu` tokenizers |
 | [26.7](26.7/) | 2026-07-22 | 3 | 26.7.1 | `EXPLAIN ANALYZE`, `AT TIME ZONE` / `AT LOCAL`, `groupFormat` + `-Tuple` combinator |
 | [26.6](26.6/) | 2026-06-25 | 3 | 26.6.2 | Hypothetical indexes + `EXPLAIN WHATIF`, `ADD ENUM VALUES`, SQL compatibility (`SOME`/`ALL`, `* LIKE`, `ESCAPE`, `date_part`) |
 | [26.5](26.5/) | 2026-05-21 | 3 | 26.5.1.882 | `filesystem()` table function, bare function names + `isPrime`, `tokenizeQuery` / `highlightQuery` |
@@ -33,7 +34,7 @@ One directory per ClickHouse release, each a self-contained hands-on lab for tha
 | [25.1](25.1/) | 2025-02-07 | 3 | 25.1.8.25 | Automatic minmax indices, `Merge` tables unifying schemas as `Variant`, `sequenceMatchEvents` |
 
 **Verified** names the exact server build every lab in that directory was run
-against, end to end, with zero exceptions. All nineteen have been. Getting
+against, end to end, with zero exceptions. All twenty have been. Getting
 there took fixing eleven of them: SQL that referenced functions and settings
 which do not exist, arguments in the wrong order, and aliases that shadowed the
 column they aggregated. Re-run any of them yourself with
@@ -87,6 +88,7 @@ ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신�
 
 | 버전 | 출시일 | 랩 수 | 검증 | 다루는 기능 |
 |------|--------|-------|------|-------------|
+| [26.8](26.8/) | 2026-08-30 | 3 | 26.8.2.7 | 파이프 연산자 `|>`, `GROUPS` 윈도우 프레임, `japanese`·`chinese`·`icu` 토크나이저 |
 | [26.7](26.7/) | 2026-07-22 | 3 | 26.7.1 | `EXPLAIN ANALYZE`, `AT TIME ZONE` / `AT LOCAL`, `groupFormat` + `-Tuple` 조합자 |
 | [26.6](26.6/) | 2026-06-25 | 3 | 26.6.2 | 가상 인덱스 + `EXPLAIN WHATIF`, `ADD ENUM VALUES`, SQL 호환성 (`SOME`/`ALL`, `* LIKE`, `ESCAPE`, `date_part`) |
 | [26.5](26.5/) | 2026-05-21 | 3 | 26.5.1.882 | `filesystem()` 테이블 함수, 베어 함수 이름 + `isPrime`, `tokenizeQuery` / `highlightQuery` |
@@ -108,7 +110,7 @@ ClickHouse 릴리스별로 하나의 디렉토리를 두고, 각 버전의 신�
 | [25.1](25.1/) | 2025-02-07 | 3 | 25.1.8.25 | 자동 minmax 인덱스, `Merge` 테이블의 `Variant` 스키마 통합, `sequenceMatchEvents` |
 
 **검증**은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버
-빌드입니다. 19개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
+빌드입니다. 20개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
 않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은
 문제였습니다. 직접 재현하려면
 `.github/scripts/verify_release_lab.sh <버전>` 을 실행하세요.
