@@ -1,0 +1,7 @@
+.DS_Store
+test-runs/
+validation/terraform/.terraform/
+validation/terraform/*.tfstate
+validation/terraform/*.tfstate.*
+validation/terraform/*.tfvars
+validation/terraform/tfplan

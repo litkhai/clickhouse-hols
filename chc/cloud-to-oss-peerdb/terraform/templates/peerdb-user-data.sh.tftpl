@@ -1,0 +1,267 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec > >(tee -a /var/log/peerdb-bootstrap.log) 2>&1
+
+export DEBIAN_FRONTEND=noninteractive
+export AWS_DEFAULT_REGION="${aws_region}"
+
+find_data_device() {
+  local root_source root_parent device
+  root_source=$(findmnt -n -o SOURCE /)
+  root_parent=$(lsblk -no PKNAME "$root_source" 2>/dev/null || true)
+
+  for _ in $(seq 1 120); do
+    while read -r device; do
+      if [ "$(basename "$device")" != "$root_parent" ]; then
+        printf '%s\n' "$device"
+        return 0
+      fi
+    done < <(lsblk -dpno NAME,TYPE | awk '$2 == "disk" {print $1}')
+    sleep 5
+  done
+
+  echo "Timed out waiting for the PeerDB data EBS volume" >&2
+  return 1
+}
+
+mount_data_volume() {
+  local device uuid
+  device=$(find_data_device)
+  if ! blkid "$device" >/dev/null 2>&1; then
+    mkfs.xfs -f "$device"
+  fi
+  uuid=$(blkid -s UUID -o value "$device")
+  mkdir -p /opt/peerdb-data
+  if ! grep -q "UUID=$uuid" /etc/fstab; then
+    printf 'UUID=%s /opt/peerdb-data xfs defaults,nofail,noatime 0 2\n' "$uuid" >> /etc/fstab
+  fi
+  mountpoint -q /opt/peerdb-data || mount /opt/peerdb-data
+}
+
+apt-get update
+apt-get install -y awscli ca-certificates curl jq xfsprogs
+mount_data_volume
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+. /etc/os-release
+cat > /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $UBUNTU_CODENAME
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+mkdir -p /opt/peerdb-data/docker
+cat > /etc/docker/daemon.json <<'JSON'
+{
+  "data-root": "/opt/peerdb-data/docker",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "5"
+  },
+  "live-restore": true
+}
+JSON
+systemctl enable --now docker
+systemctl restart docker
+
+install -d -m 0750 /opt/peerdb/certs
+aws secretsmanager get-secret-value \
+  --secret-id "${clickhouse_ca_secret_arn}" \
+  --query SecretString --output text > /opt/peerdb/certs/clickhouse-ca.crt
+chmod 0644 /opt/peerdb/certs/clickhouse-ca.crt
+
+umask 077
+aws secretsmanager get-secret-value \
+  --secret-id "${peerdb_env_secret_arn}" \
+  --query SecretString --output text > /opt/peerdb/.env
+printf '\n' >> /opt/peerdb/.env
+peerdb_clickhouse_password=$(aws secretsmanager get-secret-value \
+  --secret-id "${peerdb_clickhouse_secret_arn}" \
+  --query SecretString --output text)
+cat >> /opt/peerdb/.env <<EOF
+AWS_REGION=${aws_region}
+PEERDB_IMAGE_TAG=${peerdb_image_tag}
+PEERDB_STAGE_BUCKET=${peerdb_stage_bucket}
+PEERDB_UI_BASE_URL=${peerdb_ui_base_url}
+CLICKHOUSE_PEERDB_USER=peerdb_ingest
+CLICKHOUSE_PEERDB_PASSWORD=$peerdb_clickhouse_password
+EOF
+unset peerdb_clickhouse_password
+chmod 0600 /opt/peerdb/.env
+
+cat > /opt/peerdb/mirror-name-search.sh <<'SH'
+#!/bin/sh
+set -eu
+sleep 5
+if ! temporal operator search-attribute list | grep -w MirrorName >/dev/null 2>&1; then
+  temporal operator search-attribute create --name MirrorName --type Text --namespace default
+fi
+exec tini -s -- sleep infinity
+SH
+chmod 0755 /opt/peerdb/mirror-name-search.sh
+
+cat > /opt/peerdb/docker-compose.yml <<'YAML'
+name: peerdb-production-lite
+
+x-catalog: &catalog
+  PEERDB_CATALOG_HOST: catalog
+  PEERDB_CATALOG_PORT: 5432
+  PEERDB_CATALOG_USER: postgres
+  PEERDB_CATALOG_PASSWORD: $${CATALOG_PASSWORD}
+  PEERDB_CATALOG_DATABASE: postgres
+
+x-worker: &worker
+  TEMPORAL_HOST_PORT: temporal:7233
+  PEERDB_TEMPORAL_NAMESPACE: default
+  AWS_REGION: $${AWS_REGION}
+  AWS_DEFAULT_REGION: $${AWS_REGION}
+  PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: $${AWS_REGION}
+  PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: $${PEERDB_STAGE_BUCKET}
+
+services:
+  catalog:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: $${CATALOG_PASSWORD}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: --locale=C.UTF-8
+    volumes:
+      - catalog-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  temporal:
+    image: temporalio/auto-setup:1.29
+    restart: unless-stopped
+    depends_on:
+      catalog:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: $${CATALOG_PASSWORD}
+      POSTGRES_SEEDS: catalog
+
+  temporal-ui:
+    image: temporalio/ui:2.52.1
+    restart: unless-stopped
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "127.0.0.1:8085:8080"
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.25.2-tctl-1.18.1-cli-1.1.1
+    restart: unless-stopped
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CLI_ADDRESS: temporal:7233
+    entrypoint: /etc/temporal/entrypoint.sh
+    volumes:
+      - ./mirror-name-search.sh:/etc/temporal/entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator search-attribute list | grep -w MirrorName"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  flow-api:
+    image: ghcr.io/peerdb-io/flow-api:$${PEERDB_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*catalog, *worker]
+    volumes:
+      - ./certs:/etc/peerdb/certs:ro
+    depends_on:
+      temporal-admin-tools:
+        condition: service_healthy
+
+  flow-snapshot-worker:
+    image: ghcr.io/peerdb-io/flow-snapshot-worker:$${PEERDB_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*catalog, *worker]
+    volumes:
+      - ./certs:/etc/peerdb/certs:ro
+    depends_on:
+      temporal-admin-tools:
+        condition: service_healthy
+
+  flow-worker:
+    image: ghcr.io/peerdb-io/flow-worker:$${PEERDB_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*catalog, *worker]
+    volumes:
+      - ./certs:/etc/peerdb/certs:ro
+    depends_on:
+      temporal-admin-tools:
+        condition: service_healthy
+
+  peerdb-server:
+    image: ghcr.io/peerdb-io/peerdb-server:$${PEERDB_IMAGE_TAG}
+    restart: unless-stopped
+    stop_signal: SIGINT
+    environment:
+      <<: *catalog
+      PEERDB_PASSWORD: $${PEERDB_PASSWORD}
+      PEERDB_FLOW_SERVER_ADDRESS: grpc://flow-api:8112
+      RUST_LOG: info
+    ports:
+      - "${expose_operator_ports}:9900:9900"
+    depends_on:
+      catalog:
+        condition: service_healthy
+
+  peerdb-ui:
+    image: ghcr.io/peerdb-io/peerdb-ui:$${PEERDB_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: *catalog
+      PEERDB_FLOW_SERVER_HTTP: http://flow-api:8113
+      NEXTAUTH_SECRET: $${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: $${PEERDB_UI_BASE_URL}
+    ports:
+      - "${expose_operator_ports}:3000:3000"
+    depends_on:
+      - flow-api
+
+volumes:
+  catalog-data:
+YAML
+
+cd /opt/peerdb
+docker compose config --quiet
+docker compose pull
+docker compose up -d
+
+for _ in $(seq 1 90); do
+  running_services=$(docker compose ps --status running --services | wc -l)
+  if [ "$running_services" -ge 9 ]; then
+    touch /var/log/peerdb-bootstrap.done
+    exit 0
+  fi
+  sleep 5
+done
+
+docker compose ps
+echo "PeerDB stack did not become ready" >&2
+exit 1

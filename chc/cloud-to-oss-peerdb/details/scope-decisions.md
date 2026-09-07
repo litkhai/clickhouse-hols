@@ -15,7 +15,7 @@ Resulting deviations from `AI-VALIDATION-WORK-INSTRUCTIONS.md` (deliberate, not 
 | Private subnet + NAT/VPC endpoints | Default VPC public subnets, SG-scoped access only |
 | TLS 8443/9440 client, mTLS PeerDB↔ClickHouse | Plaintext 8123/9000, SG-restricted |
 | KMS encryption everywhere | Default encryption only (EBS gp3 default, S3 SSE-S3) |
-| Secrets Manager for all credentials | Lab-only random secrets generated locally, injected via user-data, not committed to git (chc/ is outside the git repo) |
+| Secrets Manager for all credentials | Lab-only random secrets generated locally, injected via user-data, never committed to git |
 | GTID mode on RDS MySQL | Skipped — requires a multi-step staged transition (OFF→...→ON) that costs multiple reboots; `binlog_format=ROW` + `binlog_row_image=FULL` kept, which is what CDC actually requires |
 | Separate EBS volume for ClickHouse data (UUID mount) | Single enlarged root volume (50 GiB) |
 | 7-scenario failure-injection matrix, full backup/restore drill | Deferred/trimmed — see SUMMARY.md for what was actually exercised in this run |

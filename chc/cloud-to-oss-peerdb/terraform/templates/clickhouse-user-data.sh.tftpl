@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec > >(tee -a /var/log/clickhouse-bootstrap.log) 2>&1
+
+export DEBIAN_FRONTEND=noninteractive
+export AWS_DEFAULT_REGION="${aws_region}"
+
+find_data_device() {
+  local root_source root_parent device
+  root_source=$(findmnt -n -o SOURCE /)
+  root_parent=$(lsblk -no PKNAME "$root_source" 2>/dev/null || true)
+
+  for _ in $(seq 1 120); do
+    while read -r device; do
+      if [ "$(basename "$device")" != "$root_parent" ]; then
+        printf '%s\n' "$device"
+        return 0
+      fi
+    done < <(lsblk -dpno NAME,TYPE | awk '$2 == "disk" {print $1}')
+    sleep 5
+  done
+
+  echo "Timed out waiting for the ClickHouse data EBS volume" >&2
+  return 1
+}
+
+mount_data_volume() {
+  local device uuid
+  device=$(find_data_device)
+  if ! blkid "$device" >/dev/null 2>&1; then
+    mkfs.xfs -f "$device"
+  fi
+  uuid=$(blkid -s UUID -o value "$device")
+  mkdir -p /var/lib/clickhouse
+  if ! grep -q "UUID=$uuid" /etc/fstab; then
+    printf 'UUID=%s /var/lib/clickhouse xfs defaults,nofail,noatime 0 2\n' "$uuid" >> /etc/fstab
+  fi
+  mountpoint -q /var/lib/clickhouse || mount /var/lib/clickhouse
+}
+
+apt-get update
+apt-get install -y apt-transport-https awscli ca-certificates curl gnupg jq xfsprogs
+mount_data_volume
+
+install -m 0755 -d /usr/share/keyrings
+curl -fsSL "https://packages.clickhouse.com/rpm/${clickhouse_channel}/repodata/repomd.xml.key" \
+  | gpg --dearmor --yes -o /usr/share/keyrings/clickhouse-keyring.gpg
+arch=$(dpkg --print-architecture)
+printf 'deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg arch=%s] https://packages.clickhouse.com/deb %s main\n' \
+  "$arch" "${clickhouse_channel}" > /etc/apt/sources.list.d/clickhouse.list
+apt-get update
+apt-get install -y clickhouse-server clickhouse-client
+systemctl stop clickhouse-server || true
+
+chown -R clickhouse:clickhouse /var/lib/clickhouse
+install -d -m 0750 -o clickhouse -g clickhouse /etc/clickhouse-server/tls
+
+tls_json=$(aws secretsmanager get-secret-value \
+  --secret-id "${clickhouse_tls_secret_arn}" \
+  --query SecretString --output text)
+printf '%s' "$tls_json" | jq -er '.server_crt' > /etc/clickhouse-server/tls/server.crt
+printf '%s' "$tls_json" | jq -er '.server_key' > /etc/clickhouse-server/tls/server.key
+printf '%s' "$tls_json" | jq -er '.ca_crt' > /etc/clickhouse-server/tls/ca.crt
+unset tls_json
+chown clickhouse:clickhouse /etc/clickhouse-server/tls/*
+chmod 0644 /etc/clickhouse-server/tls/server.crt /etc/clickhouse-server/tls/ca.crt
+chmod 0600 /etc/clickhouse-server/tls/server.key
+
+admin_password=$(aws secretsmanager get-secret-value \
+  --secret-id "${clickhouse_admin_secret_arn}" \
+  --query SecretString --output text)
+admin_hash=$(printf '%s' "$admin_password" | sha256sum | awk '{print $1}')
+peerdb_password=$(aws secretsmanager get-secret-value \
+  --secret-id "${peerdb_clickhouse_secret_arn}" \
+  --query SecretString --output text)
+peerdb_hash=$(printf '%s' "$peerdb_password" | sha256sum | awk '{print $1}')
+
+cat > /etc/clickhouse-server/config.d/10-network-secure.xml <<'XML'
+<clickhouse>
+    <listen_host>0.0.0.0</listen_host>
+    <http_port remove="1"/>
+    <tcp_port remove="1"/>
+    <interserver_http_port remove="1"/>
+    <mysql_port remove="1"/>
+    <postgresql_port remove="1"/>
+    <https_port>8443</https_port>
+    <tcp_port_secure>9440</tcp_port_secure>
+</clickhouse>
+XML
+
+cat > /etc/clickhouse-server/config.d/11-tls.xml <<'XML'
+<clickhouse>
+    <openSSL>
+        <server>
+            <certificateFile>/etc/clickhouse-server/tls/server.crt</certificateFile>
+            <privateKeyFile>/etc/clickhouse-server/tls/server.key</privateKeyFile>
+            <caConfig>/etc/clickhouse-server/tls/ca.crt</caConfig>
+            <verificationMode>relaxed</verificationMode>
+            <loadDefaultCAFile>true</loadDefaultCAFile>
+            <cacheSessions>true</cacheSessions>
+            <disableProtocols>sslv2,sslv3,tlsv1,tlsv1_1</disableProtocols>
+            <preferServerCiphers>true</preferServerCiphers>
+        </server>
+        <client>
+            <caConfig>/etc/clickhouse-server/tls/ca.crt</caConfig>
+            <verificationMode>strict</verificationMode>
+            <loadDefaultCAFile>true</loadDefaultCAFile>
+            <invalidCertificateHandler>
+                <name>RejectCertificateHandler</name>
+            </invalidCertificateHandler>
+        </client>
+    </openSSL>
+</clickhouse>
+XML
+
+cat > /etc/clickhouse-server/config.d/20-resource-guardrails.xml <<'XML'
+<clickhouse>
+    <max_server_memory_usage_to_ram_ratio>0.85</max_server_memory_usage_to_ram_ratio>
+</clickhouse>
+XML
+
+cat > /etc/clickhouse-server/users.d/10-admin.xml <<XML
+<clickhouse>
+    <users>
+        <default>
+            <password_sha256_hex>$admin_hash</password_sha256_hex>
+            <networks>
+                <ip>127.0.0.1</ip>
+                <ip>::1</ip>
+            </networks>
+            <access_management>0</access_management>
+        </default>
+        <admin>
+            <password_sha256_hex>$admin_hash</password_sha256_hex>
+            <networks>
+                <ip>${clickhouse_allowed_cidr}</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </admin>
+    </users>
+</clickhouse>
+XML
+unset admin_hash peerdb_password
+
+chown -R clickhouse:clickhouse /etc/clickhouse-server/config.d /etc/clickhouse-server/users.d
+clickhouse-server --config-file=/etc/clickhouse-server/config.xml --test-config
+systemctl enable --now clickhouse-server
+
+for _ in $(seq 1 60); do
+  if curl --fail --silent --show-error \
+      --cacert /etc/clickhouse-server/tls/ca.crt \
+      --resolve "${clickhouse_tls_server_name}:8443:127.0.0.1" \
+      --user "admin:$admin_password" \
+      "https://${clickhouse_tls_server_name}:8443/?query=SELECT%201" >/dev/null 2>&1; then
+    curl --fail --silent --show-error \
+      --cacert /etc/clickhouse-server/tls/ca.crt \
+      --resolve "${clickhouse_tls_server_name}:8443:127.0.0.1" \
+      --user "admin:$admin_password" \
+      --data-binary "CREATE USER IF NOT EXISTS peerdb_ingest IDENTIFIED WITH sha256_hash BY '$peerdb_hash' HOST IP '${peerdb_private_ip}/32'" \
+      "https://${clickhouse_tls_server_name}:8443/"
+    unset admin_password peerdb_hash
+    touch /var/log/clickhouse-bootstrap.done
+    exit 0
+  fi
+  sleep 5
+done
+
+unset admin_password
+echo "ClickHouse did not become healthy" >&2
+exit 1

@@ -1,0 +1,35 @@
+aws_region        = "ap-northeast-2"
+name_prefix      = "analytics-migration"
+vpc_id           = "vpc-0123456789abcdef0"
+private_subnet_id = "subnet-0123456789abcdef0"
+
+# Optional: used to create an S3 gateway endpoint.
+private_route_table_ids = ["rtb-0123456789abcdef0"]
+
+clickhouse_instance_type = "m7i.4xlarge"
+peerdb_instance_type     = "m7i.2xlarge"
+
+clickhouse_data_size_gib  = 300
+clickhouse_data_iops      = 6000
+clickhouse_data_throughput = 250
+peerdb_data_size_gib       = 150
+
+clickhouse_channel  = "lts"
+peerdb_image_tag    = "stable-v0.37.5"
+clickhouse_private_dns_name = "clickhouse.internal.example.com"
+route53_private_zone_id     = "Z0123456789ABCDEFGHIJ"
+
+clickhouse_tls_secret_arn             = "arn:aws:secretsmanager:ap-northeast-2:<account-id>:secret:clickhouse/tls-<suffix>"
+clickhouse_ca_secret_arn              = "arn:aws:secretsmanager:ap-northeast-2:<account-id>:secret:clickhouse/ca-<suffix>"
+clickhouse_admin_password_secret_arn  = "arn:aws:secretsmanager:ap-northeast-2:<account-id>:secret:clickhouse/admin-password-<suffix>"
+peerdb_clickhouse_password_secret_arn = "arn:aws:secretsmanager:ap-northeast-2:<account-id>:secret:clickhouse/peerdb-password-<suffix>"
+peerdb_env_secret_arn                 = "arn:aws:secretsmanager:ap-northeast-2:<account-id>:secret:peerdb/env-<suffix>"
+
+# null means no inbound operator ports; connect through SSM port forwarding.
+operator_cidr = null
+
+tags = {
+  ManagedBy   = "Terraform"
+  Environment = "production"
+  Service     = "analytics"
+}
