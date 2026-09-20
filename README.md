@@ -93,6 +93,7 @@ A distinct product rather than a Cloud integration, which is why it sits beside
 | [usecase/langfuse-eval](usecase/langfuse-eval/) | Langfuse prompts, datasets, experiments and evals |
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | `PREWHERE` behaviour over the MySQL protocol |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse point-query performance |
+| [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` table engine + querying it with PromQL (OSS 26.8; Cloud is Private Preview only — no Cloud lab yet) |
 
 ### 🔬 Workloads (`workload/`)
 
@@ -317,6 +318,7 @@ Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그
 | [usecase/langfuse-eval](usecase/langfuse-eval/) | Langfuse 프롬프트·데이터셋·실험·평가 |
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | MySQL 프로토콜에서의 `PREWHERE` 동작 |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse 포인트 쿼리 성능 |
+| [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` 테이블 엔진 + PromQL로 조회하기 (OSS 26.8; Cloud는 Private Preview 전용 — Cloud 실습은 아직 없음) |
 
 ### 🔬 워크로드 (`workload/`)
 
