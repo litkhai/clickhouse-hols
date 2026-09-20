@@ -19,8 +19,9 @@ Both are still marked experimental. Treat every detail below as tied to
 
 | Version | What landed | Source |
 |---|---|---|
-| 25.6 (2025-06-26) | `TimeSeries` engine + `timeSeries*` SQL helper/aggregate functions, behind `allow_experimental_time_series_table` | [PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590) |
-| 25.8 (2025-08-28) | PromQL dialect, `rate`/`delta`/`increase` | [PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036) |
+| 24.8 LTS (2024-08-30) | `TimeSeries` engine introduced, behind `allow_experimental_time_series_table` | [PR #64183](https://github.com/ClickHouse/ClickHouse/pull/64183), merged 2024-08-08 |
+| 25.6 (2025-06-26) | `timeSeries*ToGrid` SQL-native helper/aggregate functions — a later, separate addition, not the engine | [PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590), merged 2025-06-05 |
+| 25.8 (2025-08-28) | PromQL dialect, `rate`/`delta`/`increase` | [PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036), merged 2025-08-23 |
 | 25.9 → 26.8 | More PromQL functions/operators, `topk`/`bottomk`. SQL `SELECT` on a `TimeSeries` table still not implemented | — |
 | 26.9+ (unreleased at time of writing) | `SELECT` support for `TimeSeries` tables, `max_over_time`/`min_over_time`, Prometheus HTTP API endpoints | — |
 
@@ -37,7 +38,7 @@ Cloud version of this material.
 | `allow_experimental_time_series_table` | Enables `CREATE TABLE ... ENGINE = TimeSeries` | Required — omitting it raises `SUPPORT_IS_DISABLED` (Code 344) |
 | `dialect = 'promql'` | Switches the SQL parser to PromQL for **every subsequent statement** in the session | Session-wide; a plain `SELECT '...'` banner after this will fail to parse |
 | `promql_table` | Names the `TimeSeries` table bare metric names resolve against | Required before any PromQL query; omitting it errors with "not specified" |
-| `allow_experimental_time_series_aggregate_functions` | Exists, but does **not** gate the PromQL `rate`/`delta`/`increase`/`topk` used here | Tested directly: identical results at `0` and `1`. Likely gates the separate SQL-native `timeSeries*ToGrid` aggregate function family instead |
+| `allow_experimental_time_series_aggregate_functions` | Gates the 25.6 `timeSeries*ToGrid` SQL aggregate functions, which `prometheusQueryRange()` uses internally | **Inconsistent in testing.** `prometheusQueryRange()` failed once without it (`UNKNOWN_AGGREGATE_FUNCTION`), then succeeded without it on a freshly restarted container running the same version and query. Plain PromQL keyword functions (`rate()`, `topk()`) worked in every test regardless. Set it defensively — see §8.4 |
 
 ## 4. Schema — what `CREATE TABLE ... ENGINE = TimeSeries` actually builds
 
@@ -144,7 +145,10 @@ before assuming parity with real Prometheus PromQL.
    PromQL and will fail. Switch back explicitly (`SET dialect = 'clickhouse'`)
    before running more SQL in the same session/script.
 3. **Direct `SELECT` on the table itself does not work on 26.8** — see §6.
-4. **The second experimental setting is a red herring for PromQL** — see §3.
+4. **`allow_experimental_time_series_aggregate_functions` mattered inconsistently
+   for `prometheusQueryRange()`** across otherwise-identical test runs — see §3.
+   Set it alongside `allow_experimental_time_series_table` rather than assuming
+   either way.
 
 ## 9. See also
 

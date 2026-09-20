@@ -29,8 +29,9 @@ isolation.
 
 | Version | What landed |
 |---|---|
-| **25.6** (2025-06-26) | `TimeSeries` table engine + `timeSeries*` helper/aggregate SQL functions, behind `allow_experimental_time_series_table` ([PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590)) |
-| **25.8** (2025-08-28) | PromQL dialect introduced (`SET dialect = 'promql'`), basic `rate`/`delta`/`increase` ([PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036)) |
+| **24.8 LTS** (2024-08-30) | `TimeSeries` table engine introduced, behind `allow_experimental_time_series_table` ([PR #64183](https://github.com/ClickHouse/ClickHouse/pull/64183), merged 2024-08-08) |
+| **25.6** (2025-06-26) | `timeSeries*ToGrid` SQL-native helper/aggregate functions added — a separate, later addition, not the engine itself ([PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590), merged 2025-06-05) |
+| **25.8** (2025-08-28) | PromQL dialect introduced (`SET dialect = 'promql'`), basic `rate`/`delta`/`increase` ([PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036), merged 2025-08-23) |
 | **25.9 → 26.8** | Ongoing work: more PromQL functions and operators, `topk`/`bottomk`, direct SQL `SELECT` on a `TimeSeries` table still **not** implemented as of 26.8 |
 | **26.9+** (unreleased at time of writing) | `SELECT` support for `TimeSeries` tables, `max_over_time`/`min_over_time`, Prometheus HTTP API endpoints — still evolving; treat every detail in this README as version-specific, not a stable contract |
 
@@ -54,13 +55,18 @@ feature set today, and because it is the version already used by
 ### Gotchas (the reason this lab exists)
 
 1. **There is a second, similarly-named setting —
-   `allow_experimental_time_series_aggregate_functions` — but it does not
-   gate the PromQL `rate`/`delta`/`increase`/`topk` functions used in this
-   lab.** Tested directly: `rate()` and `topk()` return identical results
-   whether it is `0` or `1`. It most likely gates the separate SQL-native
-   `timeSeries*ToGrid` aggregate function family (`timeSeriesRateToGrid`,
-   `timeSeriesIncreaseToGrid`, etc. — see `system.functions`), which this lab
-   does not use. Don't assume you need it for PromQL alone.
+   `allow_experimental_time_series_aggregate_functions` — and whether you
+   need it is inconsistent.** It clearly gates the SQL-native
+   `timeSeries*ToGrid` aggregate function family from 25.6
+   (`timeSeriesRateToGrid`, `timeSeriesResampleToGridWithStaleness`, etc.),
+   which `prometheusQueryRange()` uses internally. In this lab's own testing,
+   `prometheusQueryRange()` failed with `UNKNOWN_AGGREGATE_FUNCTION` without
+   it on one run, then succeeded without it on a freshly restarted container
+   moments later — same version, same query. Plain PromQL keyword functions
+   (`rate()`, `topk()` via `SET dialect = 'promql'`) worked in every test
+   regardless of this setting. Until that inconsistency is understood, set
+   it defensively alongside `allow_experimental_time_series_table` — it
+   never hurts, and it has been observed to matter for range queries.
 2. **`SELECT * FROM <timeseries_table>` does not work**, even after you have
    created the table and inserted data (`Code: 48, NOT_IMPLEMENTED`). Read it
    back through PromQL, or through the four inner tables directly.
@@ -123,8 +129,9 @@ PromQL은 그 데이터에 맞춰 설계된 쿼리 언어입니다 — 일반 SQ
 
 | 버전 | 도입 내용 |
 |---|---|
-| **25.6** (2025-06-26) | `TimeSeries` 테이블 엔진 + `timeSeries*` 헬퍼/집계 SQL 함수 도입, `allow_experimental_time_series_table` 필요 ([PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590)) |
-| **25.8** (2025-08-28) | PromQL dialect 도입(`SET dialect = 'promql'`), `rate`/`delta`/`increase` 기본 지원 ([PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036)) |
+| **24.8 LTS** (2024-08-30) | `TimeSeries` 테이블 엔진 도입, `allow_experimental_time_series_table` 필요 ([PR #64183](https://github.com/ClickHouse/ClickHouse/pull/64183), 2024-08-08 병합) |
+| **25.6** (2025-06-26) | `timeSeries*ToGrid` SQL 네이티브 헬퍼/집계 함수 추가 — 엔진 자체와는 별개로, 나중에 추가된 기능 ([PR #80590](https://github.com/ClickHouse/ClickHouse/pull/80590), 2025-06-05 병합) |
+| **25.8** (2025-08-28) | PromQL dialect 도입(`SET dialect = 'promql'`), `rate`/`delta`/`increase` 기본 지원 ([PR #75036](https://github.com/ClickHouse/ClickHouse/pull/75036), 2025-08-23 병합) |
 | **25.9 → 26.8** | 지속적인 기능 추가: 더 많은 PromQL 함수/연산자, `topk`/`bottomk`. `TimeSeries` 테이블에 대한 SQL `SELECT` 직접 조회는 26.8까지도 **미지원** |
 | **26.9+** (작성 시점 기준 미출시) | `TimeSeries` 테이블 SELECT 지원, `max_over_time`/`min_over_time`, Prometheus HTTP API 엔드포인트 추가 — 여전히 진화 중이므로 이 문서의 세부 사항은 안정된 계약이 아니라 특정 버전 기준임을 유의 |
 
@@ -147,13 +154,19 @@ PromQL은 그 데이터에 맞춰 설계된 쿼리 언어입니다 — 일반 SQ
 ### 함정 (이 실습을 만든 이유)
 
 1. **이름이 비슷한 설정이 하나 더 있습니다 —
-   `allow_experimental_time_series_aggregate_functions`— 하지만 이 실습에서
-   쓰는 PromQL의 `rate`/`delta`/`increase`/`topk`는 이 설정과 무관합니다.**
-   직접 테스트한 결과 `rate()`, `topk()` 모두 이 값이 `0`이든 `1`이든 동일하게
-   동작했습니다. 아마도 별도의 SQL-네이티브 `timeSeries*ToGrid` 집계 함수
-   계열(`timeSeriesRateToGrid`, `timeSeriesIncreaseToGrid` 등 —
-   `system.functions` 참고)을 게이팅하는 설정으로 보이며, 이 실습에서는
-   사용하지 않습니다. PromQL만 쓸 거라면 이 설정이 필요하다고 가정하지 마세요.
+   `allow_experimental_time_series_aggregate_functions` — 그런데 이게 실제로
+   필요한지는 테스트할 때마다 달랐습니다.** 25.6에 추가된 SQL 네이티브
+   `timeSeries*ToGrid` 집계 함수 계열(`timeSeriesRateToGrid`,
+   `timeSeriesResampleToGridWithStaleness` 등)을 게이팅하는 건 분명하고,
+   `prometheusQueryRange()`가 내부적으로 이 함수들을 사용합니다. 이 실습을
+   만드는 과정에서 한 번은 이 설정 없이 `prometheusQueryRange()`가
+   `UNKNOWN_AGGREGATE_FUNCTION` 오류로 실패했다가, 컨테이너를 새로 띄운 직후
+   같은 버전·같은 쿼리로 재시도했더니 설정 없이도 성공했습니다. `SET dialect
+   = 'promql'`을 통한 순수 PromQL 키워드 함수(`rate()`, `topk()`)는 이 설정과
+   무관하게 모든 테스트에서 동작했습니다. 이 비일관성의 원인을 명확히 확인하기
+   전까지는 `allow_experimental_time_series_table`과 함께 이 설정도 방어적으로
+   켜두는 것을 권장합니다 — 켜둬서 손해볼 일은 없고, range query에서는 실제로
+   영향을 준 사례가 관측됐습니다.
 2. **`SELECT * FROM <timeseries_table>`은 동작하지 않습니다**, 테이블을 만들고
    데이터를 넣은 뒤에도 마찬가지입니다 (`Code: 48, NOT_IMPLEMENTED`). PromQL을
    통해서, 또는 내부 테이블 4개를 직접 조회해서 읽어야 합니다.
