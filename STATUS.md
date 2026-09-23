@@ -3,7 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-09-20** — working tree clean, `main` in sync with `origin/main`.
+**As of 2026-09-23** — 26.9 release lab added, all checks green locally.
 
 ---
 
@@ -11,14 +11,14 @@ section rather than trusting the date at the top.
 
 | Job | State | Notes |
 |-----|-------|-------|
-| `links` | ✅ | 182 markdown files, every relative link resolves |
-| `syntax` | ✅ | 263 shell, 78 python, 26 yaml files parse |
-| `site` | ✅ | `docs/` matches 20 releases + 55 labs = 75 lab pages, 81 files |
+| `links` | ✅ | 185 markdown files, every relative link resolves |
+| `syntax` | ✅ | 268 shell, 78 python, 26 yaml files parse |
+| `site` | ✅ | `docs/` matches 21 releases + 55 labs = 76 lab pages, 82 files |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `shellcheck` | ⚠️ advisory | style findings across 200+ scripts, non-blocking by design |
 
-`main` was **red from 2026-09-20 08:45 until this snapshot** — runs
+`main` was **red from 2026-09-20 08:45 to 2026-09-23** — runs
 [35500418709](https://github.com/litkhai/clickhouse-hols/actions/runs/35500418709)
 and
 [35501474415](https://github.com/litkhai/clickhouse-hols/actions/runs/35501474415)
@@ -29,6 +29,9 @@ failed `links` and `site`. Both causes are fixed:
   replaced with prose explaining that `TimeSeries` is Private Preview only on
   Cloud, which is why no Cloud counterpart exists.
 - The new lab's page was never generated into `docs/`.
+
+Note that `check_links.py` reads `git ls-files`, so an **untracked** new lab is
+not checked at all. `git add` before you trust a green run.
 
 Reproduce locally:
 
@@ -41,7 +44,7 @@ gitleaks detect --config .gitleaks.toml --no-banner --redact
 
 ## Inventory
 
-55 indexed labs plus 20 per-release labs. Counts are rows in the **English**
+55 indexed labs plus 21 per-release labs. Counts are rows in the **English**
 area tables of `README.md`:
 
 | Area | Labs |
@@ -53,7 +56,7 @@ area tables of `README.md`:
 | `workload/` | 11 |
 | `workshop/` | 3 |
 | `tpcds/` — benchmark | 1 |
-| `local/releases/` — per-release feature labs | 20 |
+| `local/releases/` — per-release feature labs | 21 |
 
 ```bash
 for a in chc local managed-postgres usecase workload workshop; do
@@ -139,10 +142,12 @@ Terraform state.
 
 ## 한국어 요약
 
-- **CI 상태**: 위 6개 작업 모두 통과. 단, `main`은 2026-09-20 08:45부터 이
-  스냅샷 시점까지 `links`·`site` 실패로 red 상태였고, 두 원인 모두 수정됨
+- **CI 상태**: 위 6개 작업 모두 통과. `main`은 2026-09-20 08:45부터
+  2026-09-23까지 `links`·`site` 실패로 red 상태였고, 두 원인 모두 수정됨
   (존재하지 않는 `timeseries-promql-cloud` 링크, 누락된 `docs/` 페이지).
-- **규모**: 색인된 실습 55개 + 릴리스별 실습 20개 = 사이트 페이지 75개.
+- **주의**: `check_links.py`는 `git ls-files`를 읽으므로 **추적되지 않은**
+  새 실습은 아예 검사하지 않습니다. 녹색 결과를 믿기 전에 `git add` 하세요.
+- **규모**: 색인된 실습 55개 + 릴리스별 실습 21개 = 사이트 페이지 76개.
 - **알려진 격차**: 55개 중 28개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
   같은 본문을 보여주므로 깨지지는 않음 — 백로그 항목.
 - **주의**: `git config core.hooksPath .githooks`는 클론마다 직접 설정해야

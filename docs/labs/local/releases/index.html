@@ -52,6 +52,13 @@
 </thead>
 <tbody>
 <tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.9">26.9</a></td>
+<td>2026-09-21</td>
+<td>4</td>
+<td>26.9.1.1629</td>
+<td><code>LIMIT ... AFTER</code> / <code>UNTIL</code>, <code>keyValuePairs</code> text index tokenizer, <code>ZSTD(3)</code> as the default codec, <code>CREATE TOKEN</code> + scoped <code>GRANTS</code></td>
+</tr>
+<tr>
 <td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">26.8</a></td>
 <td>2026-08-30</td>
 <td>3</td>
@@ -194,7 +201,7 @@
 </tbody>
 </table>
 <p><strong>Verified</strong> names the exact server build every lab in that directory was run
-against, end to end, with zero exceptions. All twenty have been. Getting
+against, end to end, with zero exceptions. All twenty-one have been. Getting
 there took fixing eleven of them: SQL that referenced functions and settings
 which do not exist, arguments in the wrong order, and aliases that shadowed the
 column they aggregated. Re-run any of them yourself with
@@ -263,6 +270,13 @@ column they aggregated. Re-run any of them yourself with
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.9">26.9</a></td>
+<td>2026-09-21</td>
+<td>4</td>
+<td>26.9.1.1629</td>
+<td><code>LIMIT ... AFTER</code> / <code>UNTIL</code>, <code>keyValuePairs</code> 텍스트 인덱스 토크나이저, 기본 코덱 <code>ZSTD(3)</code>, <code>CREATE TOKEN</code> + 범위 제한 <code>GRANTS</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">26.8</a></td>
 <td>2026-08-30</td>
@@ -406,7 +420,7 @@ column they aggregated. Re-run any of them yourself with
 </tbody>
 </table>
 <p><strong>검증</strong>은 해당 디렉토리의 모든 랩을 예외 0으로 끝까지 실행해 본 정확한 서버
-빌드입니다. 20개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
+빌드입니다. 21개 전부 검증했습니다. 그 과정에서 11개를 고쳐야 했는데, 존재하지
 않는 함수·설정 참조, 뒤바뀐 인자 순서, 집계 대상 컬럼을 가리는 별칭 같은
 문제였습니다. 직접 재현하려면
 <code>.github/scripts/verify_release_lab.sh &lt;버전&gt;</code> 을 실행하세요.</p>

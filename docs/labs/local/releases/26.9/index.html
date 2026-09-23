@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.9 · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.9 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.9</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.9.1.1629</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.9</h1>
+<hr />
+<p><strong>Released 2026-09-21 · verified here against 26.9.1.1629</strong></p>
+<p>26.9 is the release after an LTS, and it spends that position on cleanup: the
+changelog has 17 backward incompatible changes against 27 new features, and
+several of the removals are things that had been deprecated for years. The
+analyzer can no longer be switched off. CatBoost, <code>WINDOW VIEW</code> and WasmEdge
+are gone. The default compression codec changed.</p>
+<p>This lab takes four of them that you can see working in a single container.</p>
+<table>
+<thead>
+<tr>
+<th>Lab</th>
+<th>Feature</th>
+<th>Why it is here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/01-limit-after-until.sql">01</a></td>
+<td><code>LIMIT ... AFTER</code> / <code>UNTIL</code></td>
+<td>The first <code>LIMIT</code> that cuts on a condition instead of a position. Expresses queries <code>WHERE</code> cannot</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/02-keyvaluepairs-index.sql">02</a></td>
+<td><code>keyValuePairs</code> text index tokenizer</td>
+<td>Indexes a <code>Map</code> column directly — the end of promoting hot keys to columns</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/03-zstd-default.sql">03</a></td>
+<td><code>ZSTD(3)</code> as the default codec</td>
+<td>The change most likely to alter your disk usage without you asking</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/04-create-token.sql">04</a></td>
+<td><code>CREATE TOKEN</code>, scoped <code>GRANTS</code></td>
+<td>Credentials strictly weaker than the user that issued them</td>
+</tr>
+</tbody>
+</table>
+<h3>Quick start</h3>
+<pre><code class="language-bash">./00-setup.sh              # brings up ClickHouse 26.9 via local/oss-mac-setup
+./01-limit-after-until.sh
+./02-keyvaluepairs-index.sh
+./03-zstd-default.sh       # writes and merges ~26M rows, allow a couple of minutes
+./04-create-token.sh
+</code></pre>
+<p>Each <code>NN-*.sh</code> pipes the matching <code>.sql</code> into <code>clickhouse-client</code>. Read the SQL
+— the comments are the lab. <code>04-create-token.sh</code> is the exception: it adds
+connections of its own, for the reason given in lab 04 below.</p>
+<hr />
+<h3>01 · <code>LIMIT ... AFTER</code> / <code>UNTIL</code></h3>
+<pre><code class="language-sql">SELECT number FROM numbers(10) ORDER BY number LIMIT 3 AFTER number &gt;= 5;  -- 5, 6, 7
+SELECT number FROM numbers(10) ORDER BY number LIMIT UNTIL number &gt;= 3;    -- 0, 1, 2
+</code></pre>
+<p>Every <code>LIMIT</code> ClickHouse had before this counted positions. These four forms
+cut the stream at a row that <em>satisfies a condition</em>, following the stream
+order — so <code>ORDER BY</code> is what defines "before" and "after":</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LIMIT n AFTER cond</code></td>
+<td>up to <code>n</code> rows starting at the first row where <code>cond</code> holds</td>
+</tr>
+<tr>
+<td><code>LIMIT UNTIL cond</code></td>
+<td>the rows before the first row where <code>cond</code> holds</td>
+</tr>
+<tr>
+<td><code>LIMIT AFTER c1 UNTIL c2</code></td>
+<td>the rows between the two</td>
+</tr>
+<tr>
+<td><code>LIMIT n AFTER cond ALL</code></td>
+<td>an <code>n</code>-row window at <strong>every</strong> matching row, unioned without duplicates</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The reason to learn them is that <code>WHERE</code> cannot say this.</strong> <code>WHERE</code> tests
+each row on its own, so it keeps the rows that pass <em>after</em> the interesting
+one too:</p>
+<pre><code class="language-text">rows:  1 ok   2 ok   3 error   4 ok   5 error   6 ok
+
+WHERE lvl != 'error'         → [1, 2, 4, 6]
+LIMIT UNTIL lvl = 'error'    → [1, 2]
+</code></pre>
+<p>"What happened up to the first error" has no <code>WHERE</code> spelling. It used to need
+a window function or a self-join to find the boundary row first.</p>
+<p><strong><code>ALL</code> is the log reader's form.</strong> <code>LIMIT 2 AFTER lvl = 'error' ALL</code> opens a
+window at every error and returns their union — the error and its next line,
+for all of them, in one query. Overlapping windows are merged, not repeated:
+<code>LIMIT 3 AFTER number IN (2, 3) ALL</code> gives <code>[2,3,4,5]</code>, not seven rows.</p>
+<p><strong>It stops reading.</strong> This is not a filter applied after the scan. Over
+100 million rows with <code>max_block_size = 1000</code>, <code>LIMIT UNTIL number &gt;= 10</code>
+reports <code>read_rows = 1000</code> in <code>system.query_log</code> — one block.</p>
+<p><strong>Two things to know before you use them:</strong></p>
+<ul>
+<li>The condition column does not have to be in the <code>SELECT</code> list. It is
+  evaluated against the stream, not the projection.</li>
+<li><code>OFFSET</code> does not combine with these forms — <code>LIMIT 3 AFTER cond OFFSET 1</code>
+  is a syntax error. Nest the query and apply a positional <code>LIMIT</code> outside it.</li>
+</ul>
+<p>And the asymmetry when nothing matches is the right one: <code>AFTER</code> has no window
+to open, so it returns nothing; <code>UNTIL</code> never finds a place to stop, so it
+returns everything.</p>
+<hr />
+<h3>02 · <code>keyValuePairs</code> text index tokenizer</h3>
+<pre><code class="language-sql">CREATE TABLE kvp (
+    ts    DateTime,
+    attrs Map(String, String),
+    INDEX idx_attrs attrs TYPE text(tokenizer = keyValuePairs) GRANULARITY 1
+) ENGINE = MergeTree ORDER BY ts;
+</code></pre>
+<p>Observability schemas put the variable part of a row in a <code>Map(String,
+String)</code>. Until 26.9 the only ways to make <code>attrs['service'] = 'checkout'</code>
+fast were to guess the hot keys in advance and promote them to real columns,
+or to read the map column on every query. <code>keyValuePairs</code> indexes the map
+itself: each entry becomes one token of key and value joined together.</p>
+<p><strong>What it buys.</strong> Two million rows, <code>tenant</code> clustered 100k rows to a value:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;"><code>read_rows</code></th>
+<th style="text-align: right;"><code>read_bytes</code></th>
+<th style="text-align: right;"><code>query_duration_ms</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>with the index</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">32 B</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>without</td>
+<td style="text-align: right;">2,000,000</td>
+<td style="text-align: right;">10.49 MiB</td>
+<td style="text-align: right;">13</td>
+</tr>
+</tbody>
+</table>
+<p>The indexed <code>count()</code> never opens the map column at all — the plan node is
+<code>ReadFromTextIndexCount</code>, not <code>ReadFromMergeTree</code>. A text index knows how many
+rows carry a token, so a count is answered out of the index. For a query that
+needs an actual column it goes back to being a skip index: <code>13/245</code> granules
+survive, with a <code>PREWHERE</code> to recheck them.</p>
+<p><strong>The limitation to plan around.</strong> The token is the key and the value
+concatenated with a separator — <code>EXPLAIN indexes = 1</code> shows
+<code>tokens: ["tenantt7\f"]</code>. Only whole-value equality can be looked up. Four
+reasonable-looking predicates compile fine and scan every granule:</p>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attrs['k'] = 'v'</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>attrs['k'] = 'v' AND attrs['j'] = 'w'</code></td>
+<td>✅ mode <code>All</code>, both tokens</td>
+</tr>
+<tr>
+<td><code>attrs['k'] = 'v' OR attrs['k'] = 'w'</code></td>
+<td>✅ mode <code>Any</code></td>
+</tr>
+<tr>
+<td><code>attrs['k'] IN ('v', 'w')</code></td>
+<td>❌ full scan</td>
+</tr>
+<tr>
+<td><code>attrs['k'] LIKE 'v%'</code></td>
+<td>❌ no partial-value token exists</td>
+</tr>
+<tr>
+<td><code>mapContains(attrs, 'k')</code></td>
+<td>❌ a key with no value is not a token</td>
+</tr>
+<tr>
+<td><code>attrs['k'] != 'v'</code></td>
+<td>❌ absence of a token proves nothing</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>IN</code> is the trap.</strong> It means the same thing to a reader as the <code>OR</code> above it
+and prunes nothing, so a fast query gets slow the day somebody tidies it into
+an <code>IN</code> list. That is worth a comment in the schema.</p>
+<p>There is also no way past the <code>map['key'] = 'value'</code> form — <code>hasToken(attrs,
+…)</code> rejects a <code>Map</code> argument outright. The equality is the whole interface.</p>
+<p>This is the third release running to extend text indexes: 26.8 added the
+<code>japanese</code>, <code>chinese</code> and <code>icu</code> tokenizers, and 26.9 also gives
+<code>splitByRegexp</code> an <code>extract</code> argument, so <code>tokens(s, 'splitByRegexp',
+'[a-z]=([0-9]+)', 1)</code> returns the capture groups rather than the separators.</p>
+<hr />
+<h3>03 · <code>ZSTD(3)</code> as the default codec</h3>
+<p>26.9 changes what ClickHouse compresses with when you do not say. It is listed
+under backward incompatible changes even though nothing breaks — every
+compressed frame is self-describing, so old data keeps reading.</p>
+<p>Three separate things changed, and conflating them is how people end up
+surprised:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>New default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client/server, server/server, HTTP <code>compress=1</code></td>
+<td><code>ZSTD(3)</code> uniformly</td>
+</tr>
+<tr>
+<td><code>MergeTree</code> column data</td>
+<td><strong>size-aware</strong> — <code>LZ4</code> below 100 MB, <code>ZSTD(3)</code> at or above</td>
+</tr>
+<tr>
+<td><code>StripeLog</code>, <code>Set</code>/<code>Join</code> engine files, <code>checksums.txt</code></td>
+<td><code>ZSTD(3)</code> uniformly</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The size rule has a consequence that is easy to read past.</strong> It is judged by
+"the part size known at write time (the size of the source parts for a merge or
+a mutation)" — and a plain <code>INSERT</code> does not know how big its part will be. So
+freshly inserted data is <code>LZ4</code> <em>whatever its size</em>. <code>ZSTD(3)</code> arrives later,
+when merges have accumulated enough of it. Measured on the same table:</p>
+<pre><code class="language-text">                 compressed    ratio
+before merge      111.70 MiB    7.69     two 6.5M-row inserts
+after merge        21.53 MiB   39.88     merged, source parts ~112 MB
+</code></pre>
+<p>No rows were removed and nothing in the table definition changed. A 6.5M-row
+insert on its own stays at ~8x; only the merge crosses the threshold.</p>
+<p>The operational reading: on a new cluster your newest data is <code>LZ4</code> and your
+settled data is <code>ZSTD(3)</code>, and disk usage keeps falling behind you as merges
+catch up. Capacity planning off a day-one measurement will overshoot.</p>
+<p><strong>Rolling it back is not one switch.</strong> <code>compatibility = '26.8'</code> does restore
+<code>LZ4</code> for <code>network_compression_method</code> — the lab prints <code>ZSTD</code>, <code>LZ4</code>, <code>LZ4</code>
+for 26.9, 26.8 and 25.1. It does <strong>not</strong> restore the <code>MergeTree</code> column
+default; a merge run under <code>compatibility = '26.8'</code> still comes out at 39.88x.
+For column data the levers are <code>CODEC(LZ4)</code> on the column or table, or the
+server-level <code>&lt;compression&gt;</code> default.</p>
+<p><strong>Two things that are not part of this change</strong>, worth knowing before you go
+hunting a regression: <code>marks_compression_codec</code> and
+<code>primary_key_compression_codec</code> have defaulted to <code>ZSTD(3)</code> for several
+releases already.</p>
+<p><code>system.parts.default_compression_codec</code> reports the table's declared default,
+not what the size rule chose — it says <code>LZ4</code> even for a table whose every
+column carries an explicit <code>CODEC(ZSTD(3))</code>. Measure the ratio instead.</p>
+<hr />
+<h3>04 · <code>CREATE TOKEN</code> and scoped <code>GRANTS</code></h3>
+<pre><code class="language-sql">CREATE TOKEN VALID FOR INTERVAL 30 DAY GRANTS (SELECT ON demo.events);
+</code></pre>
+<p>An authentication method can now carry its own grant list. A session that logs
+in with that method gets the <strong>intersection</strong> of the user's privileges and the
+listed ones, so one user can hand out credentials strictly weaker than itself
+without a second user, a second role, or a proxy in front.</p>
+<p><code>CREATE TOKEN</code> is the self-service form — it generates the secret, attaches it
+to the current user, and returns it with its deadline:</p>
+<pre><code class="language-text">token:       WzZjScwypyT3AiodtEFOyI1YslQFSrEm
+valid_until: 2026-10-23 11:01:32
+</code></pre>
+<p><code>ALTER USER u ADD IDENTIFIED WITH … VALID UNTIL … GRANTS (…)</code> is the
+administrator's form, doing the same to somebody else with a secret you pick.</p>
+<p><strong>Two things stop <code>CREATE TOKEN</code> working, and both look like bugs the first
+time:</strong></p>
+<ul>
+<li>The user must live in a writable access storage. The <code>default</code> user of the
+  official Docker image is defined in <code>users.xml</code>, which is read-only:
+  <code>Code: 495. Cannot update user 'default' in users_xml because this storage
+  is readonly.</code> SQL-defined users are fine. This is why lab 04's <code>.sql</code> uses
+  the <code>ALTER USER</code> form and the runner does the <code>CREATE TOKEN</code> half.</li>
+<li>A token is an <em>additional</em> authentication method, and <code>no_password</code> cannot
+  co-exist with any other: <code>Code: 36</code>. The user needs a real credential first.</li>
+</ul>
+<p>Also, the privilege needs the <code>ON *.*</code> form — <code>GRANT CREATE TOKEN TO app</code> is a
+syntax error, <code>GRANT CREATE TOKEN ON *.* TO app</code> is not.</p>
+<p><strong>What the scope actually does</strong>, with <code>app</code> granted <code>SELECT ON demo.*</code> and a
+token scoped to <code>SELECT ON demo.events</code>:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>demo.events</code></th>
+<th><code>demo.secrets</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>full password</td>
+<td>2 rows</td>
+<td>1 row</td>
+</tr>
+<tr>
+<td>scoped token</td>
+<td>2 rows</td>
+<td><code>Code: 497 … ACCESS_DENIED</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The obvious escalation is closed.</strong> A session authenticated with a scoped
+method cannot mint another token: <em>"the current session is authenticated with
+a method which limits the access rights with the GRANTS clause, and such
+sessions cannot add authentication methods to an existing user."</em></p>
+<p><strong>Operational notes, all demonstrated in the lab:</strong></p>
+<ul>
+<li>Expiry is checked at login, not at issue. <code>VALID UNTIL '2020-01-01'</code> is
+  accepted without complaint and then refuses every login with
+  <code>AUTHENTICATION_FAILED</code>. A deploy script that computes the deadline in the
+  wrong timezone gets no error where you would want one.</li>
+<li>The default TTL without a <code>VALID</code> clause is <code>create_token_default_ttl_seconds</code>
+  — 1800, thirty minutes. Short on purpose.</li>
+<li>There is no <code>DROP TOKEN</code>. <code>ALTER USER u IDENTIFIED WITH …</code> (without <code>ADD</code>)
+  replaces the whole method list, which revokes every token at once. Revoking
+  one and keeping the rest means re-issuing the rest, so plan one token per
+  consumer.</li>
+<li><code>SHOW CREATE USER</code> is the only place the scope is visible. <code>system.users</code>
+  shows nothing but a list of identical <code>sha256_password</code> entries.</li>
+</ul>
+<hr />
+<h3>Also in 26.9, not covered by these labs</h3>
+<p>The changelog runs to 17 backward incompatible changes, 27 new features, 28
+experimental features and 135 performance improvements. In rough order of how
+likely they are to affect you:</p>
+<p><strong>Removals and breaking changes</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>The analyzer can no longer be disabled</strong></td>
+<td><code>enable_analyzer = 0</code> is rejected outright (<code>Code: 452</code>), and <code>compatibility</code> no longer reverts it. Default since 24.3; to compare against the old analysis you now need a pre-26.9 binary</td>
+</tr>
+<tr>
+<td><strong>CatBoost removed</strong></td>
+<td><code>catboostEvaluate</code>, <code>system.models</code>, <code>SYSTEM RELOAD MODEL(S)</code>. Revoke <code>SYSTEM RELOAD MODEL</code> from every user, role, <code>users.xml</code> and access backup <strong>before</strong> upgrading — an access entity carrying the removed privilege cannot be parsed, and a replica will silently drop it</td>
+</tr>
+<tr>
+<td><strong><code>WINDOW VIEW</code> removed</strong></td>
+<td>With <code>WATCH</code> and <code>windowID</code>. Non-functional since 24.12 and never supported by the analyzer. A server that finds a window view in its metadata <strong>fails to start</strong> — drop them first. <code>tumble</code>/<code>hop</code> and friends stay</td>
+</tr>
+<tr>
+<td><strong><code>Nullable(Tuple(...))</code> is GA</strong></td>
+<td>Schema inference in Parquet/Arrow/ORC/Avro/JSON now returns it, and tuple subcolumns of <code>Variant</code>/<code>Dynamic</code>/<code>JSON</code> are <code>NULL</code> where missing instead of a tuple of defaults. If a partition key, sorting key, TTL or skip index depends on such a subcolumn, set <code>allow_nullable_tuple_in_extracted_subcolumns = 0</code> in the default profile <strong>before</strong> the first restart or parts may detach</td>
+</tr>
+<tr>
+<td><code>interface</code> / <code>http_method</code> become <code>Enum8</code></td>
+<td>In <code>query_log</code>, <code>query_thread_log</code> and <code>processes</code>. <code>WHERE interface = 1</code> still works, <code>WHERE interface = 'TCP'</code> now works too, <code>interface + 0</code> does not. Existing log tables are renamed to <code>query_log_0</code> and so on at upgrade</td>
+</tr>
+<tr>
+<td>WasmEdge engine removed</td>
+<td><code>wasmtime</code> is the only <code>webassembly_udf_engine</code>. A server configured for <code>wasmedge</code> will not start</td>
+</tr>
+<tr>
+<td>Sharded <code>GROUP BY</code> removed</td>
+<td><code>enable_sharding_aggregator</code> is an accepted no-op; <code>enable_adaptive_aggregator</code> covers the same workloads</td>
+</tr>
+<tr>
+<td><code>s3_disable_checksum</code> removed</td>
+<td>The checksum is computed during the single read, so there is nothing to disable</td>
+</tr>
+<tr>
+<td><code>read_resource</code> / <code>write_resource</code> disk options removed</td>
+<td>Use <code>CREATE RESOURCE name (READ DISK d, WRITE DISK d)</code></td>
+</tr>
+<tr>
+<td><code>runningConcurrency</code> is now non-deterministic</td>
+<td>Fixes wrong results under <code>LEFT</code>/<code>ANY JOIN</code> and lazy <code>if</code>/<code>multiIf</code>. A table with it in a sorting or partition key <strong>will not load</strong> after the upgrade</td>
+</tr>
+<tr>
+<td>Codecs gated per codec</td>
+<td><code>allow_experimental_codecs</code> is obsolete; use <code>enable_&lt;codec&gt;_codec</code>. <code>ALP</code> is promoted to beta via <code>enable_alp_codec</code></td>
+</tr>
+<tr>
+<td><code>BACKUP</code>/<code>RESTORE ... Disk(...)</code> need <code>SOURCES</code> grants</td>
+<td><code>WRITE ON DISK</code> to write, <code>READ ON DISK</code> to read, on top of <code>BACKUP</code></td>
+</tr>
+<tr>
+<td><code>File</code> + <code>rename_files_after_processing</code> needs <code>WRITE ON FILE</code></td>
+<td>The setting renames what a <code>SELECT</code> read, which is a write</td>
+</tr>
+<tr>
+<td><code>CREATE TABLE ... AS mergeTreeIndex(...)</code> rejected</td>
+<td>Also <code>mergeTreeProjection</code>, <code>mergeTreeTextIndex</code>, <code>timeSeriesSamples</code>, <code>timeSeriesData</code> and siblings. Such a table made <code>DROP TABLE &lt;source&gt; SYNC</code> hang forever. Find them with <code>SELECT database, name FROM system.tables WHERE engine = 'Proxy'</code>. Reading the functions directly is unaffected</td>
+</tr>
+<tr>
+<td><code>validate_group_by_all_key_types</code></td>
+<td>New setting, default on, gating the <code>GROUP BY ALL</code> key-type check that has rejected <code>Variant</code>/<code>Dynamic</code> keys since 26.7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>New features</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DISTINCT</code> spills to disk</td>
+<td><code>max_bytes_before_external_distinct</code>, <code>max_bytes_ratio_before_external_distinct</code> (0.5). Like external aggregation and sort, on by ratio</td>
+</tr>
+<tr>
+<td><code>REFRESH ... APPEND INCREMENTAL</code></td>
+<td>Refreshable materialized views append only rows committed since the last refresh. Into an <code>Iceberg</code> target it is exactly-once — the cursor commits inside the snapshot summary</td>
+</tr>
+<tr>
+<td><code>max_table_size_rows</code> / <code>_bytes_compressed</code> / <code>_bytes_uncompressed</code></td>
+<td><code>MergeTree</code> settings capping total table size, checked on <code>INSERT</code> and on part commit including merges, but not on replicated fetches</td>
+</tr>
+<tr>
+<td><code>max_tables</code> database setting</td>
+<td><code>CREATE DATABASE d SETTINGS max_tables = 2</code> → <code>Code: 724. Too many tables</code>. Counts views and dictionaries too</td>
+</tr>
+<tr>
+<td><code>regr_slope</code>, <code>regr_intercept</code>, <code>regr_r2</code>, <code>regr_count</code>, <code>regr_avgx</code>, <code>regr_avgy</code>, <code>regr_sxx</code>, <code>regr_syy</code>, <code>regr_sxy</code></td>
+<td>The SQL-standard linear regression aggregates</td>
+</tr>
+<tr>
+<td>Bracket syntax for <code>JSON</code> subcolumns</td>
+<td><code>json['a']['b']</code>, translated to nested <code>arrayElement</code></td>
+</tr>
+<tr>
+<td><code>system.statements</code></td>
+<td>101 rows of SQL statement documentation — name, syntax, description, examples. Lab 04 reads <code>CREATE TOKEN</code> out of it</td>
+</tr>
+<tr>
+<td><code>system.session_query_ids</code></td>
+<td>The query ids of this session in execution order, so "the queries I just ran" needs no client-side <code>query_id</code> or <code>log_comment</code>. Bounded by <code>session_query_ids_history_size</code> (1000)</td>
+</tr>
+<tr>
+<td><code>arrayFlattenedLength</code></td>
+<td>Counts elements at every nesting level — <code>[[1,2],[3],[4,5,6]]</code> is 6, where <code>length</code> is 3. Matches PostgreSQL's <code>cardinality</code></td>
+</tr>
+<tr>
+<td><code>parseISO8601Duration</code></td>
+<td><code>'PT1H30M'</code> → 5400</td>
+</tr>
+<tr>
+<td><code>DateTime</code> + <code>Time</code> arithmetic</td>
+<td><code>toDateTime('2026-09-23 00:00:00') + toTime('01:30:00')</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code> <code>extract</code> argument</td>
+<td><code>tokens(s, 'splitByRegexp', re, 1)</code> returns each match's first capture group instead of splitting on it</td>
+</tr>
+<tr>
+<td><code>skip_empty_columns_on_insert</code></td>
+<td>Opt-in <code>MergeTree</code> setting that omits columns holding only type defaults. Needs <code>serialization_info_version = 'with_missing_columns'</code> — keep the old version during a rolling upgrade</td>
+</tr>
+<tr>
+<td><code>type_json_skip_null_typed_paths</code></td>
+<td>Treats <code>NULL</code> typed paths in <code>JSON</code> as absent, matching dynamic paths</td>
+</tr>
+<tr>
+<td>jemalloc fragmentation profiler</td>
+<td><code>system.jemalloc_sampled_allocations</code> with backtrace, age and size class, plus a Fragmentation tab in the server web UI</td>
+</tr>
+<tr>
+<td><code>BACKUP</code>/<code>RESTORE</code> for <code>WORKLOAD</code> and <code>RESOURCE</code></td>
+<td>SQL-defined definitions are included and recreated, <code>ON CLUSTER</code> too</td>
+</tr>
+<tr>
+<td><code>workload_admission_timeout_ms</code></td>
+<td>Bounds the wait for a workload query slot; <code>0</code> keeps the old unbounded wait</td>
+</tr>
+<tr>
+<td><code>S3Queue</code> <code>mode = 'exclusive'</code></td>
+<td>Processing tracked in server memory with no Keeper coordination, for single-server high-throughput ingest</td>
+</tr>
+<tr>
+<td><code>nats_ca_file</code> / <code>nats_client_cert_file</code> / <code>nats_client_key_file</code></td>
+<td>Private-CA verification and client-certificate auth for the <code>NATS</code> engine</td>
+</tr>
+<tr>
+<td><code>clickhouse-client --ssh-key-file</code> with no value</td>
+<td>Resolves the key the way <code>ssh</code> does, including from <code>ssh-agent</code></td>
+</tr>
+<tr>
+<td>Iceberg v3 <code>first_row_id</code> / <code>last_seq_num</code></td>
+<td>Exposed as virtual columns and written on insert</td>
+</tr>
+<tr>
+<td><code>keeper</code> four-letter-word for leader backpressure</td>
+<td>Against slow Raft members</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>The changelog also lists a zero-argument <code>year()</code> returning the current year.
+It is <strong>not</strong> in 26.9.1.1629 — <code>SELECT year()</code> still resolves to <code>toYear</code> and
+fails with <code>NUMBER_OF_ARGUMENTS_DOESNT_MATCH</code>. Expect it in a later build.</p>
+</blockquote>
+<p><strong>Experimental</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Embedded SQL Console at <code>/ui</code></td>
+<td>The ClickHouse Cloud console, served by the HTTP server. Returns 200 in the lab container; not the same thing as <code>/play</code></td>
+</tr>
+<tr>
+<td><code>TimeSeries</code> and PromQL</td>
+<td><code>SELECT</code> support for <code>TimeSeries</code> tables; the outer samples column renamed <code>samples</code>; <code>METRICS</code> renamed <code>METRIC FAMILIES</code> (old name still an alias); <code>LowCardinality</code> series ids by default, quoted at 1.16x geomean PromQL speedup. PromQL gains <code>absent</code>, <code>count_values</code>, <code>sum_over_time</code>, <code>avg_over_time</code>, <code>count_over_time</code>, <code>present_over_time</code>, <code>absent_over_time</code>, <code>quantile_over_time</code>, <code>predict_linear</code>, <code>max_over_time</code>, <code>min_over_time</code>. See the <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/timeseries-promql-oss">TimeSeries + PromQL lab</a> for the engine itself</td>
+</tr>
+<tr>
+<td>Prometheus HTTP API</td>
+<td><code>/api/v1/metadata</code>, <code>/api/v1/labels</code>, <code>/api/v1/label/&lt;name&gt;/values</code> and <code>/api/v1/format_query</code></td>
+</tr>
+<tr>
+<td><code>trino</code> dialect</td>
+<td><code>enable_trino_dialect</code> translates Trino SQL — <code>ARRAY[...]</code>, <code>TRY_CAST</code>, <code>UNNEST</code>, <code>ROW</code>, <code>FETCH</code>, <code>OFFSET</code> before <code>LIMIT</code>, and several hundred function mappings</td>
+</tr>
+<tr>
+<td><code>KQL</code> reimplemented</td>
+<td>A real lexer and parser instead of translating to SQL text and reparsing. Fixes expression injection in <code>contains</code>/<code>has</code> and several results that disagreed with Kusto. Unsupported syntax is now rejected rather than mistranslated</td>
+</tr>
+<tr>
+<td><code>DeltaLake</code> <code>CREATE TABLE</code></td>
+<td>Writes the initial commit through <code>delta-kernel-rs</code>, attaches to an existing <code>_delta_log</code>, or registers into Unity. Behind <code>allow_delta_lake_create_table</code>; no <code>PARTITION BY</code> yet. Writes now cast accurately and throw on overflow (<code>delta_lake_accurate_write_cast</code>)</td>
+</tr>
+<tr>
+<td><code>hierarchicalKMeans</code>, <code>assignCentroid</code></td>
+<td>Building blocks for IVF-style vector search</td>
+</tr>
+<tr>
+<td>Parallel replicas</td>
+<td><code>parallel_replicas_plan_based</code> can now enable itself from runtime statistics, supports <code>RIGHT JOIN</code> and <code>ORDER BY ... WITH FILL</code>, and reads <code>Merge</code> tables with <code>parallel_replicas_allow_merge_tables</code></td>
+</tr>
+<tr>
+<td>Distributed plans</td>
+<td><code>make_distributed_plan</code> stops idle upstream stages after a satisfied <code>LIMIT</code>, honours <code>max_threads</code> in worker fragments, drops up to 100 ms of idle wait per finished stage, and supports <code>INTERSECT</code>/<code>EXCEPT</code></td>
+</tr>
+<tr>
+<td>Adaptive codec selection</td>
+<td><code>enable_adaptive_codec_selection</code> now covers columns with no specialized candidate (picking the smaller of the default and <code>NONE</code>, so incompressible data is never stored larger than raw), every substream including <code>Array</code>/<code>String</code> sizes and null maps, and <code>ALP</code> for floats</td>
+</tr>
+<tr>
+<td><code>silk</code> fiber runtime</td>
+<td><code>enable_silk_runtime</code>; subsystems that support it run jobs on fibers instead of blocking an OS thread on I/O</td>
+</tr>
+<tr>
+<td>Cascades eager aggregation</td>
+<td><code>cascades_aggregation_pushdown</code> pushes a partial aggregation below a <code>JOIN</code> as a cost-based choice</td>
+</tr>
+</tbody>
+</table>
+<h3>Verified</h3>
+<p>Every query in the four <code>.sql</code> files was run against <strong>26.9.1.1629</strong> in the
+container this lab sets up, and every number, plan fragment and error code
+quoted above is from those runs. <code>04-create-token.sh</code> was run end to end too.</p>
+<p>Two things were worked around while writing, both noted in the SQL:</p>
+<ul>
+<li><code>UNION ALL</code> does not expose its column aliases to a trailing <code>ORDER BY</code>, so
+  the comparison tables in labs 01, 03 and 04 wrap the union before sorting.
+  This is the same trap the 26.8 lab hit.</li>
+<li>A refused login raises an exception, which would stop a <code>.sql</code> file at that
+  line. Lab 04 therefore keeps its <code>.sql</code> exception-free and puts the
+  <code>ACCESS_DENIED</code> and <code>AUTHENTICATION_FAILED</code> demonstrations in the <code>.sh</code>
+  runner, one connection each.</li>
+</ul>
+<p>One changelog claim did not hold on this build and is flagged above: the
+zero-argument <code>year()</code>.</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>2026-09-21 릴리스 · 여기서는 26.9.1.1629로 검증</strong></p>
+<p>26.9는 LTS 다음 릴리스이고, 그 자리를 정리에 씁니다 — changelog에 하위 호환성
+변경 17개에 신기능 27개입니다. 제거된 것 중 상당수는 수년간 deprecated 상태였던
+것들입니다. 애널라이저를 더 이상 끌 수 없고, CatBoost·<code>WINDOW VIEW</code>·WasmEdge가
+사라졌으며, 기본 압축 코덱이 바뀌었습니다.</p>
+<p>이 랩은 그중 <strong>컨테이너 하나에서 눈으로 확인할 수 있는</strong> 네 가지를 다룹니다.</p>
+<table>
+<thead>
+<tr>
+<th>랩</th>
+<th>기능</th>
+<th>선정 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/01-limit-after-until.sql">01</a></td>
+<td><code>LIMIT ... AFTER</code> / <code>UNTIL</code></td>
+<td>위치가 아니라 조건으로 자르는 첫 <code>LIMIT</code>. <code>WHERE</code>로는 쓸 수 없는 쿼리를 표현</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/02-keyvaluepairs-index.sql">02</a></td>
+<td><code>keyValuePairs</code> 텍스트 인덱스 토크나이저</td>
+<td><code>Map</code> 컬럼을 직접 색인 — 자주 쓰는 키를 컬럼으로 승격하던 관행의 끝</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/03-zstd-default.sql">03</a></td>
+<td>기본 코덱 <code>ZSTD(3)</code></td>
+<td>요청하지 않아도 디스크 사용량을 바꿀 가능성이 가장 큰 변화</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.9/04-create-token.sql">04</a></td>
+<td><code>CREATE TOKEN</code>, 범위 제한 <code>GRANTS</code></td>
+<td>발급한 사용자보다 반드시 약한 자격 증명</td>
+</tr>
+</tbody>
+</table>
+<h3>빠른 시작</h3>
+<pre><code class="language-bash">./00-setup.sh              # local/oss-mac-setup으로 26.9 기동
+./01-limit-after-until.sh
+./02-keyvaluepairs-index.sh
+./03-zstd-default.sh       # 약 2,600만 행을 쓰고 병합하므로 몇 분 걸립니다
+./04-create-token.sh
+</code></pre>
+<p>각 <code>NN-*.sh</code>는 같은 이름의 <code>.sql</code>을 <code>clickhouse-client</code>에 넘깁니다. SQL을
+읽으세요 — 주석이 곧 랩입니다. <code>04-create-token.sh</code>만 예외로 자체 연결을
+추가하는데, 이유는 아래 랩 04에 있습니다.</p>
+<hr />
+<h3>01 · <code>LIMIT ... AFTER</code> / <code>UNTIL</code></h3>
+<pre><code class="language-sql">SELECT number FROM numbers(10) ORDER BY number LIMIT 3 AFTER number &gt;= 5;  -- 5, 6, 7
+SELECT number FROM numbers(10) ORDER BY number LIMIT UNTIL number &gt;= 3;    -- 0, 1, 2
+</code></pre>
+<p>이전까지 ClickHouse의 <code>LIMIT</code>은 모두 <strong>위치</strong>를 셌습니다. 새 네 가지 형태는
+<strong>조건을 만족하는 행</strong>에서 스트림을 자르며, 스트림 순서를 따릅니다 — 즉
+"앞"과 "뒤"를 정의하는 것은 <code>ORDER BY</code>입니다.</p>
+<table>
+<thead>
+<tr>
+<th>형태</th>
+<th>반환</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LIMIT n AFTER cond</code></td>
+<td><code>cond</code>가 처음 참이 되는 행부터 최대 <code>n</code>행</td>
+</tr>
+<tr>
+<td><code>LIMIT UNTIL cond</code></td>
+<td><code>cond</code>가 처음 참이 되는 행 <strong>직전까지</strong></td>
+</tr>
+<tr>
+<td><code>LIMIT AFTER c1 UNTIL c2</code></td>
+<td>두 지점 사이</td>
+</tr>
+<tr>
+<td><code>LIMIT n AFTER cond ALL</code></td>
+<td><strong>매칭되는 모든 행</strong>마다 <code>n</code>행 창을 열고 중복 없이 합집합</td>
+</tr>
+</tbody>
+</table>
+<p><strong>배워야 하는 이유는 <code>WHERE</code>로 이 말을 할 수 없기 때문입니다.</strong> <code>WHERE</code>는 각
+행을 개별로 판정하므로, 문제의 행 <strong>이후</strong>에 나오는 통과 행들도 함께
+남깁니다.</p>
+<pre><code class="language-text">행:  1 ok   2 ok   3 error   4 ok   5 error   6 ok
+
+WHERE lvl != 'error'         → [1, 2, 4, 6]
+LIMIT UNTIL lvl = 'error'    → [1, 2]
+</code></pre>
+<p>"첫 에러 직전까지 무슨 일이 있었나"는 <code>WHERE</code>로 쓸 방법이 없습니다. 예전에는
+경계 행을 먼저 찾기 위해 윈도우 함수나 셀프 조인이 필요했습니다.</p>
+<p><strong><code>ALL</code>은 로그를 읽는 사람의 형태입니다.</strong> <code>LIMIT 2 AFTER lvl = 'error' ALL</code>은
+모든 에러마다 창을 열고 합집합을 반환합니다 — 에러와 그 다음 줄을, 전부, 쿼리
+하나로. 겹치는 창은 반복되지 않고 병합됩니다:
+<code>LIMIT 3 AFTER number IN (2, 3) ALL</code>은 7행이 아니라 <code>[2,3,4,5]</code>입니다.</p>
+<p><strong>읽기를 멈춥니다.</strong> 스캔 후에 거는 필터가 아닙니다. 1억 행에
+<code>max_block_size = 1000</code>으로 <code>LIMIT UNTIL number &gt;= 10</code>을 걸면
+<code>system.query_log</code>의 <code>read_rows</code>가 <strong>1000</strong> — 블록 하나입니다.</p>
+<p><strong>쓰기 전에 알아야 할 두 가지:</strong></p>
+<ul>
+<li>조건 컬럼이 <code>SELECT</code> 목록에 있을 필요는 없습니다. 조건은 프로젝션이 아니라
+  스트림에 대해 평가됩니다.</li>
+<li><code>OFFSET</code>은 이 형태들과 결합되지 않습니다 — <code>LIMIT 3 AFTER cond OFFSET 1</code>은
+  문법 오류입니다. 쿼리를 감싸고 바깥에서 위치 기반 <code>LIMIT</code>을 거세요.</li>
+</ul>
+<p>아무것도 매칭되지 않을 때의 비대칭은 올바른 방향입니다. <code>AFTER</code>는 열 창이
+없으므로 아무것도 반환하지 않고, <code>UNTIL</code>은 멈출 지점을 못 찾으므로 전부
+반환합니다.</p>
+<hr />
+<h3>02 · <code>keyValuePairs</code> 텍스트 인덱스 토크나이저</h3>
+<pre><code class="language-sql">CREATE TABLE kvp (
+    ts    DateTime,
+    attrs Map(String, String),
+    INDEX idx_attrs attrs TYPE text(tokenizer = keyValuePairs) GRANULARITY 1
+) ENGINE = MergeTree ORDER BY ts;
+</code></pre>
+<p>관측성 스키마는 행의 가변 부분을 <code>Map(String, String)</code>에 담습니다. 26.9
+이전에는 <code>attrs['service'] = 'checkout'</code>를 빠르게 만들려면 자주 쓰는 키를 미리
+짐작해 실제 컬럼으로 승격하거나, 매 쿼리마다 맵 컬럼을 읽는 수밖에
+없었습니다. <code>keyValuePairs</code>는 맵 자체를 색인합니다 — 각 엔트리가 키와 값을
+이어붙인 토큰 하나가 됩니다.</p>
+<p><strong>얻는 것.</strong> 200만 행, <code>tenant</code>는 10만 행마다 한 값으로 뭉쳐 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;"><code>read_rows</code></th>
+<th style="text-align: right;"><code>read_bytes</code></th>
+<th style="text-align: right;"><code>query_duration_ms</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>인덱스 있음</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">32 B</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>없음</td>
+<td style="text-align: right;">2,000,000</td>
+<td style="text-align: right;">10.49 MiB</td>
+<td style="text-align: right;">13</td>
+</tr>
+</tbody>
+</table>
+<p>인덱스가 있는 <code>count()</code>는 맵 컬럼을 아예 열지 않습니다 — 플랜 노드가
+<code>ReadFromMergeTree</code>가 아니라 <code>ReadFromTextIndexCount</code>입니다. 텍스트 인덱스는
+토큰을 가진 행 수를 알고 있으므로 카운트를 인덱스에서 바로 답합니다. 실제
+컬럼이 필요한 쿼리에서는 다시 스킵 인덱스로 동작해 <code>13/245</code> 그래뉼만 남기고
+<code>PREWHERE</code>로 재확인합니다.</p>
+<p><strong>반드시 감안해야 할 한계.</strong> 토큰은 키와 값을 구분자로 이어붙인 것입니다 —
+<code>EXPLAIN indexes = 1</code>에 <code>tokens: ["tenantt7\f"]</code>로 보입니다. 즉 <strong>값 전체
+동등 비교만</strong> 조회할 수 있습니다. 그럴듯해 보이는 술어 넷은 문제없이
+컴파일되고 모든 그래뉼을 스캔합니다.</p>
+<table>
+<thead>
+<tr>
+<th>술어</th>
+<th>인덱스</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attrs['k'] = 'v'</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>attrs['k'] = 'v' AND attrs['j'] = 'w'</code></td>
+<td>✅ mode <code>All</code>, 토큰 둘 다</td>
+</tr>
+<tr>
+<td><code>attrs['k'] = 'v' OR attrs['k'] = 'w'</code></td>
+<td>✅ mode <code>Any</code></td>
+</tr>
+<tr>
+<td><code>attrs['k'] IN ('v', 'w')</code></td>
+<td>❌ 전체 스캔</td>
+</tr>
+<tr>
+<td><code>attrs['k'] LIKE 'v%'</code></td>
+<td>❌ 부분 값 토큰이 존재하지 않음</td>
+</tr>
+<tr>
+<td><code>mapContains(attrs, 'k')</code></td>
+<td>❌ 값 없는 키는 토큰이 아님</td>
+</tr>
+<tr>
+<td><code>attrs['k'] != 'v'</code></td>
+<td>❌ 토큰의 부재는 아무것도 증명하지 못함</td>
+</tr>
+</tbody>
+</table>
+<p><strong>함정은 <code>IN</code>입니다.</strong> 읽는 사람에게는 바로 위의 <code>OR</code>와 같은 뜻인데 아무것도
+가지치기하지 않습니다. 누군가 <code>IN</code> 목록으로 "정리"하는 날 빠르던 쿼리가
+느려집니다. 스키마에 주석을 남겨 둘 만합니다.</p>
+<p><code>map['key'] = 'value'</code> 형태를 우회할 방법도 없습니다 — <code>hasToken(attrs, …)</code>은
+<code>Map</code> 인자를 아예 거부합니다. 이 동등 비교가 인터페이스의 전부입니다.</p>
+<p>텍스트 인덱스 확장은 이번이 세 번째 릴리스 연속입니다. 26.8이
+<code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저를 추가했고, 26.9는 <code>splitByRegexp</code>에
+<code>extract</code> 인자도 줍니다 — <code>tokens(s, 'splitByRegexp', '[a-z]=([0-9]+)', 1)</code>은
+구분자가 아니라 캡처 그룹을 반환합니다.</p>
+<hr />
+<h3>03 · 기본 코덱이 된 <code>ZSTD(3)</code></h3>
+<p>26.9는 코덱을 지정하지 않았을 때 ClickHouse가 무엇으로 압축하는지를 바꿉니다.
+깨지는 것은 없지만 하위 호환성 변경으로 분류돼 있습니다 — 압축 프레임은 모두
+자기 기술적이라 기존 데이터는 그대로 읽힙니다.</p>
+<p>바뀐 것은 세 가지이고, 이걸 뭉뚱그리는 데서 오해가 생깁니다.</p>
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>새 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>클라이언트/서버, 서버/서버, HTTP <code>compress=1</code></td>
+<td>일괄 <code>ZSTD(3)</code></td>
+</tr>
+<tr>
+<td><code>MergeTree</code> 컬럼 데이터</td>
+<td><strong>크기 기준</strong> — 100 MB 미만 <code>LZ4</code>, 이상 <code>ZSTD(3)</code></td>
+</tr>
+<tr>
+<td><code>StripeLog</code>, <code>Set</code>/<code>Join</code> 엔진 파일, <code>checksums.txt</code></td>
+<td>일괄 <code>ZSTD(3)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>크기 규칙에는 그냥 지나치기 쉬운 결과가 하나 있습니다.</strong> 판정 기준은
+"쓰기 시점에 알 수 있는 파트 크기(병합·뮤테이션의 경우 소스 파트 크기)"인데,
+일반 <code>INSERT</code>는 자기 파트가 얼마나 커질지 모릅니다. 그래서 <strong>방금 삽입된
+데이터는 크기와 무관하게 <code>LZ4</code></strong>입니다. <code>ZSTD(3)</code>은 나중에, 병합이 충분히
+쌓은 뒤에 도착합니다. 같은 테이블에서 측정한 결과입니다.</p>
+<pre><code class="language-text">              압축 후      비율
+병합 전     111.70 MiB    7.69     650만 행 INSERT 두 번
+병합 후      21.53 MiB   39.88     병합, 소스 파트 약 112 MB
+</code></pre>
+<p>행이 삭제된 것도 아니고 테이블 정의가 바뀐 것도 아닙니다. 650만 행 INSERT
+하나만으로는 약 8배에 머무르고, 병합만이 임계값을 넘습니다.</p>
+<p>운영 관점의 해석: 새 클러스터에서 <strong>최신 데이터는 <code>LZ4</code>, 안정된 데이터는
+<code>ZSTD(3)</code></strong>이고, 병합이 따라오면서 디스크 사용량이 계속 줄어듭니다. 첫날
+측정값으로 용량을 산정하면 과대 추정하게 됩니다.</p>
+<p><strong>되돌리는 방법은 스위치 하나가 아닙니다.</strong> <code>compatibility = '26.8'</code>은
+<code>network_compression_method</code>를 <code>LZ4</code>로 되돌립니다 — 랩은 26.9·26.8·25.1에
+대해 <code>ZSTD</code>, <code>LZ4</code>, <code>LZ4</code>를 출력합니다. 하지만 <code>MergeTree</code> 컬럼 기본값은
+되돌리지 <strong>않습니다</strong>. <code>compatibility = '26.8'</code>로 실행한 병합도 39.88배로
+나옵니다. 컬럼 데이터의 레버는 컬럼·테이블의 <code>CODEC(LZ4)</code>, 또는 서버 수준
+<code>&lt;compression&gt;</code> 기본값입니다.</p>
+<p><strong>이 변화에 포함되지 않는 두 가지</strong>도 알아 두세요. 회귀를 찾아 헤매기 전에:
+<code>marks_compression_codec</code>과 <code>primary_key_compression_codec</code>은 이미 여러
+릴리스 전부터 <code>ZSTD(3)</code>이 기본이었습니다.</p>
+<p><code>system.parts.default_compression_codec</code>은 크기 규칙이 고른 값이 아니라
+테이블에 선언된 기본값을 보고합니다 — 모든 컬럼에 <code>CODEC(ZSTD(3))</code>을 명시한
+테이블에서도 <code>LZ4</code>라고 나옵니다. 비율을 측정하세요.</p>
+<hr />
+<h3>04 · <code>CREATE TOKEN</code>과 범위 제한 <code>GRANTS</code></h3>
+<pre><code class="language-sql">CREATE TOKEN VALID FOR INTERVAL 30 DAY GRANTS (SELECT ON demo.events);
+</code></pre>
+<p>이제 인증 수단이 자기 권한 목록을 가질 수 있습니다. 해당 수단으로 로그인한
+세션은 사용자 권한과 명시된 권한의 <strong>교집합</strong>을 갖습니다. 즉 사용자 하나가
+자기보다 반드시 약한 자격 증명을 발급할 수 있습니다 — 두 번째 사용자도, 두
+번째 역할도, 앞단 프록시도 없이.</p>
+<p><code>CREATE TOKEN</code>은 셀프서비스 형태입니다. 시크릿을 생성해 현재 사용자에 붙이고
+만료 시각과 함께 돌려줍니다.</p>
+<pre><code class="language-text">token:       WzZjScwypyT3AiodtEFOyI1YslQFSrEm
+valid_until: 2026-10-23 11:01:32
+</code></pre>
+<p><code>ALTER USER u ADD IDENTIFIED WITH … VALID UNTIL … GRANTS (…)</code>는 관리자
+형태로, 직접 고른 시크릿으로 다른 사용자에게 같은 일을 합니다.</p>
+<p><strong><code>CREATE TOKEN</code>이 동작하지 않게 만드는 두 가지가 있고, 둘 다 처음에는 버그처럼
+보입니다.</strong></p>
+<ul>
+<li>사용자가 <strong>쓰기 가능한 access storage</strong>에 있어야 합니다. 공식 Docker
+  이미지의 <code>default</code> 사용자는 읽기 전용인 <code>users.xml</code>에 정의돼 있습니다:
+  <code>Code: 495. Cannot update user 'default' in users_xml because this storage
+  is readonly.</code> SQL로 만든 사용자는 괜찮습니다. 랩 04의 <code>.sql</code>이 <code>ALTER USER</code>
+  형태를 쓰고 <code>CREATE TOKEN</code> 쪽은 러너가 담당하는 이유입니다.</li>
+<li>토큰은 <strong>추가</strong> 인증 수단이고, <code>no_password</code>는 다른 수단과 공존할 수
+  없습니다 (<code>Code: 36</code>). 사용자에게 먼저 실제 자격 증명이 있어야 합니다.</li>
+</ul>
+<p>권한도 <code>ON *.*</code> 형태가 필요합니다 — <code>GRANT CREATE TOKEN TO app</code>은 문법
+오류이고, <code>GRANT CREATE TOKEN ON *.* TO app</code>은 아닙니다.</p>
+<p><strong>범위가 실제로 하는 일.</strong> <code>app</code>에 <code>SELECT ON demo.*</code>를 주고, 토큰은
+<code>SELECT ON demo.events</code>로 제한했을 때:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>demo.events</code></th>
+<th><code>demo.secrets</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>전체 비밀번호</td>
+<td>2행</td>
+<td>1행</td>
+</tr>
+<tr>
+<td>범위 제한 토큰</td>
+<td>2행</td>
+<td><code>Code: 497 … ACCESS_DENIED</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>뻔한 권한 상승 경로는 막혀 있습니다.</strong> 범위 제한 수단으로 인증된 세션은 또
+다른 토큰을 발급할 수 없습니다 — <em>"현재 세션은 GRANTS 절로 접근 권한을
+제한하는 수단으로 인증되었으며, 그런 세션은 기존 사용자에게 인증 수단을 추가할
+수 없습니다."</em></p>
+<p><strong>운영상 유의점, 모두 랩에서 실증합니다:</strong></p>
+<ul>
+<li>만료는 <strong>발급 시점이 아니라 로그인 시점에</strong> 검사합니다. <code>VALID UNTIL
+  '2020-01-01'</code>은 아무 불평 없이 수락되고, 이후 모든 로그인을
+  <code>AUTHENTICATION_FAILED</code>로 거부합니다. 배포 스크립트가 만료 시각을 잘못된
+  타임존으로 계산해도 정작 필요한 지점에서는 오류가 나지 않습니다.</li>
+<li><code>VALID</code> 절이 없을 때의 기본 TTL은 <code>create_token_default_ttl_seconds</code> —
+  1800, 30분입니다. 의도적으로 짧습니다.</li>
+<li><code>DROP TOKEN</code>은 없습니다. <code>ALTER USER u IDENTIFIED WITH …</code> (<code>ADD</code> 없이)가
+  수단 목록 전체를 교체하므로 모든 토큰이 한 번에 폐기됩니다. 하나만 폐기하고
+  나머지를 유지하려면 나머지를 재발급해야 하므로, <strong>소비자당 토큰 하나</strong>로
+  설계하세요.</li>
+<li>범위가 보이는 곳은 <code>SHOW CREATE USER</code>뿐입니다. <code>system.users</code>에는 똑같은
+  <code>sha256_password</code> 항목들만 나열됩니다.</li>
+</ul>
+<hr />
+<h3>26.9의 다른 변화 (이 랩에서 다루지 않음)</h3>
+<p>changelog에는 하위 호환성 변경 17개, 신기능 27개, 실험 기능 28개, 성능 개선
+135개가 있습니다. 영향을 받을 가능성이 큰 순서로 정리했습니다.</p>
+<p><strong>제거 및 파괴적 변경</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>애널라이저를 더 이상 끌 수 없음</strong></td>
+<td><code>enable_analyzer = 0</code>은 즉시 거부되고 (<code>Code: 452</code>), <code>compatibility</code>로도 되돌아가지 않습니다. 24.3부터 기본값이었고, 구 분석과 비교하려면 26.9 이전 바이너리가 필요합니다</td>
+</tr>
+<tr>
+<td><strong>CatBoost 제거</strong></td>
+<td><code>catboostEvaluate</code>, <code>system.models</code>, <code>SYSTEM RELOAD MODEL(S)</code>. 업그레이드 <strong>전에</strong> 모든 사용자·역할·<code>users.xml</code>·access 백업에서 <code>SYSTEM RELOAD MODEL</code>을 회수하세요 — 제거된 권한을 가진 access 엔티티는 파싱되지 않고, 레플리카는 이를 조용히 누락시킵니다</td>
+</tr>
+<tr>
+<td><strong><code>WINDOW VIEW</code> 제거</strong></td>
+<td><code>WATCH</code>, <code>windowID</code>와 함께. 24.12부터 동작하지 않았고 애널라이저를 지원한 적이 없습니다. 메타데이터에 window view가 있으면 서버가 <strong>기동에 실패</strong>하므로 먼저 드롭하세요. <code>tumble</code>·<code>hop</code> 계열은 유지</td>
+</tr>
+<tr>
+<td><strong><code>Nullable(Tuple(...))</code> 정식 지원</strong></td>
+<td>Parquet/Arrow/ORC/Avro/JSON 스키마 추론이 이를 반환하고, <code>Variant</code>/<code>Dynamic</code>/<code>JSON</code>의 튜플 서브컬럼은 값이 없을 때 기본값 튜플이 아니라 <code>NULL</code>이 됩니다. 파티션 키·정렬 키·TTL·스킵 인덱스가 그런 서브컬럼에 의존한다면 업그레이드 후 <strong>첫 재시작 전에</strong> 기본 프로필에 <code>allow_nullable_tuple_in_extracted_subcolumns = 0</code>을 설정하세요. 아니면 파트가 detach될 수 있습니다</td>
+</tr>
+<tr>
+<td><code>interface</code> / <code>http_method</code>가 <code>Enum8</code>으로</td>
+<td><code>query_log</code>·<code>query_thread_log</code>·<code>processes</code>에서. <code>WHERE interface = 1</code>도 되고 <code>WHERE interface = 'TCP'</code>도 이제 됩니다. <code>interface + 0</code>은 안 됩니다. 기존 로그 테이블은 업그레이드 시 <code>query_log_0</code> 식으로 이름이 바뀝니다</td>
+</tr>
+<tr>
+<td>WasmEdge 엔진 제거</td>
+<td><code>webassembly_udf_engine</code>은 <code>wasmtime</code>만 남습니다. <code>wasmedge</code>로 설정된 서버는 기동하지 않습니다</td>
+</tr>
+<tr>
+<td>샤딩 <code>GROUP BY</code> 제거</td>
+<td><code>enable_sharding_aggregator</code>는 수락되지만 무동작. <code>enable_adaptive_aggregator</code>가 같은 워크로드를 담당합니다</td>
+</tr>
+<tr>
+<td><code>s3_disable_checksum</code> 제거</td>
+<td>체크섬을 단일 읽기 중에 계산하므로 끌 대상이 없습니다</td>
+</tr>
+<tr>
+<td><code>read_resource</code> / <code>write_resource</code> 디스크 옵션 제거</td>
+<td><code>CREATE RESOURCE name (READ DISK d, WRITE DISK d)</code>를 쓰세요</td>
+</tr>
+<tr>
+<td><code>runningConcurrency</code>가 비결정적으로 분류</td>
+<td><code>LEFT</code>/<code>ANY JOIN</code>과 지연 평가 <code>if</code>/<code>multiIf</code>에서의 오답을 고칩니다. 정렬 키·파티션 키에 이 함수를 쓴 테이블은 업그레이드 후 <strong>로드되지 않습니다</strong></td>
+</tr>
+<tr>
+<td>코덱별 게이팅</td>
+<td><code>allow_experimental_codecs</code>는 폐기. <code>enable_&lt;codec&gt;_codec</code>을 쓰세요. <code>ALP</code>는 <code>enable_alp_codec</code>으로 베타 승격</td>
+</tr>
+<tr>
+<td><code>BACKUP</code>/<code>RESTORE ... Disk(...)</code>에 <code>SOURCES</code> 권한 필요</td>
+<td><code>BACKUP</code> 위에 쓰기는 <code>WRITE ON DISK</code>, 읽기는 <code>READ ON DISK</code></td>
+</tr>
+<tr>
+<td><code>File</code> + <code>rename_files_after_processing</code>에 <code>WRITE ON FILE</code> 필요</td>
+<td><code>SELECT</code>가 읽은 파일의 이름을 바꾸는 것은 쓰기입니다</td>
+</tr>
+<tr>
+<td><code>CREATE TABLE ... AS mergeTreeIndex(...)</code> 거부</td>
+<td><code>mergeTreeProjection</code>·<code>mergeTreeTextIndex</code>·<code>timeSeriesSamples</code>·<code>timeSeriesData</code> 등도 동일. 이런 테이블은 <code>DROP TABLE &lt;source&gt; SYNC</code>를 영영 반환하지 않게 만들었습니다. <code>SELECT database, name FROM system.tables WHERE engine = 'Proxy'</code>로 찾으세요. 함수를 직접 읽는 것은 영향 없음</td>
+</tr>
+<tr>
+<td><code>validate_group_by_all_key_types</code></td>
+<td>신규 설정, 기본 활성. 26.7부터 <code>Variant</code>/<code>Dynamic</code> 키를 거부해 온 <code>GROUP BY ALL</code> 키 타입 검사를 제어합니다</td>
+</tr>
+</tbody>
+</table>
+<p><strong>신규 기능</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DISTINCT</code> 디스크 스필</td>
+<td><code>max_bytes_before_external_distinct</code>, <code>max_bytes_ratio_before_external_distinct</code>(0.5). 외부 집계·정렬과 마찬가지로 비율 기준 동작</td>
+</tr>
+<tr>
+<td><code>REFRESH ... APPEND INCREMENTAL</code></td>
+<td>갱신형 머티리얼라이즈드 뷰가 직전 갱신 이후 커밋된 행만 추가합니다. <code>Iceberg</code> 대상이면 정확히 한 번 — 커서를 스냅샷 요약 안에서 원자적으로 커밋</td>
+</tr>
+<tr>
+<td><code>max_table_size_rows</code> / <code>_bytes_compressed</code> / <code>_bytes_uncompressed</code></td>
+<td>테이블 총 크기를 제한하는 <code>MergeTree</code> 설정. <code>INSERT</code> 시작 시점과 병합 결과를 포함한 파트 커밋 시점에 검사하며, 레플리카 fetch에는 적용되지 않습니다</td>
+</tr>
+<tr>
+<td><code>max_tables</code> 데이터베이스 설정</td>
+<td><code>CREATE DATABASE d SETTINGS max_tables = 2</code> → <code>Code: 724. Too many tables</code>. 뷰와 딕셔너리도 포함해 셉니다</td>
+</tr>
+<tr>
+<td><code>regr_slope</code>·<code>regr_intercept</code>·<code>regr_r2</code>·<code>regr_count</code>·<code>regr_avgx</code>·<code>regr_avgy</code>·<code>regr_sxx</code>·<code>regr_syy</code>·<code>regr_sxy</code></td>
+<td>SQL 표준 선형 회귀 집계 함수</td>
+</tr>
+<tr>
+<td><code>JSON</code> 서브컬럼 대괄호 문법</td>
+<td><code>json['a']['b']</code>, 중첩 <code>arrayElement</code>로 변환</td>
+</tr>
+<tr>
+<td><code>system.statements</code></td>
+<td>SQL 문 문서 101행 — 이름·문법·설명·예제. 랩 04가 여기서 <code>CREATE TOKEN</code>을 읽습니다</td>
+</tr>
+<tr>
+<td><code>system.session_query_ids</code></td>
+<td>현재 세션의 쿼리 id를 실행 순서로. "방금 실행한 쿼리"를 찾는 데 클라이언트 측 <code>query_id</code>나 <code>log_comment</code>가 필요 없습니다. <code>session_query_ids_history_size</code>(1000)로 제한</td>
+</tr>
+<tr>
+<td><code>arrayFlattenedLength</code></td>
+<td>모든 중첩 수준의 원소를 셉니다 — <code>[[1,2],[3],[4,5,6]]</code>은 6, <code>length</code>는 3. PostgreSQL의 <code>cardinality</code>와 동일</td>
+</tr>
+<tr>
+<td><code>parseISO8601Duration</code></td>
+<td><code>'PT1H30M'</code> → 5400</td>
+</tr>
+<tr>
+<td><code>DateTime</code> + <code>Time</code> 연산</td>
+<td><code>toDateTime('2026-09-23 00:00:00') + toTime('01:30:00')</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code>의 <code>extract</code> 인자</td>
+<td><code>tokens(s, 'splitByRegexp', re, 1)</code>은 구분자로 쪼개는 대신 각 매치의 첫 캡처 그룹을 반환</td>
+</tr>
+<tr>
+<td><code>skip_empty_columns_on_insert</code></td>
+<td>타입 기본값만 든 컬럼을 저장하지 않는 옵트인 <code>MergeTree</code> 설정. <code>serialization_info_version = 'with_missing_columns'</code>가 필요하며, 롤링 업그레이드 중에는 구버전을 유지하세요</td>
+</tr>
+<tr>
+<td><code>type_json_skip_null_typed_paths</code></td>
+<td><code>JSON</code>의 <code>NULL</code> 타입 경로를 부재로 취급해 동적 경로와 동작을 맞춥니다</td>
+</tr>
+<tr>
+<td>jemalloc 단편화 프로파일러</td>
+<td>백트레이스·수명·크기 클래스를 담은 <code>system.jemalloc_sampled_allocations</code>, 서버 웹 UI의 Fragmentation 탭</td>
+</tr>
+<tr>
+<td><code>WORKLOAD</code>·<code>RESOURCE</code>의 <code>BACKUP</code>/<code>RESTORE</code></td>
+<td>SQL로 정의한 내용이 백업에 포함되고 복원 시 재생성됩니다. <code>ON CLUSTER</code>도</td>
+</tr>
+<tr>
+<td><code>workload_admission_timeout_ms</code></td>
+<td>워크로드 쿼리 슬롯 대기 시간을 제한. <code>0</code>은 기존의 무제한 대기</td>
+</tr>
+<tr>
+<td><code>S3Queue</code> <code>mode = 'exclusive'</code></td>
+<td>Keeper 조율 없이 서버 메모리에서만 처리를 추적 — 단일 서버 고처리량 수집용</td>
+</tr>
+<tr>
+<td><code>nats_ca_file</code> / <code>nats_client_cert_file</code> / <code>nats_client_key_file</code></td>
+<td><code>NATS</code> 엔진의 사설 CA 검증과 클라이언트 인증서 인증</td>
+</tr>
+<tr>
+<td>값 없는 <code>clickhouse-client --ssh-key-file</code></td>
+<td><code>ssh</code>와 같은 방식으로 키를 찾습니다 — <code>ssh-agent</code> 포함</td>
+</tr>
+<tr>
+<td>Iceberg v3 <code>first_row_id</code> / <code>last_seq_num</code></td>
+<td>가상 컬럼으로 노출되고 삽입 시 기록됩니다</td>
+</tr>
+<tr>
+<td>리더 백프레셔용 <code>keeper</code> 4글자 명령</td>
+<td>느린 Raft 멤버에 대한</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>changelog에는 현재 연도를 반환하는 무인자 <code>year()</code>도 있습니다. 하지만
+26.9.1.1629에는 <strong>없습니다</strong> — <code>SELECT year()</code>는 여전히 <code>toYear</code>로 해석되어
+<code>NUMBER_OF_ARGUMENTS_DOESNT_MATCH</code>로 실패합니다. 이후 빌드를 기다리세요.</p>
+</blockquote>
+<p><strong>실험 기능</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/ui</code> 내장 SQL 콘솔</td>
+<td>HTTP 서버가 제공하는 ClickHouse Cloud 콘솔. 랩 컨테이너에서 200을 반환합니다. <code>/play</code>와는 다른 것입니다</td>
+</tr>
+<tr>
+<td><code>TimeSeries</code>와 PromQL</td>
+<td><code>TimeSeries</code> 테이블의 <code>SELECT</code> 지원, 외부 샘플 컬럼을 <code>samples</code>로 개명, <code>METRICS</code>를 <code>METRIC FAMILIES</code>로 개명(구 이름은 별칭 유지), 기본 <code>LowCardinality</code> 시리즈 id로 PromQL 기하평균 1.16배 향상. PromQL에 <code>absent</code>·<code>count_values</code>·<code>sum_over_time</code>·<code>avg_over_time</code>·<code>count_over_time</code>·<code>present_over_time</code>·<code>absent_over_time</code>·<code>quantile_over_time</code>·<code>predict_linear</code>·<code>max_over_time</code>·<code>min_over_time</code> 추가. 엔진 자체는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/timeseries-promql-oss">TimeSeries + PromQL 랩</a> 참고</td>
+</tr>
+<tr>
+<td>Prometheus HTTP API</td>
+<td><code>/api/v1/metadata</code>, <code>/api/v1/labels</code>, <code>/api/v1/label/&lt;name&gt;/values</code>, <code>/api/v1/format_query</code></td>
+</tr>
+<tr>
+<td><code>trino</code> 방언</td>
+<td><code>enable_trino_dialect</code>로 Trino SQL을 변환 — <code>ARRAY[...]</code>, <code>TRY_CAST</code>, <code>UNNEST</code>, <code>ROW</code>, <code>FETCH</code>, <code>LIMIT</code> 앞의 <code>OFFSET</code>, 수백 개 함수 매핑</td>
+</tr>
+<tr>
+<td><code>KQL</code> 재구현</td>
+<td>SQL 텍스트로 변환 후 재파싱하던 방식 대신 전용 렉서·파서. <code>contains</code>/<code>has</code>의 표현식 주입과 Kusto와 어긋나던 결과들을 고칩니다. 미지원 문법은 오역 대신 거부</td>
+</tr>
+<tr>
+<td><code>DeltaLake</code> <code>CREATE TABLE</code></td>
+<td><code>delta-kernel-rs</code>로 초기 커밋을 쓰거나, 기존 <code>_delta_log</code>에 붙거나, Unity 카탈로그에 등록. <code>allow_delta_lake_create_table</code> 필요, <code>PARTITION BY</code>는 아직 미지원. 쓰기는 정확한 캐스트로 오버플로 시 예외(<code>delta_lake_accurate_write_cast</code>)</td>
+</tr>
+<tr>
+<td><code>hierarchicalKMeans</code>, <code>assignCentroid</code></td>
+<td>IVF 방식 벡터 검색의 구성 요소</td>
+</tr>
+<tr>
+<td>병렬 레플리카</td>
+<td><code>parallel_replicas_plan_based</code>가 런타임 통계로 스스로 활성화할 수 있고, <code>RIGHT JOIN</code>과 <code>ORDER BY ... WITH FILL</code>을 지원하며, <code>parallel_replicas_allow_merge_tables</code>로 <code>Merge</code> 테이블을 읽습니다</td>
+</tr>
+<tr>
+<td>분산 플랜</td>
+<td><code>make_distributed_plan</code>이 <code>LIMIT</code> 충족 후 유휴 상위 스테이지를 중단하고, 워커 프래그먼트에서 <code>max_threads</code>를 지키며, 완료 스테이지당 최대 100 ms 유휴 대기를 없애고, <code>INTERSECT</code>/<code>EXCEPT</code>를 지원합니다</td>
+</tr>
+<tr>
+<td>적응형 코덱 선택</td>
+<td><code>enable_adaptive_codec_selection</code>이 전용 후보 코덱이 없는 컬럼(기본 코덱과 <code>NONE</code> 중 작은 쪽을 선택 — 압축 불가 데이터가 원본보다 커지지 않음), <code>Array</code>/<code>String</code> 크기와 널 맵을 포함한 모든 서브스트림, 그리고 float의 <code>ALP</code>까지 확장</td>
+</tr>
+<tr>
+<td><code>silk</code> 파이버 런타임</td>
+<td><code>enable_silk_runtime</code>. 지원하는 서브시스템이 I/O 대기에 OS 스레드를 점유하는 대신 파이버에서 작업을 실행합니다</td>
+</tr>
+<tr>
+<td>Cascades eager aggregation</td>
+<td><code>cascades_aggregation_pushdown</code>이 비용 기반 선택지로 부분 집계를 <code>JOIN</code> 아래로 내립니다</td>
+</tr>
+</tbody>
+</table>
+<h3>검증</h3>
+<p>네 개 <code>.sql</code> 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 <strong>26.9.1.1629</strong>에서
+실행했고, 위에 인용한 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
+<code>04-create-token.sh</code>도 끝까지 실행했습니다.</p>
+<p>작성 중 우회한 것이 둘 있고, 모두 SQL에 주석으로 남겼습니다.</p>
+<ul>
+<li><code>UNION ALL</code>은 뒤따르는 <code>ORDER BY</code>에 컬럼 별칭을 노출하지 않습니다. 그래서
+  랩 01·03·04의 비교 표는 정렬 전에 union을 감쌉니다. 26.8 랩이 부딪힌 것과
+  같은 함정입니다.</li>
+<li>거부된 로그인은 예외를 발생시키고, 그러면 <code>.sql</code> 파일이 그 줄에서 멈춥니다.
+  그래서 랩 04는 <code>.sql</code>을 예외 없이 유지하고 <code>ACCESS_DENIED</code>·
+  <code>AUTHENTICATION_FAILED</code> 실증은 연결을 하나씩 열어 <code>.sh</code> 러너에 두었습니다.</li>
+</ul>
+<p>changelog의 주장 중 이 빌드에서 성립하지 않은 것이 하나 있고 위에 표시했습니다
+— 무인자 <code>year()</code>입니다.</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<h2>License</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<h2>라이선스</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.9"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><span class="step empty"></span><a class="step next" href="../../../../labs/local/releases/26.8/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse 26.8 LTS</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
