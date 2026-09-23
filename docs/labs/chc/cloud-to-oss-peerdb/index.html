@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cloud-to-oss-peerdb · ClickHouse HOLs</title>
+<meta name="description" content="cloud-to-oss-peerdb — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/cloud-to-oss-peerdb</code>
+    
+  </nav>
+  <div class="readme en"><h1>cloud-to-oss-peerdb</h1>
+<p>PeerDB를 이용해 <strong>Amazon RDS for MySQL</strong>과 <strong>Amazon DocumentDB</strong>의 데이터를 <strong>ClickHouse
+OSS</strong>로 옮기는 경로(초기 스냅샷 + CDC)가 기능적으로 동작하는지 검증한 기록.</p>
+<ul>
+<li>최종 판정: <strong>PASS</strong></li>
+<li>전체 보고서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.md"><code>REPORT.md</code></a> / <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.pdf"><code>REPORT.pdf</code></a></li>
+<li>세부 진행 기록: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details"><code>details/</code></a></li>
+<li>운영 보안·이관 런북: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/clickhouse-cloud-to-self-managed-security-runbook.md"><code>clickhouse-cloud-to-self-managed-security-runbook.md</code></a></li>
+<li>AI 전체 사이클 검증 지시서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/AI-VALIDATION-WORK-INSTRUCTIONS.md"><code>AI-VALIDATION-WORK-INSTRUCTIONS.md</code></a></li>
+<li>EC2 배포 코드: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/cloud-to-oss-peerdb/terraform"><code>terraform/</code></a></li>
+</ul>
+<h2>요약</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RDS MySQL → ClickHouse OSS 초기 적재</td>
+<td>3개 테이블(customers/orders/order_items) 전수 일치</td>
+</tr>
+<tr>
+<td>DocumentDB → ClickHouse OSS 초기 적재</td>
+<td>3개 컬렉션(profiles/events/mutable_docs) 전수 일치</td>
+</tr>
+<tr>
+<td>CDC (INSERT/UPDATE/DELETE)</td>
+<td>양쪽 소스 모두 정상 반영, 지연 15초 이내</td>
+</tr>
+<tr>
+<td>보안 통제(TLS/암호화/네트워크 격리)</td>
+<td><strong>검증 범위에서 완전히 제외</strong> — 운영 전환 전 별도 재검증 필수</td>
+</tr>
+<tr>
+<td>ClickPipes 대조, remoteSecure backfill, cutover/rollback</td>
+<td>미수행 (범위 밖)</td>
+</tr>
+</tbody>
+</table>
+<h2>왜 이 정도만 검증했는가</h2>
+<p>동일 디렉터리의 운영 런북은 ClickPipes와 PeerDB 경로를 나란히 돌려 대조하고,
+cutover/rollback까지 시뮬레이션하는 전체 마이그레이션 절차를 다룬다. 이번 작업은 그중
+<strong>"PeerDB로 데이터가 실제로 옮겨지는가"</strong> 한 가지 질문에 답하기 위한 최소 규모 기능
+검증이었고, 성능·보안 검증은 처음부터 범위 밖이었다. 자세한 배경은 <code>REPORT.md</code> 1장,
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details/scope-decisions.md"><code>details/scope-decisions.md</code></a> 참고.</p>
+<h2>가장 중요한 발견</h2>
+<p><strong>PeerDB의 MongoDB 커넥터는 MongoDB 4.2 이상 호환 wire protocol(버전 8+)을 요구한다.</strong>
+이번 실행에서는 Amazon DocumentDB 4.0이 실패하고 8.0.1이 통과했다. DocumentDB 5.0은 AWS가
+MongoDB 5.0 호환으로 제공하지만 이 실행에서는 직접 검증하지 않았으므로, 실제 고정 PeerDB
+릴리스에서 peer validation과 snapshot/CDC smoke test를 먼저 수행해야 한다. 그 외에 실제로
+부딪힌 이슈(11건)와 해결 방법은
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details/bootstrap-issues.md"><code>details/bootstrap-issues.md</code></a>에 순서대로 정리되어 있다 —
+PeerDB의 공개 문서가 다루지 않는, 실제로 동작을 확인해야만 알 수 있는 내용들이다.</p>
+<h2>디렉터리 구성</h2>
+<pre><code class="language-text">cloud-to-oss-peerdb/
+├── README.md                       — 이 파일
+├── REPORT.md / REPORT.pdf          — 완료된 기능 검증의 역사적 보고서
+├── AI-VALIDATION-WORK-INSTRUCTIONS.md
+├── clickhouse-cloud-to-self-managed-security-runbook.md
+├── terraform/                      — EC2/EBS/KMS/S3/IAM/TLS 배포 코드
+└── details/
+    ├── scope-decisions.md   — 범위를 두 차례 좁힌 결정과 사유
+    ├── bootstrap-issues.md  — 부트스트랩 중 만난 문제 11건과 해결책 (가장 상세한 기록)
+    ├── source-fixtures.md   — 테스트에 사용한 소스 데이터 스키마
+    ├── cdc-verification.md  — INSERT/UPDATE/DELETE 검증 결과 상세
+    └── cleanup.md           — 사용한 AWS 리소스 정리 기록
+</code></pre>
+<h2>재현 시 참고</h2>
+<p>이 저장소에는 실행에 사용한 자격 증명이나 특정 AWS 계정/리소스 식별자를 포함하지 않는다
+(검증에 사용한 모든 AWS 리소스는 작업 완료 후 삭제했다). 동일한 방식으로 재현하려면
+<code>REPORT.md</code>의 환경/버전 표와 <code>details/bootstrap-issues.md</code>의 각 항목을 참고하되, 운영 재현은
+보안 런북의 SEC-2와 <code>terraform/</code>을 기준으로 구성할 것. 기존 보고서와 PDF는 당시 제한된
+평문/public-subnet 기능 검증의 역사적 증적이며 현재 운영 권장 구성을 나타내지 않는다.</p></div>
+  <div class="readme ko"><h1>cloud-to-oss-peerdb</h1>
+<p>PeerDB를 이용해 <strong>Amazon RDS for MySQL</strong>과 <strong>Amazon DocumentDB</strong>의 데이터를 <strong>ClickHouse
+OSS</strong>로 옮기는 경로(초기 스냅샷 + CDC)가 기능적으로 동작하는지 검증한 기록.</p>
+<ul>
+<li>최종 판정: <strong>PASS</strong></li>
+<li>전체 보고서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.md"><code>REPORT.md</code></a> / <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.pdf"><code>REPORT.pdf</code></a></li>
+<li>세부 진행 기록: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details"><code>details/</code></a></li>
+<li>운영 보안·이관 런북: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/clickhouse-cloud-to-self-managed-security-runbook.md"><code>clickhouse-cloud-to-self-managed-security-runbook.md</code></a></li>
+<li>AI 전체 사이클 검증 지시서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/AI-VALIDATION-WORK-INSTRUCTIONS.md"><code>AI-VALIDATION-WORK-INSTRUCTIONS.md</code></a></li>
+<li>EC2 배포 코드: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/cloud-to-oss-peerdb/terraform"><code>terraform/</code></a></li>
+</ul>
+<h2>요약</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RDS MySQL → ClickHouse OSS 초기 적재</td>
+<td>3개 테이블(customers/orders/order_items) 전수 일치</td>
+</tr>
+<tr>
+<td>DocumentDB → ClickHouse OSS 초기 적재</td>
+<td>3개 컬렉션(profiles/events/mutable_docs) 전수 일치</td>
+</tr>
+<tr>
+<td>CDC (INSERT/UPDATE/DELETE)</td>
+<td>양쪽 소스 모두 정상 반영, 지연 15초 이내</td>
+</tr>
+<tr>
+<td>보안 통제(TLS/암호화/네트워크 격리)</td>
+<td><strong>검증 범위에서 완전히 제외</strong> — 운영 전환 전 별도 재검증 필수</td>
+</tr>
+<tr>
+<td>ClickPipes 대조, remoteSecure backfill, cutover/rollback</td>
+<td>미수행 (범위 밖)</td>
+</tr>
+</tbody>
+</table>
+<h2>왜 이 정도만 검증했는가</h2>
+<p>동일 디렉터리의 운영 런북은 ClickPipes와 PeerDB 경로를 나란히 돌려 대조하고,
+cutover/rollback까지 시뮬레이션하는 전체 마이그레이션 절차를 다룬다. 이번 작업은 그중
+<strong>"PeerDB로 데이터가 실제로 옮겨지는가"</strong> 한 가지 질문에 답하기 위한 최소 규모 기능
+검증이었고, 성능·보안 검증은 처음부터 범위 밖이었다. 자세한 배경은 <code>REPORT.md</code> 1장,
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details/scope-decisions.md"><code>details/scope-decisions.md</code></a> 참고.</p>
+<h2>가장 중요한 발견</h2>
+<p><strong>PeerDB의 MongoDB 커넥터는 MongoDB 4.2 이상 호환 wire protocol(버전 8+)을 요구한다.</strong>
+이번 실행에서는 Amazon DocumentDB 4.0이 실패하고 8.0.1이 통과했다. DocumentDB 5.0은 AWS가
+MongoDB 5.0 호환으로 제공하지만 이 실행에서는 직접 검증하지 않았으므로, 실제 고정 PeerDB
+릴리스에서 peer validation과 snapshot/CDC smoke test를 먼저 수행해야 한다. 그 외에 실제로
+부딪힌 이슈(11건)와 해결 방법은
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details/bootstrap-issues.md"><code>details/bootstrap-issues.md</code></a>에 순서대로 정리되어 있다 —
+PeerDB의 공개 문서가 다루지 않는, 실제로 동작을 확인해야만 알 수 있는 내용들이다.</p>
+<h2>디렉터리 구성</h2>
+<pre><code class="language-text">cloud-to-oss-peerdb/
+├── README.md                       — 이 파일
+├── REPORT.md / REPORT.pdf          — 완료된 기능 검증의 역사적 보고서
+├── AI-VALIDATION-WORK-INSTRUCTIONS.md
+├── clickhouse-cloud-to-self-managed-security-runbook.md
+├── terraform/                      — EC2/EBS/KMS/S3/IAM/TLS 배포 코드
+└── details/
+    ├── scope-decisions.md   — 범위를 두 차례 좁힌 결정과 사유
+    ├── bootstrap-issues.md  — 부트스트랩 중 만난 문제 11건과 해결책 (가장 상세한 기록)
+    ├── source-fixtures.md   — 테스트에 사용한 소스 데이터 스키마
+    ├── cdc-verification.md  — INSERT/UPDATE/DELETE 검증 결과 상세
+    └── cleanup.md           — 사용한 AWS 리소스 정리 기록
+</code></pre>
+<h2>재현 시 참고</h2>
+<p>이 저장소에는 실행에 사용한 자격 증명이나 특정 AWS 계정/리소스 식별자를 포함하지 않는다
+(검증에 사용한 모든 AWS 리소스는 작업 완료 후 삭제했다). 동일한 방식으로 재현하려면
+<code>REPORT.md</code>의 환경/버전 표와 <code>details/bootstrap-issues.md</code>의 각 항목을 참고하되, 운영 재현은
+보안 런북의 SEC-2와 <code>terraform/</code>을 기준으로 구성할 것. 기존 보고서와 PDF는 당시 제한된
+평문/public-subnet 기능 검증의 역사적 증적이며 현재 운영 권장 구성을 나타내지 않는다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/cloud-to-oss-peerdb"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/chc/clickpipes-s3/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickPipes S3 Checkpoint Test Suite</span></a><a class="step next" href="../../../labs/chc/kafka/terraform-confluent-aws/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Confluent Platform on AWS with Terraform</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

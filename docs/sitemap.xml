@@ -4,6 +4,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/api/chc-api-test/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/clickpipes-mysql/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/clickpipes-s3/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/cloud-to-oss-peerdb/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/kafka/terraform-confluent-aws-connect-sink/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/kafka/terraform-confluent-aws-nlb-ssl/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/kafka/terraform-confluent-aws/</loc></url>
@@ -60,6 +61,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-prewhere/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-protocol-benchmark/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/security-traffic-analysis/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/timeseries-promql-oss/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/async-insert-stress/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/dedup-engine/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/</loc></url>

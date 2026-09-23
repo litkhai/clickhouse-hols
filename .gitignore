@@ -6,6 +6,10 @@ S3_ClickPipes_Performance_Guide.md
 # Secrets — commit only the .example / .template counterparts
 .env
 .env.local
+# Per-developer Claude Code settings: records local tool permissions and has
+# held connection strings. It was only ever covered by a personal global
+# ignore, so a fresh clone would have offered it up for commit.
+.claude/settings.local.json
 # ...except this one: it holds lab dimensions (ports, ROWS, partitions), no
 # credentials, and _env.sh silently falls back to defaults when it is absent.
 !workload/kafka-partitioning-ingestion/.env

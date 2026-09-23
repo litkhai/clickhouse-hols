@@ -94,14 +94,14 @@ cd usecase/timeseries-promql-oss
 ./05-management.sh   # ends by dropping the table
 ```
 
-### The Cloud counterpart
+### On ClickHouse Cloud
 
-See [`usecase/timeseries-promql-cloud`](../timeseries-promql-cloud/) — but
-read its prerequisites first. As of this writing, the `TimeSeries` engine is
-**Private Preview only on ClickHouse Cloud**: most Cloud services cannot
+There is no Cloud counterpart to this lab, and that is a statement about the
+feature rather than about the lab. As of this writing the `TimeSeries` engine
+is **Private Preview only on ClickHouse Cloud**: most Cloud services cannot
 self-enable it, and PromQL depends on a `TimeSeries` table existing, so the
-whole feature pair is currently gated behind the same private-preview
-approval on Cloud.
+whole feature pair sits behind the same private-preview approval. Run this
+lab against OSS until that changes.
 
 ---
 
@@ -193,10 +193,10 @@ cd usecase/timeseries-promql-oss
 ./05-management.sh   # 마지막에 테이블을 삭제합니다
 ```
 
-### Cloud 버전
+### ClickHouse Cloud에서는
 
-[`usecase/timeseries-promql-cloud`](../timeseries-promql-cloud/)를 참고하되,
-사전 요구사항을 먼저 읽으세요. 현재 `TimeSeries` 엔진은 **ClickHouse Cloud에서
-Private Preview 상태**입니다 — 대부분의 Cloud 서비스는 스스로 활성화할 수
-없고, PromQL도 `TimeSeries` 테이블이 있어야 동작하므로 두 기능 모두 Cloud에서는
-같은 private-preview 승인이 필요합니다.
+이 실습의 Cloud 버전은 없습니다. 실습을 안 만든 게 아니라 기능이 아직 열리지
+않았기 때문입니다. 현재 `TimeSeries` 엔진은 **ClickHouse Cloud에서 Private
+Preview 상태**입니다 — 대부분의 Cloud 서비스는 스스로 활성화할 수 없고, PromQL도
+`TimeSeries` 테이블이 있어야 동작하므로 두 기능 모두 Cloud에서는 같은
+private-preview 승인이 필요합니다. 그 전까지는 OSS에서 실행하세요.

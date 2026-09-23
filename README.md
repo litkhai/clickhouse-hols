@@ -47,6 +47,7 @@ clickhouse-hols/
 | [chc/api/chc-api-test](chc/api/chc-api-test/) | ClickHouse Cloud API tester |
 | [chc/clickpipes-mysql](chc/clickpipes-mysql/) | ClickPipes CDC from a MySQL source |
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 checkpoint test suite ([Terraform](chc/clickpipes-s3/terraform/)) |
+| [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB CDC from RDS MySQL and DocumentDB into ClickHouse OSS, plus a Cloud→self-managed security runbook |
 | [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) | Confluent Platform on AWS with Terraform |
 | [chc/kafka/terraform-confluent-aws-nlb-ssl](chc/kafka/terraform-confluent-aws-nlb-ssl/) | Confluent with NLB SSL termination |
 | [chc/kafka/terraform-confluent-aws-connect-sink](chc/kafka/terraform-confluent-aws-connect-sink/) | Confluent with the ClickHouse sink connector |
@@ -200,6 +201,11 @@ GitHub secret scanning and **push protection** are enabled on this repository, s
 
 Issues and pull requests are welcome.
 
+- [AGENTS.md](AGENTS.md) — conventions that are not obvious from the tree, most
+  importantly that the published site is generated *from* the tables above, so
+  a lab with no row here gets no page at all
+- [STATUS.md](STATUS.md) — current CI state, lab inventory and known gaps
+
 ### 📝 License
 
 [MIT](LICENSE), with one exception.
@@ -273,6 +279,7 @@ clickhouse-hols/
 | [chc/api/chc-api-test](chc/api/chc-api-test/) | ClickHouse Cloud API 테스터 |
 | [chc/clickpipes-mysql](chc/clickpipes-mysql/) | MySQL 소스 ClickPipes CDC |
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 체크포인트 테스트 ([Terraform](chc/clickpipes-s3/terraform/)) |
+| [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB로 RDS MySQL·DocumentDB를 ClickHouse OSS로 CDC 이관 + Cloud→자체 관리 보안 런북 |
 | [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) | Terraform으로 AWS에 Confluent Platform 구성 |
 | [chc/kafka/terraform-confluent-aws-nlb-ssl](chc/kafka/terraform-confluent-aws-nlb-ssl/) | NLB SSL 종료를 적용한 Confluent |
 | [chc/kafka/terraform-confluent-aws-connect-sink](chc/kafka/terraform-confluent-aws-connect-sink/) | ClickHouse Sink Connector 연동 |
