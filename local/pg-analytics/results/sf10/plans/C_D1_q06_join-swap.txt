@@ -1,0 +1,4 @@
+Foreign Scan  (cost=1.00..5.10 rows=1000 width=32)
+  Output: (sum((lineitem_cold.l_extendedprice * lineitem_cold.l_discount)))
+  Relations: Aggregate on (lineitem_cold)
+  Remote SQL: SELECT sum((l_extendedprice * l_discount)) FROM bench.lineitem_cold WHERE ((l_shipdate >= '1994-01-01')) AND ((l_shipdate < '1995-01-01')) AND ((l_discount >= 0.05)) AND ((l_discount <= 0.07)) AND ((l_quantity < 24))

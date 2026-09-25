@@ -173,7 +173,7 @@ from a privileged helper.
 
 ▶ *as run (light):* the full matrix above is what `03-bench.sh` does, but the
 run behind RESULTS is `run-all.sh`: SF10, **9 queries** (Q1, Q6, C1 · C2 · Q3,
-Q5 · Q18 · C5, C6), **D1 only, warm only** (1 warm-up + 3 timed runs, median),
+Q5 · Q18 · C5, C6), **D1 only, warm only** (1 warm-up + 5 timed runs, median),
 paths A (correctness reference), B′ and C; B only on Q6 and C1. Cold months are
 written by `setup.py --bulk` in one commit per table instead of the monthly
 tiering job. No cold runs, no D2 sweep, no concurrency, faults or ILM-ops phases — the
@@ -225,7 +225,7 @@ and ClickHouse-through-Polaris) before re-running the job.
 | R4 | pg_duckdb REST attach per session | **confirmed**; solved with a login event trigger |
 | R5 | `ns.table` names vs FDW | ClickHouse views, as planned |
 | R6 | DuckDB version skew A vs B | 1.5.x vs 1.4.3 (B) / 1.5.4 (B′); recorded in every row |
-| R7 | Docker Desktop VM noise | macOS host; medians of 3 warm runs; no cold runs |
+| R7 | Docker Desktop VM noise | macOS host; medians of 5 warm runs; no cold runs |
 | R8 | disk / memory at SF100 | SF30/100 not run |
 | R9 | *(new)* readers disagree on pg_lake's Iceberg | **two interop bugs.** pg_lake writes manifests without the spec-required key-value metadata, so ClickHouse rejects them — [pg_lake#659](https://github.com/Snowflake-Labs/pg_lake/issues/659), path C runs on a patched pg_lake (`images/pg-main/patches/`). pg_duckdb 1.1.1's iceberg extension computes `month()` as days/30 and prunes live files — [duckdb-iceberg#699](https://github.com/duckdb/duckdb-iceberg/issues/699), release ask [pg_duckdb#1083](https://github.com/duckdb/pg_duckdb/issues/1083); hence B′ |
 | R10 | *(new)* PG18 worker pool | `out of background worker slots` during tiering at SF10: io workers, parallel workers and pg_lake's attached workers share `max_worker_processes` (8) → raised to 16 |
@@ -379,7 +379,7 @@ warm `WARM_ITERS`(5)회, 타임아웃 `QUERY_TIMEOUT_S`(▶ 600초 대신 300초
 
 ▶ *실제 실행(경량):* 위 전체 매트릭스는 `03-bench.sh`가 하는 일이고, RESULTS의 근거는
 `run-all.sh`입니다. SF10, **쿼리 9개**(Q1, Q6, C1 · C2 · Q3, Q5 · Q18 · C5, C6), **D1만, warm만**
-(warm-up 1회 + 측정 3회, 중앙값), 경로 A(정답 기준), B′, C이며 B는 Q6·C1만. 콜드 월은 월 단위
+(warm-up 1회 + 측정 5회, 중앙값), 경로 A(정답 기준), B′, C이며 B는 Q6·C1만. 콜드 월은 월 단위
 tiering 작업 대신 `setup.py --bulk`로 테이블당 커밋 1번에 기록합니다. cold run, D2 전체,
 동시성·장애·ILM 운영 단계는 돌리지 않았습니다 —
 질문을 “pg_clickhouse로 Iceberg 파일을 읽을 수 있는가, pg_duckdb와 비교하면 어떤가”로 좁혔기
@@ -427,7 +427,7 @@ pg_lake와 Polaris 경유 ClickHouse 간 불일치)를 분류하고 작업을 �
 | R4 | pg_duckdb REST attach 세션 지속성 | **확인됨**, login 이벤트 트리거로 해결 |
 | R5 | `ns.table` 이름과 FDW 호환 | 계획대로 ClickHouse 뷰로 재노출 |
 | R6 | A·B DuckDB 버전 차이 | 1.5.x vs 1.4.3(B) / 1.5.4(B′), 모든 결과 행에 기록 |
-| R7 | Docker Desktop VM 노이즈 | macOS 호스트. warm 3회 중앙값, cold run 없음 |
+| R7 | Docker Desktop VM 노이즈 | macOS 호스트. warm 5회 중앙값, cold run 없음 |
 | R8 | SF100 디스크·메모리 | SF30/100 미실행 |
 | R9 | *(신규)* pg_lake Iceberg를 리더마다 다르게 읽음 | **상호운용 버그 2건.** pg_lake가 스펙 필수 key-value 메타데이터 없이 manifest를 써서 ClickHouse가 거부 — [pg_lake#659](https://github.com/Snowflake-Labs/pg_lake/issues/659), 경로 C는 패치한 pg_lake(`images/pg-main/patches/`)로 실행. pg_duckdb 1.1.1의 iceberg 확장은 `month()`를 days/30으로 계산해 살아 있는 파일을 pruning — [duckdb-iceberg#699](https://github.com/duckdb/duckdb-iceberg/issues/699), 릴리스 요청 [pg_duckdb#1083](https://github.com/duckdb/pg_duckdb/issues/1083). 그래서 B′를 추가 |
 | R10 | *(신규)* PG18 worker 풀 | SF10 tiering 중 `out of background worker slots`: io worker, 병렬 worker, pg_lake attached worker가 `max_worker_processes`(8)를 공유 → 16으로 상향 |

@@ -17,7 +17,7 @@ Sort  (cost=66042.56..66043.06 rows=200 width=48)
                           Deletion Files Scanned: 0
                           Vectorized SQL:  SELECT "o_totalprice",
     "o_orderdate"
-   FROM tpch.orders_cold "r85"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
+   FROM tpch.orders_cold "r133"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
   WHERE ("o_orderdate" >= ('1997-08-01'::"text")::"date")
                           ->  READ_PARQUET
                                 Filters: o_orderdate>='1997-08-01'::DATE

@@ -153,6 +153,14 @@ def main():
             for dim, q in keys:
                 md.append(f"| {q} | {dim} | {cell_text(cs.get(('C', dim, q)))} | {cell_text(et.get(('C', dim, q)))} | {cell_text(cs.get(('A', dim, q)))} |")
             md.append("")
+        # C with ClickHouse's join build side swapped (pg_clickhouse.session_settings)
+        js = cells(sf, "join-swap")
+        if js:
+            md += [f"### SF{sf} — path C default vs `query_plan_join_swap_table 1`, warm p50", "",
+                   "| Query | Dim | C default | C join-swap | B' pg_duckdb main |", "|---|---|---|---|---|"]
+            for dim, q in keys:
+                md.append(f"| {q} | {dim} | {cell_text(cs.get(('C', dim, q)))} | {cell_text(js.get(('C', dim, q)))} | {cell_text(cs.get(('B2', dim, q)))} |")
+            md.append("")
         # errors
         errs = [(k, v) for k, v in cs.items() if v["status"] not in ("ok",)]
         if errs:

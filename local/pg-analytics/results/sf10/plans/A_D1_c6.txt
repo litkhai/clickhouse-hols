@@ -17,7 +17,7 @@ Sort  (cost=114100.98..116636.01 rows=1014013 width=118)
     "l_linenumber",
     "l_quantity",
     "l_extendedprice"
-   FROM tpch.lineitem_cold "r151"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")
+   FROM tpch.lineitem_cold "r219"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")
   WHERE ("l_orderkey" = 1000000)
                     ->  READ_PARQUET
                           Filters: l_orderkey=1000000
@@ -39,7 +39,7 @@ Sort  (cost=114100.98..116636.01 rows=1014013 width=118)
     "o_orderstatus",
     "o_totalprice",
     "o_orderdate"
-   FROM tpch.orders_cold "r149"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
+   FROM tpch.orders_cold "r217"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
   WHERE ("o_orderkey" = 1000000)
                           ->  READ_PARQUET
                                 Filters: o_orderkey=1000000

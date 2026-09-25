@@ -20,7 +20,8 @@ Iceberg snapshot that all paths share:
 Nothing is loaded into ClickHouse tables: path C reads pg_lake's Iceberg
 files in place. The full test design, including every place where the lab
 differs from the v0.1 draft, is in [docs/DESIGN.md](docs/DESIGN.md). Results
-are in [RESULTS.md](RESULTS.md).
+are in [RESULTS.md](RESULTS.md), and a blog-style write-up is in
+[blog/pg-lake-duckdb-vs-clickhouse.en.md](blog/pg-lake-duckdb-vs-clickhouse.en.md).
 
 ### ⚠️ Two interoperability bugs this lab found
 
@@ -90,6 +91,7 @@ pg-analytics/
 ├── analysis/report.py          SUMMARY.md tables + charts
 ├── docs/DESIGN.md              test design (bilingual)
 ├── RESULTS.md                  findings (bilingual)
+├── blog/                       the write-up as a blog post, .en.md and .ko.md
 └── results/                    raw CSVs, plans, charts per scale factor
 ```
 
@@ -102,7 +104,7 @@ Needs Docker with ≥ 8 GB for the VM, ~40 GB free disk, and time: the first
 The light run that produced [RESULTS.md](RESULTS.md): SF10, with the cold
 months written straight into Iceberg (`setup.py --bulk`, no monthly tiering
 job). It runs 9 queries covering L1–L5 with dimensions in the lake (D1), with
-1 warm-up + 3 timed runs on A/B′/C. B runs only Q6 and C1, to show its pruning
+1 warm-up + 5 timed runs on A/B′/C. B runs only Q6 and C1, to show its pruning
 bug. It takes about 20 min after the build:
 
 ```bash
@@ -183,7 +185,8 @@ Postgres가 OLTP 원장이고, 오래된 행은 **pg_lake**가 **Apache Polaris*
 
 ClickHouse 테이블에는 아무것도 적재하지 않습니다. 경로 C는 pg_lake가 쓴 Iceberg 파일을
 그 자리에서 읽습니다. 초안 v0.1과 달라진 부분을 포함한 전체 설계는
-[docs/DESIGN.md](docs/DESIGN.md)에, 결과는 [RESULTS.md](RESULTS.md)에 있습니다.
+[docs/DESIGN.md](docs/DESIGN.md)에, 결과는 [RESULTS.md](RESULTS.md)에 있습니다. 블로그 형식 글은
+[blog/pg-lake-duckdb-vs-clickhouse.ko.md](blog/pg-lake-duckdb-vs-clickhouse.ko.md)에 있습니다.
 
 ### ⚠️ 이 실습에서 발견한 상호운용성 버그 두 가지
 
@@ -228,7 +231,7 @@ PostgreSQL, pg_lake(DuckDB 포함), pg_clickhouse를 컴파일하므로 30~60분
 
 [RESULTS.md](RESULTS.md)를 만든 경량 실행입니다. SF10이고, cold 월은 월 단위 tiering 작업 없이
 Iceberg에 바로 기록합니다(`setup.py --bulk`). L1–L5를 대표하는 쿼리 9개를 디멘션을 레이크에 둔
-상태(D1)로 돌리며, A/B′/C는 warm-up 1회 + 측정 3회입니다. B는 pruning 버그를 보여주려고 Q6·C1만
+상태(D1)로 돌리며, A/B′/C는 warm-up 1회 + 측정 5회입니다. B는 pruning 버그를 보여주려고 Q6·C1만
 돌립니다. 빌드 후 약 20분 걸립니다.
 
 ```bash

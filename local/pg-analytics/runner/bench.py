@@ -62,10 +62,19 @@ def items(selected, dims):
                 yield tier, q, "D2"
 
 
-def session(path, dim, timeout_s):
+# pg_clickhouse's default session settings plus one join-order knob: with no
+# row estimates for Iceberg tables, ClickHouse's `auto` never swaps the build
+# side, so the biggest table ends up as the hash-join build side.
+JOIN_SWAP = ("join_use_nulls 1, group_by_use_nulls 1, final 1, transform_null_in 0, "
+             "query_plan_join_swap_table 1")
+
+
+def session(path, dim, timeout_s, mode="per-node"):
     c = connect(path)
     c.execute(f"SET search_path = {SCHEMA[(path, dim)]}, public")
     c.execute(f"SET statement_timeout = '{timeout_s}s'")
+    if path == "C" and mode == "join-swap":
+        c.execute(f"SET pg_clickhouse.session_settings = '{JOIN_SWAP}'")
     return c
 
 
@@ -93,7 +102,7 @@ def main():
     ap.add_argument("--queries", default="")
     ap.add_argument("--iters", type=int, default=int(os.environ.get("WARM_ITERS", 5)))
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("QUERY_TIMEOUT_S", 300)))
-    ap.add_argument("--resource-mode", choices=["per-node", "equal-total"], default="per-node")
+    ap.add_argument("--resource-mode", choices=["per-node", "equal-total", "join-swap"], default="per-node")
     ap.add_argument("--dims", default="D1,D2", help="dimension placements to run")
     ap.add_argument("--warm-only", action="store_true",
                     help="no engine restart per query: one untimed warm-up, then --iters warm runs")
@@ -124,7 +133,7 @@ def main():
             key = f"{qid}/{dim}"
             if not args.warm_only:
                 make_cold(path)
-            conn = session(path, dim, args.timeout)
+            conn = session(path, dim, args.timeout, args.resource_mode)
             results = []
             for i in range(args.iters + 1):
                 status, nrows, h, err, p = run_once(conn, path, sql)
@@ -138,7 +147,7 @@ def main():
                         pass
                     time.sleep(5)
                     set_active(path)
-                    conn = session(path, dim, args.timeout)
+                    conn = session(path, dim, args.timeout, args.resource_mode)
                 if path == "A" and status == "ok" and i == 0:
                     refs[key] = h
                     ref_file.write_text(json.dumps(refs, indent=1, sort_keys=True))
@@ -170,7 +179,8 @@ def main():
             except psycopg.Error as e:
                 plan = f"EXPLAIN failed: {e}"
             pd = classify_pushdown(path, plan)
-            (out / "plans" / f"{path}_{dim}_{qid}.txt").write_text(plan + "\n")
+            suffix = "" if args.resource_mode == "per-node" else f"_{args.resource_mode}"
+            (out / "plans" / f"{path}_{dim}_{qid}{suffix}.txt").write_text(plan + "\n")
             w.writerow({"run_id": run_id, "ts": dt.datetime.now().isoformat(timespec="seconds"),
                         "path": path, "sf": args.sf, "dim_scenario": dim, "tier": tier,
                         "query_id": qid, "run_type": "explain", "iter": "", "latency_ms": "",
