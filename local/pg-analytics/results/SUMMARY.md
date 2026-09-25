@@ -4,39 +4,39 @@
 
 | Tier | Query | Dim | A pg_lake | B pg_duckdb 1.1.1 | B' pg_duckdb main | C pg_clickhouse | pushdown A/B/B'/C |
 |---|---|---|---|---|---|---|---|
-| L1 | c1 | D1 | 326 ms | **wrong** | 156 ms | 27 ms | full/full/full/full |
-| L1 | q01 | D1 | 795 ms | · | 625 ms | 799 ms | full/·/full/full |
-| L1 | q06 | D1 | 234 ms | **wrong** | 57 ms | 118 ms | full/full/full/full |
-| L2 | c2 | D1 | 393 ms | · | 261 ms | 194 ms | full/·/full/full |
-| L3 | q03 | D1 | 585 ms | · | 290 ms | 3.27 s | full/·/full/full |
-| L3 | q05 | D1 | 734 ms | · | 470 ms | 729 ms | full/·/full/full |
-| L4 | q18 | D1 | 1.64 s | · | 1.17 s | 19.17 s | full/·/full/partial |
-| L5 | c5 | D1 | 850 ms | · | 188 ms | 604 ms | partial/·/full/partial |
-| L5 | c6 | D1 | 342 ms | · | 79 ms | crash | partial/·/full/partial |
+| L1 | c1 | D1 | 326 ms | **wrong** | 156 ms | 31 ms | full/full/full/full |
+| L1 | q01 | D1 | 795 ms | · | 625 ms | 888 ms | full/·/full/full |
+| L1 | q06 | D1 | 234 ms | **wrong** | 57 ms | 134 ms | full/full/full/full |
+| L2 | c2 | D1 | 393 ms | · | 261 ms | 273 ms | full/·/full/full |
+| L3 | q03 | D1 | 585 ms | · | 290 ms | 4.06 s | full/·/full/full |
+| L3 | q05 | D1 | 734 ms | · | 470 ms | 1.12 s | full/·/full/full |
+| L4 | q18 | D1 | 1.64 s | · | 1.17 s | 21.36 s | full/·/full/partial |
+| L5 | c5 | D1 | 850 ms | · | 188 ms | 641 ms | partial/·/full/partial |
+| L5 | c6 | D1 | 342 ms | · | 79 ms | 76 ms | partial/·/full/partial |
 
 ### SF10 D1 — tier geomean of warm p50 (queries valid on every path)
 
 | Tier | n | A pg_lake | B' pg_duckdb main | C pg_clickhouse | fastest |
 |---|---|---|---|---|---|
-| L1 | 3/3 | 393 ms | 177 ms | 137 ms | C pg_clickhouse |
-| L2 | 1/1 | 393 ms | 261 ms | 194 ms | C pg_clickhouse |
-| L3 | 2/2 | 656 ms | 369 ms | 1.54 s | B' pg_duckdb main |
-| L4 | 1/1 | 1.64 s | 1.17 s | 19.17 s | B' pg_duckdb main |
-| L5 | 1/2 | 850 ms | 188 ms | 604 ms | B' pg_duckdb main (excl. c6) |
+| L1 | 3/3 | 393 ms | 177 ms | 155 ms | C pg_clickhouse |
+| L2 | 1/1 | 393 ms | 261 ms | 273 ms | B' pg_duckdb main |
+| L3 | 2/2 | 656 ms | 369 ms | 2.13 s | B' pg_duckdb main |
+| L4 | 1/1 | 1.64 s | 1.17 s | 21.36 s | B' pg_duckdb main |
+| L5 | 2/2 | 539 ms | 122 ms | 220 ms | B' pg_duckdb main |
 
 ### SF10 — main Postgres node CPU per warm query (median core-seconds)
 
 | Query | Dim | A pg-main (of which pgduck_server) | C pg-main | C ClickHouse | B / B' separate node |
 |---|---|---|---|---|---|
 | c1 | D1 | 0.70 (0.51) | 0.01 | 0.03 | 0.01 / 0.52 |
-| q01 | D1 | 2.59 (2.37) | 0.01 | 3.15 | – / 2.37 |
-| q06 | D1 | 0.34 (0.12) | 0.01 | 0.32 | 0.13 / 0.13 |
-| c2 | D1 | 1.20 (1.06) | 0.01 | 0.67 | – / 0.92 |
-| q03 | D1 | 1.29 (0.95) | 0.04 | 6.95 | – / 0.86 |
-| q05 | D1 | 1.93 (1.62) | 0.01 | 2.47 | – / 1.33 |
-| q18 | D1 | 4.96 (4.47) | 13.84 | 23.27 | – / 4.35 |
-| c5 | D1 | 1.34 (0.47) | 0.59 | 0.10 | – / 0.70 |
-| c6 | D1 | 0.45 (0.14) | – | – | – / 0.14 |
+| q01 | D1 | 2.59 (2.37) | 0.02 | 3.52 | – / 2.37 |
+| q06 | D1 | 0.34 (0.12) | 0.01 | 0.33 | 0.13 / 0.13 |
+| c2 | D1 | 1.20 (1.06) | 0.01 | 0.82 | – / 0.92 |
+| q03 | D1 | 1.29 (0.95) | 0.04 | 6.55 | – / 0.86 |
+| q05 | D1 | 1.93 (1.62) | 0.01 | 2.60 | – / 1.33 |
+| q18 | D1 | 4.96 (4.47) | 13.23 | 24.27 | – / 4.35 |
+| c5 | D1 | 1.34 (0.47) | 0.63 | 0.10 | – / 0.70 |
+| c6 | D1 | 0.45 (0.14) | 0.01 | 0.04 | – / 0.14 |
 
 ### SF10 — failed or invalid cells
 
@@ -44,7 +44,6 @@
 |---|---|---|---|---|
 | B pg_duckdb 1.1.1 | D1 | c1 | wrong |  |
 | B pg_duckdb 1.1.1 | D1 | q06 | wrong |  |
-| C pg_clickhouse | D1 | c6 | crash | consuming input failed: server closed the connection unexpectedly |
 
 ### SF10 — layout
 

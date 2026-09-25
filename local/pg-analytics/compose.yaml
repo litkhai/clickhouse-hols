@@ -87,7 +87,7 @@ services:
       start_period: 10s
 
   pg-main:
-    image: pg-analytics/pg-main:pg18-lake3.5.3-ch0.3.2
+    image: pg-analytics/pg-main:pg18-lake3.5.3-ch0.10.0
     build: ./images/pg-main
     container_name: pga-pg-main
     depends_on:

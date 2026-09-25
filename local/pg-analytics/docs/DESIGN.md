@@ -82,7 +82,7 @@ pg_duckdb 1.1.1 → DuckDB 1.4.3, see R6).
 | minio | `bitnamilegacy/minio:2025.7.23` | ▶ *as built:* `minio/minio` and `quay.io/minio/minio` no longer serve public images |
 | polaris | `apache/polaris:1.7.0` | persistence `relational-jdbc` on polaris-db; bootstrapped with `polaris-admin-tool:1.7.0` |
 | polaris-db | `postgres:17` | |
-| pg-main | **built here**: PostgreSQL 18.6 (release build) + pg_lake **v3.5.3** + pg_clickhouse **v0.3.2** | upstream's Dockerfile builds four PG majors with `--enable-cassert`; unusable for timing |
+| pg-main | **built here**: PostgreSQL 18.6 (release build) + pg_lake **v3.5.3** + pg_clickhouse **v0.10.0** | upstream's Dockerfile builds four PG majors with `--enable-cassert`; unusable for timing |
 | pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | DuckDB v1.4.3 inside; ▶ returns wrong results on `month()`-partitioned tables (see §10 R9), so it is run once per query for correctness only |
 | pg-duck-main | `pgduckdb/pgduckdb:18-main` | ▶ *added:* path **B′** — pg_duckdb 1.2.0-dev / DuckDB v1.5.4, which has the fix; the pg_duckdb numbers in RESULTS are this path |
 | clickhouse | `clickhouse/clickhouse-server:26.9` | `DataLakeCatalog`, filesystem cache `lake_cache` |
@@ -295,7 +295,7 @@ pg_lake와 pg_duckdb는 둘 다 planner/executor와 `COPY`에 hook을 걸고, �
 | minio | `bitnamilegacy/minio:2025.7.23` | ▶ *실제 구성:* `minio/minio`, `quay.io/minio/minio`가 더 이상 공개 이미지를 제공하지 않음 |
 | polaris | `apache/polaris:1.7.0` | 영속화 `relational-jdbc`(polaris-db), `polaris-admin-tool:1.7.0`로 bootstrap |
 | polaris-db | `postgres:17` | |
-| pg-main | **직접 빌드**: PostgreSQL 18.6(release) + pg_lake **v3.5.3** + pg_clickhouse **v0.3.2** | 업스트림 Dockerfile은 PG 4개 버전을 `--enable-cassert`로 빌드 → 성능 측정 불가 |
+| pg-main | **직접 빌드**: PostgreSQL 18.6(release) + pg_lake **v3.5.3** + pg_clickhouse **v0.10.0** | 업스트림 Dockerfile은 PG 4개 버전을 `--enable-cassert`로 빌드 → 성능 측정 불가 |
 | pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | 내장 DuckDB v1.4.3. ▶ `month()` 파티션 테이블에서 결과가 틀려(§10 R9) 정합성 확인용으로 쿼리당 1회만 실행 |
 | pg-duck-main | `pgduckdb/pgduckdb:18-main` | ▶ *추가:* 경로 **B′** — 수정이 들어간 pg_duckdb 1.2.0-dev / DuckDB v1.5.4. RESULTS의 pg_duckdb 수치는 이 경로 |
 | clickhouse | `clickhouse/clickhouse-server:26.9` | `DataLakeCatalog`, 파일시스템 캐시 `lake_cache` |

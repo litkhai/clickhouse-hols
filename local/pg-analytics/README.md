@@ -42,9 +42,9 @@ are in [RESULTS.md](RESULTS.md).
    (`days / 30` instead of calendar months), fixed upstream but not yet in a
    pg_duckdb release — raised as [duckdb/pg_duckdb#1083](https://github.com/duckdb/pg_duckdb/issues/1083).
 
-The SF10 run also crashed a pg_clickhouse 0.3.2 backend (SIGSEGV) on C6, a
-join of two hot+cold UNION ALL views; see [RESULTS.md](RESULTS.md) §4. Not
-reported upstream yet.
+The first SF10 run, on pg_clickhouse 0.3.2, crashed a backend (SIGSEGV) on C6.
+That bug, two foreign scans sharing one binary-driver connection, is already
+fixed in v0.10.0, which the lab now builds; see [RESULTS.md](RESULTS.md) §4.
 
 ### 🧱 Architecture
 
@@ -78,7 +78,7 @@ pg-analytics/
 ├── 00-setup.sh … 07-report.sh, 99-cleanup.sh   numbered entry points
 ├── run-all.sh                  the light run behind RESULTS.md (SF10, ~20 min), unattended
 ├── compose.yaml, .env.example  services and resource caps
-├── images/pg-main/             PG 18 + pg_lake 3.5.3 (+ patch) + pg_clickhouse 0.3.2, release build
+├── images/pg-main/             PG 18 + pg_lake 3.5.3 (+ patch) + pg_clickhouse 0.10.0, release build
 ├── images/runner/              Python driver image (psql 18, docker SDK, duckdb)
 ├── init/polaris/bootstrap.py   catalog, principals, grants
 ├── init/pg-main/*.sql          extensions + REST GUCs, heap load, Iceberg tables, FDW, views
@@ -199,8 +199,9 @@ ClickHouse 테이블에는 아무것도 적재하지 않습니다. 경로 C는 p
    (달력 월 대신 `days / 30`으로 계산)입니다. 업스트림에서는 고쳐졌지만 pg_duckdb 릴리스에는 아직 반영되지 않아
    [duckdb/pg_duckdb#1083](https://github.com/duckdb/pg_duckdb/issues/1083)으로 알렸습니다.
 
-SF10 실행에서는 C6(hot+cold UNION ALL 뷰 두 개의 조인)에서 pg_clickhouse 0.3.2 backend가
-SIGSEGV로 죽었습니다. [RESULTS.md](RESULTS.md) §4 참고. 아직 업스트림에 보고하지 않았습니다.
+첫 SF10 실행은 pg_clickhouse 0.3.2였고, C6에서 backend가 SIGSEGV로 죽었습니다. foreign scan
+두 개가 binary driver 연결 하나를 같이 쓰던 버그로, v0.10.0에서 이미 고쳐졌습니다. 실습은 이제
+v0.10.0을 빌드합니다. [RESULTS.md](RESULTS.md) §4 참고.
 
 ### 🧱 아키텍처
 

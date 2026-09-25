@@ -65,7 +65,7 @@ RUN cd /src/pg_lake && \
     rm -rf avro/lang/c/build && \
     make install-pg_lake
 
-ARG PG_CLICKHOUSE_REF=v0.3.2
+ARG PG_CLICKHOUSE_REF=v0.10.0
 RUN git clone -q --branch ${PG_CLICKHOUSE_REF} --recurse-submodules \
       https://github.com/ClickHouse/pg_clickhouse.git /src/pg_clickhouse && \
     cd /src/pg_clickhouse && make -j"$(nproc)" && make install
