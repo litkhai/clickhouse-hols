@@ -99,27 +99,22 @@ Needs Docker with ≥ 8 GB for the VM, ~40 GB free disk, and time: the first
 `00-setup.sh` compiles PostgreSQL, pg_lake (with DuckDB) and pg_clickhouse
 (30–60 min).
 
+The light run that produced [RESULTS.md](RESULTS.md): SF10, with the cold
+months written straight into Iceberg (`setup.py --bulk`, no monthly tiering
+job). It runs 9 queries covering L1–L5 with dimensions in the lake (D1), with
+1 warm-up + 3 timed runs on A/B′/C. B runs only Q6 and C1, to show its pruning
+bug. It takes about 20 min after the build:
+
 ```bash
 cd local/pg-analytics
 ./00-setup.sh          # build, start, bootstrap Polaris, stage TPC-H for SF_LIST
-./01-load.sh 1         # Phase 1 load + tiering, reader wiring, Phase 0 gate
-./03-bench.sh 1        # Phase 2 matrix at SF1 (all paths), then C equal-total
+./run-all.sh 10        # bulk load, Phase 0 gate, bench A/B'/C (+ B on Q6, C1)
 ./07-report.sh         # results/SUMMARY.md + results/charts/
 ```
 
-Or the light run that produced [RESULTS.md](RESULTS.md) — SF10; cold months
-written straight into Iceberg (`setup.py --bulk`, no monthly tiering job);
-9 queries covering L1–L5 with dimensions in the lake (D1); 1 warm-up + 3 timed
-runs on A/B′/C; B only on Q6 and C1 to show its pruning bug (about 20 min after
-the build):
-
-```bash
-./run-all.sh 10
-```
-
-The other numbered scripts run the full design (monthly tiering, all 17
-queries, cold runs, D2, concurrency, faults, ILM ops); they are kept but were
-**not** run for RESULTS.md.
+The other numbered scripts run the full design step by step: `01-load.sh`
+(monthly tiering), `03-bench.sh` (all 17 queries, cold runs, D2) and the rest.
+They are kept, but were **not** run end to end for RESULTS.md.
 
 | Script | Phase | What it does |
 |---|---|---|
@@ -153,6 +148,14 @@ Interactive shells: `psql -h localhost -p 15432 -U postgres ilm` (pg-main),
   metrics, or reads land on the next query's row.
 - **MinIO images:** `minio/minio` no longer publishes to Docker Hub; the lab
   pins `bitnamilegacy/minio`.
+- **`max_worker_processes = 16`.** PG18 io workers, parallel workers and
+  pg_lake's per-statement workers share the default pool of 8. SF10 tiering
+  failed with `out of background worker slots` until it was raised.
+- **Bulk writes go one year per commit.** A single 54 M-row partitioned
+  `INSERT` into `lineitem_cold` got pg-main OOM-killed at the 4 GB cap.
+- **dbgen slices every table, nation and region included.** With
+  `children > 1` each slice holds only part of them, so `datagen/gen.py`
+  writes those two from their own run.
 
 ### 📝 License
 
@@ -223,26 +226,21 @@ v0.10.0을 빌드합니다. [RESULTS.md](RESULTS.md) §4 참고.
 Docker VM 메모리 8 GB 이상, 디스크 여유 약 40 GB가 필요합니다. 처음 `00-setup.sh`를 돌리면
 PostgreSQL, pg_lake(DuckDB 포함), pg_clickhouse를 컴파일하므로 30~60분 걸립니다.
 
+[RESULTS.md](RESULTS.md)를 만든 경량 실행입니다. SF10이고, cold 월은 월 단위 tiering 작업 없이
+Iceberg에 바로 기록합니다(`setup.py --bulk`). L1–L5를 대표하는 쿼리 9개를 디멘션을 레이크에 둔
+상태(D1)로 돌리며, A/B′/C는 warm-up 1회 + 측정 3회입니다. B는 pruning 버그를 보여주려고 Q6·C1만
+돌립니다. 빌드 후 약 20분 걸립니다.
+
 ```bash
 cd local/pg-analytics
 ./00-setup.sh          # 빌드, 기동, Polaris bootstrap, SF_LIST의 TPC-H 생성
-./01-load.sh 1         # Phase 1 적재 + tiering, 리더 연결, Phase 0 게이트
-./03-bench.sh 1        # SF1 Phase 2 매트릭스(전 경로), 이어서 C 총량 동일 모드
+./run-all.sh 10        # bulk 적재, Phase 0 게이트, A/B'/C 벤치(+ B는 Q6, C1)
 ./07-report.sh         # results/SUMMARY.md + results/charts/
 ```
 
-또는 [RESULTS.md](RESULTS.md)를 만든 경량 실행을 한 번에 돌릴 수 있습니다. SF10, 콜드 월은
-Iceberg에 바로 기록(`setup.py --bulk`, 월 단위 tiering 작업 없음), L1–L5를 대표하는 쿼리 9개,
-디멘션은 레이크(D1), A/B′/C는 warm-up 1회 + 측정 3회, B는 pruning 버그 확인용으로 Q6·C1만
-실행합니다(빌드 후 약 20분).
-
-```bash
-./run-all.sh 10
-```
-
-나머지 번호 스크립트는 전체 설계(월 단위 tiering, 17개 쿼리 전체, cold run, D2, 동시성, 장애,
-ILM 운영)를 수행합니다.
-남겨 두었지만 RESULTS.md를 위해서는 **실행하지 않았습니다**.
+나머지 번호 스크립트는 전체 설계를 단계별로 수행합니다. `01-load.sh`(월 단위 tiering),
+`03-bench.sh`(17개 쿼리 전체, cold run, D2) 등입니다. 남겨 두었지만 RESULTS.md를 위해
+끝까지 실행하지는 **않았습니다**.
 
 | 스크립트 | 단계 | 내용 |
 |---|---|---|
@@ -272,6 +270,13 @@ ILM 운영)를 수행합니다.
 - **MinIO v2 클러스터 메트릭은 약 10초 늦습니다.** runner는 v3 API 메트릭을 씁니다. 그러지 않으면
   읽은 바이트가 다음 쿼리 행에 기록됩니다.
 - **MinIO 이미지:** `minio/minio`가 Docker Hub 배포를 중단해서 `bitnamilegacy/minio`로 고정했습니다.
+- **`max_worker_processes = 16`.** PG18의 io worker, 병렬 worker, pg_lake의 문장별 worker가 기본
+  풀 8개를 같이 씁니다. 값을 올리기 전에는 SF10 tiering이 `out of background worker slots`로
+  실패했습니다.
+- **bulk 기록은 연도별로 커밋합니다.** `lineitem_cold`에 5,400만 행을 파티션 `INSERT` 한 번으로
+  쓰면 pg-main이 4 GB 한도에서 OOM으로 종료됐습니다.
+- **dbgen은 nation·region까지 모든 테이블을 쪼갭니다.** `children > 1`이면 조각마다 일부만 들어
+  있어서, `datagen/gen.py`는 두 테이블을 별도 실행으로 통째로 씁니다.
 
 ### 📝 라이선스
 

@@ -83,7 +83,7 @@ pg_duckdb 1.1.1 → DuckDB 1.4.3, see R6).
 | polaris | `apache/polaris:1.7.0` | persistence `relational-jdbc` on polaris-db; bootstrapped with `polaris-admin-tool:1.7.0` |
 | polaris-db | `postgres:17` | |
 | pg-main | **built here**: PostgreSQL 18.6 (release build) + pg_lake **v3.5.3** + pg_clickhouse **v0.10.0** | upstream's Dockerfile builds four PG majors with `--enable-cassert`; unusable for timing |
-| pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | DuckDB v1.4.3 inside; ▶ returns wrong results on `month()`-partitioned tables (see §10 R9), so it is run once per query for correctness only |
+| pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | DuckDB v1.4.3 inside; ▶ returns wrong results on `month()`-partitioned tables (see §10 R9), so it runs only Q6 and C1, for correctness only |
 | pg-duck-main | `pgduckdb/pgduckdb:18-main` | ▶ *added:* path **B′** — pg_duckdb 1.2.0-dev / DuckDB v1.5.4, which has the fix; the pg_duckdb numbers in RESULTS are this path |
 | clickhouse | `clickhouse/clickhouse-server:26.9` | `DataLakeCatalog`, filesystem cache `lake_cache` |
 | runner | `python:3.12-slim` + psycopg, docker SDK, duckdb, boto3 | |
@@ -296,7 +296,7 @@ pg_lake와 pg_duckdb는 둘 다 planner/executor와 `COPY`에 hook을 걸고, �
 | polaris | `apache/polaris:1.7.0` | 영속화 `relational-jdbc`(polaris-db), `polaris-admin-tool:1.7.0`로 bootstrap |
 | polaris-db | `postgres:17` | |
 | pg-main | **직접 빌드**: PostgreSQL 18.6(release) + pg_lake **v3.5.3** + pg_clickhouse **v0.10.0** | 업스트림 Dockerfile은 PG 4개 버전을 `--enable-cassert`로 빌드 → 성능 측정 불가 |
-| pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | 내장 DuckDB v1.4.3. ▶ `month()` 파티션 테이블에서 결과가 틀려(§10 R9) 정합성 확인용으로 쿼리당 1회만 실행 |
+| pg-duck | `pgduckdb/pgduckdb:18-v1.1.1` | 내장 DuckDB v1.4.3. ▶ `month()` 파티션 테이블에서 결과가 틀려(§10 R9) 정합성 확인용으로 Q6·C1만 실행 |
 | pg-duck-main | `pgduckdb/pgduckdb:18-main` | ▶ *추가:* 경로 **B′** — 수정이 들어간 pg_duckdb 1.2.0-dev / DuckDB v1.5.4. RESULTS의 pg_duckdb 수치는 이 경로 |
 | clickhouse | `clickhouse/clickhouse-server:26.9` | `DataLakeCatalog`, 파일시스템 캐시 `lake_cache` |
 | runner | `python:3.12-slim` + psycopg, docker SDK, duckdb, boto3 | |
@@ -377,7 +377,7 @@ warm `WARM_ITERS`(5)회, 타임아웃 `QUERY_TIMEOUT_S`(▶ 600초 대신 300초
 `--cache_dir`, ClickHouse의 파일시스템·Iceberg 메타데이터·Parquet 메타데이터 캐시를 비우고
 해당 경로 컨테이너를 재시작한 뒤, 권한 있는 헬퍼 컨테이너로 Docker VM의 page cache를 drop합니다.
 
-▶ *실제 실행(축소):* 위 전체 매트릭스는 `03-bench.sh`가 하는 일이고, RESULTS의 근거는
+▶ *실제 실행(경량):* 위 전체 매트릭스는 `03-bench.sh`가 하는 일이고, RESULTS의 근거는
 `run-all.sh`입니다. SF10, **쿼리 9개**(Q1, Q6, C1 · C2 · Q3, Q5 · Q18 · C5, C6), **D1만, warm만**
 (warm-up 1회 + 측정 3회, 중앙값), 경로 A(정답 기준), B′, C이며 B는 Q6·C1만. 콜드 월은 월 단위
 tiering 작업 대신 `setup.py --bulk`로 테이블당 커밋 1번에 기록합니다. cold run, D2 전체,
