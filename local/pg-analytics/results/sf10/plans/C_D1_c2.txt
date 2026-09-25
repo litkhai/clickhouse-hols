@@ -1,0 +1,4 @@
+Foreign Scan  (cost=0.00..-10.00 rows=1 width=48)
+  Output: orders_cold.o_custkey, (sum(orders_cold.o_totalprice)), (count(*))
+  Relations: Aggregate on (orders_cold)
+  Remote SQL: SELECT o_custkey, sum(o_totalprice), count(*) FROM bench.orders_cold GROUP BY o_custkey ORDER BY sum(o_totalprice) DESC NULLS FIRST, o_custkey ASC NULLS LAST LIMIT 100

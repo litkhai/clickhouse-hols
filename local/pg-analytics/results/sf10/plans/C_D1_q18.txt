@@ -1,0 +1,22 @@
+Limit  (cost=65.27..68.27 rows=100 width=102)
+  Output: customer.c_name, customer.c_custkey, orders_cold.o_orderkey, orders_cold.o_orderdate, orders_cold.o_totalprice, (sum(lineitem_cold.l_quantity))
+  ->  GroupAggregate  (cost=65.27..95.27 rows=1000 width=102)
+        Output: customer.c_name, customer.c_custkey, orders_cold.o_orderkey, orders_cold.o_orderdate, orders_cold.o_totalprice, sum(lineitem_cold.l_quantity)
+        Group Key: orders_cold.o_totalprice, orders_cold.o_orderdate, customer.c_name, customer.c_custkey, orders_cold.o_orderkey
+        ->  Sort  (cost=65.27..67.77 rows=1000 width=88)
+              Output: customer.c_name, customer.c_custkey, orders_cold.o_orderkey, orders_cold.o_orderdate, orders_cold.o_totalprice, lineitem_cold.l_quantity
+              Sort Key: orders_cold.o_totalprice DESC, orders_cold.o_orderdate, customer.c_name, customer.c_custkey, orders_cold.o_orderkey
+              ->  Hash Join  (cost=13.70..15.44 rows=1000 width=88)
+                    Output: customer.c_name, customer.c_custkey, orders_cold.o_orderkey, orders_cold.o_orderdate, orders_cold.o_totalprice, lineitem_cold.l_quantity
+                    Inner Unique: true
+                    Hash Cond: (orders_cold.o_orderkey = lineitem_cold_1.l_orderkey)
+                    ->  Foreign Scan  (cost=1.00..0.10 rows=1000 width=32)
+                          Output: customer.c_name, customer.c_custkey, orders_cold.o_orderkey, orders_cold.o_orderdate, orders_cold.o_totalprice, lineitem_cold.l_quantity, lineitem_cold.l_orderkey
+                          Relations: ((customer) INNER JOIN (orders_cold)) INNER JOIN (lineitem_cold)
+                          Remote SQL: SELECT r6.c_name, r6.c_custkey, r7.o_orderkey, r7.o_orderdate, r7.o_totalprice, r8.l_quantity, r8.l_orderkey FROM   bench.customer r6 ALL INNER JOIN bench.orders_cold r7 ON (((r6.c_custkey = r7.o_custkey))) ALL INNER JOIN bench.lineitem_cold r8 ON (((r7.o_orderkey = r8.l_orderkey)))
+                    ->  Hash  (cost=0.20..0.20 rows=1000 width=8)
+                          Output: lineitem_cold_1.l_orderkey
+                          ->  Foreign Scan  (cost=1.00..0.20 rows=1000 width=8)
+                                Output: lineitem_cold_1.l_orderkey
+                                Relations: Aggregate on (lineitem_cold)
+                                Remote SQL: SELECT l_orderkey FROM bench.lineitem_cold GROUP BY l_orderkey HAVING ((sum(l_quantity) > 300))

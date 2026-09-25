@@ -1,0 +1,21 @@
+Sort  (cost=113900.98..116436.01 rows=1014013 width=118)
+  Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate, lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice
+  Sort Key: lineitem.l_linenumber
+  ->  Nested Loop  (cost=0.86..12744.84 rows=1014013 width=118)
+        Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate, lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice
+        ->  Append  (cost=0.43..33.73 rows=1013 width=56)
+              ->  Index Scan using lineitem_l_orderkey_idx on hot.lineitem  (cost=0.43..8.66 rows=13 width=33)
+                    Output: lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice, lineitem.l_orderkey
+                    Index Cond: (lineitem.l_orderkey = 1000000)
+              ->  Foreign Scan on ch.lineitem_cold  (cost=10.00..20.00 rows=1000 width=56)
+                    Output: lineitem_cold.l_linenumber, lineitem_cold.l_partkey, lineitem_cold.l_quantity, lineitem_cold.l_extendedprice, lineitem_cold.l_orderkey
+                    Remote SQL: SELECT l_orderkey, l_partkey, l_linenumber, l_quantity, l_extendedprice FROM bench.lineitem_cold WHERE ((l_orderkey = 1000000))
+        ->  Materialize  (cost=0.43..38.46 rows=1001 width=70)
+              Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate
+              ->  Append  (cost=0.43..33.45 rows=1001 width=70)
+                    ->  Index Scan using orders_o_orderkey_idx on hot.orders  (cost=0.43..8.45 rows=1 width=30)
+                          Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate
+                          Index Cond: (orders.o_orderkey = 1000000)
+                    ->  Foreign Scan on ch.orders_cold  (cost=10.00..20.00 rows=1000 width=70)
+                          Output: orders_cold.o_orderkey, orders_cold.o_custkey, orders_cold.o_orderstatus, orders_cold.o_totalprice, orders_cold.o_orderdate
+                          Remote SQL: SELECT o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate FROM bench.orders_cold WHERE ((o_orderkey = 1000000))

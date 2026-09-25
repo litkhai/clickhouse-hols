@@ -1,0 +1,9 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <filesystem_cache_name>lake_cache</filesystem_cache_name>
+            <enable_filesystem_cache>1</enable_filesystem_cache>
+            <allow_database_iceberg>1</allow_database_iceberg>
+        </default>
+    </profiles>
+</clickhouse>

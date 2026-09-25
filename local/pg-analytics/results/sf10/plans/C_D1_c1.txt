@@ -1,0 +1,4 @@
+Foreign Scan  (cost=1.00..0.20 rows=1000 width=16)
+  Output: (date_trunc('month'::text, (lineitem_cold.l_shipdate)::timestamp with time zone)), (count(*))
+  Relations: Aggregate on (lineitem_cold)
+  Remote SQL: SELECT toStartOfMonth(l_shipdate), count(*) FROM bench.lineitem_cold WHERE ((l_shipdate >= '1996-01-01')) AND ((l_shipdate < '1996-04-01')) GROUP BY (toStartOfMonth(l_shipdate)) ORDER BY toStartOfMonth(l_shipdate) ASC NULLS LAST

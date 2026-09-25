@@ -36,6 +36,7 @@ clickhouse-hols/
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | Local data lake: MinIO plus Iceberg / Nessie / Unity / Delta catalogs, with Jupyter notebooks |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka and MySQL table engines, including materialized-view block-size testing |
 | [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: querying ClickHouse from PostgreSQL |
+| [local/pg-analytics](local/pg-analytics/) | pg_lake + Polaris Iceberg ILM: can `pg_clickhouse` → ClickHouse read the Iceberg files pg_lake writes, and how it compares with `pg_duckdb` (TPC-H SF10) |
 | [local/mcp-server-clickhouse](local/mcp-server-clickhouse/) | ClickHouse MCP server for LLM tool access |
 | [local/llm-mac-librechat-with-clickhouse](local/llm-mac-librechat-with-clickhouse/) | LibreChat with a local LLM and the ClickHouse MCP server (macOS) |
 | [local/llm-linux-librechat-sole](local/llm-linux-librechat-sole/) | LibreChat standalone (Linux) |
@@ -268,6 +269,7 @@ clickhouse-hols/
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | 로컬 데이터 레이크: MinIO + Iceberg / Nessie / Unity / Delta 카탈로그, Jupyter 노트북 |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka·MySQL 테이블 엔진, 구체화 뷰 블록 크기 테스트 포함 |
 | [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: PostgreSQL에서 ClickHouse 조회 |
+| [local/pg-analytics](local/pg-analytics/) | pg_lake + Polaris Iceberg ILM: pg_lake가 쓴 Iceberg 파일을 `pg_clickhouse` → ClickHouse로 읽을 수 있는지, `pg_duckdb`와 성능 비교 (TPC-H SF10) |
 | [local/mcp-server-clickhouse](local/mcp-server-clickhouse/) | LLM 도구 접근용 ClickHouse MCP 서버 |
 | [local/llm-mac-librechat-with-clickhouse](local/llm-mac-librechat-with-clickhouse/) | 로컬 LLM + ClickHouse MCP 서버와 LibreChat (macOS) |
 | [local/llm-linux-librechat-sole](local/llm-linux-librechat-sole/) | LibreChat 단독 구성 (Linux) |

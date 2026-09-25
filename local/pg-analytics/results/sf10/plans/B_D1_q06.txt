@@ -1,0 +1,40 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: revenue
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│    Aggregates: sum(#0)    │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│     (l_extendedprice *    │
+│         l_discount)       │
+│                           │
+│      ~3,641,160 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       ICEBERG_SCAN        │
+│    ────────────────────   │
+│         Function:         │
+│        ICEBERG_SCAN       │
+│                           │
+│        Projections:       │
+│      l_extendedprice      │
+│         l_discount        │
+│                           │
+│          Filters:         │
+│    (CAST(l_quantity AS    │
+│  DECIMAL(18,3)) < 24.000) │
+│    l_discount>=0.05 AND   │
+│      l_discount<=0.07     │
+│ l_shipdate>='1994-01-01': │
+│ :DATE AND l_shipdate<'1995│
+│       -01-01'::DATE       │
+│                           │
+│      ~3,641,160 rows      │
+└───────────────────────────┘
+
+

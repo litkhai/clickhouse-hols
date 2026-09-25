@@ -1,0 +1,41 @@
+Custom Scan (Query Pushdown)  (cost=0.00..0.00 rows=0 width=0)
+  Output: pushdown_query.m, pushdown_query.n
+  Engine: DuckDB
+  Data Files Scanned: 3
+  Deletion Files Scanned: 0
+  Vectorized SQL:  SELECT ("date_trunc"('month'::"text", ("l_shipdate")::timestamp with time zone))::timestamp with time zone AS "m",
+    "count"(*) AS "n"
+   FROM ( SELECT "lineitem_cold"."l_orderkey",
+            "lineitem_cold"."l_partkey",
+            "lineitem_cold"."l_suppkey",
+            "lineitem_cold"."l_linenumber",
+            "lineitem_cold"."l_quantity",
+            "lineitem_cold"."l_extendedprice",
+            "lineitem_cold"."l_discount",
+            "lineitem_cold"."l_tax",
+            "lineitem_cold"."l_returnflag",
+            "lineitem_cold"."l_linestatus",
+            "lineitem_cold"."l_shipdate",
+            "lineitem_cold"."l_commitdate",
+            "lineitem_cold"."l_receiptdate",
+            "lineitem_cold"."l_shipinstruct",
+            "lineitem_cold"."l_shipmode",
+            "lineitem_cold"."l_comment"
+           FROM tpch.lineitem_cold "lineitem_cold"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")) "lineitem"
+  WHERE (("l_shipdate" >= ('1996-01-01'::"text")::"date") AND ("l_shipdate" < ('1996-04-01'::"text")::"date"))
+  GROUP BY ("date_trunc"('month'::"text", ("l_shipdate")::timestamp with time zone))::timestamp with time zone
+  ORDER BY ("date_trunc"('month'::"text", ("l_shipdate")::timestamp with time zone))::timestamp with time zone
+  ->  ORDER_BY
+        Order By: CAST(date_trunc(CAST('month' AS VARCHAR), CAST(lineitem.l_shipdate AS "TIMESTAMP WITH TIME ZONE")) AS "TIMESTAMP WITH TIME ZONE") ASC
+        ->  HASH_GROUP_BY
+              Groups: #0
+              Aggregates: count_star()
+              Estimated Cardinality: 226571
+              ->  PROJECTION
+                    Projections: date_trunc('month', CAST(l_shipdate AS TIMESTAMP WITH TIME ZONE))
+                    Estimated Cardinality: 453142
+                    ->  READ_PARQUET
+                          Filters: l_shipdate>='1996-01-01'::DATE AND l_shipdate<'1996-04-01'::DATE
+                          Function: READ_PARQUET
+                          Projections: l_shipdate
+                          Estimated Cardinality: 453142

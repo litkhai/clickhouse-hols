@@ -1,0 +1,79 @@
+Custom Scan (Query Pushdown)  (cost=0.00..0.00 rows=0 width=0)
+  Output: pushdown_query.l_orderkey, pushdown_query.revenue, pushdown_query.o_orderdate, pushdown_query.o_shippriority
+  Engine: DuckDB
+  Data Files Scanned: 75
+  Deletion Files Scanned: 0
+  Vectorized SQL:  SELECT "lineitem"."l_orderkey",
+    "sum"(("lineitem"."l_extendedprice" * ((1)::numeric - "lineitem"."l_discount"))) AS "revenue",
+    "orders"."o_orderdate",
+    "orders"."o_shippriority"
+   FROM ( SELECT "customer_1"."c_custkey",
+            "customer_1"."c_name",
+            "customer_1"."c_address",
+            "customer_1"."c_nationkey",
+            "customer_1"."c_phone",
+            "customer_1"."c_acctbal",
+            "customer_1"."c_mktsegment",
+            "customer_1"."c_comment"
+           FROM tpch.customer "customer_1"("c_custkey", "c_name", "c_address", "c_nationkey", "c_phone", "c_acctbal", "c_mktsegment", "c_comment")) "customer",
+    ( SELECT "orders_cold"."o_orderkey",
+            "orders_cold"."o_custkey",
+            "orders_cold"."o_orderstatus",
+            "orders_cold"."o_totalprice",
+            "orders_cold"."o_orderdate",
+            "orders_cold"."o_orderpriority",
+            "orders_cold"."o_clerk",
+            "orders_cold"."o_shippriority",
+            "orders_cold"."o_comment"
+           FROM tpch.orders_cold "orders_cold"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")) "orders",
+    ( SELECT "lineitem_cold"."l_orderkey",
+            "lineitem_cold"."l_partkey",
+            "lineitem_cold"."l_suppkey",
+            "lineitem_cold"."l_linenumber",
+            "lineitem_cold"."l_quantity",
+            "lineitem_cold"."l_extendedprice",
+            "lineitem_cold"."l_discount",
+            "lineitem_cold"."l_tax",
+            "lineitem_cold"."l_returnflag",
+            "lineitem_cold"."l_linestatus",
+            "lineitem_cold"."l_shipdate",
+            "lineitem_cold"."l_commitdate",
+            "lineitem_cold"."l_receiptdate",
+            "lineitem_cold"."l_shipinstruct",
+            "lineitem_cold"."l_shipmode",
+            "lineitem_cold"."l_comment"
+           FROM tpch.lineitem_cold "lineitem_cold"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")) "lineitem"
+  WHERE (("customer"."c_mktsegment" = 'BUILDING'::"text") AND ("customer"."c_custkey" = "orders"."o_custkey") AND ("lineitem"."l_orderkey" = "orders"."o_orderkey") AND ("orders"."o_orderdate" < ('1995-03-15'::"text")::"date") AND ("lineitem"."l_shipdate" > ('1995-03-15'::"text")::"date"))
+  GROUP BY "lineitem"."l_orderkey", "orders"."o_orderdate", "orders"."o_shippriority"
+  ORDER BY ("sum"(("lineitem"."l_extendedprice" * ((1)::numeric - "lineitem"."l_discount")))) DESC, "orders"."o_orderdate"
+ LIMIT (10)::bigint
+  ->  TOP_N
+        Top: 10
+        ->  PROJECTION
+              Estimated Cardinality: 213045
+              ->  HASH_GROUP_BY
+                    Aggregates: sum(#3)
+                    Estimated Cardinality: 213045
+                    ->  PROJECTION
+                          Estimated Cardinality: 213055
+                          ->  HASH_JOIN
+                                Join Type: INNER
+                                Conditions: l_orderkey = o_orderkey
+                                Estimated Cardinality: 213055
+                                ->  READ_PARQUET
+                                      Filters: l_shipdate>'1995-03-15'::DATE
+                                      Function: READ_PARQUET
+                                      Estimated Cardinality: 5326391
+                                ->  HASH_JOIN
+                                      Join Type: INNER
+                                      Conditions: o_custkey = c_custkey
+                                      Estimated Cardinality: 295814
+                                      ->  READ_PARQUET
+                                            Filters: o_orderdate<'1995-03-15'::DATE
+                                            Function: READ_PARQUET
+                                            Estimated Cardinality: 1479074
+                                      ->  READ_PARQUET
+                                            Filters: c_mktsegment='BUILDING'
+                                            Function: READ_PARQUET
+                                            Projections: c_custkey
+                                            Estimated Cardinality: 300000

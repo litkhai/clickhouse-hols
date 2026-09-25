@@ -1,0 +1,54 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: m, revenue, n
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│          ORDER_BY         │
+│    ────────────────────   │
+│ date_trunc(CAST('month' AS│
+│  VARCHAR), CAST(orders_all│
+│ .o_orderdate AS "TIMESTAMP│
+│    WITH TIME ZONE")) ASC  │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│         Groups: #0        │
+│                           │
+│        Aggregates:        │
+│          sum(#1)          │
+│        count_star()       │
+│                           │
+│      ~1,499,999 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│  date_trunc('month', CAST │
+│ (o_orderdate AS TIMESTAMP │
+│      WITH TIME ZONE))     │
+│        o_totalprice       │
+│                           │
+│      ~2,999,999 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           UNION           ├──────────────┐
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│   PGDUCKDB_POSTGRES_SCAN  ││        ICEBERG_SCAN       │
+│    ────────────────────   ││    ────────────────────   │
+│       Table: orders       ││         Function:         │
+│                           ││        ICEBERG_SCAN       │
+│        Projections:       ││                           │
+│        o_totalprice       ││        Projections:       │
+│        o_orderdate        ││        o_totalprice       │
+│                           ││        o_orderdate        │
+│          Filters:         ││                           │
+│ o_orderdate>='1997-08-01':││          Filters:         │
+│           :DATE           ││ o_orderdate>='1997-08-01':│
+│                           ││           :DATE           │
+│                           ││                           │
+│       ~228,039 rows       ││      ~2,771,960 rows      │
+└───────────────────────────┘└───────────────────────────┘
+
+

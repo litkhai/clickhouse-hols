@@ -1,0 +1,13 @@
+<clickhouse>
+    <!-- this directory replaces the image's config.d, so restate its listen address -->
+    <listen_host>0.0.0.0</listen_host>
+    <!-- Named disk cache for Iceberg data files (path C). The bench turns
+         caches on or off for every engine together; see docs/DESIGN.md. -->
+    <filesystem_caches>
+        <lake_cache>
+            <path>/var/lib/clickhouse/lake_cache/</path>
+            <max_size>20Gi</max_size>
+        </lake_cache>
+    </filesystem_caches>
+    <logger><level>warning</level></logger>
+</clickhouse>

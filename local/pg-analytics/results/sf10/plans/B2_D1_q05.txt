@@ -1,0 +1,112 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: n_name, revenue
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│          ORDER_BY         │
+│    ────────────────────   │
+│       sum((lineitem       │
+│ .l_extendedprice * (CAST(1│
+│   AS DECIMAL) - lineitem  │
+│    .l_discount))) DESC    │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│         Groups: #0        │
+│    Aggregates: sum(#1)    │
+│                           │
+│      ~1,143,743 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│           n_name          │
+│ (l_extendedprice * (1.000 │
+│    - CAST(l_discount AS   │
+│      DECIMAL(18,3))))     │
+│                           │
+│      ~2,156,354 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ c_nationkey = s_nationkey │                                                                                                                                  │
+│   l_suppkey = s_suppkey   │                                                                                                                                  │
+│                           │                                                                                                                                  │
+│      ~2,156,354 rows      │                                                                                                                                  │
+└─────────────┬─────────────┘                                                                                                                                  │
+┌─────────────┴─────────────┐                                                                                                                    ┌─────────────┴─────────────┐
+│         HASH_JOIN         │                                                                                                                    │        ICEBERG_SCAN       │
+│    ────────────────────   │                                                                                                                    │    ────────────────────   │
+│      Join Type: INNER     │                                                                                                                    │         Function:         │
+│                           │                                                                                                                    │        ICEBERG_SCAN       │
+│        Conditions:        │                                                                                                                    │                           │
+│  l_orderkey = o_orderkey  ├──────────────┐                                                                                                     │        Projections:       │
+│                           │              │                                                                                                     │         s_suppkey         │
+│                           │              │                                                                                                     │        s_nationkey        │
+│                           │              │                                                                                                     │                           │
+│      ~2,156,354 rows      │              │                                                                                                     │       ~100,000 rows       │
+└─────────────┬─────────────┘              │                                                                                                     └───────────────────────────┘
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│        ICEBERG_SCAN       ││         HASH_JOIN         │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││      Join Type: INNER     │
+│        ICEBERG_SCAN       ││                           │
+│                           ││        Conditions:        │
+│        Projections:       ││   o_custkey = c_custkey   │
+│         l_orderkey        ││                           ├──────────────┐
+│         l_suppkey         ││                           │              │
+│      l_extendedprice      ││                           │              │
+│         l_discount        ││                           │              │
+│                           ││                           │              │
+│      ~53,908,869 rows     ││       ~554,392 rows       │              │
+└───────────────────────────┘└─────────────┬─────────────┘              │
+                             ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                             │        ICEBERG_SCAN       ││         HASH_JOIN         │
+                             │    ────────────────────   ││    ────────────────────   │
+                             │         Function:         ││      Join Type: INNER     │
+                             │        ICEBERG_SCAN       ││                           │
+                             │                           ││        Conditions:        │
+                             │        Projections:       ││ c_nationkey = n_nationkey │
+                             │         o_orderkey        ││                           │
+                             │         o_custkey         ││                           ├──────────────┐
+                             │                           ││                           │              │
+                             │          Filters:         ││                           │              │
+                             │ o_orderdate>='1994-01-01':││                           │              │
+                             │   :DATE AND o_orderdate<  ││                           │              │
+                             │     '1995-01-01'::DATE    ││                           │              │
+                             │                           ││                           │              │
+                             │      ~2,771,960 rows      ││       ~300,000 rows       │              │
+                             └───────────────────────────┘└─────────────┬─────────────┘              │
+                                                          ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                                                          │        ICEBERG_SCAN       ││         HASH_JOIN         │
+                                                          │    ────────────────────   ││    ────────────────────   │
+                                                          │         Function:         ││      Join Type: INNER     │
+                                                          │        ICEBERG_SCAN       ││                           │
+                                                          │                           ││        Conditions:        │
+                                                          │        Projections:       ││ n_regionkey = r_regionkey ├──────────────┐
+                                                          │         c_custkey         ││                           │              │
+                                                          │        c_nationkey        ││                           │              │
+                                                          │                           ││                           │              │
+                                                          │      ~1,500,000 rows      ││          ~5 rows          │              │
+                                                          └───────────────────────────┘└─────────────┬─────────────┘              │
+                                                                                       ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                                                                                       │        ICEBERG_SCAN       ││        ICEBERG_SCAN       │
+                                                                                       │    ────────────────────   ││    ────────────────────   │
+                                                                                       │         Function:         ││         Function:         │
+                                                                                       │        ICEBERG_SCAN       ││        ICEBERG_SCAN       │
+                                                                                       │                           ││                           │
+                                                                                       │        Projections:       ││        Projections:       │
+                                                                                       │        n_nationkey        ││        r_regionkey        │
+                                                                                       │           n_name          ││                           │
+                                                                                       │        n_regionkey        ││          Filters:         │
+                                                                                       │                           ││       r_name='ASIA'       │
+                                                                                       │                           ││                           │
+                                                                                       │          ~25 rows         ││           ~1 row          │
+                                                                                       └───────────────────────────┘└───────────────────────────┘
+
+

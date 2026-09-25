@@ -1,0 +1,29 @@
+Sort  (cost=66042.56..66043.06 rows=200 width=48)
+  Output: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)), (sum(orders.o_totalprice)), (count(*))
+  Sort Key: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone))
+  ->  HashAggregate  (cost=66031.42..66034.92 rows=200 width=48)
+        Output: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)), sum(orders.o_totalprice), count(*)
+        Group Key: date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)
+        ->  Result  (cost=0.00..57472.43 rows=1141198 width=16)
+              Output: date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone), orders.o_totalprice
+              ->  Append  (cost=0.00..40354.46 rows=1141198 width=12)
+                    ->  Seq Scan on hot.orders  (cost=0.00..34528.47 rows=1140198 width=12)
+                          Output: orders.o_orderdate, orders.o_totalprice
+                          Filter: (orders.o_orderdate >= '1997-08-01'::date)
+                    ->  Foreign Scan on tpch.orders_cold  (cost=100.00..120.00 rows=1000 width=0)
+                          Output: orders_cold.o_orderdate, orders_cold.o_totalprice
+                          Engine: DuckDB
+                          Data Files Scanned: 6
+                          Deletion Files Scanned: 0
+                          Vectorized SQL:  SELECT "o_totalprice",
+    "o_orderdate"
+   FROM tpch.orders_cold "r85"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
+  WHERE ("o_orderdate" >= ('1997-08-01'::"text")::"date")
+                          ->  READ_PARQUET
+                                Filters: o_orderdate>='1997-08-01'::DATE
+                                Function: READ_PARQUET
+                                Estimated Cardinality: 229219
+Not Vectorized Constructs: 
+1: 	Table
+	Description: hot.orders
+

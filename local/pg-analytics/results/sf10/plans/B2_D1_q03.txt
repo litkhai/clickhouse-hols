@@ -1,0 +1,97 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: l_orderkey, revenue, o_orderdate, o_shippriority
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│           TOP_N           │
+│    ────────────────────   │
+│          Top: 10          │
+│                           │
+│         Order By:         │
+│       sum((lineitem       │
+│ .l_extendedprice * (CAST(1│
+│   AS DECIMAL) - lineitem  │
+│    .l_discount))) DESC    │
+│   orders.o_orderdate ASC  │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│         l_orderkey        │
+│          revenue          │
+│        o_orderdate        │
+│       o_shippriority      │
+│                           │
+│       ~224,836 rows       │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│          Groups:          │
+│             #0            │
+│             #1            │
+│             #2            │
+│                           │
+│    Aggregates: sum(#3)    │
+│                           │
+│       ~224,836 rows       │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│         l_orderkey        │
+│        o_orderdate        │
+│       o_shippriority      │
+│ (l_extendedprice * (1.000 │
+│    - CAST(l_discount AS   │
+│      DECIMAL(18,3))))     │
+│                           │
+│       ~224,836 rows       │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        ├──────────────┐
+│  l_orderkey = o_orderkey  │              │
+│                           │              │
+│       ~224,836 rows       │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│        ICEBERG_SCAN       ││         HASH_JOIN         │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││      Join Type: INNER     │
+│        ICEBERG_SCAN       ││                           │
+│                           ││        Conditions:        │
+│        Projections:       ││   o_custkey = c_custkey   │
+│         l_orderkey        ││                           │
+│      l_extendedprice      ││                           ├──────────────┐
+│         l_discount        ││                           │              │
+│                           ││                           │              │
+│          Filters:         ││                           │              │
+│  l_shipdate>'1995-03-15': ││                           │              │
+│           :DATE           ││                           │              │
+│                           ││                           │              │
+│      ~5,620,910 rows      ││       ~554,392 rows       │              │
+└───────────────────────────┘└─────────────┬─────────────┘              │
+                             ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                             │        ICEBERG_SCAN       ││        ICEBERG_SCAN       │
+                             │    ────────────────────   ││    ────────────────────   │
+                             │         Function:         ││         Function:         │
+                             │        ICEBERG_SCAN       ││        ICEBERG_SCAN       │
+                             │                           ││                           │
+                             │        Projections:       ││        Projections:       │
+                             │         o_orderkey        ││         c_custkey         │
+                             │         o_custkey         ││                           │
+                             │        o_orderdate        ││          Filters:         │
+                             │       o_shippriority      ││  c_mktsegment='BUILDING'  │
+                             │                           ││                           │
+                             │          Filters:         ││                           │
+                             │ o_orderdate<'1995-03-15': ││                           │
+                             │           :DATE           ││                           │
+                             │                           ││                           │
+                             │      ~2,771,960 rows      ││       ~300,000 rows       │
+                             └───────────────────────────┘└───────────────────────────┘
+
+

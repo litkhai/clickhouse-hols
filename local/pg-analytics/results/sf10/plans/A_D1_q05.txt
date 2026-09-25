@@ -1,0 +1,111 @@
+Custom Scan (Query Pushdown)  (cost=0.00..0.00 rows=0 width=0)
+  Output: pushdown_query.n_name, pushdown_query.revenue
+  Engine: DuckDB
+  Data Files Scanned: 89
+  Deletion Files Scanned: 0
+  Vectorized SQL:  SELECT "nation"."n_name",
+    "sum"(("lineitem"."l_extendedprice" * ((1)::numeric - "lineitem"."l_discount"))) AS "revenue"
+   FROM ( SELECT "customer_1"."c_custkey",
+            "customer_1"."c_name",
+            "customer_1"."c_address",
+            "customer_1"."c_nationkey",
+            "customer_1"."c_phone",
+            "customer_1"."c_acctbal",
+            "customer_1"."c_mktsegment",
+            "customer_1"."c_comment"
+           FROM tpch.customer "customer_1"("c_custkey", "c_name", "c_address", "c_nationkey", "c_phone", "c_acctbal", "c_mktsegment", "c_comment")) "customer",
+    ( SELECT "orders_cold"."o_orderkey",
+            "orders_cold"."o_custkey",
+            "orders_cold"."o_orderstatus",
+            "orders_cold"."o_totalprice",
+            "orders_cold"."o_orderdate",
+            "orders_cold"."o_orderpriority",
+            "orders_cold"."o_clerk",
+            "orders_cold"."o_shippriority",
+            "orders_cold"."o_comment"
+           FROM tpch.orders_cold "orders_cold"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")) "orders",
+    ( SELECT "lineitem_cold"."l_orderkey",
+            "lineitem_cold"."l_partkey",
+            "lineitem_cold"."l_suppkey",
+            "lineitem_cold"."l_linenumber",
+            "lineitem_cold"."l_quantity",
+            "lineitem_cold"."l_extendedprice",
+            "lineitem_cold"."l_discount",
+            "lineitem_cold"."l_tax",
+            "lineitem_cold"."l_returnflag",
+            "lineitem_cold"."l_linestatus",
+            "lineitem_cold"."l_shipdate",
+            "lineitem_cold"."l_commitdate",
+            "lineitem_cold"."l_receiptdate",
+            "lineitem_cold"."l_shipinstruct",
+            "lineitem_cold"."l_shipmode",
+            "lineitem_cold"."l_comment"
+           FROM tpch.lineitem_cold "lineitem_cold"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")) "lineitem",
+    ( SELECT "supplier_1"."s_suppkey",
+            "supplier_1"."s_name",
+            "supplier_1"."s_address",
+            "supplier_1"."s_nationkey",
+            "supplier_1"."s_phone",
+            "supplier_1"."s_acctbal",
+            "supplier_1"."s_comment"
+           FROM tpch.supplier "supplier_1"("s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment")) "supplier",
+    ( SELECT "nation_1"."n_nationkey",
+            "nation_1"."n_name",
+            "nation_1"."n_regionkey",
+            "nation_1"."n_comment"
+           FROM tpch.nation "nation_1"("n_nationkey", "n_name", "n_regionkey", "n_comment")) "nation",
+    ( SELECT "region_1"."r_regionkey",
+            "region_1"."r_name",
+            "region_1"."r_comment"
+           FROM tpch.region "region_1"("r_regionkey", "r_name", "r_comment")) "region"
+  WHERE (("customer"."c_custkey" = "orders"."o_custkey") AND ("lineitem"."l_orderkey" = "orders"."o_orderkey") AND ("lineitem"."l_suppkey" = "supplier"."s_suppkey") AND ("customer"."c_nationkey" = "supplier"."s_nationkey") AND ("supplier"."s_nationkey" = "nation"."n_nationkey") AND ("nation"."n_regionkey" = "region"."r_regionkey") AND ("region"."r_name" = 'ASIA'::"text") AND ("orders"."o_orderdate" >= ('1994-01-01'::"text")::"date") AND ("orders"."o_orderdate" < ('1995-01-01'::"text")::"date"))
+  GROUP BY "nation"."n_name"
+  ORDER BY ("sum"(("lineitem"."l_extendedprice" * ((1)::numeric - "lineitem"."l_discount")))) DESC
+  ->  ORDER_BY
+        Order By: sum((lineitem.l_extendedprice * (CAST(1 AS DECIMAL) - lineitem.l_discount))) DESC
+        ->  HASH_GROUP_BY
+              Groups: #0
+              Aggregates: sum(#1)
+              Estimated Cardinality: 1143742
+              ->  PROJECTION
+                    Estimated Cardinality: 2156350
+                    ->  HASH_JOIN
+                          Join Type: INNER
+                          Estimated Cardinality: 2156350
+                          ->  HASH_JOIN
+                                Join Type: INNER
+                                Conditions: l_orderkey = o_orderkey
+                                Estimated Cardinality: 2156350
+                                ->  READ_PARQUET
+                                      Function: READ_PARQUET
+                                      Estimated Cardinality: 53908869
+                                ->  HASH_JOIN
+                                      Join Type: INNER
+                                      Conditions: o_custkey = c_custkey
+                                      Estimated Cardinality: 91036
+                                      ->  READ_PARQUET
+                                            Filters: o_orderdate>='1994-01-01'::DATE AND o_orderdate<'1995-01-01'::DATE
+                                            Function: READ_PARQUET
+                                            Estimated Cardinality: 455183
+                                      ->  HASH_JOIN
+                                            Join Type: INNER
+                                            Conditions: c_nationkey = n_nationkey
+                                            Estimated Cardinality: 300000
+                                            ->  READ_PARQUET
+                                                  Function: READ_PARQUET
+                                                  Estimated Cardinality: 1500000
+                                            ->  HASH_JOIN
+                                                  Join Type: INNER
+                                                  Conditions: n_regionkey = r_regionkey
+                                                  Estimated Cardinality: 5
+                                                  ->  READ_PARQUET
+                                                        Function: READ_PARQUET
+                                                        Estimated Cardinality: 25
+                                                  ->  READ_PARQUET
+                                                        Filters: r_name='ASIA'
+                                                        Function: READ_PARQUET
+                                                        Projections: r_regionkey
+                                                        Estimated Cardinality: 1
+                          ->  READ_PARQUET
+                                Function: READ_PARQUET
+                                Estimated Cardinality: 100000

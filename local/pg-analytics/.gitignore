@@ -1,0 +1,4 @@
+# runtime state: generated Polaris principal credentials, scratch files
+.state/
+results/raw/
+results/run-all.log

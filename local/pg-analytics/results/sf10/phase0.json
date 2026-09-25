@@ -1,0 +1,138 @@
+{
+  "sf": 10,
+  "0-1": {
+    "pass": true,
+    "polaris_tables": [
+      "customer",
+      "lineitem_cold",
+      "nation",
+      "orders_cold",
+      "part",
+      "partsupp",
+      "region",
+      "supplier"
+    ],
+    "metadata": {
+      "part": {
+        "snapshots": 1,
+        "current_snapshot_id": 7701359381500802945,
+        "format_version": 2
+      },
+      "orders_cold": {
+        "snapshots": 1,
+        "current_snapshot_id": 7969722043786593154,
+        "format_version": 2
+      },
+      "partsupp": {
+        "snapshots": 1,
+        "current_snapshot_id": 418120973765728403,
+        "format_version": 2
+      },
+      "lineitem_cold": {
+        "snapshots": 7,
+        "current_snapshot_id": 5440968475666853797,
+        "format_version": 2
+      },
+      "customer": {
+        "snapshots": 1,
+        "current_snapshot_id": 2942934122759195994,
+        "format_version": 2
+      },
+      "supplier": {
+        "snapshots": 1,
+        "current_snapshot_id": 8211721542852088031,
+        "format_version": 2
+      },
+      "nation": {
+        "snapshots": 3,
+        "current_snapshot_id": 6884174633434061447,
+        "format_version": 2
+      },
+      "region": {
+        "snapshots": 3,
+        "current_snapshot_id": 7350979337046480751,
+        "format_version": 2
+      }
+    }
+  },
+  "0-3": {
+    "pass": true,
+    "clickhouse_tables": [
+      "smoke.t",
+      "tpch.customer",
+      "tpch.lineitem_cold",
+      "tpch.nation",
+      "tpch.orders_cold",
+      "tpch.part",
+      "tpch.partsupp",
+      "tpch.region",
+      "tpch.supplier"
+    ],
+    "counts": {
+      "lineitem_cold": 53908869,
+      "orders_cold": 13859802,
+      "customer": 1500000,
+      "part": 2000000,
+      "partsupp": 8000000,
+      "supplier": 100000,
+      "nation": 25,
+      "region": 5
+    }
+  },
+  "0-4": {
+    "pass": true,
+    "pushdown": "full",
+    "hash_match": true,
+    "remote_sql": [
+      "Remote SQL: SELECT sum((l_extendedprice * l_discount)) FROM bench.lineitem_cold WHERE ((l_shipdate >= '1994-01-01')) AND ((l_shipdate < '1995-01-01')) AND ((l_discount >= 0.05)) AND ((l_discount <= 0.07)) AND ((l_quantity < 24))"
+    ]
+  },
+  "0-5": {
+    "pass": false,
+    "method": "REST ATTACH via login event trigger",
+    "pushdown": "full",
+    "counts": {
+      "lineitem_cold": 53908869,
+      "orders_cold": 13859802,
+      "customer": 1500000,
+      "part": 2000000,
+      "partsupp": 8000000,
+      "supplier": 100000,
+      "nation": 25,
+      "region": 5
+    }
+  },
+  "0-5b": {
+    "pass": true,
+    "method": "same, pg_duckdb main build (reference B')",
+    "pushdown": "full",
+    "counts": {
+      "lineitem_cold": 53908869,
+      "orders_cold": 13859802,
+      "customer": 1500000,
+      "part": 2000000,
+      "partsupp": 8000000,
+      "supplier": 100000,
+      "nation": 25,
+      "region": 5
+    }
+  },
+  "0-2": {
+    "pass": true,
+    "pg_lake_counts": {
+      "lineitem_cold": 53908869,
+      "orders_cold": 13859802,
+      "customer": 1500000,
+      "part": 2000000,
+      "partsupp": 8000000,
+      "supplier": 100000,
+      "nation": 25,
+      "region": 5
+    }
+  },
+  "0-6": {
+    "pass": null,
+    "note": "not run; pg_lake's DuckDB runs in the separate pgduck_server process, so the open question is hook ordering, not two libduckdb copies in one backend. See docs/DESIGN.md."
+  },
+  "q6_pushdown_A": "full"
+}

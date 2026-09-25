@@ -1,0 +1,15 @@
+Sort  (cost=65942.56..65943.06 rows=200 width=48)
+  Output: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)), (sum(orders.o_totalprice)), (count(*))
+  Sort Key: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone))
+  ->  HashAggregate  (cost=65931.42..65934.92 rows=200 width=48)
+        Output: (date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)), sum(orders.o_totalprice), count(*)
+        Group Key: date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone)
+        ->  Result  (cost=0.00..57372.43 rows=1141198 width=16)
+              Output: date_trunc('month'::text, (orders.o_orderdate)::timestamp with time zone), orders.o_totalprice
+              ->  Append  (cost=0.00..40254.46 rows=1141198 width=12)
+                    ->  Seq Scan on hot.orders  (cost=0.00..34528.47 rows=1140198 width=12)
+                          Output: orders.o_orderdate, orders.o_totalprice
+                          Filter: (orders.o_orderdate >= '1997-08-01'::date)
+                    ->  Foreign Scan on ch.orders_cold  (cost=10.00..20.00 rows=1000 width=22)
+                          Output: orders_cold.o_orderdate, orders_cold.o_totalprice
+                          Remote SQL: SELECT o_totalprice, o_orderdate FROM bench.orders_cold WHERE ((o_orderdate >= '1997-08-01'))

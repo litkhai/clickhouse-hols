@@ -1,0 +1,945 @@
+Write the Iceberg manifest key-value metadata the spec requires.
+
+Against pg_lake v3.5.3. The Iceberg spec ("Manifests") says a manifest file
+must store the partition spec and other metadata in its Avro key-value
+metadata; for format v2 the keys schema, schema-id, partition-spec,
+partition-spec-id, format-version and content are all required. pg_lake
+writes only avro.schema and avro.codec, so spec-following readers reject its
+manifests -- ClickHouse fails with "No partition-spec in iceberg manifest
+file". Manifest lists are unaffected: the spec requires no keys there.
+
+- avro.patch: write_header() also writes an optional "properties"
+  map<string> of the extra-metadata record, so the header has 2 + N entries.
+- avro_writer.c: AvroWriterCreateWithJsonSchemaAndProperties() takes a list
+  of AvroMetadataProperty key/values and fills that map.
+- write_manifest.c: WriteIcebergManifest() takes the schema, partition spec
+  and content type and renders the six keys, reusing the metadata.json
+  writers (AppendIcebergTableSchema is split out of AppendIcebergTableSchemas).
+- metadata_operations.c: CreateManifestWriteContext() resolves the new
+  snapshot's schema and all partition specs once per commit (including
+  the ones a writable REST catalog table only has in the builder), and it is
+  passed down to every UploadIcebergManifestToURI() call site, which already
+  know the manifest's partition spec id and content type.
+
+diff --git a/avro.patch b/avro.patch
+index 26c0669..26e09f3 100644
+--- a/avro.patch
++++ b/avro.patch
+@@ -21,7 +21,7 @@ index ffbb68dc5..5bb2ee699 100644
+  avro_file_reader_get_writer_schema(avro_file_reader_t reader);
+  
+ diff --git a/lang/c/src/datafile.c b/lang/c/src/datafile.c
+-index c9d4dfeb6..4a1fdb25f 100644
++index c9d4dfeb6..b15917061 100644
+ --- a/lang/c/src/datafile.c
+ +++ b/lang/c/src/datafile.c
+ @@ -73,7 +73,7 @@ static int write_sync(avro_file_writer_t w)
+@@ -33,23 +33,35 @@ index c9d4dfeb6..4a1fdb25f 100644
+  {
+  	int rval;
+  	uint8_t version = 1;
+-@@ -82,6 +82,15 @@ static int write_header(avro_file_writer_t w)
++@@ -82,27 +82,65 @@ static int write_header(avro_file_writer_t w)
+  	const avro_encoding_t *enc = &avro_binary_encoding;
+  	int64_t schema_len;
+  
+ +	const char *json_schema = NULL;
+ +	size_t json_schema_len = 0;
+++	avro_value_t properties = {0};
+++	size_t properties_count = 0;
+ +	if (extra_meta != NULL)
+ +	{
+ +		avro_value_t meta_schema = {0};
+ +		check(rval, avro_value_get_by_name(extra_meta, "avroschema", &meta_schema, NULL));
+ +		check(rval, avro_value_get_string(&meta_schema, &json_schema, &json_schema_len));
+++
+++		/* optional map<string> of additional key-value metadata */
+++		if (avro_value_get_by_name(extra_meta, "properties", &properties, NULL) == 0)
+++			check(rval, avro_value_get_size(&properties, &properties_count));
+ +	}
+ +
+  	/* Generate random sync */
+  	generate_sync(w);
+  
+-@@ -94,15 +103,24 @@ static int write_header(avro_file_writer_t w)
++ 	check(rval, avro_write(w->writer, "Obj", 3));
++ 	check(rval, avro_write(w->writer, &version, 1));
++ 
++-	check(rval, enc->write_long(w->writer, 2));
+++	check(rval, enc->write_long(w->writer, 2 + properties_count));
++ 	check(rval, enc->write_string(w->writer, "avro.codec"));
++ 	check(rval, enc->write_bytes(w->writer, w->codec->name, strlen(w->codec->name)));
+  	check(rval, enc->write_string(w->writer, "avro.schema"));
+  	schema_writer =
+  	    avro_writer_memory(&w->schema_buf[0], sizeof(w->schema_buf));
+@@ -71,11 +83,25 @@ index c9d4dfeb6..4a1fdb25f 100644
+  	avro_writer_free(schema_writer);
+  	check(rval,
+  	      enc->write_bytes(w->writer, w->schema_buf, schema_len));
+++
+++	for (size_t i = 0; i < properties_count; i++) {
+++		avro_value_t value;
+++		const char *key = NULL;
+++		const char *str = NULL;
+++		size_t str_len = 0;
+++
+++		check(rval, avro_value_get_by_index(&properties, i, &value, &key));
+++		check(rval, avro_value_get_string(&value, &str, &str_len));
+++
+++		/* str_len includes the NUL terminator */
+++		check(rval, enc->write_string(w->writer, key));
+++		check(rval, enc->write_bytes(w->writer, str, str_len - 1));
+++	}
+ +
+  	check(rval, enc->write_long(w->writer, 0));
+  	return write_sync(w);
+  }
+-@@ -140,7 +158,7 @@ file_writer_init_fp(FILE *fp, const char *path, int should_close, const char *mo
++@@ -140,7 +178,7 @@ file_writer_init_fp(FILE *fp, const char *path, int should_close, const char *mo
+  #endif
+  
+  static int
+@@ -84,7 +110,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  {
+  	int rval;
+  
+-@@ -169,7 +187,7 @@ file_writer_create(FILE *fp, const char *path, int should_close, avro_schema_t s
++@@ -169,7 +207,7 @@ file_writer_create(FILE *fp, const char *path, int should_close, avro_schema_t s
+  	}
+  
+  	w->writers_schema = avro_schema_incref(schema);
+@@ -93,7 +119,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  }
+  
+  int
+-@@ -196,6 +214,15 @@ int avro_file_writer_create_with_codec(const char *path,
++@@ -196,6 +234,15 @@ int avro_file_writer_create_with_codec(const char *path,
+  int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should_close,
+  			avro_schema_t schema, avro_file_writer_t * writer,
+  			const char *codec, size_t block_size)
+@@ -109,7 +135,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  {
+  	avro_file_writer_t w;
+  	int rval;
+-@@ -226,7 +253,7 @@ int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should
++@@ -226,7 +273,7 @@ int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should
+  		avro_freet(struct avro_file_writer_t_, w);
+  		return rval;
+  	}
+@@ -118,7 +144,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  	if (rval) {
+  		avro_codec_reset(w->codec);
+  		avro_freet(struct avro_codec_t_, w->codec);
+-@@ -452,6 +479,36 @@ static int file_read_block_count(avro_file_reader_t r)
++@@ -452,6 +499,36 @@ static int file_read_block_count(avro_file_reader_t r)
+  	check_prefix(rval, enc->read_long(r->reader, &len),
+  		     "Cannot read file block size: ");
+  
+@@ -155,7 +181,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  	if (r->current_blockdata && len > r->current_blocklen) {
+  		r->current_blockdata = (char *) avro_realloc(r->current_blockdata, r->current_blocklen, len);
+  		r->current_blocklen = len;
+-@@ -466,6 +523,27 @@ static int file_read_block_count(avro_file_reader_t r)
++@@ -466,6 +543,27 @@ static int file_read_block_count(avro_file_reader_t r)
+  
+  		check_prefix(rval, avro_codec_decode(r->codec, r->current_blockdata, len),
+  			     "Cannot decode file block: ");
+@@ -183,7 +209,7 @@ index c9d4dfeb6..4a1fdb25f 100644
+  	}
+  
+  	avro_reader_memory_set_source(r->block_reader, (const char *) r->codec->block_data, r->codec->used_size);
+-@@ -541,6 +619,93 @@ int avro_file_reader_fp(FILE *fp, const char *path, int should_close,
++@@ -541,6 +639,93 @@ int avro_file_reader_fp(FILE *fp, const char *path, int should_close,
+  	return 0;
+  }
+  
+diff --git a/pg_lake_iceberg/include/pg_lake/avro/avro_writer.h b/pg_lake_iceberg/include/pg_lake/avro/avro_writer.h
+index a035e9f..8554959 100644
+--- a/pg_lake_iceberg/include/pg_lake/avro/avro_writer.h
++++ b/pg_lake_iceberg/include/pg_lake/avro/avro_writer.h
+@@ -18,6 +18,7 @@
+ #pragma once
+ 
+ #include "avro.h"
++#include "nodes/pg_list.h"
+ #include "utils/palloc.h"
+ 
+ #define DEFAULT_AVRO_WRITER_BLOCK_SIZE 64
+@@ -27,6 +28,13 @@ extern int	DefaultAvroWriterBlockSize;
+ 
+ typedef void (*AvroSerializeFunction) (void *entry, avro_value_t * record);
+ 
++/* a key-value pair for the Avro file header's metadata */
++typedef struct AvroMetadataProperty
++{
++	const char *key;
++	const char *value;
++}			AvroMetadataProperty;
++
+ typedef struct AvroWriter
+ {
+ 	MemoryContext memoryContext;
+@@ -51,6 +59,9 @@ typedef struct AvroWriter
+ 
+ AvroWriter *AvroWriterCreateWithJsonSchema(const char *filePath,
+ 										   const char *schemaJson);
++AvroWriter *AvroWriterCreateWithJsonSchemaAndProperties(const char *filePath,
++														const char *schemaJson,
++														List *properties);
+ void		AvroWriterWriteRecord(AvroWriter * writer, AvroSerializeFunction serializeFn, void *entry);
+ void		AvroWriterClose(AvroWriter * writer);
+ 
+diff --git a/pg_lake_iceberg/include/pg_lake/iceberg/api/manifest.h b/pg_lake_iceberg/include/pg_lake/iceberg/api/manifest.h
+index 1e73581..1433f24 100644
+--- a/pg_lake_iceberg/include/pg_lake/iceberg/api/manifest.h
++++ b/pg_lake_iceberg/include/pg_lake/iceberg/api/manifest.h
+@@ -33,6 +33,19 @@
+  */
+ typedef bool (*ManifestPredicateFn) (IcebergManifest * manifest);
+ 
++/*
++ * IcebergManifestWriteContext holds the table-level state that goes into the
++ * key-value metadata of every manifest file written for a new snapshot.
++ */
++typedef struct IcebergManifestWriteContext
++{
++	/* schema the manifests are written with, i.e. the new snapshot's schema */
++	IcebergTableSchema *schema;
++
++	/* all partition specs of the table (IcebergPartitionSpec *) */
++	List	   *partitionSpecs;
++}			IcebergManifestWriteContext;
++
+ /* predicates */
+ extern PGDLLEXPORT bool IsManifestOfFileContentAdd(IcebergManifest * manifest);
+ extern PGDLLEXPORT bool IsManifestOfFileContentDeletes(IcebergManifest * manifest);
+@@ -42,7 +55,10 @@ extern PGDLLEXPORT List *FetchManifestsFromSnapshot(IcebergSnapshot * snapshot,
+ 
+ /* write api */
+ extern PGDLLEXPORT char *GenerateRemoteManifestPath(const char *location, const char *snapshotUUID, int manifestIndex, char *queryArguments);
+-extern PGDLLEXPORT int64_t UploadIcebergManifestToURI(List *manifestEntries, char *manifestURI);
++extern PGDLLEXPORT int64_t UploadIcebergManifestToURI(List *manifestEntries, char *manifestURI,
++													   IcebergManifestWriteContext * writeContext,
++													   int32_t partitionSpecId,
++													   IcebergManifestContentType contentType);
+ extern PGDLLEXPORT IcebergManifest * CreateNewIcebergManifest(IcebergSnapshot * snapshot,
+ 															  int32_t partitionSpecId,
+ 															  List *allTransforms,
+diff --git a/pg_lake_iceberg/include/pg_lake/iceberg/manifest_spec.h b/pg_lake_iceberg/include/pg_lake/iceberg/manifest_spec.h
+index ce2acfd..9b42a89 100644
+--- a/pg_lake_iceberg/include/pg_lake/iceberg/manifest_spec.h
++++ b/pg_lake_iceberg/include/pg_lake/iceberg/manifest_spec.h
+@@ -38,6 +38,8 @@
+ 
+ #include "nodes/pg_list.h"
+ 
++#include "pg_lake/iceberg/metadata_spec.h"
++
+ 
+ typedef enum IcebergManifestEntryStatus
+ {
+@@ -236,4 +238,7 @@ extern List *ReadIcebergManifests(const char *manifestListPath);
+ extern PGDLLEXPORT List *ReadManifestEntries(const char *manifestPath);
+ 
+ extern PGDLLEXPORT void WriteIcebergManifestList(const char *manifestListPath, List *manifests);
+-extern PGDLLEXPORT void WriteIcebergManifest(const char *manifestPath, List *manifestEntries);
++extern PGDLLEXPORT void WriteIcebergManifest(const char *manifestPath, List *manifestEntries,
++											 IcebergTableSchema * schema,
++											 IcebergPartitionSpec * partitionSpec,
++											 IcebergManifestContentType contentType);
+diff --git a/pg_lake_iceberg/include/pg_lake/iceberg/metadata_spec.h b/pg_lake_iceberg/include/pg_lake/iceberg/metadata_spec.h
+index 8d45074..ac8d2c9 100644
+--- a/pg_lake_iceberg/include/pg_lake/iceberg/metadata_spec.h
++++ b/pg_lake_iceberg/include/pg_lake/iceberg/metadata_spec.h
+@@ -291,5 +291,6 @@ typedef struct IcebergTableMetadata
+ extern PGDLLEXPORT IcebergTableMetadata * ReadIcebergTableMetadata(const char *tableMetadataPath);
+ extern PGDLLEXPORT IcebergTableMetadata * ParseIcebergTableMetadata(Jsonb *tableMetadataJson);
+ extern PGDLLEXPORT char *WriteIcebergTableMetadataToJson(IcebergTableMetadata * metadata);
++extern PGDLLEXPORT void AppendIcebergTableSchema(StringInfo command, IcebergTableSchema * schema);
+ extern PGDLLEXPORT void AppendIcebergTableSchemaForRestCatalog(StringInfo command, IcebergTableSchema * schemas, size_t schemas_length);
+ extern PGDLLEXPORT void AppendIcebergPartitionSpecFields(StringInfo command, IcebergPartitionSpecField * fields, size_t fields_length);
+diff --git a/pg_lake_iceberg/include/pg_lake/iceberg/operations/manifest_merge.h b/pg_lake_iceberg/include/pg_lake/iceberg/operations/manifest_merge.h
+index 9c39b69..0fa006b 100644
+--- a/pg_lake_iceberg/include/pg_lake/iceberg/operations/manifest_merge.h
++++ b/pg_lake_iceberg/include/pg_lake/iceberg/operations/manifest_merge.h
+@@ -19,6 +19,7 @@
+ 
+ #include "postgres.h"
+ 
++#include "pg_lake/iceberg/api/manifest.h"
+ #include "pg_lake/iceberg/api/snapshot.h"
+ #include "pg_lake/iceberg/manifest_spec.h"
+ 
+@@ -41,6 +42,7 @@ extern int	ManifestMinCountToMerge;
+ 
+ extern PGDLLEXPORT List *MergeDataManifests(IcebergSnapshot * currentSnapshot,
+ 											List *allTransforms,
++											IcebergManifestWriteContext * writeContext,
+ 											List *dataManifests,
+ 											const char *metadataLocation,
+ 											const char *snapshotUUID,
+@@ -48,6 +50,7 @@ extern PGDLLEXPORT List *MergeDataManifests(IcebergSnapshot * currentSnapshot,
+ 											int *manifestIndex);
+ extern PGDLLEXPORT bool RemoveDeletedManifestEntries(IcebergSnapshot * currentSnapshot,
+ 													 List *allTransforms,
++													 IcebergManifestWriteContext * writeContext,
+ 													 List **manifests,
+ 													 IcebergManifestContentType contentType,
+ 													 const char *metadataLocation,
+diff --git a/pg_lake_iceberg/src/avro/avro_writer.c b/pg_lake_iceberg/src/avro/avro_writer.c
+index 08f50d4..b3d664e 100644
+--- a/pg_lake_iceberg/src/avro/avro_writer.c
++++ b/pg_lake_iceberg/src/avro/avro_writer.c
+@@ -32,6 +32,9 @@ typedef struct ExtraMetadata
+ {
+ 	const char *schema_json;
+ 	size_t		schema_json_length;
++
++	/* additional key-value metadata, List of AvroMetadataProperty */
++	List	   *properties;
+ }			ExtraMetadata;
+ 
+ static AvroWriter * AvroWriterCreate(const char *filePath, avro_schema_t schema, avro_value_t * meta);
+@@ -39,7 +42,7 @@ static bool AvroFileWriterClose(AvroWriter * writer);
+ static void AvroFileWriterCloseCallback(void *arg);
+ static void AvroPrepareSetNullable(avro_value_t * record, char *fieldName, avro_value_t * innerValue, bool isSet);
+ static void WriteExtraMetadataToAvro(avro_value_t * record, ExtraMetadata * metadata);
+-static avro_value_t * CreateAvroExtraMetadata(const char *schemaJson);
++static avro_value_t * CreateAvroExtraMetadata(const char *schemaJson, List *properties);
+ static avro_schema_t GetSchemaFromJson(const char *schemaJson);
+ 
+ 
+@@ -58,11 +61,25 @@ int			DefaultAvroWriterBlockSize = DEFAULT_AVRO_WRITER_BLOCK_SIZE;
+  */
+ AvroWriter *
+ AvroWriterCreateWithJsonSchema(const char *filePath, const char *schemaJson)
++{
++	return AvroWriterCreateWithJsonSchemaAndProperties(filePath, schemaJson, NIL);
++}
++
++
++/*
++ * AvroWriterCreateWithJsonSchemaAndProperties is like
++ * AvroWriterCreateWithJsonSchema, but additionally writes the given
++ * AvroMetadataProperty list into the file header's key-value metadata,
++ * after "avro.codec" and "avro.schema".
++ */
++AvroWriter *
++AvroWriterCreateWithJsonSchemaAndProperties(const char *filePath, const char *schemaJson,
++											List *properties)
+ {
+ 	avro_schema_t schema = GetSchemaFromJson(schemaJson);
+ 
+-	/* "avro.schema" */
+-	avro_value_t *meta = CreateAvroExtraMetadata(schemaJson);
++	/* "avro.schema" and any additional properties */
++	avro_value_t *meta = CreateAvroExtraMetadata(schemaJson, properties);
+ 
+ 	return AvroWriterCreate(filePath, schema, meta);
+ }
+@@ -206,6 +223,10 @@ WriteExtraMetadataToAvro(avro_value_t * record, ExtraMetadata * metadata)
+ 										  { \
+ 										    \"type\": \"int\", \
+ 										    \"name\": \"length\" \
++										  }, \
++										  { \
++										    \"type\": {\"type\": \"map\", \"values\": \"string\"}, \
++										    \"name\": \"properties\" \
+ 										  } \
+ 									    ] \
+ 									 }";
+@@ -222,17 +243,39 @@ WriteExtraMetadataToAvro(avro_value_t * record, ExtraMetadata * metadata)
+ 
+ 	AvroSetStringField(record, "avroschema", metadata->schema_json);
+ 	AvroSetInt32Field(record, "length", metadata->schema_json_length);
++
++	avro_value_t propertiesMap;
++
++	if (avro_value_get_by_name(record, "properties", &propertiesMap, NULL) != 0)
++	{
++		ereport(ERROR, (errmsg("properties not found in schema")));
++	}
++
++	ListCell   *propertyCell = NULL;
++
++	foreach(propertyCell, metadata->properties)
++	{
++		AvroMetadataProperty *property = lfirst(propertyCell);
++		avro_value_t propertyValue;
++
++		if (avro_value_add(&propertiesMap, property->key, &propertyValue, NULL, NULL) != 0 ||
++			avro_value_set_string(&propertyValue, property->value) != 0)
++		{
++			ereport(ERROR, (errmsg("could not set avro metadata property %s", property->key)));
++		}
++	}
+ }
+ 
+ 
+ /*
+  * CreateAvroExtraMetadata creates an Avro record for extra metadata.
+- * It currently only contains the JSON "avro.schema", which is used by the
+- * Avro writer to properly specify field-id and default for fields.
+- * If not set, the writer is not able to write field ids and defaults.
++ * It contains the JSON "avro.schema", which is used by the Avro writer to
++ * properly specify field-id and default for fields (if not set, the writer
++ * is not able to write field ids and defaults), and any additional key-value
++ * properties to write into the file header.
+  */
+ static avro_value_t *
+-CreateAvroExtraMetadata(const char *schemaJson)
++CreateAvroExtraMetadata(const char *schemaJson, List *properties)
+ {
+ 	size_t		schemaJsonLength = strlen(schemaJson);
+ 
+@@ -240,6 +283,7 @@ CreateAvroExtraMetadata(const char *schemaJson)
+ 
+ 	metadata.schema_json = schemaJson;
+ 	metadata.schema_json_length = schemaJsonLength;
++	metadata.properties = properties;
+ 
+ 	avro_value_t *meta = palloc0(sizeof(avro_value_t));
+ 
+diff --git a/pg_lake_iceberg/src/iceberg/api/manifest.c b/pg_lake_iceberg/src/iceberg/api/manifest.c
+index 7ea0434..4e5aef6 100644
+--- a/pg_lake_iceberg/src/iceberg/api/manifest.c
++++ b/pg_lake_iceberg/src/iceberg/api/manifest.c
+@@ -93,13 +93,38 @@ FetchManifestsFromSnapshot(IcebergSnapshot * snapshot, ManifestPredicateFn manif
+ /*
+  * UploadIcebergManifestToURI writes the manifest to a file and uploads it to given uri.
+  * It returns the size of the manifest file.
++ *
++ * The manifest is written with the schema of the given write context and the
++ * partition spec with the given id, and tracks files of the given content type.
+  */
+ int64_t
+-UploadIcebergManifestToURI(List *manifestEntries, char *manifestURI)
++UploadIcebergManifestToURI(List *manifestEntries, char *manifestURI,
++						   IcebergManifestWriteContext * writeContext,
++						   int32_t partitionSpecId,
++						   IcebergManifestContentType contentType)
+ {
+ 	char	   *localManifestPath = GenerateTempFileNameForUpload(PG_LAKE_ICEBERG);
+ 
+-	WriteIcebergManifest(localManifestPath, manifestEntries);
++	IcebergPartitionSpec *partitionSpec = NULL;
++	ListCell   *specCell = NULL;
++
++	foreach(specCell, writeContext->partitionSpecs)
++	{
++		IcebergPartitionSpec *spec = lfirst(specCell);
++
++		if (spec->spec_id == partitionSpecId)
++		{
++			partitionSpec = spec;
++			break;
++		}
++	}
++
++	if (partitionSpec == NULL)
++		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
++						errmsg("partition spec %d not found for manifest", partitionSpecId)));
++
++	WriteIcebergManifest(localManifestPath, manifestEntries,
++						 writeContext->schema, partitionSpec, contentType);
+ 
+ 	/*
+ 	 * Manifest files will get auto-deleted on commit unless
+diff --git a/pg_lake_iceberg/src/iceberg/metadata_operations.c b/pg_lake_iceberg/src/iceberg/metadata_operations.c
+index e4b3caf..562d5c6 100644
+--- a/pg_lake_iceberg/src/iceberg/metadata_operations.c
++++ b/pg_lake_iceberg/src/iceberg/metadata_operations.c
+@@ -124,22 +124,28 @@ static void ProcessIcebergMetadataOperations(Oid relationId, List *metadataOpera
+ static IcebergManifestEntry * CreateIcebergManifestEntryFromMetadataOperation(TableMetadataOperation * operation,
+ 																			  int64_t newSnapshotId,
+ 																			  int64_t sequenceNumber);
++static IcebergManifestWriteContext * CreateManifestWriteContext(Oid relationId,
++																IcebergTableMetadata * metadata,
++																IcebergSnapshotBuilder * builder);
+ static IcebergSnapshot * FinalizeNewSnapshot(IcebergSnapshotBuilder * builder,
+ 											 Oid relationId,
+ 											 const char *metadataLocation,
+ 											 int32_t currentSchemaId,
+ 											 List *allTransforms,
++											 IcebergManifestWriteContext * writeContext,
+ 											 bool isVerbose);
+ static List *CreateNewManifestsForDeletedEntries(List *allManifestEntries, List *deletedManifestEntries,
+ 												 IcebergSnapshot * newSnapshot, const char *metadataLocation,
+ 												 const char *snapshotUUID, int *manifestIndex,
+ 												 int partitionSpecId, List *partitionTransforms,
++												 IcebergManifestWriteContext * writeContext,
+ 												 IcebergManifestContentType contentType);
+ static bool RewriteManifestForRemoval(IcebergManifest * manifest,
+ 									  List *removedEntries, bool removeAllEntries,
+ 									  int64_t snapshotId, IcebergSnapshot * newSnapshot,
+ 									  const char *metadataLocation, const char *snapshotUUID,
+ 									  int *manifestIndex, List *allTransforms,
++									  IcebergManifestWriteContext * writeContext,
+ 									  List **finalDataManifestList,
+ 									  List **finalDeleteManifestList);
+ static IcebergSnapshot * CopyIcebergSnapshot(IcebergSnapshot * src);
+@@ -306,11 +312,15 @@ ApplyIcebergMetadataChanges(Oid relationId, List *metadataOperations, List *allT
+ 	/* whether to create a new version of the Iceberg table */
+ 	bool		createNewSnapshot = false;
+ 
++	IcebergManifestWriteContext *manifestWriteContext =
++		CreateManifestWriteContext(relationId, metadata, builder);
++
+ 	IcebergSnapshot *newSnapshot = FinalizeNewSnapshot(builder,
+ 													   relationId,
+ 													   metadata->location,
+ 													   metadata->current_schema_id,
+ 													   allTransforms,
++													   manifestWriteContext,
+ 													   isVerbose);
+ 
+ 	if (newSnapshot != NULL)
+@@ -839,6 +849,47 @@ ProcessIcebergMetadataOperations(Oid relationId, List *metadataOperations,
+ }
+ 
+ 
++/*
++ * CreateManifestWriteContext returns the schema and partition specs that the
++ * manifests of the new snapshot are written with, for their key-value metadata.
++ *
++ * The schema is the one FinalizeNewSnapshot() assigns to the new snapshot.
++ * Writable REST catalog tables do not apply schema and partition spec changes
++ * to the in-memory metadata, they only send them to the catalog, so a table
++ * created in this transaction has no schema there yet and new partition specs
++ * are only in the builder.
++ */
++static IcebergManifestWriteContext *
++CreateManifestWriteContext(Oid relationId, IcebergTableMetadata * metadata,
++						   IcebergSnapshotBuilder * builder)
++{
++	IcebergManifestWriteContext *writeContext = palloc0(sizeof(IcebergManifestWriteContext));
++
++	if (metadata->schemas_length > 0)
++	{
++		writeContext->schema =
++			GetIcebergTableSchemaByIdFromTableMetadata(metadata, metadata->current_schema_id);
++	}
++	else if (builder->schema != NULL)
++	{
++		int			lastColumnId = 0;
++
++		writeContext->schema =
++			RebuildIcebergSchemaFromDataFileSchema(relationId, builder->schema, &lastColumnId);
++		writeContext->schema->schema_id = metadata->current_schema_id;
++	}
++	else
++		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
++						errmsg("could not determine the schema of iceberg table %u", relationId)));
++
++	writeContext->partitionSpecs =
++		list_concat(GetAllIcebergPartitionSpecsFromTableMetadata(metadata),
++					builder->partitionSpecs);
++
++	return writeContext;
++}
++
++
+ /*
+ * FinalizeNewSnapshot creates a new snapshot from an IcebergSnapshotBuilder.
+ *
+@@ -848,7 +899,8 @@ ProcessIcebergMetadataOperations(Oid relationId, List *metadataOperations,
+ */
+ static IcebergSnapshot *
+ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char *metadataLocation,
+-					int32_t currentSchemaId, List *allTransforms, bool isVerbose)
++					int32_t currentSchemaId, List *allTransforms,
++					IcebergManifestWriteContext * writeContext, bool isVerbose)
+ {
+ 	IcebergSnapshot *currentSnapshot = builder->baseSnapshot;
+ 	IcebergSnapshot *newSnapshot = builder->newSnapshot;
+@@ -889,11 +941,11 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ 		 * RemoveDeletedManifestEntries goes through old snapshot's manifests
+ 		 * and removes any entries that are marked as deleted.
+ 		 */
+-		bool		anyDataManifestModified = RemoveDeletedManifestEntries(currentSnapshot, allTransforms, &finalDataManifestList,
++		bool		anyDataManifestModified = RemoveDeletedManifestEntries(currentSnapshot, allTransforms, writeContext, &finalDataManifestList,
+ 																		   ICEBERG_MANIFEST_FILE_CONTENT_DATA, metadataLocation,
+ 																		   snapshotUUID, isVerbose, &manifestIndex);
+ 
+-		bool		anyDeleteManifestModified = RemoveDeletedManifestEntries(currentSnapshot, allTransforms, &finalDeleteManifestList,
++		bool		anyDeleteManifestModified = RemoveDeletedManifestEntries(currentSnapshot, allTransforms, writeContext, &finalDeleteManifestList,
+ 																			 ICEBERG_MANIFEST_FILE_CONTENT_DELETES, metadataLocation,
+ 																			 snapshotUUID, isVerbose, &manifestIndex);
+ 
+@@ -922,7 +974,9 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ 										   snapshotUUID,
+ 										   manifestIndex++, "");
+ 
+-			int64_t		manifestSize = UploadIcebergManifestToURI(manifestEntries, remoteManifestPath);
++			int64_t		manifestSize = UploadIcebergManifestToURI(manifestEntries, remoteManifestPath,
++																  writeContext, partitionSpecId,
++																  ICEBERG_MANIFEST_FILE_CONTENT_DATA);
+ 
+ 			IcebergManifest *newDataManifest =
+ 				CreateNewIcebergManifest(newSnapshot, partitionSpecId, allTransforms,
+@@ -957,7 +1011,9 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ 										   snapshotUUID,
+ 										   manifestIndex++, "");
+ 
+-			int64_t		manifestSize = UploadIcebergManifestToURI(manifestEntries, remoteManifestPath);
++			int64_t		manifestSize = UploadIcebergManifestToURI(manifestEntries, remoteManifestPath,
++																  writeContext, partitionSpecId,
++																  ICEBERG_MANIFEST_FILE_CONTENT_DELETES);
+ 
+ 			IcebergManifest *newDeleteManifest =
+ 				CreateNewIcebergManifest(newSnapshot, partitionSpecId, allTransforms, manifestSize,
+@@ -991,7 +1047,7 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ 			if (RewriteManifestForRemoval(manifest, removedEntries, removeAllEntries,
+ 										  snapshotId, newSnapshot,
+ 										  metadataLocation, snapshotUUID,
+-										  &manifestIndex, allTransforms,
++										  &manifestIndex, allTransforms, writeContext,
+ 										  &finalDataManifestList,
+ 										  &finalDeleteManifestList))
+ 			{
+@@ -1009,7 +1065,7 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ 		 */
+ 		int			beforeMergeCount = list_length(finalDataManifestList);
+ 
+-		finalDataManifestList = MergeDataManifests(newSnapshot, allTransforms, finalDataManifestList,
++		finalDataManifestList = MergeDataManifests(newSnapshot, allTransforms, writeContext, finalDataManifestList,
+ 												   metadataLocation, snapshotUUID, isVerbose, &manifestIndex);
+ 
+ 		int			afterMergeCount = list_length(finalDataManifestList);
+@@ -1066,11 +1122,13 @@ FinalizeNewSnapshot(IcebergSnapshotBuilder * builder, Oid relationId, const char
+ static List *
+ CreateNewManifestsForDeletedEntries(List *allManifestEntries, List *deletedManifestEntries, IcebergSnapshot * newSnapshot,
+ 									const char *metadataLocation, const char *snapshotUUID, int *manifestIndex,
+-									int partitionSpecId, List *partitionTransforms, IcebergManifestContentType contentType)
++									int partitionSpecId, List *partitionTransforms,
++									IcebergManifestWriteContext * writeContext, IcebergManifestContentType contentType)
+ {
+ 	char	   *deleteManifestPath = GenerateRemoteManifestPath(metadataLocation,
+ 																snapshotUUID, (*manifestIndex)++, "");
+-	int64_t		manifestSize = UploadIcebergManifestToURI(deletedManifestEntries, deleteManifestPath);
++	int64_t		manifestSize = UploadIcebergManifestToURI(deletedManifestEntries, deleteManifestPath,
++														  writeContext, partitionSpecId, contentType);
+ 
+ 	IcebergManifest *deleteManifest =
+ 		CreateNewIcebergManifest(newSnapshot, partitionSpecId, partitionTransforms, manifestSize,
+@@ -1095,7 +1153,8 @@ CreateNewManifestsForDeletedEntries(List *allManifestEntries, List *deletedManif
+ 	 */
+ 	char	   *remainingManifestPath = GenerateRemoteManifestPath(metadataLocation,
+ 																   snapshotUUID, (*manifestIndex)++, "");
+-	int64_t		remainingManifestSize = UploadIcebergManifestToURI(remainingManifestEntries, remainingManifestPath);
++	int64_t		remainingManifestSize = UploadIcebergManifestToURI(remainingManifestEntries, remainingManifestPath,
++																   writeContext, partitionSpecId, contentType);
+ 
+ 	SetExistingStatusForOldSnapshotAddedEntries(remainingManifestEntries, newSnapshot->snapshot_id);
+ 
+@@ -1142,6 +1201,7 @@ RewriteManifestForRemoval(IcebergManifest * manifest,
+ 						  int64_t snapshotId, IcebergSnapshot * newSnapshot,
+ 						  const char *metadataLocation, const char *snapshotUUID,
+ 						  int *manifestIndex, List *allTransforms,
++						  IcebergManifestWriteContext * writeContext,
+ 						  List **finalDataManifestList,
+ 						  List **finalDeleteManifestList)
+ {
+@@ -1172,7 +1232,7 @@ RewriteManifestForRemoval(IcebergManifest * manifest,
+ 			CreateNewManifestsForDeletedEntries(manifestEntries, deletedManifestEntries,
+ 												newSnapshot, metadataLocation, snapshotUUID,
+ 												manifestIndex, manifest->partition_spec_id,
+-												allTransforms, content);
++												allTransforms, writeContext, content);
+ 
+ 		if (content == ICEBERG_MANIFEST_FILE_CONTENT_DATA)
+ 		{
+diff --git a/pg_lake_iceberg/src/iceberg/operations/manifest_merge.c b/pg_lake_iceberg/src/iceberg/operations/manifest_merge.c
+index 32fbdfe..cdabc9b 100644
+--- a/pg_lake_iceberg/src/iceberg/operations/manifest_merge.c
++++ b/pg_lake_iceberg/src/iceberg/operations/manifest_merge.c
+@@ -66,11 +66,13 @@ static HTAB *GroupManifestsByPartitionSpecId(List *manifests);
+ static ManifestGroup * FindBestFitManifestGroupForManifest(List *manifestGroups, IcebergManifest * manifest, int64_t targetSize);
+ static List *CreateManifestGroupsWithTargetSize(List *manifests, int64_t targetSize);
+ static bool RemoveDeletedManifestEntriesInternal(IcebergManifest * *manifest, IcebergSnapshot * currentSnapshot,
+-												 List *allTransforms, IcebergManifestContentType contentType,
++												 List *allTransforms, IcebergManifestWriteContext * writeContext,
++												 IcebergManifestContentType contentType,
+ 												 const char *metadataLocation, const char *snapshotUUID, int *manifestIndex);
+ static bool IsMergeableManifestGroup(ManifestGroup * manifestGroup, IcebergManifest * latestManifest);
+ static IcebergManifest * MergeManifestGroup(ManifestGroup * mergeableManifestGroup, IcebergSnapshot * currentSnapshot,
+-											List *allTransforms, int mergedManifestIndex, const char *metadataLocation,
++											List *allTransforms, IcebergManifestWriteContext * writeContext,
++											int mergedManifestIndex, const char *metadataLocation,
+ 											const char *snapshotUUID);
+ 
+ #ifdef USE_ASSERT_CHECKING
+@@ -117,6 +119,7 @@ int			ManifestMinCountToMerge = DEFAULT_MANIFEST_MIN_COUNT_TO_MERGE;
+ List *
+ MergeDataManifests(IcebergSnapshot * currentSnapshot,
+ 				   List *allTransforms,
++				   IcebergManifestWriteContext * writeContext,
+ 				   List *dataManifests,
+ 				   const char *metadataLocation,
+ 				   const char *snapshotUUID,
+@@ -167,7 +170,7 @@ MergeDataManifests(IcebergSnapshot * currentSnapshot,
+ 			if (IsMergeableManifestGroup(manifestGroup, latestManifest))
+ 			{
+ 				IcebergManifest *mergedManifest = MergeManifestGroup(manifestGroup, currentSnapshot, allTransforms,
+-																	 *manifestIndex, metadataLocation,
++																	 writeContext, *manifestIndex, metadataLocation,
+ 																	 snapshotUUID);
+ 
+ 				/* might be NULL if all entries are DELETED from old snapshots */
+@@ -201,6 +204,7 @@ MergeDataManifests(IcebergSnapshot * currentSnapshot,
+ bool
+ RemoveDeletedManifestEntries(IcebergSnapshot * currentSnapshot,
+ 							 List *allTransforms,
++							 IcebergManifestWriteContext * writeContext,
+ 							 List **manifests,
+ 							 IcebergManifestContentType contentType,
+ 							 const char *metadataLocation,
+@@ -218,7 +222,7 @@ RemoveDeletedManifestEntries(IcebergSnapshot * currentSnapshot,
+ 		IcebergManifest *manifest = lfirst(manifestCell);
+ 
+ 		bool		modified = RemoveDeletedManifestEntriesInternal(&manifest, currentSnapshot,
+-																	allTransforms, contentType,
++																	allTransforms, writeContext, contentType,
+ 																	metadataLocation, snapshotUUID,
+ 																	manifestIndex);
+ 
+@@ -443,7 +447,8 @@ IsMergeableManifestGroup(ManifestGroup * manifestGroup, IcebergManifest * latest
+  */
+ static IcebergManifest *
+ MergeManifestGroup(ManifestGroup * mergeableManifestGroup, IcebergSnapshot * currentSnapshot,
+-				   List *allTransforms, int mergedManifestIndex, const char *metadataLocation,
++				   List *allTransforms, IcebergManifestWriteContext * writeContext,
++				   int mergedManifestIndex, const char *metadataLocation,
+ 				   const char *snapshotUUID)
+ {
+ 	List	   *mergeableManifestEntries = NIL;
+@@ -475,7 +480,9 @@ MergeManifestGroup(ManifestGroup * mergeableManifestGroup, IcebergSnapshot * cur
+ 																snapshotUUID,
+ 																mergedManifestIndex, "");
+ 
+-	int64_t		manifestSize = UploadIcebergManifestToURI(mergeableManifestEntries, remoteManifestPath);
++	int64_t		manifestSize = UploadIcebergManifestToURI(mergeableManifestEntries, remoteManifestPath,
++														  writeContext, mergeableManifestGroup->partitionSpecId,
++														  ICEBERG_MANIFEST_FILE_CONTENT_DATA);
+ 
+ 	IcebergManifest *mergedManifest =
+ 		CreateNewIcebergManifest(currentSnapshot, mergeableManifestGroup->partitionSpecId,
+@@ -493,7 +500,8 @@ MergeManifestGroup(ManifestGroup * mergeableManifestGroup, IcebergSnapshot * cur
+  */
+ static bool
+ RemoveDeletedManifestEntriesInternal(IcebergManifest * *manifest, IcebergSnapshot * currentSnapshot,
+-									 List *allTransforms, IcebergManifestContentType contentType,
++									 List *allTransforms, IcebergManifestWriteContext * writeContext,
++									 IcebergManifestContentType contentType,
+ 									 const char *metadataLocation, const char *snapshotUUID, int *manifestIndex)
+ {
+ 	/*
+@@ -556,7 +564,9 @@ RemoveDeletedManifestEntriesInternal(IcebergManifest * *manifest, IcebergSnapsho
+ 									   snapshotUUID,
+ 									   (*manifestIndex)++, "");
+ 
+-		int64_t		manifestSize = UploadIcebergManifestToURI(newManifestEntries, remoteManifestPath);
++		int64_t		manifestSize = UploadIcebergManifestToURI(newManifestEntries, remoteManifestPath,
++															  writeContext, (*manifest)->partition_spec_id,
++															  contentType);
+ 
+ 		IcebergManifest *newManifest =
+ 			CreateNewIcebergManifest(currentSnapshot, (*manifest)->partition_spec_id, allTransforms,
+diff --git a/pg_lake_iceberg/src/iceberg/write_manifest.c b/pg_lake_iceberg/src/iceberg/write_manifest.c
+index 42939cb..42e180d 100644
+--- a/pg_lake_iceberg/src/iceberg/write_manifest.c
++++ b/pg_lake_iceberg/src/iceberg/write_manifest.c
+@@ -26,6 +26,7 @@
+ #include "pg_lake/iceberg/manifest_spec.h"
+ #include "pg_lake/iceberg/manifest_list_schema_v2.h"
+ #include "pg_lake/iceberg/manifest_schema_v2.h"
++#include "pg_lake/iceberg/metadata_spec.h"
+ #include "pg_lake/util/string_utils.h"
+ 
+ static void WriteColumnStatToAvro(ColumnStat * stat, avro_value_t * record);
+@@ -37,18 +38,31 @@ static void WriteIcebergManifestToAvro(IcebergManifest * manifest, avro_value_t
+ static void WriteIcebergManifestEntryToAvro(IcebergManifestEntry * entry, avro_value_t * record);
+ static const char *GetIcebergManifestJsonSchema(List *manifestEntries);
+ static const char *AdjustPartitionsInManifestJsonSchema(char *manifestSchema, Partition * partition);
++static List *GetIcebergManifestProperties(IcebergTableSchema * schema,
++										  IcebergPartitionSpec * partitionSpec,
++										  IcebergManifestContentType contentType);
+ 
+ 
+ /*
+  * WriteIcebergManifest writes given manifest entries to the given manifest file.
++ *
++ * The schema and partition spec the manifest is written with, and its content
++ * type, are stored in the file's key-value metadata as the spec requires. The
++ * schema and partition spec may only be NULL when reserializing a manifest in
++ * tests, in which case no such metadata is written.
+  */
+ void
+-WriteIcebergManifest(const char *manifestPath, List *manifestEntries)
++WriteIcebergManifest(const char *manifestPath, List *manifestEntries,
++					 IcebergTableSchema * schema, IcebergPartitionSpec * partitionSpec,
++					 IcebergManifestContentType contentType)
+ {
+ 	const char *manifestSchema = GetIcebergManifestJsonSchema(manifestEntries);
+ 
++	List	   *properties = GetIcebergManifestProperties(schema, partitionSpec, contentType);
++
+ 	AvroWriter *manifestWriter =
+-		AvroWriterCreateWithJsonSchema(manifestPath, manifestSchema);
++		AvroWriterCreateWithJsonSchemaAndProperties(manifestPath, manifestSchema,
++													properties);
+ 
+ 	ListCell   *manifestEntryCell = NULL;
+ 
+@@ -65,6 +79,58 @@ WriteIcebergManifest(const char *manifestPath, List *manifestEntries)
+ 	AvroWriterClose(manifestWriter);
+ }
+ 
++/*
++ * GetIcebergManifestProperties returns the manifest key-value metadata
++ * required by the spec for format version 2 as a list of
++ * AvroMetadataProperty.
++ */
++static List *
++GetIcebergManifestProperties(IcebergTableSchema * schema, IcebergPartitionSpec * partitionSpec,
++							 IcebergManifestContentType contentType)
++{
++	if (schema == NULL || partitionSpec == NULL)
++		return NIL;
++
++	StringInfo	schemaJson = makeStringInfo();
++
++	AppendIcebergTableSchema(schemaJson, schema);
++
++	/* only the partition fields array, not the whole spec */
++	StringInfo	partitionSpecJson = makeStringInfo();
++
++	AppendIcebergPartitionSpecFields(partitionSpecJson, partitionSpec->fields,
++									 partitionSpec->fields_length);
++
++	const char *keys[] = {
++		"schema", "schema-id", "partition-spec", "partition-spec-id",
++		"format-version", "content"
++	};
++	const char *values[] = {
++		schemaJson->data,
++		psprintf("%d", schema->schema_id),
++		partitionSpecJson->data,
++		psprintf("%d", partitionSpec->spec_id),
++		/* manifests are always written with manifest_schema_v2 */
++		"2",
++		contentType == ICEBERG_MANIFEST_FILE_CONTENT_DELETES ? "deletes" : "data"
++	};
++
++	List	   *properties = NIL;
++
++	for (int i = 0; i < lengthof(keys); i++)
++	{
++		AvroMetadataProperty *property = palloc0(sizeof(AvroMetadataProperty));
++
++		property->key = keys[i];
++		property->value = values[i];
++
++		properties = lappend(properties, property);
++	}
++
++	return properties;
++}
++
++
+ /*
+  * GetIcebergManifestJsonSchema creates a json avro schema for the manifest file with
+  * the given manifest entries. It adjusts the schema based on the partition fields
+diff --git a/pg_lake_iceberg/src/iceberg/write_table_metadata.c b/pg_lake_iceberg/src/iceberg/write_table_metadata.c
+index ae89ca3..2127c4f 100644
+--- a/pg_lake_iceberg/src/iceberg/write_table_metadata.c
++++ b/pg_lake_iceberg/src/iceberg/write_table_metadata.c
+@@ -224,30 +224,7 @@ AppendIcebergTableSchemas(StringInfo command, IcebergTableSchema * schemas, size
+ 
+ 	for (size_t i = 0; i < schemas_length; i++)
+ 	{
+-		appendStringInfoString(command, "{");
+-
+-		/* append type */
+-		appendJsonString(command, "type", schemas[i].type);
+-		appendStringInfoString(command, ", ");
+-
+-		/* Append schema_id */
+-		appendJsonInt32(command, "schema-id", schemas[i].schema_id);
+-
+-		if (schemas[i].identifier_field_ids_length > 0)
+-		{
+-			appendStringInfoString(command, ", ");
+-			appendStringInfoString(command, "\"identifier-field-ids\":");
+-			AppendIntArray(command, schemas[i].identifier_field_ids,
+-						   schemas[i].identifier_field_ids_length);
+-		}
+-
+-		/* Append fields */
+-		appendStringInfoString(command, ", ");
+-
+-		appendStringInfoString(command, "\"fields\":");
+-		AppendIcebergStructFields(command, schemas[i].fields, schemas[i].fields_length);
+-
+-		appendStringInfoString(command, "}");
++		AppendIcebergTableSchema(command, &schemas[i]);
+ 
+ 		if (i < schemas_length - 1)
+ 		{
+@@ -259,6 +236,41 @@ AppendIcebergTableSchemas(StringInfo command, IcebergTableSchema * schemas, size
+ }
+ 
+ 
++/*
++ * AppendIcebergTableSchema appends a single schema, including its schema-id,
++ * as a JSON object. It is also used for the "schema" key-value metadata of
++ * manifest files.
++ */
++void
++AppendIcebergTableSchema(StringInfo command, IcebergTableSchema * schema)
++{
++	appendStringInfoString(command, "{");
++
++	/* append type */
++	appendJsonString(command, "type", schema->type);
++	appendStringInfoString(command, ", ");
++
++	/* Append schema_id */
++	appendJsonInt32(command, "schema-id", schema->schema_id);
++
++	if (schema->identifier_field_ids_length > 0)
++	{
++		appendStringInfoString(command, ", ");
++		appendStringInfoString(command, "\"identifier-field-ids\":");
++		AppendIntArray(command, schema->identifier_field_ids,
++					   schema->identifier_field_ids_length);
++	}
++
++	/* Append fields */
++	appendStringInfoString(command, ", ");
++
++	appendStringInfoString(command, "\"fields\":");
++	AppendIcebergStructFields(command, schema->fields, schema->fields_length);
++
++	appendStringInfoString(command, "}");
++}
++
++
+ /*
+ * Similar to AppendIcebergTableSchemas, but specifically for Rest Catalog stage
+ * API calls.
+diff --git a/pg_lake_iceberg/src/test/test_iceberg_manifest.c b/pg_lake_iceberg/src/test/test_iceberg_manifest.c
+index 62f4d69..5aa572c 100644
+--- a/pg_lake_iceberg/src/test/test_iceberg_manifest.c
++++ b/pg_lake_iceberg/src/test/test_iceberg_manifest.c
+@@ -72,7 +72,9 @@ reserialize_iceberg_manifest(PG_FUNCTION_ARGS)
+ 
+ 	List	   *manifestEntries = ReadManifestEntries(manifestReadPath);
+ 
+-	WriteIcebergManifest(manifestWritePath, manifestEntries);
++	/* no table metadata at hand, so no schema / partition-spec key-value metadata */
++	WriteIcebergManifest(manifestWritePath, manifestEntries, NULL, NULL,
++						 ICEBERG_MANIFEST_FILE_CONTENT_DATA);
+ 
+ 	PG_RETURN_VOID();
+ }

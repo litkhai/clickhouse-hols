@@ -1,0 +1,31 @@
+Custom Scan (Query Pushdown)  (cost=0.00..0.00 rows=0 width=0)
+  Output: pushdown_query.o_custkey, pushdown_query.revenue, pushdown_query.n_orders
+  Engine: DuckDB
+  Data Files Scanned: 73
+  Deletion Files Scanned: 0
+  Vectorized SQL:  SELECT "o_custkey",
+    "sum"("o_totalprice") AS "revenue",
+    "count"(*) AS "n_orders"
+   FROM ( SELECT "orders_cold"."o_orderkey",
+            "orders_cold"."o_custkey",
+            "orders_cold"."o_orderstatus",
+            "orders_cold"."o_totalprice",
+            "orders_cold"."o_orderdate",
+            "orders_cold"."o_orderpriority",
+            "orders_cold"."o_clerk",
+            "orders_cold"."o_shippriority",
+            "orders_cold"."o_comment"
+           FROM tpch.orders_cold "orders_cold"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")) "orders"
+  GROUP BY "o_custkey"
+  ORDER BY ("sum"("o_totalprice")) DESC, "o_custkey"
+ LIMIT (100)::bigint
+  ->  TOP_N
+        Top: 100
+        ->  HASH_GROUP_BY
+              Groups: #0
+              Estimated Cardinality: 8761065
+              ->  PROJECTION
+                    Estimated Cardinality: 13859802
+                    ->  READ_PARQUET
+                          Function: READ_PARQUET
+                          Estimated Cardinality: 13859802

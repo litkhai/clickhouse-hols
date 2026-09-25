@@ -1,0 +1,113 @@
+Custom Scan (Query Pushdown)  (cost=0.00..0.00 rows=0 width=0)
+  Output: pushdown_query.c_name, pushdown_query.c_custkey, pushdown_query.o_orderkey, pushdown_query.o_orderdate, pushdown_query.o_totalprice, pushdown_query.sum_qty
+  Engine: DuckDB
+  Data Files Scanned: 220
+  Deletion Files Scanned: 0
+  Vectorized SQL:  SELECT "customer"."c_name",
+    "customer"."c_custkey",
+    "orders"."o_orderkey",
+    "orders"."o_orderdate",
+    "orders"."o_totalprice",
+    "sum"("lineitem"."l_quantity") AS "sum_qty"
+   FROM ( SELECT "customer_1"."c_custkey",
+            "customer_1"."c_name",
+            "customer_1"."c_address",
+            "customer_1"."c_nationkey",
+            "customer_1"."c_phone",
+            "customer_1"."c_acctbal",
+            "customer_1"."c_mktsegment",
+            "customer_1"."c_comment"
+           FROM tpch.customer "customer_1"("c_custkey", "c_name", "c_address", "c_nationkey", "c_phone", "c_acctbal", "c_mktsegment", "c_comment")) "customer",
+    ( SELECT "orders_cold"."o_orderkey",
+            "orders_cold"."o_custkey",
+            "orders_cold"."o_orderstatus",
+            "orders_cold"."o_totalprice",
+            "orders_cold"."o_orderdate",
+            "orders_cold"."o_orderpriority",
+            "orders_cold"."o_clerk",
+            "orders_cold"."o_shippriority",
+            "orders_cold"."o_comment"
+           FROM tpch.orders_cold "orders_cold"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")) "orders",
+    ( SELECT "lineitem_cold"."l_orderkey",
+            "lineitem_cold"."l_partkey",
+            "lineitem_cold"."l_suppkey",
+            "lineitem_cold"."l_linenumber",
+            "lineitem_cold"."l_quantity",
+            "lineitem_cold"."l_extendedprice",
+            "lineitem_cold"."l_discount",
+            "lineitem_cold"."l_tax",
+            "lineitem_cold"."l_returnflag",
+            "lineitem_cold"."l_linestatus",
+            "lineitem_cold"."l_shipdate",
+            "lineitem_cold"."l_commitdate",
+            "lineitem_cold"."l_receiptdate",
+            "lineitem_cold"."l_shipinstruct",
+            "lineitem_cold"."l_shipmode",
+            "lineitem_cold"."l_comment"
+           FROM tpch.lineitem_cold "lineitem_cold"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")) "lineitem"
+  WHERE (("orders"."o_orderkey" IN ( SELECT "lineitem_1"."l_orderkey"
+           FROM ( SELECT "lineitem_cold"."l_orderkey",
+                    "lineitem_cold"."l_partkey",
+                    "lineitem_cold"."l_suppkey",
+                    "lineitem_cold"."l_linenumber",
+                    "lineitem_cold"."l_quantity",
+                    "lineitem_cold"."l_extendedprice",
+                    "lineitem_cold"."l_discount",
+                    "lineitem_cold"."l_tax",
+                    "lineitem_cold"."l_returnflag",
+                    "lineitem_cold"."l_linestatus",
+                    "lineitem_cold"."l_shipdate",
+                    "lineitem_cold"."l_commitdate",
+                    "lineitem_cold"."l_receiptdate",
+                    "lineitem_cold"."l_shipinstruct",
+                    "lineitem_cold"."l_shipmode",
+                    "lineitem_cold"."l_comment"
+                   FROM tpch.lineitem_cold "lineitem_cold"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")) "lineitem_1"
+          GROUP BY "lineitem_1"."l_orderkey"
+         HAVING ("sum"("lineitem_1"."l_quantity") > (300)::numeric))) AND ("customer"."c_custkey" = "orders"."o_custkey") AND ("orders"."o_orderkey" = "lineitem"."l_orderkey"))
+  GROUP BY "customer"."c_name", "customer"."c_custkey", "orders"."o_orderkey", "orders"."o_orderdate", "orders"."o_totalprice"
+  ORDER BY "orders"."o_totalprice" DESC, "orders"."o_orderdate"
+ LIMIT (100)::bigint
+  ->  TOP_N
+        Top: 100
+        ->  HASH_GROUP_BY
+              Aggregates: sum(#5)
+              Estimated Cardinality: 10781773
+              ->  PROJECTION
+                    Estimated Cardinality: 10781773
+                    ->  HASH_JOIN
+                          Join Type: INNER
+                          Conditions: l_orderkey = o_orderkey
+                          Estimated Cardinality: 10781773
+                          ->  READ_PARQUET
+                                Function: READ_PARQUET
+                                Estimated Cardinality: 53908869
+                          ->  HASH_JOIN
+                                Join Type: INNER
+                                Conditions: o_custkey = c_custkey
+                                Estimated Cardinality: 2771960
+                                ->  HASH_JOIN
+                                      Join Type: SEMI
+                                      Conditions: o_orderkey = #0
+                                      Estimated Cardinality: 2771960
+                                      ->  READ_PARQUET
+                                            Function: READ_PARQUET
+                                            Estimated Cardinality: 13859802
+                                      ->  PROJECTION
+                                            Projections: #0
+                                            Estimated Cardinality: 6815380
+                                            ->  FILTER
+                                                  Expression: (CAST(sum(l_quantity) AS DECIMAL(38,3)) > 300.000)
+                                                  Estimated Cardinality: 6815380
+                                                  ->  HASH_GROUP_BY
+                                                        Groups: #0
+                                                        Aggregates: sum(#1)
+                                                        Estimated Cardinality: 34076904
+                                                        ->  PROJECTION
+                                                              Estimated Cardinality: 53908869
+                                                              ->  READ_PARQUET
+                                                                    Function: READ_PARQUET
+                                                                    Estimated Cardinality: 53908869
+                                ->  READ_PARQUET
+                                      Function: READ_PARQUET
+                                      Estimated Cardinality: 1500000

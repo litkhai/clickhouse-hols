@@ -1,0 +1,47 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: o_custkey, revenue, n_orders
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│           TOP_N           │
+│    ────────────────────   │
+│          Top: 100         │
+│                           │
+│         Order By:         │
+│  sum(orders.o_totalprice) │
+│            DESC           │
+│    orders.o_custkey ASC   │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│         Groups: #0        │
+│                           │
+│        Aggregates:        │
+│          sum(#1)          │
+│        count_star()       │
+│                           │
+│      ~8,761,065 rows      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│         o_custkey         │
+│        o_totalprice       │
+│                           │
+│      ~13,859,802 rows     │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│        ICEBERG_SCAN       │
+│    ────────────────────   │
+│         Function:         │
+│        ICEBERG_SCAN       │
+│                           │
+│        Projections:       │
+│         o_custkey         │
+│        o_totalprice       │
+│                           │
+│      ~13,859,802 rows     │
+└───────────────────────────┘
+
+

@@ -1,0 +1,58 @@
+Custom Scan (DuckDBScan)  (cost=0.00..0.00 rows=0 width=0)
+  Output: o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, l_linenumber, l_partkey, l_quantity, l_extendedprice
+  DuckDB Execution Plan: 
+
+┌───────────────────────────┐
+│          ORDER_BY         │
+│    ────────────────────   │
+│ lineitem_all.l_linenumber │
+│             ASC           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│         o_orderkey        │
+│         o_custkey         │
+│       o_orderstatus       │
+│        o_totalprice       │
+│        o_orderdate        │
+│        l_linenumber       │
+│         l_partkey         │
+│         l_quantity        │
+│      l_extendedprice      │
+│                           │
+│      ~31,565,772 rows     │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        ├───────────────────────────────────────────┐
+│  l_orderkey = o_orderkey  │                                           │
+│                           │                                           │
+│      ~31,565,772 rows     │                                           │
+└─────────────┬─────────────┘                                           │
+┌─────────────┴─────────────┐                             ┌─────────────┴─────────────┐
+│           UNION           ├──────────────┐              │           UNION           ├──────────────┐
+└─────────────┬─────────────┘              │              └─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│   PGDUCKDB_POSTGRES_SCAN  ││        ICEBERG_SCAN       ││   PGDUCKDB_POSTGRES_SCAN  ││        ICEBERG_SCAN       │
+│    ────────────────────   ││    ────────────────────   ││    ────────────────────   ││    ────────────────────   │
+│      Table: lineitem      ││         Function:         ││       Table: orders       ││         Function:         │
+│                           ││        ICEBERG_SCAN       ││                           ││        ICEBERG_SCAN       │
+│        Projections:       ││                           ││        Projections:       ││                           │
+│         l_orderkey        ││        Projections:       ││         o_orderkey        ││        Projections:       │
+│         l_partkey         ││         l_orderkey        ││         o_custkey         ││         o_orderkey        │
+│        l_linenumber       ││         l_partkey         ││       o_orderstatus       ││         o_custkey         │
+│         l_quantity        ││        l_linenumber       ││        o_totalprice       ││       o_orderstatus       │
+│      l_extendedprice      ││         l_quantity        ││        o_orderdate        ││        o_totalprice       │
+│                           ││      l_extendedprice      ││                           ││        o_orderdate        │
+│          Filters:         ││                           ││          Filters:         ││                           │
+│     l_orderkey=1000000    ││          Filters:         ││     o_orderkey=1000000    ││          Filters:         │
+│                           ││     l_orderkey=1000000    ││                           ││     o_orderkey=1000000    │
+│                           ││                           ││                           ││                           │
+│      ~1,215,308 rows      ││      ~10,781,773 rows     ││       ~228,039 rows       ││      ~2,771,960 rows      │
+└───────────────────────────┘└───────────────────────────┘└───────────────────────────┘└───────────────────────────┘
+
+

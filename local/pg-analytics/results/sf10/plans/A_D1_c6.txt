@@ -1,0 +1,54 @@
+Sort  (cost=114100.98..116636.01 rows=1014013 width=118)
+  Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate, lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice
+  Sort Key: lineitem.l_linenumber
+  ->  Nested Loop  (cost=0.86..12944.84 rows=1014013 width=118)
+        Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate, lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice
+        ->  Append  (cost=0.43..133.73 rows=1013 width=0)
+              ->  Index Scan using lineitem_l_orderkey_idx on hot.lineitem  (cost=0.43..8.66 rows=13 width=33)
+                    Output: lineitem.l_linenumber, lineitem.l_partkey, lineitem.l_quantity, lineitem.l_extendedprice, lineitem.l_orderkey
+                    Index Cond: (lineitem.l_orderkey = 1000000)
+              ->  Foreign Scan on tpch.lineitem_cold  (cost=100.00..120.00 rows=1000 width=0)
+                    Output: lineitem_cold.l_linenumber, lineitem_cold.l_partkey, lineitem_cold.l_quantity, lineitem_cold.l_extendedprice, lineitem_cold.l_orderkey
+                    Engine: DuckDB
+                    Data Files Scanned: 73
+                    Deletion Files Scanned: 0
+                    Vectorized SQL:  SELECT "l_orderkey",
+    "l_partkey",
+    "l_linenumber",
+    "l_quantity",
+    "l_extendedprice"
+   FROM tpch.lineitem_cold "r151"("l_orderkey", "l_partkey", "l_suppkey", "l_linenumber", "l_quantity", "l_extendedprice", "l_discount", "l_tax", "l_returnflag", "l_linestatus", "l_shipdate", "l_commitdate", "l_receiptdate", "l_shipinstruct", "l_shipmode", "l_comment")
+  WHERE ("l_orderkey" = 1000000)
+                    ->  READ_PARQUET
+                          Filters: l_orderkey=1000000
+                          Function: READ_PARQUET
+                          Estimated Cardinality: 10781773
+        ->  Materialize  (cost=0.43..138.45 rows=1001 width=0)
+              Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate
+              ->  Append  (cost=0.43..133.45 rows=1001 width=0)
+                    ->  Index Scan using orders_o_orderkey_idx on hot.orders  (cost=0.43..8.45 rows=1 width=30)
+                          Output: orders.o_orderkey, orders.o_custkey, orders.o_orderstatus, orders.o_totalprice, orders.o_orderdate
+                          Index Cond: (orders.o_orderkey = 1000000)
+                    ->  Foreign Scan on tpch.orders_cold  (cost=100.00..120.00 rows=1000 width=0)
+                          Output: orders_cold.o_orderkey, orders_cold.o_custkey, orders_cold.o_orderstatus, orders_cold.o_totalprice, orders_cold.o_orderdate
+                          Engine: DuckDB
+                          Data Files Scanned: 73
+                          Deletion Files Scanned: 0
+                          Vectorized SQL:  SELECT "o_orderkey",
+    "o_custkey",
+    "o_orderstatus",
+    "o_totalprice",
+    "o_orderdate"
+   FROM tpch.orders_cold "r149"("o_orderkey", "o_custkey", "o_orderstatus", "o_totalprice", "o_orderdate", "o_orderpriority", "o_clerk", "o_shippriority", "o_comment")
+  WHERE ("o_orderkey" = 1000000)
+                          ->  READ_PARQUET
+                                Filters: o_orderkey=1000000
+                                Function: READ_PARQUET
+                                Estimated Cardinality: 2771960
+Not Vectorized Constructs: 
+1: 	Table
+	Description: hot.orders
+
+2: 	Table
+	Description: hot.lineitem
+
