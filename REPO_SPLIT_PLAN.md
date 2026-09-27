@@ -1,6 +1,7 @@
 # clickhouse-hols 분산 계획 (Repo Split Plan)
 
 > 상태: **롤아웃 완료 (2026-09-27)** — 코어 PR #2 머지(`e9cf21b`), 새 레포 4개 public. 남은 것은 §8 트랙
+> 키트(`~/Documents/GitHub/repo-split-kit`)와 로컬 잔여 파일은 롤아웃 후 삭제함 (2026-09-27). 다시 분리할 때는 §5의 절차로 키트를 새로 만듭니다.
 > 작성 기준: `origin/main` @ `fe0f26e` (2026-09-27)
 > v2 변경: Postgres 레포 이름을 `clickhouse-managed-postgres-hols`로 변경하고
 > `local/pg-analytics`는 코어에 남김. `clickstack-hyperdx-hols` 신설 — 코어의
