@@ -19,18 +19,6 @@ and `tpcds` was retired (see [MOVED.md](MOVED.md)); all checks green locally.
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `shellcheck` | ⚠️ advisory | style findings across 200+ scripts, non-blocking by design |
 
-`main` was **red from 2026-09-20 08:45 to 2026-09-23** — runs
-[35500418709](https://github.com/litkhai/clickhouse-hols/actions/runs/35500418709)
-and
-[35501474415](https://github.com/litkhai/clickhouse-hols/actions/runs/35501474415)
-failed `links` and `site`. Both causes are fixed:
-
-- `usecase/timeseries-promql-oss/README.md` linked to
-  `../timeseries-promql-cloud/`, a lab that was never written. The dead link is
-  replaced with prose explaining that `TimeSeries` is Private Preview only on
-  Cloud, which is why no Cloud counterpart exists.
-- The new lab's page was never generated into `docs/`.
-
 Note that `check_links.py` reads `git ls-files`, so an **untracked** new lab is
 not checked at all. `git add` before you trust a green run.
 
@@ -85,7 +73,7 @@ site redirect after that.
 | 18 of 38 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
 | `chc/{api,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
 | `shellcheck` findings unaddressed | Low | Deliberately advisory — see the comment in `.github/workflows/checks.yml`. |
-| `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI. This is what let the two failures above reach `main`. |
+| `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI.  |
 
 List the single-language labs:
 
@@ -108,15 +96,6 @@ PY
 --no-git` (86) is in a gitignored local file — `.credentials`, `.env`,
 `.claude/settings.local.json`, local result dumps. None are committed.
 
-Beware the scan you run. `gitleaks detect` with no `--log-opts` walks **all
-refs**, including the local-only `backup-local-main-20260907` branch, and
-reports 80 findings. That branch is the pre-rewrite history; it is not on
-`origin` and never was. To scan what is actually public:
-
-```bash
-gitleaks detect --config .gitleaks.toml --log-opts="origin/main" --no-banner --redact
-```
-
 Published history (`origin/main`, 256 commits) has **19 findings, none
 exploitable**:
 
@@ -127,15 +106,16 @@ exploitable**:
 | 4 | `usecase/bug-bounty/05-generate-demo-data.sql` | Deliberately synthetic — MD5 of the word `password`, an `sk-proj-abcd1234…` stub, the canonical jwt.io sample token. The lab plants fake secrets on purpose. |
 | 2 | `tpcds/00-set-{GUIDE,README}.md` | The password is the literal word *secret* in an example export line. Path removed from `main` in the split; still in history. |
 
-The ClickHouse Cloud API key, service password and hostname that appear in the
-`backup-local-main-20260907` branch are **not** in published history — the
-2026-09-07 rewrite removed them successfully. Two caveats worth a decision:
+## Re-verification notes
 
-- Those credentials were public before the rewrite. Confirm they were rotated;
-  a Cloud API key is organization-wide.
-- The backup branch keeps them alive in this clone. Delete it once you no
-  longer need the pre-rewrite history:
-  `git branch -D backup-local-main-20260907 && git reflog expire --expire=now --all && git gc --prune=now`
+Not re-run; update the claim only after a real end-to-end run (see AGENTS.md).
+
+| What | Where | Why it needs a run |
+|------|-------|--------------------|
+| Cloud API key, service password and hostname exposed before the 2026-09-07 rewrite | ClickHouse Cloud console | Not confirmed rotated. The local pre-rewrite backup branch was deleted 2026-09-27 without checking. |
+| `usecase/device-360` scripts | this repo | Bucket, EC2 address and key defaults became placeholders on 2026-09-27. |
+| AWS Terraform labs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | `allowed_cidr_blocks` and SASL-variable changes never applied; `direct-attach` fails on ClickHouse Cloud. The banners in each lab say so. |
+| Stub READMEs at moved paths | this repo, see [MOVED.md](MOVED.md) | Delete after 2027-03-31; keep `MOVED.md` and the redirects. |
 
 ## Licensing exceptions
 
@@ -184,9 +164,7 @@ Terraform state.
 
 ## 한국어 요약
 
-- **CI 상태**: 위 6개 작업 모두 통과. `main`은 2026-09-20 08:45부터
-  2026-09-23까지 `links`·`site` 실패로 red 상태였고, 두 원인 모두 수정됨
-  (존재하지 않는 `timeseries-promql-cloud` 링크, 누락된 `docs/` 페이지).
+- **CI 상태**: 6개 작업 모두 통과.
 - **주의**: `check_links.py`는 `git ls-files`를 읽으므로 **추적되지 않은**
   새 실습은 아예 검사하지 않습니다. 녹색 결과를 믿기 전에 `git add` 하세요.
 - **규모**: 색인된 실습 38개 + 릴리스별 실습 21개 = 사이트 페이지 59개, 그 외
@@ -195,17 +173,12 @@ Terraform state.
 - **알려진 격차**: 38개 중 18개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
   같은 본문을 보여주므로 깨지지는 않음 — 백로그 항목.
 - **주의**: `git config core.hooksPath .githooks`는 클론마다 직접 설정해야
-  합니다. 설정하지 않은 클론이 위 두 실패를 `main`까지 통과시켰습니다.
-- **시크릿 스캔**: 추적 중인 작업 트리 파일에서 발견 0건. `gitleaks detect`를
-  옵션 없이 실행하면 로컬 전용 `backup-local-main-20260907` 브랜치까지 훑어
-  80건이 나오지만, 공개된 `origin/main` 기준으로는 19건이며 모두 악용 불가
-  (로컬 전용 LibreChat 앱 시크릿, 잘린 만료 STS 자격증명, 의도적 더미 데이터,
-  `'secret'` 리터럴). 공개 범위만 보려면
-  `--log-opts="origin/main"`을 붙이세요.
-- 다만 rewrite 이전에는 Cloud API 키가 공개돼 있었으므로 **로테이션 여부를
-  확인**하세요 (Cloud API 키는 조직 전체 범위입니다).
+  합니다.
+- **시크릿 스캔**: 추적 중인 파일 0건. 공개 히스토리 19건은 모두 악용 불가.
 - **AWS 식별자 (D8, 2026-09-27 검토)**: 공개 히스토리에 계정 ID, CHC 서비스 IAM role ARN,
   버킷 이름, EC2 ID·IP가 남아 있음 (`tfplan`, state 덤프, glue 문서). 자격증명은 없음.
   SHA와 `pre-split-2026-10` 태그를 지키기 위해 **이 저장소 히스토리는 재작성하지 않음**.
   해당 리소스는 이미 삭제됨. `clickhouse-cloud-aws-hols`는 공개 직후라 히스토리를
   재작성해 제거했고, 현재 트리의 `usecase/device-360` 버킷 이름과 EC2 주소는 placeholder로 바꿈.
+- **재검증 노트**: CHC 자격증명 교체 여부, `device-360` 스크립트, AWS Terraform 실습은
+  재실행하지 않았음. 위 "Re-verification notes" 표 참고.
