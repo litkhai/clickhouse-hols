@@ -73,7 +73,7 @@ for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
     clickhouse-client --multiquery --queries-file &quot;$f&quot;
 done
 </code></pre>
-<p>Or against the bundled Docker stack (e.g. the <code>local/pg-clickhouse-lab</code> container):</p>
+<p>Or against a Docker container (e.g. the one from <code>extensions/pg-clickhouse-lab</code> in <a href="https://github.com/litkhai/clickhouse-managed-postgres-hols/tree/main/extensions/pg-clickhouse-lab">clickhouse-managed-postgres-hols</a>):</p>
 <pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
          04-demand-heatmap.sql 05-distance-and-routing.sql \
          06-spatial-search.sql 07-indexing-systems.sql \
@@ -391,7 +391,7 @@ for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
     clickhouse-client --multiquery --queries-file &quot;$f&quot;
 done
 </code></pre>
-<p>도커 컨테이너 (예: <code>local/pg-clickhouse-lab</code>)에 대해 실행하려면:</p>
+<p>도커 컨테이너 (예: <a href="https://github.com/litkhai/clickhouse-managed-postgres-hols/tree/main/extensions/pg-clickhouse-lab">clickhouse-managed-postgres-hols</a>의 <code>extensions/pg-clickhouse-lab</code>)에 대해 실행하려면:</p>
 <pre><code class="language-bash">for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
          04-demand-heatmap.sql 05-distance-and-routing.sql \
          06-spatial-search.sql 07-indexing-systems.sql \

@@ -111,6 +111,36 @@ the scripts were actually executed end to end against that version. If you
 change a lab without running it, leave the existing version claim alone and say
 what was not re-run.
 
+## Moving a lab out of this repository
+
+Labs have been split into other repositories once (2026-09-27, see
+[`MOVED.md`](MOVED.md)). To move another one, keep every old URL working:
+
+1. Carry the history over from a **fresh clone of `origin`** with
+   `git filter-repo`, never from a local clone — local clones may hold
+   pre-rewrite branches with real credentials.
+2. Delete the lab here and add a row to `MOVED.md`: old path, then an `http`
+   URL (another repository) or a relative link (a move inside this repository).
+3. Put a bilingual stub `README.md` at the old path pointing to the new
+   location and to the last version at a tag.
+4. Remove its rows from **both** area tables in `README.md`, and add the new
+   repository to **Related repositories** in both languages. Those rows are
+   `http`-only, so `build_site.py` does not treat that section as a lab table.
+5. Regenerate `docs/`. `build_site.py` writes a `noindex` redirect page at
+   `docs/labs/<old path>/` for every `MOVED.md` row that had a page, and fails
+   if an old path still has a lab page or a relative target has none.
+6. Move any `.gitleaks.toml` allowlist entry or `.gitignore` line for the lab
+   to the new repository and delete it here.
+
+Related repositories, all split from here with history:
+
+| Repository | Holds |
+|------------|-------|
+| [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols) | Managed Postgres labs, `pg_clickhouse` |
+| [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | ClickStack / HyperDX / OpenTelemetry labs and workshops |
+| [langfuse-hols](https://github.com/litkhai/langfuse-hols) | Langfuse on ClickHouse |
+| [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | Terraform on AWS for ClickHouse Cloud |
+
 ---
 
 ## 한국어 요약
@@ -124,3 +154,7 @@ what was not re-run.
 - 한쪽 언어의 내용을 고치면 반대쪽도 같이 고칩니다.
 - 클론마다 한 번: `git config core.hooksPath .githooks`.
 - 검증 버전 문구는 실제로 끝까지 실행했을 때만 갱신합니다.
+- 실습을 다른 저장소로 옮길 때는 옛 URL이 계속 동작해야 합니다. `origin`을 새로
+  clone해서 `git filter-repo`로 히스토리를 옮기고, 여기서는 실습을 지운 뒤
+  `MOVED.md` 행, 옛 경로의 영/한 stub README, 루트 README 두 언어의 표 수정과
+  **관련 저장소** 행 추가, `docs/` 재생성(redirect 자동 생성)을 함께 합니다.

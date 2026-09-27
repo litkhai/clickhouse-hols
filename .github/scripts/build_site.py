@@ -5,11 +5,13 @@ Produces:
   docs/index.html                      the catalogue, built from the two indexes
   docs/labs/<repo path>/index.html     one page per lab, from its README
   docs/assets/site.css, site.js        shared, so the pages stay small
+  docs/labs/<old path>/index.html      a redirect for each lab listed in MOVED.md
 
 Nothing here is hand-written, so the site cannot drift from the repository.
 The indexes it reads are:
   local/releases/README.md   the per-release table (EN and KO)
   README.md                  the area tables (EN and KO)
+  MOVED.md                   old path -> new location, for labs that left
 
 Run from the repository root:
     python3 .github/scripts/build_site.py            # write the site
@@ -133,6 +135,45 @@ def parse_areas(path):
     return merged
 
 
+MOVED_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*(.+?)\s*\|$")
+
+
+def parse_moved(path):
+    """[(old, target)]: target is an http URL (another repository) or a repo path.
+
+    Only the first table is read (the English half); the Korean half repeats no
+    rows. A row whose old path is a prefix of another row is an area folder that
+    never had a page, so it gets no redirect.
+    """
+    if not path.exists():
+        return []
+    rows = []
+    for line in path.read_text().splitlines():
+        m = MOVED_ROW.match(line.strip())
+        if not m:
+            continue
+        target = m.group(2)
+        link = re.match(r"\[[^\]]*\]\(([^)]+)\)", target)
+        rows.append((m.group(1).strip("/"), (link.group(1) if link else target).strip("/")))
+    olds = [o for o, _ in rows]
+    return [(o, t) for o, t in rows
+            if not any(x != o and x.startswith(o + "/") for x in olds)]
+
+
+def redirect_page(old, target):
+    """A meta-refresh page, kept out of the sitemap and out of search indexes."""
+    url = target if target.startswith("http") else "%s/labs/%s/" % (SITE, target)
+    u = html.escape(url, quote=True)
+    return ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+            "<title>%s — moved</title>\n"
+            "<meta http-equiv=\"refresh\" content=\"0; url=%s\">\n"
+            "<link rel=\"canonical\" href=\"%s\">\n"
+            "<meta name=\"robots\" content=\"noindex\">\n</head>\n<body>\n"
+            "<p>This lab moved to <a href=\"%s\">%s</a>.</p>\n"
+            "<p>이 실습은 <a href=\"%s\">%s</a>(으)로 옮겼습니다.</p>\n"
+            "</body>\n</html>\n" % (html.escape(old), u, u, u, u, u, u))
+
+
 # --------------------------------------------------------------------------- #
 # page shell
 # --------------------------------------------------------------------------- #
@@ -151,8 +192,8 @@ FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='
 def shell(title, body, depth, description):
     """Wrap page content in the shared chrome. `depth` = directories below docs/."""
     up = "../" * depth
-    # "except where a directory says otherwise" is not boilerplate: the TPC-DS
-    # queries are GPL-3.0 and this footer is on their page too.
+    # "except where a directory says otherwise" is not boilerplate: the korea-geo
+    # boundary data carries KOSTAT terms and this footer is on its page too.
     footer = bi(
         "Generated from the repository by <code>.github/scripts/build_site.py</code>. "
         '<a href="%s/LICENSE">MIT</a>, except where a directory says otherwise. '
@@ -762,6 +803,12 @@ def build(root):
         nxt = (pages[i + 1][0], pages[i + 1][1]) if i + 1 < len(pages) else None
         files["labs/%s/index.html" % repo_path] = lab_page(
             root, repo_path, title, verified, prev, nxt)
+
+    for old, target in parse_moved(root / "MOVED.md"):
+        assert old not in has_page, "MOVED.md lists %s, which still has a lab page" % old
+        if not target.startswith("http"):
+            assert target in has_page, "MOVED.md target %s has no lab page" % target
+        files["labs/%s/index.html" % old] = redirect_page(old, target)
 
     files["index.html"] = index_page(releases, areas, has_page, kw)
     files["assets/site.css"] = CSS
