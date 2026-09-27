@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""hol — run hands-on labs against a throwaway ClickHouse container.
+
+Needs only Python 3 and Docker, so it behaves the same on macOS, Linux and
+Windows. Labs opt in with a lab.yaml next to their README.
+
+    tools/hol list [--tier T0] [--json]
+    tools/hol up   <lab>        start the lab's ClickHouse version
+    tools/hol run  <lab>        up, then every NN-*.sql in order; non-zero on failure
+    tools/hol down <lab>        remove the container
+
+<lab> is a repository path such as local/releases/26.9.
+"""
+import argparse, json, pathlib, subprocess, sys, time
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SECCOMP = ROOT / "local" / "oss-docker" / "seccomp-profile.json"
+
+
+def load(lab_dir):
+    """Tiny reader for the flat `key: value` lab.yaml files (no PyYAML needed)."""
+    meta = {}
+    for line in (lab_dir / "lab.yaml").read_text().splitlines():
+        line = line.split("#", 1)[0].rstrip()
+        if ":" in line:
+            k, v = line.split(":", 1)
+            v = v.strip().strip('"')
+            if v.startswith("[") and v.endswith("]"):
+                v = [x.strip().strip('"') for x in v[1:-1].split(",") if x.strip()]
+            meta[k.strip()] = v
+    meta["path"] = str(lab_dir.relative_to(ROOT))
+    return meta
+
+
+def labs():
+    return sorted((load(p.parent) for p in ROOT.rglob("lab.yaml")
+                   if ".git" not in p.parts), key=lambda m: m["path"])
+
+
+def container(meta):
+    return "hol-" + meta["path"].replace("/", "-").replace(".", "-")
+
+
+def sh(*cmd, **kw):
+    return subprocess.run(cmd, **kw)
+
+
+def up(meta):
+    name, image = container(meta), "clickhouse/clickhouse-server:%s" % meta["clickhouse"]
+    sh("docker", "rm", "-f", name, capture_output=True)
+    args = ["docker", "run", "-d", "--name", name,
+            "--ulimit", "nofile=262144:262144",
+            "-e", "CLICKHOUSE_PASSWORD=", "-e", "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1"]
+    if SECCOMP.exists():
+        args += ["--security-opt", "seccomp=%s" % SECCOMP]
+    if sh(*args, image, capture_output=True).returncode:
+        sys.exit("could not start %s" % image)
+    for _ in range(60):
+        if sh("docker", "exec", name, "clickhouse-client", "-q", "SELECT 1",
+              capture_output=True).returncode == 0:
+            return name
+        time.sleep(1)
+    sys.exit("%s did not become ready" % name)
+
+
+def run(meta):
+    name = up(meta)
+    lab = ROOT / meta["path"]
+    failed = 0
+    for sql in sorted(lab.glob("[0-9][0-9]-*.sql")):
+        with sql.open("rb") as f:
+            r = sh("docker", "exec", "-i", name, "clickhouse-client",
+                   "--multiline", "--multiquery", stdin=f, capture_output=True)
+        ok = r.returncode == 0
+        failed += not ok
+        print("%s %s" % ("PASS" if ok else "FAIL", sql.name), flush=True)
+        if not ok:
+            sys.stderr.write(r.stderr.decode(errors="replace")[-2000:])
+    return failed
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("cmd", choices=["list", "up", "run", "down"])
+    ap.add_argument("lab", nargs="?")
+    ap.add_argument("--tier")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--keep", action="store_true", help="run: leave the container up")
+    a = ap.parse_args()
+
+    if a.cmd == "list":
+        rows = [m for m in labs() if not a.tier or m.get("tier") == a.tier]
+        if a.json:
+            print(json.dumps([m["path"] for m in rows]))
+        else:
+            for m in rows:
+                print("%-24s %-4s %-6s %s" % (m["path"], m.get("tier", "?"),
+                      m.get("target", "?"), m.get("verified_on", "-")))
+        return 0
+
+    if not a.lab:
+        ap.error("%s needs a lab path" % a.cmd)
+    lab_dir = ROOT / a.lab.strip("/")
+    if not (lab_dir / "lab.yaml").exists():
+        sys.exit("%s has no lab.yaml" % a.lab)
+    meta = load(lab_dir)
+    if a.cmd == "up":
+        print(up(meta))
+    elif a.cmd == "down":
+        sh("docker", "rm", "-f", container(meta), capture_output=True)
+    else:
+        failed = run(meta)
+        if not a.keep:
+            sh("docker", "rm", "-f", container(meta), capture_output=True)
+        return 1 if failed else 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

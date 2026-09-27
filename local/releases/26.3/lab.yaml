@@ -1,0 +1,6 @@
+# Read by tools/hol. Keys: see tools/hol and AGENTS.md.
+target: oss
+tier: T0            # SQL only, one ClickHouse server, self-generated data
+clickhouse: "26.3"   # image tag clickhouse/clickhouse-server:<this>
+services: [clickhouse]
+verified_on: "26.3.12.3"   # build the SQL was last run against end to end

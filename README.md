@@ -164,6 +164,7 @@ CI runs on every push and pull request ([`.github/workflows/checks.yml`](.github
 | `shellcheck` | Shell lint (advisory, does not block) |
 | `secrets` | gitleaks with the ClickHouse rules in [`.gitleaks.toml`](.gitleaks.toml) |
 | `hygiene` | No tracked file is shadowed by an ignore rule; no `/Users/...` paths in code |
+| `smoke` (daily) | Every T0 lab run end to end by [`tools/hol`](tools/hol) in its own ClickHouse version |
 
 Run the same checks locally, and enable the pre-commit guard once per clone:
 
@@ -375,6 +376,7 @@ push와 pull request마다 CI가 실행됩니다 ([`.github/workflows/checks.yml
 | `shellcheck` | 셸 린트 (참고용, 차단하지 않음) |
 | `secrets` | [`.gitleaks.toml`](.gitleaks.toml)의 ClickHouse 규칙으로 gitleaks 스캔 |
 | `hygiene` | ignore 규칙에 가려진 추적 파일 없음, 코드에 `/Users/...` 경로 없음 |
+| `smoke` (매일) | T0 실습 전체를 [`tools/hol`](tools/hol)로 각 버전 ClickHouse에서 끝까지 실행 |
 
 동일한 검사를 로컬에서 실행하고, 클론마다 한 번 pre-commit 가드를 활성화하세요.
 

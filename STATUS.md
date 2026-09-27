@@ -116,7 +116,23 @@ Not re-run; update the claim only after a real end-to-end run (see AGENTS.md).
 | `usecase/device-360` scripts | this repo | Bucket, EC2 address and key defaults became placeholders on 2026-09-27. |
 | AWS Terraform labs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | `allowed_cidr_blocks` and SASL-variable changes never applied; `direct-attach` fails on ClickHouse Cloud. The banners in each lab say so. |
 | `local/oss-docker` (was `oss-mac-setup`) on Linux and Windows | this repo | Renamed 2026-09-27 and docs made OS-neutral; the scripts are plain bash + Docker but were only ever run on macOS. The 21 release labs and other callers now point at the new path, not re-run. |
+| `tools/hol` smoke runs | this repo | Run locally only for 25.1–25.7 and 26.9 (all PASS) before the `smoke` workflow existed; the rest have not been run by it. |
 | Stub READMEs at moved paths | this repo, see [MOVED.md](MOVED.md) | Delete after 2027-03-31; keep `MOVED.md` and the redirects. |
+
+## Open tracks
+
+Left from the 2026-09 split. Each needs a real environment or a real run, so none
+is started.
+
+| Track | Where | What it needs |
+|-------|-------|---------------|
+| C (rest) | this repo | `lab.yaml` for the 38 non-release labs (tier T1–T3: extra services, Cloud). `build_site.py` still reads the README tables, not manifests. |
+| E. Cloud auto-provisioning | this repo | Shared module from the costkeeper / clickpipes-s3 API code: create service → allow IP → `.env` → run → delete, with TTL tags and a least-privilege key. Needs a ClickHouse Cloud org to test against. |
+| F. ClickStack base | [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | `_base/` all-in-one compose, then the planned labs in its README roadmap. Needs a ClickStack instance. |
+| G. Langfuse on ClickHouse (T0) | this repo, `usecase/` | A Parquet snapshot of Langfuse's ClickHouse tables so the ee 01–04 / eval 07 SQL runs without Langfuse. Needs one real Langfuse run to export from. |
+| H. LibreChat → llmops-in-a-box | `local/llm-*` | Vendor `mcp-server-clickhouse`, switch to the official ClickHouse image, re-run, move to `examples/`. |
+| I. Translation backlog | each repo | 18 single-language labs here, plus the two ClickStack workshops. |
+| K. AWS lab re-runs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | See Re-verification notes. Costs real AWS spend. |
 
 ## Licensing exceptions
 

@@ -1,0 +1,45 @@
+name: smoke
+
+# Runs every T0 lab (tools/hol list --tier T0) end to end in a throwaway
+# ClickHouse container, one job per lab, pinned to the lab's own version.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      labs: ${{ steps.l.outputs.labs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: l
+        run: echo "labs=$(python3 tools/hol list --tier T0 --json)" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: list
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lab: ${{ fromJson(needs.list.outputs.labs) }}
+    name: ${{ matrix.lab }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/hol run "${{ matrix.lab }}"
+
+  stub-expiry:
+    # Track J: stubs at moved paths are promised to go after 2027-03-31.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          [ "$(date -u +%Y%m%d)" -le 20270331 ] && { echo "stubs kept until 2027-03-31"; exit 0; }
+          left=$(grep -oE '^\| `[^`]+`' MOVED.md | tr -d '|` ' | while read -r p; do
+                   [ -f "$p/README.md" ] && grep -q ' — \(moved\|renamed\)$' "$p/README.md" && echo "$p"; done)
+          [ -z "$left" ] && { echo "no stubs left"; exit 0; }
+          echo "Delete these stub directories (keep MOVED.md and the redirects):"; echo "$left"; exit 1

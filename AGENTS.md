@@ -111,6 +111,23 @@ the scripts were actually executed end to end against that version. If you
 change a lab without running it, leave the existing version claim alone and say
 what was not re-run.
 
+## Running labs with `tools/hol`
+
+A lab opts in to the runner with a flat `lab.yaml` next to its README
+(`target`, `tier`, `clickhouse`, `services`, `verified_on`). Only the 21
+release labs have one so far, all tier **T0**: SQL only, one ClickHouse
+server, self-generated data.
+
+```bash
+tools/hol list --tier T0
+tools/hol run local/releases/26.9     # fresh container, every NN-*.sql in order
+```
+
+It needs only Python 3 and Docker, so it is the same on macOS, Linux and
+Windows. The `smoke` workflow runs every T0 lab daily. `verified_on` still
+follows the Verification claims rule below — a green smoke run on a newer image
+is not a reason to change it.
+
 ## Moving a lab out of this repository
 
 Labs have been split into other repositories once (2026-09-27, see
@@ -154,6 +171,8 @@ Related repositories, all split from here with history:
 - 한쪽 언어의 내용을 고치면 반대쪽도 같이 고칩니다.
 - 클론마다 한 번: `git config core.hooksPath .githooks`.
 - 검증 버전 문구는 실제로 끝까지 실행했을 때만 갱신합니다.
+- `tools/hol run <lab>`: `lab.yaml`이 있는 실습(현재 릴리스 21개, T0)을 새 컨테이너에서 실행.
+  `smoke` 워크플로가 매일 전부 돌립니다.
 - 실습을 다른 저장소로 옮길 때는 옛 URL이 계속 동작해야 합니다. `origin`을 새로
   clone해서 `git filter-repo`로 히스토리를 옮기고, 여기서는 실습을 지운 뒤
   `MOVED.md` 행, 옛 경로의 영/한 stub README, 루트 README 두 언어의 표 수정과
