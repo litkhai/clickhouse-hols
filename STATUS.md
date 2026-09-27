@@ -3,8 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-09-27** — the repository split: 18 labs moved to four new repositories
-and `tpcds` was retired (see [MOVED.md](MOVED.md)); all checks green locally.
+**As of 2026-09-27** — repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and daily `smoke` workflow added. All checks green locally.
 
 ---
 
@@ -17,6 +16,7 @@ and `tpcds` was retired (see [MOVED.md](MOVED.md)); all checks green locally.
 | `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md); 84 files |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
+| `smoke` | new | daily; every T0 lab via `tools/hol`, plus the 2027-03-31 stub-expiry check. Not yet run in CI |
 | `shellcheck` | ⚠️ advisory | style findings across 200+ scripts, non-blocking by design |
 
 Note that `check_links.py` reads `git ls-files`, so an **untracked** new lab is
