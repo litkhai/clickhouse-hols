@@ -32,7 +32,7 @@ and [MOVED.md](MOVED.md).
 
 | Lab | What it covers |
 |-----|----------------|
-| [local/oss-mac-setup](local/oss-mac-setup/) | ClickHouse OSS on macOS via Docker; `set.sh <version>` switches versions and every release lab builds on it |
+| [local/oss-docker](local/oss-docker/) | ClickHouse OSS on Docker (macOS, Linux, Windows); `set.sh <version>` switches versions and every release lab builds on it |
 | [local/releases](local/releases/) | **21 per-release feature labs, 25.1 → 26.9** — one directory per release, each with runnable SQL for that version's new features. All 21 have been executed against their own server build; the [index](local/releases/) records which |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | Local data lake: MinIO plus Iceberg / Nessie / Unity / Delta catalogs, with Jupyter notebooks |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka and MySQL table engines, including materialized-view block-size testing |
@@ -122,7 +122,7 @@ Then pick a lab, read its `README.md`, and follow its Quick Start. Nothing is gl
 
 ### 📖 Learning Path
 
-**Beginner** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
+**Beginner** → [local/oss-docker](local/oss-docker/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
 
 **Cloud** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/clickpipes-s3](chc/clickpipes-s3/) → [chc/mysql-interface](chc/mysql-interface/)
 
@@ -243,7 +243,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 
 | 실습 | 내용 |
 |------|------|
-| [local/oss-mac-setup](local/oss-mac-setup/) | macOS Docker 기반 ClickHouse OSS. `set.sh <버전>`으로 버전을 전환하며, 모든 릴리스 랩이 이 환경을 사용 |
+| [local/oss-docker](local/oss-docker/) | Docker 기반 ClickHouse OSS (macOS·Linux·Windows). `set.sh <버전>`으로 버전을 전환하며, 모든 릴리스 랩이 이 환경을 사용 |
 | [local/releases](local/releases/) | **릴리스별 기능 랩 21개, 25.1 → 26.9** — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 21개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 [인덱스](local/releases/)에 표기 |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | 로컬 데이터 레이크: MinIO + Iceberg / Nessie / Unity / Delta 카탈로그, Jupyter 노트북 |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka·MySQL 테이블 엔진, 구체화 뷰 블록 크기 테스트 포함 |
@@ -333,7 +333,7 @@ cd clickhouse-hols
 
 ### 📖 학습 경로
 
-**초급** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
+**초급** → [local/oss-docker](local/oss-docker/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
 
 **클라우드** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/clickpipes-s3](chc/clickpipes-s3/) → [chc/mysql-interface](chc/mysql-interface/)
 

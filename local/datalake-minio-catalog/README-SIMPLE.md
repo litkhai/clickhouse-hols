@@ -203,7 +203,7 @@ datalake-minio-catalog/
 ./setup.sh --start unity
 
 # 2. Start ClickHouse 25.11
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
@@ -476,7 +476,7 @@ See [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
 ./setup.sh --start unity nessie
 
 # 2. Start ClickHouse
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
 # 3. Test

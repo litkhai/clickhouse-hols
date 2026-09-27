@@ -54,7 +54,7 @@
 <h4>Prerequisites</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> environment setup</li>
 <li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog">datalake-minio-catalog</a> auto-deployment (handled by setup script)</li>
 </ul>
 <h4>Setup and Run</h4>
@@ -93,7 +93,7 @@ cd local/releases/25.8
 <h4>Manual Execution (SQL only)</h4>
 <p>To execute SQL files directly:</p>
 <pre><code class="language-bash"># Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -442,7 +442,7 @@ TIMESTAMP AS OF '2024-12-01 00:00:00';
 </ul>
 <h4>Useful Commands</h4>
 <pre><code class="language-bash"># Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -716,7 +716,7 @@ FROM system.disks;
 <h3>🛠 Management Commands</h3>
 <h4>ClickHouse Management</h4>
 <pre><code class="language-bash"># Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to ClickHouse CLI
@@ -749,7 +749,7 @@ docker-compose logs -f nessie
 </code></pre>
 <h4>Full Environment Reconfiguration</h4>
 <pre><code class="language-bash"># 1. Stop and clean all services
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 cd ../datalake-minio-catalog
@@ -817,7 +817,7 @@ docker exec -it clickhouse-25-8 clickhouse-client -q &quot;SELECT database, form
 <h4>사전 요구사항</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> 환경 구성</li>
 <li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/datalake-minio-catalog">datalake-minio-catalog</a> 자동 배포 (setup 스크립트가 처리)</li>
 </ul>
 <h4>설정 및 실행</h4>
@@ -856,7 +856,7 @@ cd local/releases/25.8
 <h4>수동 실행 (SQL만)</h4>
 <p>SQL 파일을 직접 실행하려면:</p>
 <pre><code class="language-bash"># ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -1205,7 +1205,7 @@ TIMESTAMP AS OF '2024-12-01 00:00:00';
 </ul>
 <h4>유용한 명령어</h4>
 <pre><code class="language-bash"># ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속
@@ -1477,7 +1477,7 @@ FROM system.disks;
 <h3>🛠 관리 명령어</h3>
 <h4>ClickHouse 관리</h4>
 <pre><code class="language-bash"># ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # ClickHouse CLI 접속
@@ -1510,7 +1510,7 @@ docker-compose logs -f nessie
 </code></pre>
 <h4>전체 환경 재구성</h4>
 <pre><code class="language-bash"># 1. 모든 서비스 중지 및 정리
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 cd ../datalake-minio-catalog

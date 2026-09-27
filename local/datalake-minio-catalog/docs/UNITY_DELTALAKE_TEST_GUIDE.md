@@ -49,12 +49,12 @@ When prompted:
 
 ```bash
 # For ClickHouse 25.11
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11
 ./start.sh
 
 # OR for ClickHouse 25.10
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.10
 ./start.sh
 ```
@@ -176,7 +176,7 @@ ClickHouse 25.10 or 25.11 container not found
 
 **Solution:**
 ```bash
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11  # or 25.10
 ./start.sh
 ```

@@ -26,7 +26,7 @@ This lab takes four of them that you can see working in a single container.
 ### Quick start
 
 ```bash
-./00-setup.sh              # brings up ClickHouse 26.9 via local/oss-mac-setup
+./00-setup.sh              # brings up ClickHouse 26.9 via local/oss-docker
 ./01-limit-after-until.sh
 ./02-keyvaluepairs-index.sh
 ./03-zstd-default.sh       # writes and merges ~26M rows, allow a couple of minutes
@@ -385,7 +385,7 @@ zero-argument `year()`.
 ### 빠른 시작
 
 ```bash
-./00-setup.sh              # local/oss-mac-setup으로 26.9 기동
+./00-setup.sh              # local/oss-docker으로 26.9 기동
 ./01-limit-after-until.sh
 ./02-keyvaluepairs-index.sh
 ./03-zstd-default.sh       # 약 2,600만 행을 쓰고 병합하므로 몇 분 걸립니다

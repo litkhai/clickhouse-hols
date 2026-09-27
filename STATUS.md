@@ -115,6 +115,7 @@ Not re-run; update the claim only after a real end-to-end run (see AGENTS.md).
 | Cloud API key, service password and hostname exposed before the 2026-09-07 rewrite | ClickHouse Cloud console | Not confirmed rotated. The local pre-rewrite backup branch was deleted 2026-09-27 without checking. |
 | `usecase/device-360` scripts | this repo | Bucket, EC2 address and key defaults became placeholders on 2026-09-27. |
 | AWS Terraform labs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | `allowed_cidr_blocks` and SASL-variable changes never applied; `direct-attach` fails on ClickHouse Cloud. The banners in each lab say so. |
+| `local/oss-docker` (was `oss-mac-setup`) on Linux and Windows | this repo | Renamed 2026-09-27 and docs made OS-neutral; the scripts are plain bash + Docker but were only ever run on macOS. The 21 release labs and other callers now point at the new path, not re-run. |
 | Stub READMEs at moved paths | this repo, see [MOVED.md](MOVED.md) | Delete after 2027-03-31; keep `MOVED.md` and the redirects. |
 
 ## Licensing exceptions

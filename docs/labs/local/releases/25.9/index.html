@@ -52,7 +52,7 @@
 <h4>Prerequisites</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> environment setup</li>
 <li>8GB+ RAM recommended</li>
 <li>10GB+ disk space</li>
 </ul>
@@ -69,14 +69,14 @@ cd local/releases/25.9
 </code></pre>
 <h4>What <code>./00-setup.sh</code> Does</h4>
 <p>The setup script performs the following:
-- Configure ClickHouse 25.9 using oss-mac-setup
+- Configure ClickHouse 25.9 using oss-docker
 - Start ClickHouse on port 8123
 - Verify installation
 - Display connection information</p>
 <h4>Manual Execution (SQL only)</h4>
 <p>To execute SQL files directly:</p>
 <pre><code class="language-bash"># Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -221,7 +221,7 @@ FROM user_permissions;
 <li><strong>User</strong>: default (no password)</li>
 </ul>
 <h4>Useful Commands</h4>
-<pre><code class="language-bash">cd ../../oss-mac-setup
+<pre><code class="language-bash">cd ../../oss-docker
 
 # Check status
 ./status.sh
@@ -387,7 +387,7 @@ curl http://localhost:8123/
 - <code>SET use_skip_indexes_on_data_read = 1;</code> - Enable streaming indices</p>
 <h3>🧹 Cleanup</h3>
 <p>To stop and remove ClickHouse 25.9:</p>
-<pre><code class="language-bash">cd ../../oss-mac-setup
+<pre><code class="language-bash">cd ../../oss-docker
 ./stop.sh
 
 # Optional: Delete data
@@ -417,7 +417,7 @@ curl http://localhost:8123/
 <h4>사전 요구사항</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> 환경 구성</li>
 <li>8GB+ RAM recommended</li>
 <li>10GB+ disk space</li>
 </ul>
@@ -434,14 +434,14 @@ cd local/releases/25.9
 </code></pre>
 <h4><code>./00-setup.sh</code> 수행 내용</h4>
 <p>Setup 스크립트는 다음을 수행합니다:
-- Configure ClickHouse 25.9 using oss-mac-setup
+- Configure ClickHouse 25.9 using oss-docker
 - Start ClickHouse on port 8123
 - Verify installation
 - Display connection information</p>
 <h4>수동 실행 (SQL만)</h4>
 <p>SQL 파일을 직접 실행하려면:</p>
 <pre><code class="language-bash"># ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -586,7 +586,7 @@ FROM user_permissions;
 <li><strong>User</strong>: default (no password)</li>
 </ul>
 <h4>유용한 명령어</h4>
-<pre><code class="language-bash">cd ../../oss-mac-setup
+<pre><code class="language-bash">cd ../../oss-docker
 
 # Check status
 ./status.sh
@@ -751,7 +751,7 @@ curl http://localhost:8123/
 - <code>SET use_skip_indexes_on_data_read = 1;</code> - 스트리밍 인덱스 활성화</p>
 <h3>🧹 정리</h3>
 <p>ClickHouse 25.9를 중지하고 제거하려면:</p>
-<pre><code class="language-bash">cd ../../oss-mac-setup
+<pre><code class="language-bash">cd ../../oss-docker
 ./stop.sh
 
 # Optional: 데이터 삭제

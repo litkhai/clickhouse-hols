@@ -135,7 +135,7 @@ After starting, access:
 ./setup-simple.sh --start unity
 
 # 2. Start ClickHouse 25.11
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
@@ -150,7 +150,7 @@ cd ../datalake-minio-catalog
 ./setup-simple.sh --start
 
 # 2. Start ClickHouse
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
 # 3. Test all catalogs

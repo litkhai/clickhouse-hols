@@ -229,7 +229,7 @@ column they aggregated. Re-run any of them yourself with
 </tr>
 <tr>
 <td><code>00-setup.sh</code></td>
-<td>Delegates to <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><code>../../oss-mac-setup</code></a>: <code>set.sh &lt;version&gt;</code> then <code>start.sh</code>, then verifies the running version</td>
+<td>Delegates to <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker"><code>../../oss-docker</code></a>: <code>set.sh &lt;version&gt;</code> then <code>start.sh</code>, then verifies the running version</td>
 </tr>
 <tr>
 <td><code>NN-&lt;feature&gt;.sh</code></td>
@@ -242,7 +242,7 @@ column they aggregated. Re-run any of them yourself with
 </tbody>
 </table>
 <h3>⚠️ One Version at a Time</h3>
-<p><code>oss-mac-setup/set.sh</code> maps the container to <strong>8123/9000</strong> when a single version is configured, so only one release runs at a time. Switching versions means re-running that version's <code>00-setup.sh</code>. Container names follow the version with dots replaced by hyphens — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
+<p><code>oss-docker/set.sh</code> maps the container to <strong>8123/9000</strong> when a single version is configured, so only one release runs at a time. Switching versions means re-running that version's <code>00-setup.sh</code>. Container names follow the version with dots replaced by hyphens — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
 <h3>🔧 Connection Info</h3>
 <ul>
 <li><strong>Web UI</strong>: http://localhost:8123/play</li>
@@ -447,7 +447,7 @@ column they aggregated. Re-run any of them yourself with
 </tr>
 <tr>
 <td><code>00-setup.sh</code></td>
-<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup"><code>../../oss-mac-setup</code></a>에 위임 — <code>set.sh &lt;버전&gt;</code> 후 <code>start.sh</code>, 이어서 기동된 버전 검증</td>
+<td><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker"><code>../../oss-docker</code></a>에 위임 — <code>set.sh &lt;버전&gt;</code> 후 <code>start.sh</code>, 이어서 기동된 버전 검증</td>
 </tr>
 <tr>
 <td><code>NN-&lt;기능&gt;.sh</code></td>
@@ -460,7 +460,7 @@ column they aggregated. Re-run any of them yourself with
 </tbody>
 </table>
 <h3>⚠️ 한 번에 한 버전</h3>
-<p><code>oss-mac-setup/set.sh</code>는 단일 버전이 구성된 경우 컨테이너를 <strong>8123/9000</strong>에 매핑하므로 한 번에 하나의 릴리스만 실행됩니다. 버전을 바꾸려면 해당 버전의 <code>00-setup.sh</code>를 다시 실행하세요. 컨테이너 이름은 버전의 점을 하이픈으로 바꾼 형태입니다 — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
+<p><code>oss-docker/set.sh</code>는 단일 버전이 구성된 경우 컨테이너를 <strong>8123/9000</strong>에 매핑하므로 한 번에 하나의 릴리스만 실행됩니다. 버전을 바꾸려면 해당 버전의 <code>00-setup.sh</code>를 다시 실행하세요. 컨테이너 이름은 버전의 점을 하이픈으로 바꾼 형태입니다 — <code>26.7</code> → <code>clickhouse-26-7</code>.</p>
 <h3>🔧 접속 정보</h3>
 <ul>
 <li><strong>Web UI</strong>: http://localhost:8123/play</li>
@@ -481,7 +481,7 @@ column they aggregated. Re-run any of them yourself with
 <h2>라이선스</h2>
 <p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
-  <nav class="pager"><a class="step prev" href="../../../labs/local/oss-mac-setup/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse OSS Environment</span></a><a class="step next" href="../../../labs/local/datalake-minio-catalog/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Data Lake with MinIO and Multiple Catalogs</span></a></nav>
+  <nav class="pager"><a class="step prev" href="../../../labs/local/oss-docker/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse OSS Environment</span></a><a class="step next" href="../../../labs/local/datalake-minio-catalog/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Data Lake with MinIO and Multiple Catalogs</span></a></nav>
 </main>
 
 <footer class="wrap">

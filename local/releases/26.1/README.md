@@ -24,7 +24,7 @@ ClickHouse 26.1 includes significant enhancements in data management, text searc
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 
 #### Setup and Run
 
@@ -45,7 +45,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -181,7 +181,7 @@ cat 01-reverse-by-separator.sql | docker exec -i clickhouse-26-1 clickhouse-clie
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -293,7 +293,7 @@ ClickHouse 26.1은 데이터 관리, 텍스트 검색 기능, keeper 운영 및 
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 
 #### 설정 및 실행
 
@@ -314,7 +314,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -450,7 +450,7 @@ cat 01-reverse-by-separator.sql | docker exec -i clickhouse-26-1 clickhouse-clie
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속

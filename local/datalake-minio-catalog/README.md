@@ -248,7 +248,7 @@ After starting services, access via:
 ./setup.sh --start
 
 # 2. Start ClickHouse
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
@@ -298,7 +298,7 @@ Detailed comparison: [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-v
 ./setup.sh --start
 
 # Start ClickHouse and test
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 ./tests/test-unity-deltalake.sh
 ```
@@ -310,7 +310,7 @@ cd ../datalake-minio-catalog
 ./setup-multi-catalog.sh --start
 
 # Start ClickHouse
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
 # Run comprehensive test

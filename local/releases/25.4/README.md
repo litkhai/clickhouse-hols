@@ -23,7 +23,7 @@ ClickHouse 25.4 is a release about comparing things. Levenshtein distance is lif
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment
+- [oss-docker](../../oss-docker/) environment
 
 #### Setup and Run
 
@@ -137,7 +137,7 @@ cd local/releases/25.4
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 ./client.sh 8123
 docker logs clickhouse-25-4

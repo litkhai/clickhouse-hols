@@ -24,7 +24,7 @@ ClickHouse 25.9 includes automatic join optimization, full-text search indexes, 
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 - 8GB+ RAM recommended
 - 10GB+ disk space
 
@@ -45,7 +45,7 @@ cd local/releases/25.9
 #### What `./00-setup.sh` Does
 
 The setup script performs the following:
-- Configure ClickHouse 25.9 using oss-mac-setup
+- Configure ClickHouse 25.9 using oss-docker
 - Start ClickHouse on port 8123
 - Verify installation
 - Display connection information
@@ -56,7 +56,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -242,7 +242,7 @@ After running `./00-setup.sh`:
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 
 # Check status
 ./status.sh
@@ -352,7 +352,7 @@ curl http://localhost:8123/
 To stop and remove ClickHouse 25.9:
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 # Optional: Delete data
@@ -396,7 +396,7 @@ ClickHouse 25.9는 자동 조인 최적화, 전문 검색 인덱스, 스트리�
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 - 8GB+ RAM recommended
 - 10GB+ disk space
 
@@ -417,7 +417,7 @@ cd local/releases/25.9
 #### `./00-setup.sh` 수행 내용
 
 Setup 스크립트는 다음을 수행합니다:
-- Configure ClickHouse 25.9 using oss-mac-setup
+- Configure ClickHouse 25.9 using oss-docker
 - Start ClickHouse on port 8123
 - Verify installation
 - Display connection information
@@ -428,7 +428,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -614,7 +614,7 @@ FROM user_permissions;
 #### 유용한 명령어
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 
 # Check status
 ./status.sh
@@ -723,7 +723,7 @@ curl http://localhost:8123/
 ClickHouse 25.9를 중지하고 제거하려면:
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 # Optional: 데이터 삭제

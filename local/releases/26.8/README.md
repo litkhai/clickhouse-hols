@@ -22,7 +22,7 @@ change how you write queries rather than how fast they run.
 ### Quick start
 
 ```bash
-./00-setup.sh              # brings up ClickHouse 26.8 via local/oss-mac-setup
+./00-setup.sh              # brings up ClickHouse 26.8 via local/oss-docker
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
@@ -275,7 +275,7 @@ Two of them needed fixing along the way, and both are noted in the SQL:
 ### 빠른 시작
 
 ```bash
-./00-setup.sh              # local/oss-mac-setup으로 26.8 기동
+./00-setup.sh              # local/oss-docker으로 26.8 기동
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh

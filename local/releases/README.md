@@ -58,13 +58,13 @@ Every version directory follows the same layout:
 | File | Role |
 |------|------|
 | `README.md` | Bilingual guide: overview, per-feature detail, learning points, use cases, full release feature list |
-| `00-setup.sh` | Delegates to [`../../oss-mac-setup`](../oss-mac-setup/): `set.sh <version>` then `start.sh`, then verifies the running version |
+| `00-setup.sh` | Delegates to [`../../oss-docker`](../oss-docker/): `set.sh <version>` then `start.sh`, then verifies the running version |
 | `NN-<feature>.sh` | Thin runner — pipes the matching `.sql` into `docker exec -i clickhouse-<version> clickhouse-client --multiline --multiquery` |
 | `NN-<feature>.sql` | The lab itself: numbered sections with `SELECT '===== N. Title ====='` banners, self-generated test data, cleanup left commented for inspection |
 
 ### ⚠️ One Version at a Time
 
-`oss-mac-setup/set.sh` maps the container to **8123/9000** when a single version is configured, so only one release runs at a time. Switching versions means re-running that version's `00-setup.sh`. Container names follow the version with dots replaced by hyphens — `26.7` → `clickhouse-26-7`.
+`oss-docker/set.sh` maps the container to **8123/9000** when a single version is configured, so only one release runs at a time. Switching versions means re-running that version's `00-setup.sh`. Container names follow the version with dots replaced by hyphens — `26.7` → `clickhouse-26-7`.
 
 ### 🔧 Connection Info
 
@@ -134,13 +134,13 @@ cd local/releases/26.7      # 버전 선택
 | 파일 | 역할 |
 |------|------|
 | `README.md` | 영/한 가이드: 개요, 기능별 상세, 학습 포인트, 활용 사례, 릴리스 전체 기능 목록 |
-| `00-setup.sh` | [`../../oss-mac-setup`](../oss-mac-setup/)에 위임 — `set.sh <버전>` 후 `start.sh`, 이어서 기동된 버전 검증 |
+| `00-setup.sh` | [`../../oss-docker`](../oss-docker/)에 위임 — `set.sh <버전>` 후 `start.sh`, 이어서 기동된 버전 검증 |
 | `NN-<기능>.sh` | 얇은 실행 스크립트 — 대응 `.sql`을 `docker exec -i clickhouse-<버전> clickhouse-client --multiline --multiquery`로 전달 |
 | `NN-<기능>.sql` | 랩 본문 — `SELECT '===== N. 제목 ====='` 배너로 구분된 번호 섹션, 자체 생성 테스트 데이터, 확인을 위해 주석 처리된 정리 구문 |
 
 ### ⚠️ 한 번에 한 버전
 
-`oss-mac-setup/set.sh`는 단일 버전이 구성된 경우 컨테이너를 **8123/9000**에 매핑하므로 한 번에 하나의 릴리스만 실행됩니다. 버전을 바꾸려면 해당 버전의 `00-setup.sh`를 다시 실행하세요. 컨테이너 이름은 버전의 점을 하이픈으로 바꾼 형태입니다 — `26.7` → `clickhouse-26-7`.
+`oss-docker/set.sh`는 단일 버전이 구성된 경우 컨테이너를 **8123/9000**에 매핑하므로 한 번에 하나의 릴리스만 실행됩니다. 버전을 바꾸려면 해당 버전의 `00-setup.sh`를 다시 실행하세요. 컨테이너 이름은 버전의 점을 하이픈으로 바꾼 형태입니다 — `26.7` → `clickhouse-26-7`.
 
 ### 🔧 접속 정보
 

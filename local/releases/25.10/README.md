@@ -25,7 +25,7 @@ ClickHouse 25.10 includes JOIN performance improvements, new data types for vect
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 
 #### Setup and Run
 
@@ -48,7 +48,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -185,7 +185,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -309,7 +309,7 @@ ClickHouse 25.10은 JOIN 성능 개선, 벡터 검색을 위한 새로운 데이
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 
 #### 설정 및 실행
 
@@ -332,7 +332,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -469,7 +469,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속

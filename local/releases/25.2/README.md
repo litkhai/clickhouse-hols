@@ -23,7 +23,7 @@ ClickHouse 25.2 is a release about getting at data faster. Parquet files gain Bl
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment
+- [oss-docker](../../oss-docker/) environment
 
 #### Setup and Run
 
@@ -142,7 +142,7 @@ cd local/releases/25.2
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 ./client.sh 8123
 docker logs clickhouse-25-2

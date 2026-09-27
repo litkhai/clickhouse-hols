@@ -34,7 +34,7 @@ fi
 
 if ! docker info &> /dev/null; then
     echo "❌ Docker is not running!"
-    echo "   Please start Docker Desktop."
+    echo "   Please start Docker (Docker Desktop, or the Docker daemon on Linux)."
     exit 1
 fi
 
@@ -1011,13 +1011,13 @@ echo "📝 Creating documentation..."
 cat > README.md << 'EOF'
 # ClickHouse OSS Environment
 
-ClickHouse development environment optimized for macOS with seccomp security profile.
+ClickHouse development environment on Docker (macOS, Linux, Windows) with a seccomp security profile.
 
 ## ✨ Features
 
 - 🔒 **Seccomp Security Profile** - Fixes `get_mempolicy: Operation not permitted` errors
 - 📦 **Version Control** - Specify ClickHouse version or use latest
-- 🐳 **Docker Named Volumes** - Persistent data storage with proper macOS permissions
+- 🐳 **Docker Named Volumes** - Persistent data storage without host permission issues
 - 🧹 **Easy Cleanup** - Built-in cleanup options for data management
 - 🌐 **Multiple Interfaces** - Web UI, HTTP API, and TCP access
 
@@ -1097,13 +1097,14 @@ This setup includes a custom seccomp profile that resolves the common `get_mempo
 2. Check logs: `docker logs clickhouse-oss`
 3. Verify seccomp profile exists: `ls -la "$BASE_DIR/seccomp-profile.json"`
 
-### Permission Issues on macOS
-This setup uses Docker Named Volumes instead of bind mounts to avoid macOS permission issues with ClickHouse data directories.
+### Permission issues
+This setup uses Docker Named Volumes instead of bind mounts to avoid host permission issues with ClickHouse data directories (macOS and Windows file sharing in particular).
 
 ## 📋 System Requirements
 
-- macOS (optimized for Apple Silicon and Intel)
-- Docker Desktop for Mac
+- macOS (Apple Silicon or Intel), Linux, or Windows
+- Docker Desktop, or Docker Engine with the Compose plugin on Linux
+- `bash` — on Windows use Git Bash or WSL; the scripts are not tested there yet
 - 4GB+ RAM recommended
 - 10GB+ disk space
 

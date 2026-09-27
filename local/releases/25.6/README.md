@@ -25,7 +25,7 @@ ClickHouse 25.6 includes CoalescingMergeTree table engine, new Time data types, 
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 
 #### Setup and Run
 
@@ -48,7 +48,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -232,7 +232,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -408,7 +408,7 @@ ClickHouse 25.6은 CoalescingMergeTree 테이블 엔진, 새로운 Time 데이�
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 
 #### 설정 및 실행
 
@@ -431,7 +431,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -615,7 +615,7 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속

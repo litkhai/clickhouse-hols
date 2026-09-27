@@ -23,7 +23,7 @@ ClickHouse 25.3 is an LTS release that adds two tools for making a decision inst
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment
+- [oss-docker](../../oss-docker/) environment
 
 #### Setup and Run
 
@@ -139,7 +139,7 @@ cd local/releases/25.3
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 ./client.sh 8123
 docker logs clickhouse-25-3

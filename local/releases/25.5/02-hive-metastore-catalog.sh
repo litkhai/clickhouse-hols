@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_FILE="$SCRIPT_DIR/02-hive-metastore-catalog.sql"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../oss-docker"
 
 echo "🗄️  ClickHouse 25.5 Feature: Hive Metastore Catalog"
 echo "==================================================="

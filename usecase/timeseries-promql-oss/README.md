@@ -44,7 +44,7 @@ feature set today, and because it is the version already used by
 
 | File | What it covers |
 |---|---|
-| [00-setup.sh](00-setup.sh) | Pins ClickHouse 26.8 via [`local/oss-mac-setup`](../../local/oss-mac-setup/) |
+| [00-setup.sh](00-setup.sh) | Pins ClickHouse 26.8 via [`local/oss-docker`](../../local/oss-docker/) |
 | [01-schema.sql](01-schema.sql) | `CREATE TABLE ... ENGINE = TimeSeries`; what it actually builds under the hood (4 inner tables) |
 | [02-load.sql](02-load.sql) | Loads 6 synthetic series (3 hosts × 2 metrics), 240 samples each |
 | [03-promql-instant.sql](03-promql-instant.sql) | Instant vectors, label matching, `by (...)` aggregation, `topk` |
@@ -79,7 +79,7 @@ feature set today, and because it is the version already used by
 
 ### Prerequisites
 
-- Docker (for [`local/oss-mac-setup`](../../local/oss-mac-setup/))
+- Docker (for [`local/oss-docker`](../../local/oss-docker/))
 - Nothing else — the lab installs and pins its own ClickHouse version
 
 ### Running the lab
@@ -143,7 +143,7 @@ PromQL은 그 데이터에 맞춰 설계된 쿼리 언어입니다 — 일반 SQ
 
 | 파일 | 내용 |
 |---|---|
-| [00-setup.sh](00-setup.sh) | [`local/oss-mac-setup`](../../local/oss-mac-setup/)로 ClickHouse 26.8 고정 설치 |
+| [00-setup.sh](00-setup.sh) | [`local/oss-docker`](../../local/oss-docker/)로 ClickHouse 26.8 고정 설치 |
 | [01-schema.sql](01-schema.sql) | `CREATE TABLE ... ENGINE = TimeSeries`; 내부적으로 실제 만들어지는 4개 테이블 |
 | [02-load.sql](02-load.sql) | 합성 시계열 6개(호스트 3개 × 메트릭 2개), 각 240개 샘플 적재 |
 | [03-promql-instant.sql](03-promql-instant.sql) | Instant vector, 레이블 매칭, `by (...)` 집계, `topk` |
@@ -178,7 +178,7 @@ PromQL은 그 데이터에 맞춰 설계된 쿼리 언어입니다 — 일반 SQ
 
 ### 사전 요구사항
 
-- Docker ([`local/oss-mac-setup`](../../local/oss-mac-setup/) 실행용)
+- Docker ([`local/oss-docker`](../../local/oss-docker/) 실행용)
 - 그 외 없음 — 실습이 자체적으로 지정된 ClickHouse 버전을 설치합니다
 
 ### 실습 실행

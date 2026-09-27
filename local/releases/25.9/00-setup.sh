@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # ClickHouse 25.9 Setup Script
-# Purpose: Deploy ClickHouse 25.9 using oss-mac-setup and verify installation
+# Purpose: Deploy ClickHouse 25.9 using oss-docker and verify installation
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../oss-docker"
 
 echo "🚀 ClickHouse 25.9 Setup"
 echo "========================"
@@ -14,7 +14,7 @@ echo ""
 
 # Check if directory exists
 if [ ! -d "$OSS_MAC_SETUP_DIR" ]; then
-    echo "❌ Error: oss-mac-setup directory not found at $OSS_MAC_SETUP_DIR"
+    echo "❌ Error: oss-docker directory not found at $OSS_MAC_SETUP_DIR"
     exit 1
 fi
 

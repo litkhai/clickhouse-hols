@@ -24,7 +24,7 @@ ClickHouse 25.11 includes important SQL compatibility improvements, Map type enh
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 
 #### Setup and Run
 
@@ -46,7 +46,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -204,7 +204,7 @@ cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-c
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -327,7 +327,7 @@ ClickHouse 25.11은 SQL 호환성 개선, Map 타입 향상, 공간 데이터 �
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 
 #### 설정 및 실행
 
@@ -349,7 +349,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -507,7 +507,7 @@ cat 01-having-without-groupby.sql | docker exec -i clickhouse-25-11 clickhouse-c
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속

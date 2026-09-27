@@ -8,7 +8,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../local/oss-mac-setup"
+OSS_MAC_SETUP_DIR="$SCRIPT_DIR/../../local/oss-docker"
 VERSION="26.8"
 
 echo "🚀 ClickHouse TimeSeries + PromQL lab setup (OSS ${VERSION})"
@@ -16,7 +16,7 @@ echo "=============================================================="
 echo ""
 
 if [ ! -d "$OSS_MAC_SETUP_DIR" ]; then
-    echo "❌ Error: oss-mac-setup directory not found at $OSS_MAC_SETUP_DIR"
+    echo "❌ Error: oss-docker directory not found at $OSS_MAC_SETUP_DIR"
     exit 1
 fi
 

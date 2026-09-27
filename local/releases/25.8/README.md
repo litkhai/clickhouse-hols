@@ -26,7 +26,7 @@ ClickHouse 25.8 includes a new Parquet Reader (1.81x faster), enhanced Data Lake
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment setup
+- [oss-docker](../../oss-docker/) environment setup
 - [datalake-minio-catalog](../../datalake-minio-catalog/) auto-deployment (handled by setup script)
 
 #### Setup and Run
@@ -68,7 +68,7 @@ To execute SQL files directly:
 
 ```bash
 # Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -477,7 +477,7 @@ TIMESTAMP AS OF '2024-12-01 00:00:00';
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -684,7 +684,7 @@ FROM system.disks;
 
 ```bash
 # Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to ClickHouse CLI
@@ -723,7 +723,7 @@ docker-compose logs -f nessie
 
 ```bash
 # 1. Stop and clean all services
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 cd ../datalake-minio-catalog
@@ -805,7 +805,7 @@ ClickHouse 25.8은 새로운 Parquet Reader (1.81배 빠른 성능), Data Lake �
 #### 사전 요구사항
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) 환경 구성
+- [oss-docker](../../oss-docker/) 환경 구성
 - [datalake-minio-catalog](../../datalake-minio-catalog/) 자동 배포 (setup 스크립트가 처리)
 
 #### 설정 및 실행
@@ -847,7 +847,7 @@ SQL 파일을 직접 실행하려면:
 
 ```bash
 # ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -1256,7 +1256,7 @@ TIMESTAMP AS OF '2024-12-01 00:00:00';
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속
@@ -1461,7 +1461,7 @@ FROM system.disks;
 
 ```bash
 # ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # ClickHouse CLI 접속
@@ -1500,7 +1500,7 @@ docker-compose logs -f nessie
 
 ```bash
 # 1. 모든 서비스 중지 및 정리
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./stop.sh
 
 cd ../datalake-minio-catalog

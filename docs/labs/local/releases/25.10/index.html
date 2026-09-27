@@ -53,7 +53,7 @@
 <h4>Prerequisites</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> environment setup</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> environment setup</li>
 </ul>
 <h4>Setup and Run</h4>
 <pre><code class="language-bash"># 1. Install and start ClickHouse 25.10
@@ -70,7 +70,7 @@ cd local/releases/25.10
 <h4>Manual Execution (SQL only)</h4>
 <p>To execute SQL files directly:</p>
 <pre><code class="language-bash"># Connect to ClickHouse client
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # Execute SQL file
@@ -168,7 +168,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 </ul>
 <h4>Useful Commands</h4>
 <pre><code class="language-bash"># Check ClickHouse status
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # Connect to CLI
@@ -276,7 +276,7 @@ docker logs clickhouse-25-10
 <h4>사전 요구사항</h4>
 <ul>
 <li>macOS (with Docker Desktop)</li>
-<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-mac-setup">oss-mac-setup</a> 환경 구성</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker">oss-docker</a> 환경 구성</li>
 </ul>
 <h4>설정 및 실행</h4>
 <pre><code class="language-bash"># 1. ClickHouse 25.10 설치 및 시작
@@ -293,7 +293,7 @@ cd local/releases/25.10
 <h4>수동 실행 (SQL만)</h4>
 <p>SQL 파일을 직접 실행하려면:</p>
 <pre><code class="language-bash"># ClickHouse 클라이언트 접속
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 # SQL 파일 실행
@@ -391,7 +391,7 @@ cat 01-qbit-vector-search.sql | docker exec -i clickhouse-25-10 clickhouse-clien
 </ul>
 <h4>유용한 명령어</h4>
 <pre><code class="language-bash"># ClickHouse 상태 확인
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 
 # CLI 접속

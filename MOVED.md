@@ -4,7 +4,7 @@
 
 ## English
 
-Labs that left this repository on 2026-09-27, and where they went. The last version of
+Labs that left this repository or were renamed, and where they went. The last version of
 every one of them in this repository is kept at the `pre-split-2026-10` tag.
 
 `.github/scripts/build_site.py` reads the table below: an `http` target means the lab moved to
@@ -33,6 +33,7 @@ that had a site page gets a redirect page there.
 | `chc/s3/terraform-chc-secures3-aws-direct-attach` | https://github.com/litkhai/clickhouse-cloud-aws-hols/tree/main/labs/s3/terraform-chc-secures3-aws-direct-attach |
 | `tpcds` | https://github.com/litkhai/clickhouse-hols/tree/pre-split-2026-10/tpcds |
 | `workshop/device-360` | [usecase/device-360](usecase/device-360/) |
+| `local/oss-mac-setup` | [local/oss-docker](local/oss-docker/) |
 
 `tpcds` points at the tagged original on purpose: its queries are Altinity's
 GPL-3.0 variants, which differ from the Apache-2.0 upstream queries in

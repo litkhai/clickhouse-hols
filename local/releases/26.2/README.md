@@ -23,7 +23,7 @@ ClickHouse 26.2 expands the SQL surface area with number-theory utilities, a new
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment
+- [oss-docker](../../oss-docker/) environment
 
 #### Setup and Run
 
@@ -41,7 +41,7 @@ cd local/releases/26.2
 #### Manual Execution (SQL only)
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./client.sh 8123
 
 cd ../local/releases/26.2
@@ -142,7 +142,7 @@ source 01-primes-function.sql
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 ./client.sh 8123
 docker logs clickhouse-26-2
@@ -224,7 +224,7 @@ ClickHouse 26.2는 수론 유틸리티, 새로운 128비트 해시 함수, 그�
 #### 사전 요구사항
 
 - macOS (Docker Desktop 설치)
-- [oss-mac-setup](../../oss-mac-setup/) 환경
+- [oss-docker](../../oss-docker/) 환경
 
 #### 설정 및 실행
 

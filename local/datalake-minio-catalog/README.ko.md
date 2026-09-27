@@ -248,7 +248,7 @@ datalake-minio-catalog/
 ./setup.sh --start
 
 # 2. ClickHouse 시작
-cd ../oss-mac-setup
+cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
@@ -298,7 +298,7 @@ cat docs/test-results/test-results-*.md
 ./setup.sh --start
 
 # ClickHouse 시작 및 테스트
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 ./tests/test-unity-deltalake.sh
 ```
@@ -310,7 +310,7 @@ cd ../datalake-minio-catalog
 ./setup-multi-catalog.sh --start
 
 # ClickHouse 시작
-cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh
+cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
 # 통합 테스트

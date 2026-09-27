@@ -24,7 +24,7 @@ The lab inserts the same keys across several parts, then measures what queries r
 
 #### Prerequisites
 
-- A running ClickHouse server — the [oss-mac-setup](../../local/oss-mac-setup/) environment works
+- A running ClickHouse server — the [oss-docker](../../local/oss-docker/) environment works
 - `clickhouse-client` on your PATH, or run the files through the web UI
 
 #### Setup and Run

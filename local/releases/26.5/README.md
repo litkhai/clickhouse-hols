@@ -23,7 +23,7 @@ ClickHouse 26.5 sharpens the SQL surface for introspection and ergonomics: the n
 #### Prerequisites
 
 - macOS (with Docker Desktop)
-- [oss-mac-setup](../../oss-mac-setup/) environment
+- [oss-docker](../../oss-docker/) environment
 
 #### Setup and Run
 
@@ -145,7 +145,7 @@ cd local/releases/26.5
 #### Useful Commands
 
 ```bash
-cd ../../oss-mac-setup
+cd ../../oss-docker
 ./status.sh
 ./client.sh 8123
 docker logs clickhouse-26-5

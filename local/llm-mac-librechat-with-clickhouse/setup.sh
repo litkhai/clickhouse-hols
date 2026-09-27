@@ -205,16 +205,16 @@ configure_clickhouse_manual() {
     prompt_input "ClickHouse Database (optional)" "default" CH_DATABASE
 }
 
-# Function to deploy ClickHouse with Docker using oss-mac-setup
+# Function to deploy ClickHouse with Docker using oss-docker
 deploy_clickhouse_docker() {
     print_info "Deploying ClickHouse with Docker..."
     echo ""
 
-    # Check if oss-mac-setup exists
-    OSS_MAC_SETUP_PATH="../oss-mac-setup"
+    # Check if oss-docker exists
+    OSS_MAC_SETUP_PATH="../oss-docker"
     if [ ! -d "$OSS_MAC_SETUP_PATH" ]; then
-        print_error "oss-mac-setup directory not found at: $OSS_MAC_SETUP_PATH"
-        print_info "Please ensure the oss-mac-setup directory exists in local/"
+        print_error "oss-docker directory not found at: $OSS_MAC_SETUP_PATH"
+        print_info "Please ensure the oss-docker directory exists in local/"
         return 1
     fi
 
@@ -263,7 +263,7 @@ deploy_clickhouse_docker() {
 
     # Instructions for manual setup
     print_header "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    print_info "Please set up ClickHouse manually using oss-mac-setup:"
+    print_info "Please set up ClickHouse manually using oss-docker:"
     echo ""
     echo "  1. Open a new terminal"
     echo "  2. cd ${OSS_MAC_SETUP_PATH}"
@@ -330,7 +330,7 @@ configure_clickhouse() {
 
     # Ask user for deployment option
     echo "Choose ClickHouse setup option:"
-    echo "  1. Auto-deploy with Docker (uses local/oss-mac-setup)"
+    echo "  1. Auto-deploy with Docker (uses local/oss-docker)"
     echo "  2. Provide existing connection string"
     echo ""
 

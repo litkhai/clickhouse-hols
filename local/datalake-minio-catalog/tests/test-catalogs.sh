@@ -40,9 +40,9 @@ check_clickhouse() {
     else
         echo -e "${RED}ClickHouse 25.10 or 25.11 container not found${NC}"
         echo "Please start ClickHouse first:"
-        echo "  cd ../oss-mac-setup && ./set.sh 25.10 && ./start.sh"
+        echo "  cd ../oss-docker && ./set.sh 25.10 && ./start.sh"
         echo "  OR"
-        echo "  cd ../oss-mac-setup && ./set.sh 25.11 && ./start.sh"
+        echo "  cd ../oss-docker && ./set.sh 25.11 && ./start.sh"
         exit 1
     fi
 
