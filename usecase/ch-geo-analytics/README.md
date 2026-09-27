@@ -52,7 +52,7 @@ for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
 done
 ```
 
-Or against the bundled Docker stack (e.g. the `local/pg-clickhouse-lab` container):
+Or against a Docker container (e.g. the one from `extensions/pg-clickhouse-lab` in [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols/tree/main/extensions/pg-clickhouse-lab)):
 
 ```bash
 for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
@@ -290,7 +290,7 @@ for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \
 done
 ```
 
-도커 컨테이너 (예: `local/pg-clickhouse-lab`)에 대해 실행하려면:
+도커 컨테이너 (예: [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols/tree/main/extensions/pg-clickhouse-lab)의 `extensions/pg-clickhouse-lab`)에 대해 실행하려면:
 
 ```bash
 for f in 01-schema.sql 02-load.sql 03-h3-basics.sql \

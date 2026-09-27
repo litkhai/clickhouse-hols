@@ -3,7 +3,8 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-09-23** — 26.9 release lab added, all checks green locally.
+**As of 2026-09-27** — the repository split: 18 labs moved to four new repositories
+and `tpcds` was retired (see [MOVED.md](MOVED.md)); all checks green locally.
 
 ---
 
@@ -11,9 +12,9 @@ section rather than trusting the date at the top.
 
 | Job | State | Notes |
 |-----|-------|-------|
-| `links` | ✅ | 185 markdown files, every relative link resolves |
-| `syntax` | ✅ | 268 shell, 78 python, 26 yaml files parse |
-| `site` | ✅ | `docs/` matches 21 releases + 55 labs = 76 lab pages, 82 files |
+| `links` | ✅ | 154 markdown files, every relative link resolves |
+| `syntax` | ✅ | 203 shell, 66 python, 16 yaml files parse |
+| `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md); 84 files |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `shellcheck` | ⚠️ advisory | style findings across 200+ scripts, non-blocking by design |
@@ -44,32 +45,45 @@ gitleaks detect --config .gitleaks.toml --no-banner --redact
 
 ## Inventory
 
-56 indexed labs plus 21 per-release labs. Counts are rows in the **English**
+38 indexed labs plus 21 per-release labs. Counts are rows in the **English**
 area tables of `README.md`:
 
 | Area | Labs |
 |------|-----:|
-| `chc/` — ClickHouse Cloud integrations | 15 |
-| `local/` — local environments | 9 |
-| `managed-postgres/` | 4 |
-| `usecase/` | 13 |
+| `chc/` — ClickHouse Cloud integrations | 7 |
+| `local/` — local environments | 8 |
+| `usecase/` | 12 |
 | `workload/` | 11 |
-| `workshop/` | 3 |
-| `tpcds/` — benchmark | 1 |
 | `local/releases/` — per-release feature labs | 21 |
 
 ```bash
-for a in chc local managed-postgres usecase workload workshop; do
+for a in chc local usecase workload; do
   printf '%-18s %s\n' "$a" "$(grep -c "^| \[$a/" README.md)"   # EN+KO, so halve
 done
 ```
+
+### Related repositories
+
+Split out on 2026-09-27 with history; the last version here is at the
+`pre-split-2026-10` tag. Old paths keep a stub README until 2027-03-31 and a
+site redirect after that.
+
+| Repository | Labs | From |
+|------------|-----:|------|
+| [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols) | 5 | `managed-postgres/*`, `local/pg-clickhouse-lab` |
+| [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | 3 | `chc/tool/ch2otel`, `workshop/o11y-vector-ai`, `workshop/observability-waf` |
+| [langfuse-hols](https://github.com/litkhai/langfuse-hols) | 2 | `usecase/langfuse-ee`, `usecase/langfuse-eval` |
+| [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | 7 | `chc/{kafka,lake,s3}/*` — kept, not archived; each lab opens with a last-verified banner |
+| [tpcds-scripts](https://github.com/litkhai/tpcds-scripts) | — | successor to `tpcds`, whose Altinity GPL-3.0 queries stay at the tag only |
+
+`workshop/device-360` moved inside this repository to `usecase/device-360`.
 
 ## Known gaps
 
 | Gap | Impact | Notes |
 |-----|--------|-------|
-| 28 of 55 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` Terraform labs and older `workshop/` material. |
-| `chc/{api,kafka,lake,s3,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
+| 18 of 38 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
+| `chc/{api,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
 | `shellcheck` findings unaddressed | Low | Deliberately advisory — see the comment in `.github/workflows/checks.yml`. |
 | `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI. This is what let the two failures above reach `main`. |
 
@@ -109,9 +123,9 @@ exploitable**:
 | Count | Where | Assessment |
 |------:|-------|------------|
 | 10 | `local/llm-mac-librechat/docker-compose*.yml` (d7bf236, 2025-12-07) | Real generated LibreChat app secrets (`JWT_SECRET`, `CREDS_KEY`, …), but they scope to a local single-user container, not a cloud resource. Path no longer exists. Regenerate if you ever reused them. |
-| 3 | `terraform-glue-s3-chc-integration/CREDENTIAL_SOLUTIONS.md` (dfd8efc, 2025-11-16) | Ellipsis-truncated sample output of `ASIA`-prefixed STS **temporary** credentials, pasted to show their shape. Incomplete, and expired within hours of being written. |
+| 3 | `terraform-glue-s3-chc-integration/CREDENTIAL_SOLUTIONS.md` (dfd8efc, 2025-11-16) | Ellipsis-truncated sample output of `ASIA`-prefixed STS **temporary** credentials, pasted to show their shape. Incomplete, and expired within hours of being written. The lab now lives in `clickhouse-cloud-aws-hols`, whose `.gitleaksignore` lists the same three. |
 | 4 | `usecase/bug-bounty/05-generate-demo-data.sql` | Deliberately synthetic — MD5 of the word `password`, an `sk-proj-abcd1234…` stub, the canonical jwt.io sample token. The lab plants fake secrets on purpose. |
-| 2 | `tpcds/00-set-{GUIDE,README}.md` | The password is the literal word *secret* in an example export line. |
+| 2 | `tpcds/00-set-{GUIDE,README}.md` | The password is the literal word *secret* in an example export line. Path removed from `main` in the split; still in history. |
 
 The ClickHouse Cloud API key, service password and hostname that appear in the
 `backup-local-main-20260907` branch are **not** in published history — the
@@ -125,11 +139,24 @@ The ClickHouse Cloud API key, service password and hostname that appear in the
 
 ## Licensing exceptions
 
-Two tracked paths are not MIT. Both are documented in the root README and must
-stay that way if the files move:
+One tracked path is not MIT. It is documented in the root README and must stay
+that way if the files move:
 
-- `tpcds/queries/` — GPL-3.0, adapted from Altinity/tpc-ds
 - `usecase/korea-geo/data/` — KOSTAT terms, no SPDX licence
+
+`tpcds/queries/` (GPL-3.0, adapted from Altinity/tpc-ds) left `main` in the
+2026-09-27 split and remains only at the `pre-split-2026-10` tag.
+
+## Terraform plan in public history
+
+A saved `tfplan` holding real AWS state (account IDs, a bucket name, role ARNs)
+is still in `origin/main` history: added in `e0042aa`, moved in `5f95b01`,
+untracked in `a9ebaf1`. gitleaks does not flag account IDs or ARNs, which is
+why the secret-scan count above does not include it. The split deliberately
+left it out of `clickhouse-cloud-aws-hols`; rewriting this repository's
+history is a separate decision (plan D8). Until then: check whether the
+exposed bucket, roles and account are still in use, rotate what is, and
+record the result here.
 
 ## Repository size
 
@@ -147,8 +174,10 @@ Terraform state.
   (존재하지 않는 `timeseries-promql-cloud` 링크, 누락된 `docs/` 페이지).
 - **주의**: `check_links.py`는 `git ls-files`를 읽으므로 **추적되지 않은**
   새 실습은 아예 검사하지 않습니다. 녹색 결과를 믿기 전에 `git add` 하세요.
-- **규모**: 색인된 실습 55개 + 릴리스별 실습 21개 = 사이트 페이지 76개.
-- **알려진 격차**: 55개 중 28개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
+- **규모**: 색인된 실습 38개 + 릴리스별 실습 21개 = 사이트 페이지 59개, 그 외
+  [MOVED.md](MOVED.md)의 redirect 19개. 2026-09-27 분리로 18개 실습이 새 저장소 4곳으로
+  옮겨 갔고 `tpcds`는 은퇴(태그에만 남음). `device-360`은 `usecase/`로 이동.
+- **알려진 격차**: 38개 중 18개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
   같은 본문을 보여주므로 깨지지는 않음 — 백로그 항목.
 - **주의**: `git config core.hooksPath .githooks`는 클론마다 직접 설정해야
   합니다. 설정하지 않은 클론이 위 두 실패를 `main`까지 통과시켰습니다.
@@ -160,3 +189,5 @@ Terraform state.
   `--log-opts="origin/main"`을 붙이세요.
 - 다만 rewrite 이전에는 Cloud API 키가 공개돼 있었으므로 **로테이션 여부를
   확인**하세요 (Cloud API 키는 조직 전체 범위입니다).
+- **tfplan**: 실제 AWS state가 담긴 `tfplan`이 공개 히스토리(`e0042aa`)에 남아 있습니다.
+  노출된 버킷·role·계정이 아직 쓰이는지 확인하고, 쓰이면 교체하세요 (D8).

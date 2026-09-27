@@ -73,7 +73,6 @@ paths = [
     # Synthetic records for the PII/secret-detection demos. The "keys" in these
     # files are fabricated on purpose — detecting them is the point of the lab.
     '''usecase/security-traffic-analysis/05-generate-demo-data\.sql$''',
-    '''usecase/langfuse-ee/08-generate-pii-traces\.py$''',
 ]
 
 regexes = [

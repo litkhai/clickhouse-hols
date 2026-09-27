@@ -19,13 +19,14 @@ These labs cover both **ClickHouse OSS** and **ClickHouse Cloud**, from a first 
 ```
 clickhouse-hols/
 ├── local/            # Local Docker environments and per-release feature labs
-├── chc/              # ClickHouse Cloud integrations (API, Kafka, lakes, S3, tools)
-├── managed-postgres/ # ClickHouse Managed Postgres — provisioning, PostGIS, pg_clickhouse
-├── tpcds/            # TPC-DS benchmark
-├── usecase/          # End-to-end use cases (analytics, search, geo, LLM observability)
-├── workload/         # Focused performance and behaviour experiments
-└── workshop/         # Multi-service workshops and PoCs
+├── chc/              # ClickHouse Cloud integrations (API, ClickPipes, MySQL interface, cost tools)
+├── usecase/          # End-to-end use cases (analytics, search, geo, device PoC)
+└── workload/         # Focused performance and behaviour experiments
 ```
+
+Managed Postgres, ClickStack/observability, Langfuse and the AWS Terraform labs now
+live in their own repositories — see [Related repositories](#-related-repositories)
+and [MOVED.md](MOVED.md).
 
 ### 🏠 Local Environments (`local/`)
 
@@ -35,7 +36,6 @@ clickhouse-hols/
 | [local/releases](local/releases/) | **21 per-release feature labs, 25.1 → 26.9** — one directory per release, each with runnable SQL for that version's new features. All 21 have been executed against their own server build; the [index](local/releases/) records which |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | Local data lake: MinIO plus Iceberg / Nessie / Unity / Delta catalogs, with Jupyter notebooks |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka and MySQL table engines, including materialized-view block-size testing |
-| [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: querying ClickHouse from PostgreSQL |
 | [local/pg-analytics](local/pg-analytics/) | pg_lake + Polaris Iceberg ILM: can `pg_clickhouse` → ClickHouse read the Iceberg files pg_lake writes, and how it compares with `pg_duckdb` (TPC-H SF10) |
 | [local/mcp-server-clickhouse](local/mcp-server-clickhouse/) | ClickHouse MCP server for LLM tool access |
 | [local/llm-mac-librechat-with-clickhouse](local/llm-mac-librechat-with-clickhouse/) | LibreChat with a local LLM and the ClickHouse MCP server (macOS) |
@@ -49,35 +49,9 @@ clickhouse-hols/
 | [chc/clickpipes-mysql](chc/clickpipes-mysql/) | ClickPipes CDC from a MySQL source |
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 checkpoint test suite ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB CDC from RDS MySQL and DocumentDB into ClickHouse OSS, plus a Cloud→self-managed security runbook |
-| [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) | Confluent Platform on AWS with Terraform |
-| [chc/kafka/terraform-confluent-aws-nlb-ssl](chc/kafka/terraform-confluent-aws-nlb-ssl/) | Confluent with NLB SSL termination |
-| [chc/kafka/terraform-confluent-aws-connect-sink](chc/kafka/terraform-confluent-aws-connect-sink/) | Confluent with the ClickHouse sink connector |
-| [chc/lake/terraform-minio-on-aws](chc/lake/terraform-minio-on-aws/) | MinIO on AWS via Terraform |
-| [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/) | ClickHouse Cloud with the AWS Glue catalog |
-| [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/) | Secure S3 integration with Terraform |
-| [chc/s3/terraform-chc-secures3-aws-direct-attach](chc/s3/terraform-chc-secures3-aws-direct-attach/) | S3 integration via direct bucket policy access |
 | [chc/mysql-interface](chc/mysql-interface/) | Automated tests for the Cloud MySQL interface |
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | Service cost monitoring |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | Cost monitoring across multiple services |
-| [chc/tool/ch2otel](chc/tool/ch2otel/) | ClickHouse system metrics to OpenTelemetry |
-
-### 🐘 Managed Postgres (`managed-postgres/`)
-
-A distinct product rather than a Cloud integration, which is why it sits beside
-`chc/` instead of inside it.
-
-| Lab | What it covers |
-|-----|----------------|
-| [managed-postgres/provisioning](managed-postgres/provisioning/) | Create a service over the Cloud API, connect and verify |
-| [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS beside 24M Seoul bike trips: geometry stays in Postgres, aggregates push down to ClickHouse through `pg_clickhouse`. Includes a dashboard that shows which side answered each query, and the plan proving it |
-| [managed-postgres/ny-citi-bike-workshop](managed-postgres/ny-citi-bike-workshop/) | The same split on a **live** feed — New York Citi Bike, keyless public JSON refreshed every 60s — across both managed products. A self-service workshop in [its own repository](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) |
-| [managed-postgres/vector-search](managed-postgres/vector-search/) | pgvector, VectorChord and ClickHouse's vector index over the same million embeddings — compared at matched recall, with the ground-truth harness that makes the comparison mean anything |
-
-### 📊 Benchmark (`tpcds/`)
-
-| Lab | What it covers |
-|-----|----------------|
-| [tpcds](tpcds/) | TPC-DS schema, data load and the [query set](tpcds/queries/) |
 
 ### 🧪 Use Cases (`usecase/`)
 
@@ -85,14 +59,13 @@ A distinct product rather than a Cloud integration, which is why it sits beside
 |-----|----------------|
 | [usecase/ads-analytics](usecase/ads-analytics/) | Ad performance analytics cube |
 | [usecase/customer360](usecase/customer360/) | Customer 360 modelling |
+| [usecase/device-360](usecase/device-360/) | Device360 PoC: Cloud performance validation at billions of rows |
 | [usecase/fulltext-search](usecase/fulltext-search/) | Bilingual (ko/en) full-text search over support tickets |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | Geospatial analytics with H3 indexing |
 | [usecase/korea-geo](usecase/korea-geo/) | Korean administrative boundaries with Superset |
 | [usecase/gnome-variants](usecase/gnome-variants/) | Genome variant analysis |
 | [usecase/security-traffic-analysis](usecase/security-traffic-analysis/) | Security traffic analysis platform |
 | [usecase/json-explode-confluent-clickpipes](usecase/json-explode-confluent-clickpipes/) | Real-time JSON explode: Confluent → ClickPipes → ClickHouse |
-| [usecase/langfuse-ee](usecase/langfuse-ee/) | Self-hosting Langfuse on ClickHouse (OSS + Enterprise) |
-| [usecase/langfuse-eval](usecase/langfuse-eval/) | Langfuse prompts, datasets, experiments and evals |
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | `PREWHERE` behaviour over the MySQL protocol |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse point-query performance |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` table engine + querying it with PromQL (OSS 26.8; Cloud is Private Preview only — no Cloud lab yet) |
@@ -113,13 +86,19 @@ A distinct product rather than a Cloud integration, which is why it sits beside
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka partitioning aligned to the ClickHouse sort key |
 | [workload/rbac-workloadmanagement](workload/rbac-workloadmanagement/) | RBAC and workload management |
 
-### 🎓 Workshops (`workshop/`)
+### 🔗 Related repositories
 
-| Lab | What it covers |
-|-----|----------------|
-| [workshop/device-360](workshop/device-360/) | Device360 PoC: Cloud performance validation at billions of rows |
-| [workshop/o11y-vector-ai](workshop/o11y-vector-ai/) | Observability with ClickStack, Vector and OpenTelemetry |
-| [workshop/observability-waf](workshop/observability-waf/) | WAF observability across a multi-cloud MSA |
+Labs that grew into their own repositories. Each kept its git history; the last
+version here is at the `pre-split-2026-10` tag.
+
+| Repository | What it covers |
+|------------|----------------|
+| [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols) | ClickHouse Managed Postgres: provisioning, PostGIS, vector search, the `pg_clickhouse` extension |
+| [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | Observability on ClickHouse: ClickStack, HyperDX, OpenTelemetry, `ch2otel` and two workshops |
+| [langfuse-hols](https://github.com/litkhai/langfuse-hols) | Self-hosting Langfuse on ClickHouse (OSS + Enterprise) and its evaluation loop |
+| [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | Terraform on AWS for ClickHouse Cloud: Confluent Kafka, MinIO/Glue lakes, secure S3 |
+| [tpcds-scripts](https://github.com/litkhai/tpcds-scripts) | Multi-engine TPC-DS scripts (successor to the old `tpcds/` lab) |
+| [lightweight-workshop-ny-citi-bike](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) | Self-service workshop: a live Citi Bike feed across Managed Postgres and ClickHouse |
 
 ### 🛠 Prerequisites
 
@@ -128,7 +107,7 @@ A distinct product rather than a Cloud integration, which is why it sits beside
 | Lab type | Also needs |
 |----------|-----------|
 | Local labs | Docker Desktop, Python 3.8+ |
-| Cloud labs | Terraform, AWS CLI, an AWS account |
+| Cloud labs with Terraform ([chc/clickpipes-s3](chc/clickpipes-s3/)) | Terraform, AWS CLI, an AWS account |
 | ClickHouse Cloud labs | A ClickHouse Cloud account |
 | Benchmarks | `clickhouse-client`, sufficient disk space |
 
@@ -143,13 +122,15 @@ Then pick a lab, read its `README.md`, and follow its Quick Start. Nothing is gl
 
 ### 📖 Learning Path
 
-**Beginner** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [tpcds](tpcds/)
+**Beginner** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
 
-**Cloud** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/) → [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)
+**Cloud** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/clickpipes-s3](chc/clickpipes-s3/) → [chc/mysql-interface](chc/mysql-interface/)
 
-**Advanced** → [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) → [workload/replacingmergetree](workload/replacingmergetree/) → [chc/tool/costkeeper](chc/tool/costkeeper/)
+**Advanced** → [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) → [workload/projection](workload/projection/) → [chc/tool/costkeeper](chc/tool/costkeeper/)
 
-**Postgres** → [managed-postgres/provisioning](managed-postgres/provisioning/) → [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/)
+**Postgres** → [local/pg-analytics](local/pg-analytics/) → [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols)
+
+**Observability** → [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) → [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/)
 
 ### 🧱 Lab Conventions
 
@@ -211,22 +192,20 @@ Issues and pull requests are welcome.
 
 [MIT](LICENSE), with one exception.
 
-Two directories hold material this repository did not write and cannot
+One directory holds material this repository did not write and cannot
 relicense:
 
 | Path | Licence | Origin |
 | --- | --- | --- |
-| [`tpcds/queries/`](tpcds/queries/) — 99 query files | **GPL-3.0** ([text](tpcds/queries/LICENSE)) | adapted from [Altinity/tpc-ds](https://github.com/Altinity/tpc-ds) |
 | [`usecase/korea-geo/data/`](usecase/korea-geo/data/) — one GeoJSON | **KOSTAT terms**, no SPDX licence ([details](usecase/korea-geo/data/README.md)) | [southkorea/southkorea-maps](https://github.com/southkorea/southkorea-maps), originally KOSTAT census boundaries |
 
-TPC-DS is a trademark of the Transaction Processing Performance Council, and
-its specification and `dsdgen` toolkit carry TPC's own terms — the lab has you
-fetch the toolkit yourself rather than shipping it.
+The GPL-3.0 TPC-DS queries that used to sit in `tpcds/queries/` are no longer on
+`main`; they remain at the `pre-split-2026-10` tag under their own licence.
 
 Everything else is MIT, and each lab's README says so. Labs install ClickHouse
 and other software at run time under its own licence — the MCP lab pip-installs
 [mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse) (Apache-2.0), for
-instance — but apart from the two rows above, nothing third-party is committed
+instance — but apart from the row above, nothing third-party is committed
 here.
 
 ### 🌐 Additional Resources
@@ -252,13 +231,13 @@ ClickHouse를 학습하고 탐색하기 위한 실습(Hands-On Lab) 모음입니
 ```
 clickhouse-hols/
 ├── local/            # 로컬 Docker 환경 및 릴리스별 기능 랩
-├── chc/              # ClickHouse Cloud 통합 (API, Kafka, 레이크, S3, 도구)
-├── managed-postgres/ # ClickHouse Managed Postgres — 프로비저닝, PostGIS, pg_clickhouse
-├── tpcds/            # TPC-DS 벤치마크
-├── usecase/          # 엔드투엔드 활용 사례 (분석, 검색, 지리, LLM 관측성)
-├── workload/         # 집중 성능·동작 실험
-└── workshop/         # 다중 서비스 워크숍 및 PoC
+├── chc/              # ClickHouse Cloud 통합 (API, ClickPipes, MySQL 인터페이스, 비용 도구)
+├── usecase/          # 엔드투엔드 활용 사례 (분석, 검색, 지리, 디바이스 PoC)
+└── workload/         # 집중 성능·동작 실험
 ```
+
+Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자의 저장소로
+옮겼습니다 — [관련 저장소](#-관련-저장소)와 [MOVED.md](MOVED.md)를 참고하세요.
 
 ### 🏠 로컬 환경 (`local/`)
 
@@ -268,7 +247,6 @@ clickhouse-hols/
 | [local/releases](local/releases/) | **릴리스별 기능 랩 21개, 25.1 → 26.9** — 릴리스마다 디렉토리 하나, 해당 버전 신기능의 실행 가능한 SQL 포함. 21개 모두 해당 서버 빌드에서 실제 실행 검증했으며, 빌드 번호는 [인덱스](local/releases/)에 표기 |
 | [local/datalake-minio-catalog](local/datalake-minio-catalog/) | 로컬 데이터 레이크: MinIO + Iceberg / Nessie / Unity / Delta 카탈로그, Jupyter 노트북 |
 | [local/kafka-mysql-table-engines](local/kafka-mysql-table-engines/) | Kafka·MySQL 테이블 엔진, 구체화 뷰 블록 크기 테스트 포함 |
-| [local/pg-clickhouse-lab](local/pg-clickhouse-lab/) | `pg_clickhouse`: PostgreSQL에서 ClickHouse 조회 |
 | [local/pg-analytics](local/pg-analytics/) | pg_lake + Polaris Iceberg ILM: pg_lake가 쓴 Iceberg 파일을 `pg_clickhouse` → ClickHouse로 읽을 수 있는지, `pg_duckdb`와 성능 비교 (TPC-H SF10) |
 | [local/mcp-server-clickhouse](local/mcp-server-clickhouse/) | LLM 도구 접근용 ClickHouse MCP 서버 |
 | [local/llm-mac-librechat-with-clickhouse](local/llm-mac-librechat-with-clickhouse/) | 로컬 LLM + ClickHouse MCP 서버와 LibreChat (macOS) |
@@ -282,34 +260,9 @@ clickhouse-hols/
 | [chc/clickpipes-mysql](chc/clickpipes-mysql/) | MySQL 소스 ClickPipes CDC |
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 체크포인트 테스트 ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB로 RDS MySQL·DocumentDB를 ClickHouse OSS로 CDC 이관 + Cloud→자체 관리 보안 런북 |
-| [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) | Terraform으로 AWS에 Confluent Platform 구성 |
-| [chc/kafka/terraform-confluent-aws-nlb-ssl](chc/kafka/terraform-confluent-aws-nlb-ssl/) | NLB SSL 종료를 적용한 Confluent |
-| [chc/kafka/terraform-confluent-aws-connect-sink](chc/kafka/terraform-confluent-aws-connect-sink/) | ClickHouse Sink Connector 연동 |
-| [chc/lake/terraform-minio-on-aws](chc/lake/terraform-minio-on-aws/) | Terraform으로 AWS에 MinIO 구성 |
-| [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/) | ClickHouse Cloud + AWS Glue 카탈로그 |
-| [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/) | Terraform 기반 보안 S3 통합 |
-| [chc/s3/terraform-chc-secures3-aws-direct-attach](chc/s3/terraform-chc-secures3-aws-direct-attach/) | 버킷 정책 직접 연결 방식 S3 통합 |
 | [chc/mysql-interface](chc/mysql-interface/) | Cloud MySQL 인터페이스 자동 테스트 |
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | 서비스 비용 모니터링 |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | 다중 서비스 비용 모니터링 |
-| [chc/tool/ch2otel](chc/tool/ch2otel/) | ClickHouse 시스템 지표를 OpenTelemetry로 변환 |
-
-### 🐘 Managed Postgres (`managed-postgres/`)
-
-Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그 옆에 둡니다.
-
-| 랩 | 다루는 내용 |
-|-----|----------------|
-| [managed-postgres/provisioning](managed-postgres/provisioning/) | Cloud API로 서비스 생성, 접속·검증 |
-| [managed-postgres/postgis-fdw-bike](managed-postgres/postgis-fdw-bike/) | PostGIS와 2,400만 건의 따릉이 대여이력: 지오메트리는 Postgres에 남고 집계는 `pg_clickhouse`로 ClickHouse에 내려갑니다. 쿼리마다 어느 쪽이 답했는지와 그 근거인 실행 계획을 보여주는 대시보드 포함 |
-| [managed-postgres/ny-citi-bike-workshop](managed-postgres/ny-citi-bike-workshop/) | 같은 분업을 **실시간** 피드로 — 뉴욕 Citi Bike, 키 없이 열린 공개 JSON, 60초마다 갱신 — 두 관리형 제품에 걸쳐 진행. [별도 저장소](https://github.com/litkhai/lightweight-workshop-ny-citi-bike)의 자율 실습 워크숍 |
-| [managed-postgres/vector-search](managed-postgres/vector-search/) | 같은 100만 임베딩에 pgvector·VectorChord·ClickHouse 벡터 인덱스 — 동일 recall에서 비교하며, 그 비교를 의미 있게 만드는 정답셋 하네스 포함 |
-
-### 📊 벤치마크 (`tpcds/`)
-
-| 실습 | 내용 |
-|------|------|
-| [tpcds](tpcds/) | TPC-DS 스키마, 데이터 적재, [쿼리 세트](tpcds/queries/) |
 
 ### 🧪 활용 사례 (`usecase/`)
 
@@ -317,14 +270,13 @@ Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그
 |------|------|
 | [usecase/ads-analytics](usecase/ads-analytics/) | 광고 성과 분석 큐브 |
 | [usecase/customer360](usecase/customer360/) | Customer 360 모델링 |
+| [usecase/device-360](usecase/device-360/) | Device360 PoC: 수십억 행 규모 Cloud 성능 검증 |
 | [usecase/fulltext-search](usecase/fulltext-search/) | 한/영 이중 언어 지원 티켓 전문 검색 |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | H3 인덱싱 기반 공간 분석 |
 | [usecase/korea-geo](usecase/korea-geo/) | 한국 행정경계(시군구) + Superset |
 | [usecase/gnome-variants](usecase/gnome-variants/) | 유전체 변이 분석 |
 | [usecase/security-traffic-analysis](usecase/security-traffic-analysis/) | 보안 트래픽 분석 플랫폼 |
 | [usecase/json-explode-confluent-clickpipes](usecase/json-explode-confluent-clickpipes/) | 실시간 JSON explode: Confluent → ClickPipes → ClickHouse |
-| [usecase/langfuse-ee](usecase/langfuse-ee/) | ClickHouse 기반 Langfuse 자체 호스팅 (OSS + Enterprise) |
-| [usecase/langfuse-eval](usecase/langfuse-eval/) | Langfuse 프롬프트·데이터셋·실험·평가 |
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | MySQL 프로토콜에서의 `PREWHERE` 동작 |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse 포인트 쿼리 성능 |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` 테이블 엔진 + PromQL로 조회하기 (OSS 26.8; Cloud는 Private Preview 전용 — Cloud 실습은 아직 없음) |
@@ -345,13 +297,19 @@ Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka 파티셔닝과 ClickHouse 정렬 키 정합 |
 | [workload/rbac-workloadmanagement](workload/rbac-workloadmanagement/) | RBAC 및 워크로드 관리 |
 
-### 🎓 워크숍 (`workshop/`)
+### 🔗 관련 저장소
 
-| 실습 | 내용 |
-|------|------|
-| [workshop/device-360](workshop/device-360/) | Device360 PoC: 수십억 행 규모 Cloud 성능 검증 |
-| [workshop/o11y-vector-ai](workshop/o11y-vector-ai/) | ClickStack·Vector·OpenTelemetry 기반 관측성 |
-| [workshop/observability-waf](workshop/observability-waf/) | 멀티 클라우드 MSA 환경의 WAF 관측성 |
+독립 저장소로 옮긴 실습들입니다. 모두 git 히스토리를 그대로 가지고 갔고, 이 저장소의
+마지막 버전은 `pre-split-2026-10` 태그에 있습니다.
+
+| 저장소 | 내용 |
+|--------|------|
+| [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols) | ClickHouse Managed Postgres: 프로비저닝, PostGIS, 벡터 검색, `pg_clickhouse` 확장 |
+| [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | ClickHouse 기반 관측성: ClickStack, HyperDX, OpenTelemetry, `ch2otel`, 워크숍 2개 |
+| [langfuse-hols](https://github.com/litkhai/langfuse-hols) | ClickHouse 기반 Langfuse 자체 호스팅(OSS + Enterprise)과 평가 루프 |
+| [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | ClickHouse Cloud를 위한 AWS Terraform: Confluent Kafka, MinIO/Glue 레이크, 보안 S3 |
+| [tpcds-scripts](https://github.com/litkhai/tpcds-scripts) | 여러 엔진용 TPC-DS 스크립트 (옛 `tpcds/` 실습의 후속) |
+| [lightweight-workshop-ny-citi-bike](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) | 셀프 워크숍: Managed Postgres와 ClickHouse에 걸친 Citi Bike 실시간 피드 |
 
 ### 🛠 사전 요구사항
 
@@ -360,7 +318,7 @@ Cloud 연동 기능이 아니라 별개 제품이라 `chc/` 안이 아니라 그
 | 실습 유형 | 추가 요구사항 |
 |-----------|---------------|
 | 로컬 실습 | Docker Desktop, Python 3.8+ |
-| 클라우드 실습 | Terraform, AWS CLI, AWS 계정 |
+| Terraform을 쓰는 클라우드 실습 ([chc/clickpipes-s3](chc/clickpipes-s3/)) | Terraform, AWS CLI, AWS 계정 |
 | ClickHouse Cloud 실습 | ClickHouse Cloud 계정 |
 | 벤치마크 | `clickhouse-client`, 충분한 디스크 공간 |
 
@@ -375,11 +333,15 @@ cd clickhouse-hols
 
 ### 📖 학습 경로
 
-**초급** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [tpcds](tpcds/)
+**초급** → [local/oss-mac-setup](local/oss-mac-setup/) → [local/releases](local/releases/) → [workload/replacingmergetree](workload/replacingmergetree/)
 
-**클라우드** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/s3/terraform-chc-secures3-aws](chc/s3/terraform-chc-secures3-aws/) → [chc/lake/terraform-glue-s3-chc-integration](chc/lake/terraform-glue-s3-chc-integration/)
+**클라우드** → [chc/api/chc-api-test](chc/api/chc-api-test/) → [chc/clickpipes-s3](chc/clickpipes-s3/) → [chc/mysql-interface](chc/mysql-interface/)
 
-**고급** → [chc/kafka/terraform-confluent-aws](chc/kafka/terraform-confluent-aws/) → [workload/replacingmergetree](workload/replacingmergetree/) → [chc/tool/costkeeper](chc/tool/costkeeper/)
+**고급** → [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) → [workload/projection](workload/projection/) → [chc/tool/costkeeper](chc/tool/costkeeper/)
+
+**Postgres** → [local/pg-analytics](local/pg-analytics/) → [clickhouse-managed-postgres-hols](https://github.com/litkhai/clickhouse-managed-postgres-hols)
+
+**관측성** → [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) → [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/)
 
 ### 🧱 실습 구성 관례
 
@@ -436,21 +398,19 @@ git config core.hooksPath .githooks
 
 [MIT](LICENSE), 단 한 가지 예외가 있습니다.
 
-직접 작성하지 않았고 라이선스를 바꿀 권한도 없는 자료가 두 디렉토리에 있습니다.
+직접 작성하지 않았고 라이선스를 바꿀 권한도 없는 자료가 한 디렉토리에 있습니다.
 
 | 경로 | 라이선스 | 출처 |
 | --- | --- | --- |
-| [`tpcds/queries/`](tpcds/queries/) — 쿼리 99개 | **GPL-3.0** ([전문](tpcds/queries/LICENSE)) | [Altinity/tpc-ds](https://github.com/Altinity/tpc-ds)에서 가져와 수정 |
 | [`usecase/korea-geo/data/`](usecase/korea-geo/data/) — GeoJSON 1개 | **KOSTAT 조건**, SPDX 라이선스 없음 ([설명](usecase/korea-geo/data/README.md)) | [southkorea/southkorea-maps](https://github.com/southkorea/southkorea-maps), 원본은 통계청 센서스 경계 |
 
-TPC-DS는 Transaction Processing Performance Council의 상표이며, 명세와
-`dsdgen` 툴킷에는 TPC 자체 약관이 적용됩니다 — 그래서 이 실습은 툴킷을 포함하지
-않고 직접 내려받게 합니다.
+예전에 `tpcds/queries/`에 있던 GPL-3.0 TPC-DS 쿼리는 이제 `main`에 없고,
+`pre-split-2026-10` 태그에 원래 라이선스 그대로 남아 있습니다.
 
 그 외는 모두 MIT이고, 각 실습 README에 그렇게 적어두었습니다. 실습이 실행 시점에
 내려받는 소프트웨어는 각자의 라이선스를 따릅니다 — 예를 들어 MCP 실습은
 [mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse)(Apache-2.0)를
-pip으로 설치합니다. 위 두 줄을 빼면 서드파티 코드를 이 저장소에 커밋해 두지
+pip으로 설치합니다. 위 한 줄을 빼면 서드파티 코드를 이 저장소에 커밋해 두지
 않았습니다.
 
 ### 🌐 추가 자료
