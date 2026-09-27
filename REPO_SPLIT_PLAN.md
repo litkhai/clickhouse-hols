@@ -1,6 +1,6 @@
 # clickhouse-hols 분산 계획 (Repo Split Plan)
 
-> 상태: **v3 — 결정사항(§1) 확정 (2026-09-27), 롤아웃 대기**
+> 상태: **롤아웃 완료 (2026-09-27)** — 코어 PR #2 머지(`e9cf21b`), 새 레포 4개 public. 남은 것은 §8 트랙
 > 작성 기준: `origin/main` @ `fe0f26e` (2026-09-27)
 > v2 변경: Postgres 레포 이름을 `clickhouse-managed-postgres-hols`로 변경하고
 > `local/pg-analytics`는 코어에 남김. `clickstack-hyperdx-hols` 신설 — 코어의
@@ -529,15 +529,15 @@ git switch -c repo-split origin/main
 
 ### 5.5 전환 (머지 직후)
 
-- [ ] 새 레포 4개를 public으로 전환: `gh repo edit litkhai/<r> --visibility public --accept-visibility-change-consequences`
-- [ ] 전환 직후 secret scanning + push protection 켜기: `gh api -X PATCH repos/litkhai/<r>` 에 `security_and_analysis.secret_scanning(_push_protection).status=enabled`
-- [ ] D2: `clickhouse-cloud-aws-hols`는 archive하지 않음. 실습 README 7개 맨 위에 검증 시점 배너가 보이는지 확인
-- [ ] 코어 레포 description 갱신 (현재 "19 per-release labs (25.1 → 26.7)"로 낡아 있음)
-- [ ] 레포 topics 설정 (`clickhouse`, `hands-on-labs`, `managed-postgres`, `clickstack`, `hyperdx`, `opentelemetry`, `langfuse` …)
-- [ ] `lightweight-workshop-ny-citi-bike` README의 `managed-postgres/postgis-fdw-bike` 링크 → 새 레포
-- [ ] `llmops-in-a-box` README에서 `langfuse-hols` 링크
-- [ ] Claude memory 갱신 (langfuse 경로)
-- [ ] 동결 해제 공지
+- [x] 새 레포 4개를 public으로 전환: `gh repo edit litkhai/<r> --visibility public --accept-visibility-change-consequences`
+- [x] 전환 직후 secret scanning + push protection 켜기 (4개 모두 enabled 확인): `gh api -X PATCH repos/litkhai/<r>` 에 `security_and_analysis.secret_scanning(_push_protection).status=enabled`
+- [x] D2: `clickhouse-cloud-aws-hols`는 archive하지 않음. 실습 README 7개 맨 위에 검증 시점 배너가 보이는지 확인
+- [x] 코어 레포 description 갱신 (현재 "19 per-release labs (25.1 → 26.7)"로 낡아 있음)
+- [x] 레포 topics 설정 (코어의 기존 관례 `hands-on-lab`, `korean`에 맞춤) (`clickhouse`, `hands-on-labs`, `managed-postgres`, `clickstack`, `hyperdx`, `opentelemetry`, `langfuse` …)
+- [x] `lightweight-workshop-ny-citi-bike`의 `managed-postgres/postgis-fdw-bike` 링크 → 새 레포 (`workshop/08-wrap-up.md`, `64dc86d`)
+- [x] `llmops-in-a-box` README에 Related repositories 추가 (`b185d43`). `lightweight-workshop-llmops-in-a-box`의 `usecase/langfuse-eval` 언급도 새 레포 링크로 (`440827c`)
+- [x] Claude memory 갱신 (langfuse 경로)
+- [x] ~~동결 해제 공지~~ (혼자 쓰는 레포라 해당 없음)
 
 ---
 
@@ -555,11 +555,11 @@ git switch -c repo-split origin/main
 
 ### 6.2 수동 (머지 후)
 
-- [ ] `https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-ee/` → 새 레포로 이동됨
-- [ ] `https://litkhai.github.io/clickhouse-hols/labs/workshop/o11y-vector-ai/` → `clickstack-hyperdx-hols`로 이동됨
-- [ ] `https://litkhai.github.io/clickhouse-hols/labs/workshop/device-360/` → `labs/usecase/device-360/`로 이동됨
-- [ ] `https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike` → stub이 보임
-- [ ] `https://github.com/litkhai/clickhouse-hols/tree/pre-split-2026-10/managed-postgres/postgis-fdw-bike` → 원본이 보임
+- [x] `https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-ee/` → 새 레포로 이동됨
+- [x] `https://litkhai.github.io/clickhouse-hols/labs/workshop/o11y-vector-ai/` → `clickstack-hyperdx-hols`로 이동됨
+- [x] `https://litkhai.github.io/clickhouse-hols/labs/workshop/device-360/` → `labs/usecase/device-360/`로 이동됨
+- [x] `https://github.com/litkhai/clickhouse-hols/tree/main/managed-postgres/postgis-fdw-bike` → stub이 보임
+- [x] `https://github.com/litkhai/clickhouse-hols/tree/pre-split-2026-10/managed-postgres/postgis-fdw-bike` → 원본이 보임
 - [ ] 새 레포 README 표의 모든 실습 링크 클릭 확인
 
 ### 6.3 따로 결정할 보안 항목 (D8)
