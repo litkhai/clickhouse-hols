@@ -241,7 +241,7 @@ if __name__ == "__main__":
     # Parameters from environment or defaults
     NUM_RECORDS = int(os.getenv('NUM_RECORDS', 500000000))  # 500M records
     NUM_DEVICES = int(os.getenv('NUM_DEVICES', 10000000))   # 10M devices
-    S3_BUCKET = os.getenv('S3_BUCKET_NAME', 'device360-test-orangeaws')
+    S3_BUCKET = os.getenv('S3_BUCKET_NAME', 'your-device360-bucket')
     S3_PREFIX = os.getenv('S3_PREFIX', 'device360')
     RECORDS_PER_CHUNK = int(os.getenv('RECORDS_PER_CHUNK', 2000000))  # 2M per chunk (~1GB compressed)
 

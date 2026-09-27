@@ -147,16 +147,31 @@ that way if the files move:
 `tpcds/queries/` (GPL-3.0, adapted from Altinity/tpc-ds) left `main` in the
 2026-09-27 split and remains only at the `pre-split-2026-10` tag.
 
-## Terraform plan in public history
+## AWS identifiers in public history (D8)
 
-A saved `tfplan` holding real AWS state (account IDs, a bucket name, role ARNs)
-is still in `origin/main` history: added in `e0042aa`, moved in `5f95b01`,
-untracked in `a9ebaf1`. gitleaks does not flag account IDs or ARNs, which is
-why the secret-scan count above does not include it. The split deliberately
-left it out of `clickhouse-cloud-aws-hols`; rewriting this repository's
-history is a separate decision (plan D8). Until then: check whether the
-exposed bucket, roles and account are still in use, rotate what is, and
-record the result here.
+Reviewed 2026-09-27. `origin/main` history — not the current tree — holds real AWS
+identifiers from the Terraform labs that moved to `clickhouse-cloud-aws-hols`:
+
+- a saved `tfplan` with the full state inside (added `e0042aa`, moved `5f95b01`,
+  untracked `a9ebaf1`), plus `backup-metadata-*/state.txt` and
+  `backup-*/state.txt` dumps;
+- in those and in several glue-lab docs: the AWS account ID, a ClickHouse Cloud
+  service IAM role ARN, S3 bucket names, EC2 instance / security-group / VPC IDs,
+  public IPs and hostnames.
+
+No credentials: gitleaks finds none, and the one `password` key is Terraform's
+`get_password_data = false`. gitleaks does not flag account IDs or ARNs, which is
+why the secret-scan count above does not include any of this.
+
+Decision: **this repository's history is not rewritten.** A rewrite would change
+every SHA, including the `pre-split-2026-10` tag that `MOVED.md`, the 20 stub
+READMEs and the new repositories point to, and the history has been public long
+enough to have been copied. The resources behind the identifiers — the S3
+buckets and the IAM role — no longer exist. `clickhouse-cloud-aws-hols`, public
+for only a few hours, was rewritten instead: its state dumps and
+`deployment-info.txt` files are gone and the identifiers are replaced with
+documentation values. The same S3 bucket name and an EC2 address that were still
+in the current tree (`usecase/device-360`) are now placeholders.
 
 ## Repository size
 
@@ -189,5 +204,8 @@ Terraform state.
   `--log-opts="origin/main"`을 붙이세요.
 - 다만 rewrite 이전에는 Cloud API 키가 공개돼 있었으므로 **로테이션 여부를
   확인**하세요 (Cloud API 키는 조직 전체 범위입니다).
-- **tfplan**: 실제 AWS state가 담긴 `tfplan`이 공개 히스토리(`e0042aa`)에 남아 있습니다.
-  노출된 버킷·role·계정이 아직 쓰이는지 확인하고, 쓰이면 교체하세요 (D8).
+- **AWS 식별자 (D8, 2026-09-27 검토)**: 공개 히스토리에 계정 ID, CHC 서비스 IAM role ARN,
+  버킷 이름, EC2 ID·IP가 남아 있음 (`tfplan`, state 덤프, glue 문서). 자격증명은 없음.
+  SHA와 `pre-split-2026-10` 태그를 지키기 위해 **이 저장소 히스토리는 재작성하지 않음**.
+  해당 리소스는 이미 삭제됨. `clickhouse-cloud-aws-hols`는 공개 직후라 히스토리를
+  재작성해 제거했고, 현재 트리의 `usecase/device-360` 버킷 이름과 EC2 주소는 placeholder로 바꿈.

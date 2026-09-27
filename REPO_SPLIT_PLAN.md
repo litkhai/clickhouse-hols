@@ -565,6 +565,8 @@ git switch -c repo-split origin/main
 
 ### 6.3 따로 결정할 보안 항목 (D8)
 
+> **결정 (2026-09-27):** 코어 히스토리는 재작성하지 않음 (리소스는 이미 삭제됨, 태그·SHA 보존). 검토 결과 `tfplan` 외에 `backup-*/state.txt` 덤프와 glue 문서에도 계정 ID·IP 등이 있었고, 분리 필터가 `backup-metadata-*`만 걸러서 이것들이 `clickhouse-cloud-aws-hols`로 넘어갔음 → 그 레포는 공개 직후라 히스토리를 재작성해 제거(`b5fda5a`). 코어 현재 트리의 `usecase/device-360` 버킷 이름·EC2 주소는 placeholder로. 기록은 `STATUS.md` "AWS identifiers in public history".
+
 `origin/main` 공개 히스토리에 **실제 AWS state가 담긴 `tfplan`이 남아 있습니다.**
 - 추가: `e0042aa`
 - 이동: `5f95b01`

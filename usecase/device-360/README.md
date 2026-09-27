@@ -98,7 +98,7 @@ Scaling efficiency: 87-94%
 - **Output**: 224 chunks × ~130MB = 28.56 GB gzipped
 - **Rows**: 448,000,000
 - **Duration**: ~6 hours on c6i.4xlarge
-- **Storage**: s3://device360-test-orangeaws/device360/
+- **Storage**: s3://your-device360-bucket/device360/
 
 ### 10x Multiplication (300 GB Equivalent)
 
@@ -357,7 +357,7 @@ clickhouse client < 03_create_materialized_views.sql
 clickhouse client --query="
 INSERT INTO device360.ad_requests
 SELECT * FROM s3(
-    's3://device360-test-orangeaws/device360/*.gz',
+    's3://your-device360-bucket/device360/*.gz',
     'JSONEachRow'
 )
 SETTINGS

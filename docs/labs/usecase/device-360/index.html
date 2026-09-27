@@ -145,7 +145,7 @@ Scaling efficiency: 87-94%
 - <strong>Output</strong>: 224 chunks × ~130MB = 28.56 GB gzipped
 - <strong>Rows</strong>: 448,000,000
 - <strong>Duration</strong>: ~6 hours on c6i.4xlarge
-- <strong>Storage</strong>: s3://device360-test-orangeaws/device360/</p>
+- <strong>Storage</strong>: s3://your-device360-bucket/device360/</p>
 <h3>10x Multiplication (300 GB Equivalent)</h3>
 <p><strong>Method</strong>: In-database INSERT SELECT with device_id suffix</p>
 <pre><code class="language-sql">INSERT INTO device360.ad_requests
@@ -374,7 +374,7 @@ clickhouse client &lt; 03_create_materialized_views.sql
 clickhouse client --query=&quot;
 INSERT INTO device360.ad_requests
 SELECT * FROM s3(
-    's3://device360-test-orangeaws/device360/*.gz',
+    's3://your-device360-bucket/device360/*.gz',
     'JSONEachRow'
 )
 SETTINGS
@@ -574,7 +574,7 @@ Scaling efficiency: 87-94%
 - <strong>Output</strong>: 224 chunks × ~130MB = 28.56 GB gzipped
 - <strong>Rows</strong>: 448,000,000
 - <strong>Duration</strong>: ~6 hours on c6i.4xlarge
-- <strong>Storage</strong>: s3://device360-test-orangeaws/device360/</p>
+- <strong>Storage</strong>: s3://your-device360-bucket/device360/</p>
 <h3>10x Multiplication (300 GB Equivalent)</h3>
 <p><strong>Method</strong>: In-database INSERT SELECT with device_id suffix</p>
 <pre><code class="language-sql">INSERT INTO device360.ad_requests
@@ -803,7 +803,7 @@ clickhouse client &lt; 03_create_materialized_views.sql
 clickhouse client --query=&quot;
 INSERT INTO device360.ad_requests
 SELECT * FROM s3(
-    's3://device360-test-orangeaws/device360/*.gz',
+    's3://your-device360-bucket/device360/*.gz',
     'JSONEachRow'
 )
 SETTINGS

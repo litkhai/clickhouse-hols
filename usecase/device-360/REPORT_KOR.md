@@ -265,7 +265,7 @@ for chunk_id in range(num_chunks):
 
 ### 4.1 테스트 구성
 
-**데이터 소스**: AWS S3 (s3://device360-test-orangeaws/device360/)
+**데이터 소스**: AWS S3 (s3://your-device360-bucket/device360/)
 **형식**: JSONEachRow (gzipped)
 **테스트 스케일**: 8 vCPU, 16 vCPU, 32 vCPU
 **측정 항목**: 입수 시간, 처리량, 선형 확장성
@@ -288,7 +288,7 @@ SELECT
     click,
     impression_id
 FROM s3(
-    's3://device360-test-orangeaws/device360/*.gz',
+    's3://your-device360-bucket/device360/*.gz',
     '<AWS_ACCESS_KEY>',
     '<AWS_SECRET_KEY>',
     'JSONEachRow'

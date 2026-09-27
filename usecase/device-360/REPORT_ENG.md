@@ -265,7 +265,7 @@ for chunk_id in range(num_chunks):
 
 ### 4.1 Test Configuration
 
-**Data Source**: AWS S3 (s3://device360-test-orangeaws/device360/)
+**Data Source**: AWS S3 (s3://your-device360-bucket/device360/)
 **Format**: JSONEachRow (gzipped)
 **Test Scales**: 8 vCPU, 16 vCPU, 32 vCPU
 **Metrics**: Ingestion time, throughput, linear scalability
@@ -288,7 +288,7 @@ SELECT
     click,
     impression_id
 FROM s3(
-    's3://device360-test-orangeaws/device360/*.gz',
+    's3://your-device360-bucket/device360/*.gz',
     '<AWS_ACCESS_KEY>',
     '<AWS_SECRET_KEY>',
     'JSONEachRow'

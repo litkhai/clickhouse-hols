@@ -33,7 +33,7 @@ if not CH_HOST or not CH_PASSWORD:
     )
 
 # Test configuration
-S3_URL = "https://device360-test-orangeaws.s3.ap-northeast-2.amazonaws.com/device360/*.json.gz"
+S3_URL = "https://your-device360-bucket.s3.ap-northeast-2.amazonaws.com/device360/*.json.gz"
 DATA_SIZE_GB = 28.56
 CHUNK_COUNT = 224
 TARGET_SIZE_GB = 300
@@ -50,7 +50,7 @@ print("Device360 Scale Ingestion Test")
 print("=" * 100)
 print(f"Data Size: {DATA_SIZE_GB} GB ({CHUNK_COUNT} chunks)")
 print(f"Target Projection: {TARGET_SIZE_GB} GB")
-print(f"S3 Location: s3://device360-test-orangeaws/device360/")
+print(f"S3 Location: s3://your-device360-bucket/device360/")
 print("=" * 100)
 print()
 

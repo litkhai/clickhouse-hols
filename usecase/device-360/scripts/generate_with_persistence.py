@@ -26,7 +26,7 @@ if 'AWS_ACCESS_KEY_ID' not in os.environ:
 
 NUM_RECORDS = 500000000
 NUM_DEVICES = 10000000
-S3_BUCKET = 'device360-test-orangeaws'
+S3_BUCKET = os.getenv('S3_BUCKET_NAME', 'your-device360-bucket')
 S3_PREFIX = 'device360'
 RECORDS_PER_CHUNK = 2000000
 

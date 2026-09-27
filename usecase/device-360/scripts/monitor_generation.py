@@ -75,7 +75,7 @@ def monitor_generation():
     load_env()
 
     # Configuration
-    bucket = os.getenv('S3_BUCKET_NAME', 'device360-test-orangeaws')
+    bucket = os.getenv('S3_BUCKET_NAME', 'your-device360-bucket')
     prefix = os.getenv('S3_PREFIX', 'device360')
     target_chunks = 250
     target_size_gb = 300
@@ -120,8 +120,8 @@ def monitor_generation():
                 print("⏳ Waiting for data generation to start...")
                 print()
                 print("If you haven't started yet, SSH into EC2 and run:")
-                print("  ssh -i ~/.ssh/kenlee_seoul_key.pem ubuntu@15.165.33.167")
-                print("  curl -s https://device360-test-orangeaws.s3.ap-northeast-2.amazonaws.com/scripts/manual_ec2_setup.sh | sudo bash")
+                print("  ssh -i ~/.ssh/<your-key>.pem ubuntu@<ec2-public-ip>")
+                print("  curl -s https://your-device360-bucket.s3.ap-northeast-2.amazonaws.com/scripts/manual_ec2_setup.sh | sudo bash")
                 print()
             else:
                 # Calculate statistics
