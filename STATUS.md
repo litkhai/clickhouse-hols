@@ -106,33 +106,20 @@ exploitable**:
 | 4 | `usecase/bug-bounty/05-generate-demo-data.sql` | Deliberately synthetic — MD5 of the word `password`, an `sk-proj-abcd1234…` stub, the canonical jwt.io sample token. The lab plants fake secrets on purpose. |
 | 2 | `tpcds/00-set-{GUIDE,README}.md` | The password is the literal word *secret* in an example export line. Path removed from `main` in the split; still in history. |
 
-## Re-verification notes
+## Open work
 
-Not re-run; update the claim only after a real end-to-end run (see AGENTS.md).
+Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issues) · [needs a re-run](https://github.com/litkhai/clickhouse-hols/issues?q=is%3Aopen+label%3Are-verify):
 
-| What | Where | Why it needs a run |
-|------|-------|--------------------|
-| Cloud API key, service password and hostname exposed before the 2026-09-07 rewrite | ClickHouse Cloud console | Not confirmed rotated. The local pre-rewrite backup branch was deleted 2026-09-27 without checking. |
-| `usecase/device-360` scripts | this repo | Bucket, EC2 address and key defaults became placeholders on 2026-09-27. |
-| AWS Terraform labs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | `allowed_cidr_blocks` and SASL-variable changes never applied; `direct-attach` fails on ClickHouse Cloud. The banners in each lab say so. |
-| `local/oss-docker` (was `oss-mac-setup`) on Linux and Windows | this repo | Renamed 2026-09-27 and docs made OS-neutral; the scripts are plain bash + Docker but were only ever run on macOS. The 21 release labs and other callers now point at the new path, not re-run. |
-| `tools/hol` smoke runs | this repo | Run locally only for 25.1–25.7 and 26.9 (all PASS) before the `smoke` workflow existed; the rest have not been run by it. |
-| Stub READMEs at moved paths | this repo, see [MOVED.md](MOVED.md) | Delete after 2027-03-31; keep `MOVED.md` and the redirects. |
-
-## Open tracks
-
-Left from the 2026-09 split. Each needs a real environment or a real run, so none
-is started.
-
-| Track | Where | What it needs |
-|-------|-------|---------------|
-| C (rest) | this repo | `lab.yaml` for the 38 non-release labs (tier T1–T3: extra services, Cloud). `build_site.py` still reads the README tables, not manifests. |
-| E. Cloud auto-provisioning | this repo | Shared module from the costkeeper / clickpipes-s3 API code: create service → allow IP → `.env` → run → delete, with TTL tags and a least-privilege key. Needs a ClickHouse Cloud org to test against. |
-| F. ClickStack base | [clickstack-hyperdx-hols](https://github.com/litkhai/clickstack-hyperdx-hols) | `_base/` all-in-one compose, then the planned labs in its README roadmap. Needs a ClickStack instance. |
-| G. Langfuse on ClickHouse (T0) | this repo, `usecase/` | A Parquet snapshot of Langfuse's ClickHouse tables so the ee 01–04 / eval 07 SQL runs without Langfuse. Needs one real Langfuse run to export from. |
-| H. LibreChat → llmops-in-a-box | `local/llm-*` | Vendor `mcp-server-clickhouse`, switch to the official ClickHouse image, re-run, move to `examples/`. |
-| I. Translation backlog | each repo | 18 single-language labs here, plus the two ClickStack workshops. |
-| K. AWS lab re-runs | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | See Re-verification notes. Costs real AWS spend. |
+- [Check the first smoke workflow runs](https://github.com/litkhai/clickhouse-hols/issues/3)
+- [Confirm Cloud credentials exposed before the 2026-09-07 rewrite were rotated](https://github.com/litkhai/clickhouse-hols/issues/4)
+- [Add lab.yaml to the 38 non-release labs (track C)](https://github.com/litkhai/clickhouse-hols/issues/5)
+- [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
+- [Langfuse on ClickHouse without Langfuse (track G)](https://github.com/litkhai/clickhouse-hols/issues/7)
+- [Move the LibreChat labs to llmops-in-a-box (track H)](https://github.com/litkhai/clickhouse-hols/issues/8)
+- [Run local/oss-docker on Linux and Windows](https://github.com/litkhai/clickhouse-hols/issues/9)
+- [Re-run usecase/device-360 scripts](https://github.com/litkhai/clickhouse-hols/issues/10)
+- [Translate the 18 single-language labs (track I)](https://github.com/litkhai/clickhouse-hols/issues/11)
+- [Delete the MOVED.md stub directories after 2027-03-31 (track J)](https://github.com/litkhai/clickhouse-hols/issues/12)
 
 ## Licensing exceptions
 
@@ -197,5 +184,4 @@ Terraform state.
   SHA와 `pre-split-2026-10` 태그를 지키기 위해 **이 저장소 히스토리는 재작성하지 않음**.
   해당 리소스는 이미 삭제됨. `clickhouse-cloud-aws-hols`는 공개 직후라 히스토리를
   재작성해 제거했고, 현재 트리의 `usecase/device-360` 버킷 이름과 EC2 주소는 placeholder로 바꿈.
-- **재검증 노트**: CHC 자격증명 교체 여부, `device-360` 스크립트, AWS Terraform 실습은
-  재실행하지 않았음. 위 "Re-verification notes" 표 참고.
+- **할 일**: GitHub 이슈로 관리합니다 (위 "Open work").
