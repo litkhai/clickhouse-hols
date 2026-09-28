@@ -170,6 +170,21 @@ are not doing now, open an issue rather than writing it into a README or
 
 ---
 
+## Model roles
+
+Work in this repository is split across Claude models:
+
+| Role | Model | Does |
+|------|-------|------|
+| Lead | **Opus** | Plans and designs the work, writes and updates documentation (READMEs, `AGENTS.md`, `STATUS.md`, issues, PR descriptions), splits the work into tasks and reviews what comes back |
+| Implementer | **Sonnet** | Writes the code, scripts and SQL for a task the lead hands over, runs the checks, opens the PR |
+| Status checker | **Haiku** | Read-only checks: CI and `smoke` results, open issues and PRs, link and syntax checks, what changed since the last look |
+
+The lead gives the implementer one issue at a time with the design and the files
+to touch; the implementer does not change the design or the docs' claims on its
+own. Verification claims still follow the rule above: only a real end-to-end run
+updates them, whichever model ran it.
+
 ## 한국어 요약
 
 - **사이트는 루트 `README.md`의 표에서 생성됩니다.** 표에 행이 없는 실습은 조용히
@@ -189,3 +204,5 @@ are not doing now, open an issue rather than writing it into a README or
   **관련 저장소** 행 추가, `docs/` 재생성(redirect 자동 생성)을 함께 합니다.
 - 해야 할 일은 **GitHub 이슈**로, 변경은 이슈를 참조하는 **PR**(`Closes #N`)로 관리합니다.
   `STATUS.md`에는 할 일 목록을 따로 두지 않고 열린 이슈를 링크합니다.
+- 모델 역할: **Opus**는 리드(설계, 문서, 이슈와 PR 설명, 작업 분배, 리뷰), **Sonnet**은
+  구현(코드·스크립트·SQL, 검사, PR), **Haiku**는 현황 체크(CI·smoke 결과, 이슈·PR 상태, 읽기 전용).
