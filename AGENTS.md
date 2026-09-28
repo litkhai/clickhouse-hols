@@ -158,6 +158,16 @@ Related repositories, all split from here with history:
 | [langfuse-hols](https://github.com/litkhai/langfuse-hols) | Langfuse on ClickHouse |
 | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | Terraform on AWS for ClickHouse Cloud |
 
+## Tracking work
+
+Planned work, re-verification and follow-ups are **GitHub issues**; every change
+lands through a **pull request** that references its issue (`Closes #N`).
+`STATUS.md` is a snapshot of the current state and links to the open issues
+instead of keeping its own to-do list. When you find something to do that you
+are not doing now, open an issue rather than writing it into a README or
+`STATUS.md`. Labels: `re-verify` (changed but not re-run), `enhancement`,
+`docs`, `ops`, `security`.
+
 ---
 
 ## 한국어 요약
@@ -177,3 +187,5 @@ Related repositories, all split from here with history:
   clone해서 `git filter-repo`로 히스토리를 옮기고, 여기서는 실습을 지운 뒤
   `MOVED.md` 행, 옛 경로의 영/한 stub README, 루트 README 두 언어의 표 수정과
   **관련 저장소** 행 추가, `docs/` 재생성(redirect 자동 생성)을 함께 합니다.
+- 해야 할 일은 **GitHub 이슈**로, 변경은 이슈를 참조하는 **PR**(`Closes #N`)로 관리합니다.
+  `STATUS.md`에는 할 일 목록을 따로 두지 않고 열린 이슈를 링크합니다.
