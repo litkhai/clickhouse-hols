@@ -2,9 +2,11 @@ name: smoke
 
 # Runs every T0 lab (tools/hol list --tier T0) end to end in a throwaway
 # ClickHouse container, one job per lab, pinned to the lab's own version.
+# Run it by hand (Actions → smoke → Run workflow). The monthly schedule only
+# runs the stub-expiry check.
 on:
   schedule:
-    - cron: "17 3 * * *"
+    - cron: "17 3 1 * *"
   workflow_dispatch:
 
 permissions:
@@ -12,6 +14,7 @@ permissions:
 
 jobs:
   list:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       labs: ${{ steps.l.outputs.labs }}

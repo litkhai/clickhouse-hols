@@ -16,8 +16,7 @@ section rather than trusting the date at the top.
 | `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md); 84 files |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
-| `smoke` | new | daily; every T0 lab via `tools/hol`, plus the 2027-03-31 stub-expiry check. Not yet run in CI |
-| `shellcheck` | ⚠️ advisory | style findings across 200+ scripts, non-blocking by design |
+| `smoke` | manual | every T0 lab via `tools/hol` when run by hand; the monthly schedule only runs the stub-expiry check. Not yet run in CI |
 
 Note that `check_links.py` reads `git ls-files`, so an **untracked** new lab is
 not checked at all. `git add` before you trust a green run.
@@ -72,7 +71,6 @@ site redirect after that.
 |-----|--------|-------|
 | 18 of 38 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
 | `chc/{api,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
-| `shellcheck` findings unaddressed | Low | Deliberately advisory — see the comment in `.github/workflows/checks.yml`. |
 | `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI.  |
 
 List the single-language labs:
