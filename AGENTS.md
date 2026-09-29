@@ -124,7 +124,7 @@ tools/hol run local/releases/26.9     # fresh container, every NN-*.sql in order
 ```
 
 It needs only Python 3 and Docker, so it is the same on macOS, Linux and
-Windows. The `smoke` workflow runs every T0 lab daily. `verified_on` still
+Windows. The `smoke` workflow runs every T0 lab when started by hand. `verified_on` still
 follows the Verification claims rule below — a green smoke run on a newer image
 is not a reason to change it.
 
@@ -197,7 +197,7 @@ updates them, whichever model ran it.
 - 클론마다 한 번: `git config core.hooksPath .githooks`.
 - 검증 버전 문구는 실제로 끝까지 실행했을 때만 갱신합니다.
 - `tools/hol run <lab>`: `lab.yaml`이 있는 실습(현재 릴리스 21개, T0)을 새 컨테이너에서 실행.
-  `smoke` 워크플로가 매일 전부 돌립니다.
+  `smoke` 워크플로를 수동으로 실행하면 전부 돌립니다.
 - 실습을 다른 저장소로 옮길 때는 옛 URL이 계속 동작해야 합니다. `origin`을 새로
   clone해서 `git filter-repo`로 히스토리를 옮기고, 여기서는 실습을 지운 뒤
   `MOVED.md` 행, 옛 경로의 영/한 stub README, 루트 README 두 언어의 표 수정과
