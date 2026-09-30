@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Generated from khai-workbench domains/clickhouse/tools/hol @b926661 — edit there, not here (sync.py).
 """hol — run hands-on labs against a throwaway ClickHouse container.
 
 Needs only Python 3 and Docker, so it behaves the same on macOS, Linux and

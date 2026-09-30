@@ -93,6 +93,8 @@ The `hygiene` job enforces the shared Secrets rules below.
 
 ## Running labs with `tools/hol`
 
+`tools/hol` is a generated copy (see its second line); changes to the runner arrive as pull requests from its source. Do not edit it here.
+
 A lab opts in to the runner with a flat `lab.yaml` next to its README
 (`target`, `tier`, `clickhouse`, `services`, `verified_on`). Only the 21
 release labs have one so far, all tier **T0**: SQL only, one ClickHouse
