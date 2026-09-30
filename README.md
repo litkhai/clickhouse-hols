@@ -98,7 +98,7 @@ version here is at the `pre-split-2026-10` tag.
 | [langfuse-hols](https://github.com/litkhai/langfuse-hols) | Self-hosting Langfuse on ClickHouse (OSS + Enterprise) and its evaluation loop |
 | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | Terraform on AWS for ClickHouse Cloud: Confluent Kafka, MinIO/Glue lakes, secure S3 |
 | [tpcds-scripts](https://github.com/litkhai/tpcds-scripts) | Multi-engine TPC-DS scripts (successor to the old `tpcds/` lab) |
-| [lightweight-workshop-ny-citi-bike](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) | Self-service workshop: a live Citi Bike feed across Managed Postgres and ClickHouse |
+| [citi-bike-workshop](https://github.com/litkhai/citi-bike-workshop) | Self-service workshop: a live Citi Bike feed across Managed Postgres and ClickHouse |
 
 ### 🛠 Prerequisites
 
@@ -309,7 +309,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [langfuse-hols](https://github.com/litkhai/langfuse-hols) | ClickHouse 기반 Langfuse 자체 호스팅(OSS + Enterprise)과 평가 루프 |
 | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | ClickHouse Cloud를 위한 AWS Terraform: Confluent Kafka, MinIO/Glue 레이크, 보안 S3 |
 | [tpcds-scripts](https://github.com/litkhai/tpcds-scripts) | 여러 엔진용 TPC-DS 스크립트 (옛 `tpcds/` 실습의 후속) |
-| [lightweight-workshop-ny-citi-bike](https://github.com/litkhai/lightweight-workshop-ny-citi-bike) | 셀프 워크숍: Managed Postgres와 ClickHouse에 걸친 Citi Bike 실시간 피드 |
+| [citi-bike-workshop](https://github.com/litkhai/citi-bike-workshop) | 셀프 워크숍: Managed Postgres와 ClickHouse에 걸친 Citi Bike 실시간 피드 |
 
 ### 🛠 사전 요구사항
 
