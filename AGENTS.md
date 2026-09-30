@@ -96,22 +96,7 @@ python3 .github/scripts/check_links.py
 python3 .github/scripts/build_site.py --check
 ```
 
-The `hygiene` job additionally rejects:
-
-- any tracked file that matches a `.gitignore` rule (ignore rules do not apply
-  retroactively to tracked files, so the check catches inert rules),
-- `/Users/...` host paths in non-markdown files — derive paths from
-  `BASH_SOURCE` or `__file__`,
-- committed Terraform state or any zip-shaped file (a saved `tfplan` embeds the
-  whole state, including real account IDs and role ARNs).
-
-## Verification claims
-
-Lab READMEs state the ClickHouse version a lab was verified against
-(e.g. *"Verified on ClickHouse 26.8.8"*). Only write or update that line when
-the scripts were actually executed end to end against that version. If you
-change a lab without running it, leave the existing version claim alone and say
-what was not re-run.
+The `hygiene` job enforces the shared Secrets rules below.
 
 ## Running labs with `tools/hol`
 
@@ -127,7 +112,7 @@ tools/hol run local/releases/26.9     # fresh container, every NN-*.sql in order
 
 It needs only Python 3 and Docker, so it is the same on macOS, Linux and
 Windows. The `smoke` workflow runs every T0 lab when started by hand. `verified_on` still
-follows the Verification claims rule below — a green smoke run on a newer image
+follows the shared Verification claims rule below — a green smoke run on a newer image
 is not a reason to change it.
 
 ## Moving a lab out of this repository
@@ -160,33 +145,6 @@ Related repositories, all split from here with history:
 | [langfuse-hols](https://github.com/litkhai/langfuse-hols) | Langfuse on ClickHouse |
 | [clickhouse-cloud-aws-hols](https://github.com/litkhai/clickhouse-cloud-aws-hols) | Terraform on AWS for ClickHouse Cloud |
 
-## Tracking work
-
-Planned work, re-verification and follow-ups are **GitHub issues**; every change
-lands through a **pull request** that references its issue (`Closes #N`).
-`STATUS.md` is a snapshot of the current state and links to the open issues
-instead of keeping its own to-do list. When you find something to do that you
-are not doing now, open an issue rather than writing it into a README or
-`STATUS.md`. Labels: `re-verify` (changed but not re-run), `enhancement`,
-`docs`, `ops`, `security`.
-
----
-
-## Model roles
-
-Work in this repository is split across Claude models:
-
-| Role | Model | Does |
-|------|-------|------|
-| Lead | **Opus** | Plans and designs the work, writes and updates documentation (READMEs, `AGENTS.md`, `STATUS.md`, issues, PR descriptions), splits the work into tasks and reviews what comes back |
-| Implementer | **Sonnet** | Writes the code, scripts and SQL for a task the lead hands over, runs the checks, opens the PR |
-| Status checker | **Haiku** | Read-only checks: CI and `smoke` results, open issues and PRs, link and syntax checks, what changed since the last look |
-
-The lead gives the implementer one issue at a time with the design and the files
-to touch; the implementer does not change the design or the docs' claims on its
-own. Verification claims still follow the rule above: only a real end-to-end run
-updates them, whichever model ran it.
-
 ## 한국어 요약
 
 - **사이트는 루트 `README.md`의 표에서 생성됩니다.** 표에 행이 없는 실습은 조용히
@@ -196,18 +154,13 @@ updates them, whichever model ran it.
   재생성한 `docs/`를 **커밋**.
 - 아직 없는 실습으로 상대 링크를 걸지 마세요. `links` 작업이 실패합니다.
 - 한쪽 언어의 내용을 고치면 반대쪽도 같이 고칩니다.
-- 클론마다 한 번: `git config core.hooksPath .githooks`.
-- 검증 버전 문구는 실제로 끝까지 실행했을 때만 갱신합니다.
 - `tools/hol run <lab>`: `lab.yaml`이 있는 실습(현재 릴리스 21개, T0)을 새 컨테이너에서 실행.
   `smoke` 워크플로를 수동으로 실행하면 전부 돌립니다.
 - 실습을 다른 저장소로 옮길 때는 옛 URL이 계속 동작해야 합니다. `origin`을 새로
   clone해서 `git filter-repo`로 히스토리를 옮기고, 여기서는 실습을 지운 뒤
   `MOVED.md` 행, 옛 경로의 영/한 stub README, 루트 README 두 언어의 표 수정과
   **관련 저장소** 행 추가, `docs/` 재생성(redirect 자동 생성)을 함께 합니다.
-- 해야 할 일은 **GitHub 이슈**로, 변경은 이슈를 참조하는 **PR**(`Closes #N`)로 관리합니다.
-  `STATUS.md`에는 할 일 목록을 따로 두지 않고 열린 이슈를 링크합니다.
-- 모델 역할: **Opus**는 리드(설계, 문서, 이슈와 PR 설명, 작업 분배, 리뷰), **Sonnet**은
-  구현(코드·스크립트·SQL, 검사, PR), **Haiku**는 현황 체크(CI·smoke 결과, 이슈·PR 상태, 읽기 전용).
+- 공통 절차(검증 문구, 이슈·PR, 모델 역할, 시크릿)는 아래 생성 구간에 있습니다.
 
 <!-- harness:core start — khai-harness core@4b0e565 · context public · 손으로 고치지 마세요 -->
 **Context: public.** Public sources only — nothing from company connectors, internal hosts, internal wikis or
