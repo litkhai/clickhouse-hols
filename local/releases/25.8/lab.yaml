@@ -1,6 +1,6 @@
 # Read by tools/hol. Keys: see tools/hol and AGENTS.md.
 target: oss
-tier: T0            # SQL only, one ClickHouse server, self-generated data
+tier: T1            # needs a second local service: 06-minio-integration.sql writes to MinIO
 clickhouse: "25.8"   # image tag clickhouse/clickhouse-server:<this>
-services: [clickhouse]
+services: [clickhouse, minio]
 verified_on: "25.8.28.1"   # build the SQL was last run against end to end
