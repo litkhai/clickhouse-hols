@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: "17 3 1 * *"
   workflow_dispatch:
+    inputs:
+      lab:
+        description: "one lab path (e.g. local/releases/26.9); empty = every T0 lab"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -21,7 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: l
-        run: echo "labs=$(python3 tools/hol list --tier T0 --json)" >> "$GITHUB_OUTPUT"
+        env:
+          LAB: ${{ inputs.lab }}
+        run: |
+          if [ -n "$LAB" ]; then echo "labs=[\"$LAB\"]" >> "$GITHUB_OUTPUT"
+          else echo "labs=$(python3 tools/hol list --tier T0 --json)" >> "$GITHUB_OUTPUT"; fi
 
   run:
     needs: list

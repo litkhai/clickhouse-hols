@@ -11,6 +11,7 @@
     {
       "names": [
         "accept",
+        "arch_prctl",
         "accept4",
         "access",
         "adjtimex",
