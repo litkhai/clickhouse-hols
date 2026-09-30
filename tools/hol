@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generated from khai-workbench domains/clickhouse/tools/hol @509b943 — edit there, not here (sync.py).
+# Generated from khai-workbench domains/clickhouse/tools/hol @cb8d56a — edit there, not here (sync.py).
 """hol — run hands-on labs against a throwaway ClickHouse container.
 
 Needs only Python 3 and Docker, so it behaves the same on macOS, Linux and
@@ -54,11 +54,6 @@ def up(meta):
             "-e", "CLICKHOUSE_PASSWORD=", "-e", "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1"]
     if SECCOMP.exists():
         args += ["--security-opt", "seccomp=%s" % SECCOMP]
-    else:
-        # Without the lab's profile the default seccomp policy on GitHub runners kills the server at
-        # start ("cannot set up thread-local storage", exit 127, every version 25.1–26.9, 2026-09-30).
-        # These containers are throwaway and hold only self-generated data.
-        args += ["--security-opt", "seccomp=unconfined"]
     if sh(*args, image, capture_output=True).returncode:
         sys.exit("could not start %s" % image)
     for _ in range(60):
