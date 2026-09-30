@@ -53,13 +53,13 @@ ClickHouse development environment on Docker (macOS, Linux, Windows) with a secc
 
 ```bash
 # View real-time logs
-docker-compose logs -f
+docker compose logs -f
 
 # Execute SQL directly
-docker-compose exec clickhouse clickhouse-client --query "SHOW DATABASES"
+docker compose exec clickhouse clickhouse-client --query "SHOW DATABASES"
 
 # Access container shell
-docker-compose exec clickhouse bash
+docker compose exec clickhouse bash
 ```
 
 ## 📂 Data Storage
@@ -72,8 +72,8 @@ Data is stored in Docker Named Volumes for persistence:
 
 ```bash
 # Update to new version
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ## 🔧 Troubleshooting

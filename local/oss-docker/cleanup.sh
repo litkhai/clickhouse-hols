@@ -28,7 +28,7 @@ if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
 fi
 
 echo "🛑 Stopping and removing containers..."
-docker-compose down -v
+docker compose down -v
 
 echo ""
 echo "🗑️  Removing Docker volumes..."

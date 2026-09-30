@@ -1,12 +1,12 @@
 #!/bin/bash
 echo "🚀 Starting ClickHouse..."
-docker-compose up -d
+docker compose up -d
 
 echo "⏳ Waiting for ClickHouse to be ready..."
 sleep 10
 
 echo "🔍 Checking health..."
-docker-compose ps
+docker compose ps
 
 echo "✅ ClickHouse is running!"
 echo "📍 HTTP Interface: http://localhost:8123"

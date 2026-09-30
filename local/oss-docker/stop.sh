@@ -24,9 +24,9 @@ fi
 if [ -f "docker-compose.yml" ]; then
     echo "▶️  Stopping with Docker Compose..."
     if [ "$CLEANUP" = true ]; then
-        docker-compose down -v
+        docker compose down -v
     else
-        docker-compose down
+        docker compose down
     fi
 else
     echo "▶️  Stopping containers directly..."
@@ -54,7 +54,7 @@ done
 if [ "$STILL_RUNNING" = true ]; then
     echo ""
     echo "⚠️  Some containers are still running."
-    echo "   Force stop: docker-compose kill"
+    echo "   Force stop: docker compose kill"
 else
     echo ""
     echo "✅ All ClickHouse containers stopped successfully."

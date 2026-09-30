@@ -85,13 +85,13 @@
 </ul>
 <h2>🔧 Advanced Usage</h2>
 <pre><code class="language-bash"># View real-time logs
-docker-compose logs -f
+docker compose logs -f
 
 # Execute SQL directly
-docker-compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
+docker compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
 
 # Access container shell
-docker-compose exec clickhouse bash
+docker compose exec clickhouse bash
 </code></pre>
 <h2>📂 Data Storage</h2>
 <p>Data is stored in Docker Named Volumes for persistence:
@@ -99,8 +99,8 @@ docker-compose exec clickhouse bash
 - <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
 <h2>🔄 Updates</h2>
 <pre><code class="language-bash"># Update to new version
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 </code></pre>
 <h2>🔧 Troubleshooting</h2>
 <h3>get_mempolicy Error</h3>
@@ -179,13 +179,13 @@ docker-compose up -d
 </ul>
 <h2>🔧 Advanced Usage</h2>
 <pre><code class="language-bash"># View real-time logs
-docker-compose logs -f
+docker compose logs -f
 
 # Execute SQL directly
-docker-compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
+docker compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&quot;
 
 # Access container shell
-docker-compose exec clickhouse bash
+docker compose exec clickhouse bash
 </code></pre>
 <h2>📂 Data Storage</h2>
 <p>Data is stored in Docker Named Volumes for persistence:
@@ -193,8 +193,8 @@ docker-compose exec clickhouse bash
 - <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
 <h2>🔄 Updates</h2>
 <pre><code class="language-bash"># Update to new version
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 </code></pre>
 <h2>🔧 Troubleshooting</h2>
 <h3>get_mempolicy Error</h3>
