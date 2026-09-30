@@ -3,7 +3,7 @@ echo "📊 ClickHouse Status"
 echo "===================="
 
 echo "🐳 Container Status:"
-docker-compose ps
+docker compose ps
 
 echo ""
 echo "💓 Service Health:"

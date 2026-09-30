@@ -30,15 +30,15 @@ echo ""
 
 # Clean up existing containers if present
 echo "🔄 Cleaning up old containers..."
-docker-compose down 2>/dev/null || true
+docker compose down 2>/dev/null || true
 
 # Pull latest images
 echo "📥 Pulling ClickHouse images..."
-docker-compose pull
+docker compose pull
 
 # Start all ClickHouse containers
 echo "▶️  Starting ClickHouse containers..."
-docker-compose up -d
+docker compose up -d
 
 echo ""
 echo "⏳ Waiting for ClickHouse initialization..."
@@ -120,4 +120,4 @@ else
     echo "   Example: ./client.sh ${HTTP_PORT} (for version ${version})"
 fi
 echo ""
-echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"
+if [ "$ALL_STARTED" = true ]; then echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"; else echo "❌ Not every version answered /ping — see docker compose logs"; exit 1; fi

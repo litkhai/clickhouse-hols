@@ -61,6 +61,7 @@ cat > seccomp-profile.json << 'EOF'
     {
       "names": [
         "accept",
+        "arch_prctl",
         "accept4",
         "access",
         "adjtimex",
@@ -527,15 +528,15 @@ echo ""
 
 # Clean up existing containers if present
 echo "🔄 Cleaning up old containers..."
-docker-compose down 2>/dev/null || true
+docker compose down 2>/dev/null || true
 
 # Pull latest images
 echo "📥 Pulling ClickHouse images..."
-docker-compose pull
+docker compose pull
 
 # Start all ClickHouse containers
 echo "▶️  Starting ClickHouse containers..."
-docker-compose up -d
+docker compose up -d
 
 echo ""
 echo "⏳ Waiting for ClickHouse initialization..."
@@ -617,7 +618,7 @@ else
     echo "   Example: ./client.sh ${HTTP_PORT} (for version ${version})"
 fi
 echo ""
-echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"
+if [ "$ALL_STARTED" = true ]; then echo "✅ ClickHouse is ready! (No get_mempolicy errors with seccomp profile)"; else echo "❌ Not every version answered /ping — see docker compose logs"; exit 1; fi
 STARTSH
 
 # Create stop.sh script
@@ -649,9 +650,9 @@ fi
 if [ -f "docker-compose.yml" ]; then
     echo "▶️  Stopping with Docker Compose..."
     if [ "$CLEANUP" = true ]; then
-        docker-compose down -v
+        docker compose down -v
     else
-        docker-compose down
+        docker compose down
     fi
 else
     echo "▶️  Stopping containers directly..."
@@ -679,7 +680,7 @@ done
 if [ "$STILL_RUNNING" = true ]; then
     echo ""
     echo "⚠️  Some containers are still running."
-    echo "   Force stop: docker-compose kill"
+    echo "   Force stop: docker compose kill"
 else
     echo ""
     echo "✅ All ClickHouse containers stopped successfully."
@@ -836,7 +837,7 @@ echo "🔧 Management Commands:"
 echo "   ./start.sh          - Start all ClickHouse versions"
 echo "   ./stop.sh           - Stop all versions"
 echo "   ./client.sh <PORT>  - Connect to specific version"
-echo "   docker-compose logs -f  - View real-time logs"
+echo "   docker compose logs -f  - View real-time logs"
 echo ""
 echo "📍 Connection URLs:"
 for version in "${VERSIONS[@]}"; do
@@ -981,7 +982,7 @@ if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
 fi
 
 echo "🛑 Stopping and removing containers..."
-docker-compose down -v
+docker compose down -v
 
 echo ""
 echo "🗑️  Removing Docker volumes..."
@@ -1064,13 +1065,13 @@ ClickHouse development environment on Docker (macOS, Linux, Windows) with a secc
 
 ```bash
 # View real-time logs
-docker-compose logs -f
+docker compose logs -f
 
 # Execute SQL directly
-docker-compose exec clickhouse clickhouse-client --query "SHOW DATABASES"
+docker compose exec clickhouse clickhouse-client --query "SHOW DATABASES"
 
 # Access container shell
-docker-compose exec clickhouse bash
+docker compose exec clickhouse bash
 ```
 
 ## 📂 Data Storage
@@ -1083,8 +1084,8 @@ Data is stored in Docker Named Volumes for persistence:
 
 ```bash
 # Update to new version
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ## 🔧 Troubleshooting

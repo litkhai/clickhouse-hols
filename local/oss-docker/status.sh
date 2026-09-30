@@ -114,7 +114,7 @@ echo "🔧 Management Commands:"
 echo "   ./start.sh          - Start all ClickHouse versions"
 echo "   ./stop.sh           - Stop all versions"
 echo "   ./client.sh <PORT>  - Connect to specific version"
-echo "   docker-compose logs -f  - View real-time logs"
+echo "   docker compose logs -f  - View real-time logs"
 echo ""
 echo "📍 Connection URLs:"
 for version in "${VERSIONS[@]}"; do
