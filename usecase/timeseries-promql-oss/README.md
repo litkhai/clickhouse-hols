@@ -103,6 +103,39 @@ self-enable it, and PromQL depends on a `TimeSeries` table existing, so the
 whole feature pair sits behind the same private-preview approval. Run this
 lab against OSS until that changes.
 
+**What differs on a preview service.** Cloud does not reimplement either
+feature. It runs the same engine and the same PromQL code. What differs is
+what surrounds them. Sources: the
+[TimeSeries engine](https://clickhouse.com/docs/engines/table-engines/special/time_series)
+and [Prometheus protocols](https://clickhouse.com/docs/interfaces/prometheus)
+docs, read 2026-10-01. None of this has been run on a Cloud service.
+
+- **Enabling.** On preview services, ClickHouse has already set the setting
+  and configured the Prometheus HTTP endpoints; no other service can turn
+  them on. In OSS you set the setting yourself and register a
+  `prometheus_api_v1` handler under `<http_handlers>` in `config.xml`. This
+  lab uses neither endpoint: it writes with SQL `INSERT` and reads with
+  `SET dialect = 'promql'`.
+- **The setting's name.** The docs call it `enable_time_series_table`. That
+  name does not exist in 26.8: on 26.8.15.10, `system.settings` has only
+  `allow_experimental_time_series_table`, the name this lab uses. On
+  26.9.1.1629 `enable_time_series_table` is the setting and the old name is its
+  alias, so the lab's name works on both.
+- **Storage under the engine.** The four inner tables follow
+  `default_table_engine`, and the docs require them all to share one
+  replication type (all replicated or all shared). On Cloud they should
+  therefore be Shared\* engines, and merge and deduplication timing may not
+  match what this lab sees on a single node. This is a hypothesis, not a
+  measurement.
+- **Version.** A Cloud service runs its own version, not this lab's 26.8 pin.
+  26.9 added `SELECT` on `TimeSeries` tables (see
+  [`local/releases/26.9`](../../local/releases/26.9/)), so gotcha 2 above may
+  not reproduce there.
+
+To see the second and third points on a preview service, run
+`SELECT version()` after `01-schema.sql`. Then run the inner-table query in
+`05-management.sql` without its `DROP`, adding `engine` to the columns.
+
 ---
 
 ## 한국어
@@ -200,3 +233,32 @@ cd usecase/timeseries-promql-oss
 Preview 상태**입니다 — 대부분의 Cloud 서비스는 스스로 활성화할 수 없고, PromQL도
 `TimeSeries` 테이블이 있어야 동작하므로 두 기능 모두 Cloud에서는 같은
 private-preview 승인이 필요합니다. 그 전까지는 OSS에서 실행하세요.
+
+**preview 서비스에서 달라지는 점.** Cloud가 두 기능을 따로 구현하는 것은
+아닙니다. 엔진과 PromQL은 같은 코드입니다. 달라지는 것은 그 주변입니다.
+근거는 [TimeSeries 엔진](https://clickhouse.com/docs/engines/table-engines/special/time_series)과
+[Prometheus 프로토콜](https://clickhouse.com/docs/interfaces/prometheus) 문서이고,
+2026-10-01에 읽었습니다. Cloud 서비스에서 직접 실행해 본 내용은 아닙니다.
+
+- **활성화.** preview 서비스에는 ClickHouse가 설정과 Prometheus HTTP
+  엔드포인트를 미리 켜 둡니다. 다른 서비스는 직접 켤 수 없습니다. OSS에서는
+  설정을 직접 켜고, `config.xml`의 `<http_handlers>`에 `prometheus_api_v1`
+  핸들러를 등록합니다. 이 실습은 그 엔드포인트를 쓰지 않습니다. 쓰기는 SQL
+  `INSERT`, 읽기는 `SET dialect = 'promql'`로 합니다.
+- **설정 이름.** 문서에 나오는 이름은 `enable_time_series_table`입니다. 이
+  이름은 26.8에는 없습니다. 26.8.15.10의 `system.settings`에는 이 실습이 쓰는
+  `allow_experimental_time_series_table`만 있습니다. 26.9.1.1629에서는
+  `enable_time_series_table`이 정식 설정이고 옛 이름은 그 별칭이라, 실습의
+  이름은 두 버전 모두에서 동작합니다.
+- **엔진 아래의 저장 계층.** 내부 테이블 4개는 `default_table_engine`을
+  따르고, 문서상 모두 같은 복제 방식(전부 replicated 또는 전부 shared)이어야
+  합니다. 그래서 Cloud에서는 Shared\* 엔진이 될 것이고, 머지·중복 제거 시점이
+  이 실습의 단일 노드 결과와 다를 수 있습니다. 측정한 것이 아니라 가설입니다.
+- **버전.** Cloud 서비스는 이 실습이 고정한 26.8이 아니라 서비스 자체 버전으로
+  돕니다. 26.9에서 `TimeSeries` 테이블 `SELECT`가 추가됐으므로
+  ([`local/releases/26.9`](../../local/releases/26.9/) 참고) 위 함정 2는 그곳에서
+  재현되지 않을 수 있습니다.
+
+preview 서비스에서 두 번째·세 번째 항목을 확인하려면 `01-schema.sql` 다음에
+`SELECT version()`을 실행하세요. 이어서 `05-management.sql`의 내부 테이블
+조회를 `DROP` 없이 실행하되, 조회 컬럼에 `engine`을 추가하세요.

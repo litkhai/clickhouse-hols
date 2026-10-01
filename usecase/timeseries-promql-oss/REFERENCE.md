@@ -36,6 +36,7 @@ Cloud version of this material.
 | Setting | Purpose | Verified behavior |
 |---|---|---|
 | `allow_experimental_time_series_table` | Enables `CREATE TABLE ... ENGINE = TimeSeries` | Required — omitting it raises `SUPPORT_IS_DISABLED` (Code 344) |
+| `enable_time_series_table` | The name the docs use. It first appears in 26.9, where the old name becomes its alias | `system.settings`: absent on 26.8.15.10. On 26.9.1.1629 `allow_experimental_time_series_table` has `alias_for = enable_time_series_table`. The same rename applies to `allow_experimental_time_series_aggregate_functions` → `enable_time_series_aggregate_functions` |
 | `dialect = 'promql'` | Switches the SQL parser to PromQL for **every subsequent statement** in the session | Session-wide; a plain `SELECT '...'` banner after this will fail to parse |
 | `promql_table` | Names the `TimeSeries` table bare metric names resolve against | Required before any PromQL query; omitting it errors with "not specified" |
 | `allow_experimental_time_series_aggregate_functions` | Gates the 25.6 `timeSeries*ToGrid` SQL aggregate functions, which `prometheusQueryRange()` uses internally | **Inconsistent in testing.** `prometheusQueryRange()` failed once without it (`UNKNOWN_AGGREGATE_FUNCTION`), then succeeded without it on a freshly restarted container running the same version and query. Plain PromQL keyword functions (`rate()`, `topk()`) worked in every test regardless. Set it defensively — see §8.4 |
