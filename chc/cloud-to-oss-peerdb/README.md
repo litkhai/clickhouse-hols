@@ -7,6 +7,7 @@ OSS**로 옮기는 경로(초기 스냅샷 + CDC)가 기능적으로 동작하�
 - 전체 보고서: [`REPORT.md`](./REPORT.md) / [`REPORT.pdf`](./REPORT.pdf)
 - 세부 진행 기록: [`details/`](./details)
 - 운영 보안·이관 런북: [`clickhouse-cloud-to-self-managed-security-runbook.md`](./clickhouse-cloud-to-self-managed-security-runbook.md)
+- 배경 — Cloud 백업 복원 대신 데이터 복사인 이유, PeerDB가 ClickPipes를 대신하는 근거: [`BACKGROUND.md`](./BACKGROUND.md)
 - AI 전체 사이클 검증 지시서: [`AI-VALIDATION-WORK-INSTRUCTIONS.md`](./AI-VALIDATION-WORK-INSTRUCTIONS.md)
 - EC2 배포 코드: [`terraform/`](./terraform/)
 
@@ -46,6 +47,7 @@ cloud-to-oss-peerdb/
 ├── REPORT.md / REPORT.pdf          — 완료된 기능 검증의 역사적 보고서
 ├── AI-VALIDATION-WORK-INSTRUCTIONS.md
 ├── clickhouse-cloud-to-self-managed-security-runbook.md
+├── BACKGROUND.md                   — 백업 복원이 기본 경로가 아닌 이유, PeerDB 소스 근거
 ├── terraform/                      — EC2/EBS/KMS/S3/IAM/TLS 배포 코드
 └── details/
     ├── scope-decisions.md   — 범위를 두 차례 좁힌 결정과 사유

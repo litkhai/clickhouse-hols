@@ -44,6 +44,7 @@ OSS</strong>로 옮기는 경로(초기 스냅샷 + CDC)가 기능적으로 동�
 <li>전체 보고서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.md"><code>REPORT.md</code></a> / <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.pdf"><code>REPORT.pdf</code></a></li>
 <li>세부 진행 기록: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details"><code>details/</code></a></li>
 <li>운영 보안·이관 런북: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/clickhouse-cloud-to-self-managed-security-runbook.md"><code>clickhouse-cloud-to-self-managed-security-runbook.md</code></a></li>
+<li>배경 — Cloud 백업 복원 대신 데이터 복사인 이유, PeerDB가 ClickPipes를 대신하는 근거: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/BACKGROUND.md"><code>BACKGROUND.md</code></a></li>
 <li>AI 전체 사이클 검증 지시서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/AI-VALIDATION-WORK-INSTRUCTIONS.md"><code>AI-VALIDATION-WORK-INSTRUCTIONS.md</code></a></li>
 <li>EC2 배포 코드: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/cloud-to-oss-peerdb/terraform"><code>terraform/</code></a></li>
 </ul>
@@ -98,6 +99,7 @@ PeerDB의 공개 문서가 다루지 않는, 실제로 동작을 확인해야만
 ├── REPORT.md / REPORT.pdf          — 완료된 기능 검증의 역사적 보고서
 ├── AI-VALIDATION-WORK-INSTRUCTIONS.md
 ├── clickhouse-cloud-to-self-managed-security-runbook.md
+├── BACKGROUND.md                   — 백업 복원이 기본 경로가 아닌 이유, PeerDB 소스 근거
 ├── terraform/                      — EC2/EBS/KMS/S3/IAM/TLS 배포 코드
 └── details/
     ├── scope-decisions.md   — 범위를 두 차례 좁힌 결정과 사유
@@ -120,6 +122,7 @@ OSS</strong>로 옮기는 경로(초기 스냅샷 + CDC)가 기능적으로 동�
 <li>전체 보고서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.md"><code>REPORT.md</code></a> / <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/REPORT.pdf"><code>REPORT.pdf</code></a></li>
 <li>세부 진행 기록: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/details"><code>details/</code></a></li>
 <li>운영 보안·이관 런북: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/clickhouse-cloud-to-self-managed-security-runbook.md"><code>clickhouse-cloud-to-self-managed-security-runbook.md</code></a></li>
+<li>배경 — Cloud 백업 복원 대신 데이터 복사인 이유, PeerDB가 ClickPipes를 대신하는 근거: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/BACKGROUND.md"><code>BACKGROUND.md</code></a></li>
 <li>AI 전체 사이클 검증 지시서: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/cloud-to-oss-peerdb/AI-VALIDATION-WORK-INSTRUCTIONS.md"><code>AI-VALIDATION-WORK-INSTRUCTIONS.md</code></a></li>
 <li>EC2 배포 코드: <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/cloud-to-oss-peerdb/terraform"><code>terraform/</code></a></li>
 </ul>
@@ -174,6 +177,7 @@ PeerDB의 공개 문서가 다루지 않는, 실제로 동작을 확인해야만
 ├── REPORT.md / REPORT.pdf          — 완료된 기능 검증의 역사적 보고서
 ├── AI-VALIDATION-WORK-INSTRUCTIONS.md
 ├── clickhouse-cloud-to-self-managed-security-runbook.md
+├── BACKGROUND.md                   — 백업 복원이 기본 경로가 아닌 이유, PeerDB 소스 근거
 ├── terraform/                      — EC2/EBS/KMS/S3/IAM/TLS 배포 코드
 └── details/
     ├── scope-decisions.md   — 범위를 두 차례 좁힌 결정과 사유
