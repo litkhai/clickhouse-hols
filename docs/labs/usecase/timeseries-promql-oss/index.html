@@ -173,6 +173,38 @@ is <strong>Private Preview only on ClickHouse Cloud</strong>: most Cloud service
 self-enable it, and PromQL depends on a <code>TimeSeries</code> table existing, so the
 whole feature pair sits behind the same private-preview approval. Run this
 lab against OSS until that changes.</p>
+<p><strong>What differs on a preview service.</strong> Cloud does not reimplement either
+feature. It runs the same engine and the same PromQL code. What differs is
+what surrounds them. Sources: the
+<a href="https://clickhouse.com/docs/engines/table-engines/special/time_series">TimeSeries engine</a>
+and <a href="https://clickhouse.com/docs/interfaces/prometheus">Prometheus protocols</a>
+docs, read 2026-10-01. None of this has been run on a Cloud service.</p>
+<ul>
+<li><strong>Enabling.</strong> On preview services, ClickHouse has already set the setting
+  and configured the Prometheus HTTP endpoints; no other service can turn
+  them on. In OSS you set the setting yourself and register a
+  <code>prometheus_api_v1</code> handler under <code>&lt;http_handlers&gt;</code> in <code>config.xml</code>. This
+  lab uses neither endpoint: it writes with SQL <code>INSERT</code> and reads with
+  <code>SET dialect = 'promql'</code>.</li>
+<li><strong>The setting's name.</strong> The docs call it <code>enable_time_series_table</code>. That
+  name does not exist in 26.8: on 26.8.15.10, <code>system.settings</code> has only
+  <code>allow_experimental_time_series_table</code>, the name this lab uses. On
+  26.9.1.1629 <code>enable_time_series_table</code> is the setting and the old name is its
+  alias, so the lab's name works on both.</li>
+<li><strong>Storage under the engine.</strong> The four inner tables follow
+  <code>default_table_engine</code>, and the docs require them all to share one
+  replication type (all replicated or all shared). On Cloud they should
+  therefore be Shared* engines, and merge and deduplication timing may not
+  match what this lab sees on a single node. This is a hypothesis, not a
+  measurement.</li>
+<li><strong>Version.</strong> A Cloud service runs its own version, not this lab's 26.8 pin.
+  26.9 added <code>SELECT</code> on <code>TimeSeries</code> tables (see
+  <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.9"><code>local/releases/26.9</code></a>), so gotcha 2 above may
+  not reproduce there.</li>
+</ul>
+<p>To see the second and third points on a preview service, run
+<code>SELECT version()</code> after <code>01-schema.sql</code>. Then run the inner-table query in
+<code>05-management.sql</code> without its <code>DROP</code>, adding <code>engine</code> to the columns.</p>
 <hr /></div>
   <div class="readme ko"><p>ClickHouse의 <code>TimeSeries</code> 테이블 엔진과 그 위에서 동작하는 PromQL 쿼리 dialect를
 직접 실행해보는 실습입니다. 둘 다 아직 실험적 기능이고 릴리스마다 계속 바뀌며,
@@ -305,7 +337,35 @@ PromQL은 그 데이터에 맞춰 설계된 쿼리 언어입니다 — 일반 SQ
 않았기 때문입니다. 현재 <code>TimeSeries</code> 엔진은 <strong>ClickHouse Cloud에서 Private
 Preview 상태</strong>입니다 — 대부분의 Cloud 서비스는 스스로 활성화할 수 없고, PromQL도
 <code>TimeSeries</code> 테이블이 있어야 동작하므로 두 기능 모두 Cloud에서는 같은
-private-preview 승인이 필요합니다. 그 전까지는 OSS에서 실행하세요.</p></div>
+private-preview 승인이 필요합니다. 그 전까지는 OSS에서 실행하세요.</p>
+<p><strong>preview 서비스에서 달라지는 점.</strong> Cloud가 두 기능을 따로 구현하는 것은
+아닙니다. 엔진과 PromQL은 같은 코드입니다. 달라지는 것은 그 주변입니다.
+근거는 <a href="https://clickhouse.com/docs/engines/table-engines/special/time_series">TimeSeries 엔진</a>과
+<a href="https://clickhouse.com/docs/interfaces/prometheus">Prometheus 프로토콜</a> 문서이고,
+2026-10-01에 읽었습니다. Cloud 서비스에서 직접 실행해 본 내용은 아닙니다.</p>
+<ul>
+<li><strong>활성화.</strong> preview 서비스에는 ClickHouse가 설정과 Prometheus HTTP
+  엔드포인트를 미리 켜 둡니다. 다른 서비스는 직접 켤 수 없습니다. OSS에서는
+  설정을 직접 켜고, <code>config.xml</code>의 <code>&lt;http_handlers&gt;</code>에 <code>prometheus_api_v1</code>
+  핸들러를 등록합니다. 이 실습은 그 엔드포인트를 쓰지 않습니다. 쓰기는 SQL
+  <code>INSERT</code>, 읽기는 <code>SET dialect = 'promql'</code>로 합니다.</li>
+<li><strong>설정 이름.</strong> 문서에 나오는 이름은 <code>enable_time_series_table</code>입니다. 이
+  이름은 26.8에는 없습니다. 26.8.15.10의 <code>system.settings</code>에는 이 실습이 쓰는
+  <code>allow_experimental_time_series_table</code>만 있습니다. 26.9.1.1629에서는
+  <code>enable_time_series_table</code>이 정식 설정이고 옛 이름은 그 별칭이라, 실습의
+  이름은 두 버전 모두에서 동작합니다.</li>
+<li><strong>엔진 아래의 저장 계층.</strong> 내부 테이블 4개는 <code>default_table_engine</code>을
+  따르고, 문서상 모두 같은 복제 방식(전부 replicated 또는 전부 shared)이어야
+  합니다. 그래서 Cloud에서는 Shared* 엔진이 될 것이고, 머지·중복 제거 시점이
+  이 실습의 단일 노드 결과와 다를 수 있습니다. 측정한 것이 아니라 가설입니다.</li>
+<li><strong>버전.</strong> Cloud 서비스는 이 실습이 고정한 26.8이 아니라 서비스 자체 버전으로
+  돕니다. 26.9에서 <code>TimeSeries</code> 테이블 <code>SELECT</code>가 추가됐으므로
+  (<a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.9"><code>local/releases/26.9</code></a> 참고) 위 함정 2는 그곳에서
+  재현되지 않을 수 있습니다.</li>
+</ul>
+<p>preview 서비스에서 두 번째·세 번째 항목을 확인하려면 <code>01-schema.sql</code> 다음에
+<code>SELECT version()</code>을 실행하세요. 이어서 <code>05-management.sql</code>의 내부 테이블
+조회를 <code>DROP</code> 없이 실행하되, 조회 컬럼에 <code>engine</code>을 추가하세요.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/timeseries-promql-oss"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/usecase/mysql-protocol-benchmark/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">MySQL vs ClickHouse Point Query 성능 비교</span></a><a class="step next" href="../../../labs/workload/replacingmergetree/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ReplacingMergeTree Lab</span></a></nav>
 </main>
