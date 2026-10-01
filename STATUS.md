@@ -108,9 +108,7 @@ exploitable**:
 
 Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issues) · [needs a re-run](https://github.com/litkhai/clickhouse-hols/issues?q=is%3Aopen+label%3Are-verify):
 
-- [Check the first smoke workflow runs](https://github.com/litkhai/clickhouse-hols/issues/3)
 - [Confirm Cloud credentials exposed before the 2026-09-07 rewrite were rotated](https://github.com/litkhai/clickhouse-hols/issues/4)
-- [Add lab.yaml to the 38 non-release labs (track C)](https://github.com/litkhai/clickhouse-hols/issues/5)
 - [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
 - [Langfuse on ClickHouse without Langfuse (track G)](https://github.com/litkhai/clickhouse-hols/issues/7)
 - [Move the LibreChat labs to llmops-in-a-box (track H)](https://github.com/litkhai/clickhouse-hols/issues/8)
