@@ -113,6 +113,19 @@ Windows. The `smoke` workflow runs every T0 lab when started by hand. `verified_
 follows the shared Verification claims rule below — a green smoke run on a newer image
 is not a reason to change it.
 
+## Publishing a lab to the notes site
+
+The notes site fetches `docs/labs.json` from `main`. It lists only labs whose `lab.yaml` sets
+`web: true` together with `title_ko`, `summary_ko` and `category` (`title_en`, `summary_en`
+optional); the keys and allowed categories are in [`tools/lab.schema.md`](tools/lab.schema.md),
+a generated copy like `tools/hol`. A lab without a runner `lab.yaml` can get one with the
+publishing keys alone. Which labs publish is the owner's choice, lab by lab.
+
+`build_site.py` writes the file through `tools/labs_json.py`, adding each lab's page URL, so
+regenerate with `build_site.py` here rather than `tools/labs_json.py` (which would drop the
+`pages` links). The `site` job's `--check` covers it. A bad `web` value, an unknown category or a
+missing required key stops the build.
+
 ## Moving a lab out of this repository
 
 Labs have been split into other repositories once (2026-09-27, see
