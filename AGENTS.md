@@ -15,6 +15,7 @@ committing** — it holds the couplings that have already broken `main`. The sho
 - Never link to a lab that does not exist yet; the `links` job fails. Use a code span.
 - Before committing: `check_links.py`, `check_syntax.sh`, `build_site.py --check`.
 - `tools/hol run <lab>` runs a lab that has a `lab.yaml` (the 21 release labs; 20 are tier T0 and run in `smoke`, 25.8 is T1 — needs MinIO).
+- A lab reaches the notes site only when its `lab.yaml` sets `web: true` with `title_ko`, `summary_ko`, `category` (`tools/lab.schema.md`). `build_site.py` writes `docs/labs.json`; the `site` job checks it. Never set `web` without the owner's choice for that lab.
 
 ## 한국어 요약
 
@@ -22,6 +23,7 @@ committing** — it holds the couplings that have already broken `main`. The sho
 - 실습 추가·이름 변경은 네 곳: 실습 디렉터리, 영문 표, 한글 표, 재생성한 `docs/` 커밋.
 - 아직 없는 실습으로 링크를 걸지 않습니다. 커밋 전 검사 세 가지를 돌립니다.
 - 자세한 절차(실습 옮기기, `tools/hol`, 이중 언어)는 `MAINTAINING.md`.
+- 노트 사이트에는 `lab.yaml`에 `web: true`와 `title_ko`·`summary_ko`·`category`가 있는 실습만 실립니다(`tools/lab.schema.md`). `build_site.py`가 `docs/labs.json`을 쓰고 `site` 잡이 검사합니다. 소유자가 실습별로 정하지 않은 `web`은 설정하지 않습니다.
 - 공통 절차(검증 문구, 이슈·PR, 모델 역할, 시크릿)는 아래 생성 구간에 있습니다.
 
 <!-- harness:core start — khai-harness core@8f514e8 · context public · 손으로 고치지 마세요 -->

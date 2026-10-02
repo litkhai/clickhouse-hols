@@ -3,7 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-09-27** — repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and daily `smoke` workflow added. All checks green locally.
+**As of 2026-10-03** — `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and daily `smoke` workflow added. All checks green locally.
 
 ---
 
@@ -13,7 +13,7 @@ section rather than trusting the date at the top.
 |-----|-------|-------|
 | `links` | ✅ | 154 markdown files, every relative link resolves |
 | `syntax` | ✅ | 203 shell, 66 python, 16 yaml files parse |
-| `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md); 84 files |
+| `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (0 published); 86 files on 2026-10-03, local `build_site.py --check` (84 on 2026-09-27) |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `smoke` | manual | every T0 lab via `tools/hol` when run by hand; the monthly schedule only runs the stub-expiry check. Not yet run in CI |
