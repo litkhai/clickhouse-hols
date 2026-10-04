@@ -112,9 +112,7 @@ Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issu
 - [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
 - [Langfuse on ClickHouse without Langfuse (track G)](https://github.com/litkhai/clickhouse-hols/issues/7)
 - [Move the LibreChat labs to llmops-in-a-box (track H)](https://github.com/litkhai/clickhouse-hols/issues/8)
-- [Run local/oss-docker on Linux and Windows](https://github.com/litkhai/clickhouse-hols/issues/9)
 - [Re-run usecase/device-360 scripts](https://github.com/litkhai/clickhouse-hols/issues/10)
-- [Translate the 18 single-language labs (track I)](https://github.com/litkhai/clickhouse-hols/issues/11)
 - [Delete the MOVED.md stub directories after 2027-03-31 (track J)](https://github.com/litkhai/clickhouse-hols/issues/12)
 
 ## Licensing exceptions

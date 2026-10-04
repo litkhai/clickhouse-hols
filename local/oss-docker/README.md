@@ -1,6 +1,6 @@
 # ClickHouse OSS Environment
 
-ClickHouse development environment on Docker (macOS, Linux, Windows) with a seccomp security profile.
+ClickHouse development environment on Docker (macOS, Linux) with a seccomp security profile.
 
 ## ✨ Features
 
@@ -91,9 +91,9 @@ This setup uses Docker Named Volumes instead of bind mounts to avoid host permis
 
 ## 📋 System Requirements
 
-- macOS (Apple Silicon or Intel), Linux, or Windows
+- macOS (Apple Silicon or Intel) or Linux. Windows is not tested
 - Docker Desktop, or Docker Engine with the Compose plugin on Linux
-- `bash` — on Windows use Git Bash or WSL; the scripts are not tested there yet
+- `bash`
 - 4GB+ RAM recommended
 - 10GB+ disk space
 

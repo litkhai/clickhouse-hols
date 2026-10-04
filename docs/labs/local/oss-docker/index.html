@@ -37,7 +37,7 @@
     
   </nav>
   <div class="readme en"><h1>ClickHouse OSS Environment</h1>
-<p>ClickHouse development environment on Docker (macOS, Linux, Windows) with a seccomp security profile.</p>
+<p>ClickHouse development environment on Docker (macOS, Linux) with a seccomp security profile.</p>
 <h2>✨ Features</h2>
 <ul>
 <li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
@@ -115,9 +115,9 @@ docker compose up -d
 <p>This setup uses Docker Named Volumes instead of bind mounts to avoid host permission issues with ClickHouse data directories (macOS and Windows file sharing in particular).</p>
 <h2>📋 System Requirements</h2>
 <ul>
-<li>macOS (Apple Silicon or Intel), Linux, or Windows</li>
+<li>macOS (Apple Silicon or Intel) or Linux. Windows is not tested</li>
 <li>Docker Desktop, or Docker Engine with the Compose plugin on Linux</li>
-<li><code>bash</code> — on Windows use Git Bash or WSL; the scripts are not tested there yet</li>
+<li><code>bash</code></li>
 <li>4GB+ RAM recommended</li>
 <li>10GB+ disk space</li>
 </ul>
@@ -131,7 +131,7 @@ docker compose up -d
 <h2>License</h2>
 <p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p></div>
   <div class="readme ko"><h1>ClickHouse OSS Environment</h1>
-<p>ClickHouse development environment on Docker (macOS, Linux, Windows) with a seccomp security profile.</p>
+<p>ClickHouse development environment on Docker (macOS, Linux) with a seccomp security profile.</p>
 <h2>✨ Features</h2>
 <ul>
 <li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
@@ -209,9 +209,9 @@ docker compose up -d
 <p>This setup uses Docker Named Volumes instead of bind mounts to avoid host permission issues with ClickHouse data directories (macOS and Windows file sharing in particular).</p>
 <h2>📋 System Requirements</h2>
 <ul>
-<li>macOS (Apple Silicon or Intel), Linux, or Windows</li>
+<li>macOS (Apple Silicon or Intel) or Linux. Windows is not tested</li>
 <li>Docker Desktop, or Docker Engine with the Compose plugin on Linux</li>
-<li><code>bash</code> — on Windows use Git Bash or WSL; the scripts are not tested there yet</li>
+<li><code>bash</code></li>
 <li>4GB+ RAM recommended</li>
 <li>10GB+ disk space</li>
 </ul>
