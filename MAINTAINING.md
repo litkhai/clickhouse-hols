@@ -73,7 +73,7 @@ the Korean half is the most common drift here.
 Roughly half the indexed labs predate this layout and are single-language (see
 [`STATUS.md`](STATUS.md)). The site degrades gracefully — `build_site.py` shows
 the same body under both toggle positions when a lab has no `## 한국어` half — so
-these are a backlog item, not a breakage. Follow the convention for new work,
+they stay as they are; this is not a breakage. Follow the convention for new work,
 and translate an older lab deliberately rather than as a drive-by edit.
 
 ## Before you commit
@@ -108,8 +108,8 @@ tools/hol list --tier T0
 tools/hol run local/releases/26.9     # fresh container, every NN-*.sql in order
 ```
 
-It needs only Python 3 and Docker, so it is the same on macOS, Linux and
-Windows. The `smoke` workflow runs every T0 lab when started by hand. `verified_on` still
+It needs only Python 3 and Docker, so it runs the same on macOS and Linux
+(Windows is not tested). The `smoke` workflow runs every T0 lab when started by hand. `verified_on` still
 follows the shared Verification claims rule below — a green smoke run on a newer image
 is not a reason to change it.
 
