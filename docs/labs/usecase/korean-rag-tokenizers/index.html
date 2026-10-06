@@ -320,6 +320,7 @@ Three runs on the same day differed by under 10%.</p>
 <li>This is right for <code>hasAllTokens</code>. But <code>hasAnyTokens(col, '&lt;question&gt;')</code> then searches only the longest grams, so it behaves like a phrase search.</li>
 <li>For question 1, <code>tokens()</code> shares a gram with 97 chunks. The index returned 1 chunk, which matched only <code>나요?</code>.</li>
 <li>Step 03 applies the same compaction, and its positive control (48 rows, all 8 tokenizers) fails the step without it.</li>
+<li>Workaround: pass <code>tokens(question, 'sparseGrams')</code> as an Array to get OR semantics. Reported as <a href="https://github.com/ClickHouse/ClickHouse/issues/124156">ClickHouse/ClickHouse#124156</a>.</li>
 <li><code>sparseGrams</code> also has a minimum length of 3, so <code>tokens('결재', 'sparseGrams')</code> is <code>[]</code>.</li>
 <li><strong>One text index per column.</strong> A second one fails with Code 36, <code>Column b must not have more than one text index</code>. Step 02 indexes <code>MATERIALIZED</code> copies of the body instead.</li>
 <li><strong>The needle must be a constant.</strong></li>
@@ -817,6 +818,7 @@ creates was dropped afterwards.</p>
 <li><code>hasAllTokens</code>에는 맞는 처리입니다. 하지만 <code>hasAnyTokens(col, '&lt;질문&gt;')</code>은 가장 긴 gram만 찾게 되어 구 검색처럼 동작합니다.</li>
 <li>질문 1은 <code>tokens()</code> 기준으로 청크 97개와 gram을 공유합니다. 그런데 인덱스는 <code>나요?</code> 하나만 맞은 청크 1개를 돌려줬습니다.</li>
 <li>03단계도 같은 압축을 적용합니다. 압축을 빼면 positive control(48행, 토크나이저 8종 전부)이 단계를 실패시킵니다.</li>
+<li>우회 방법: <code>tokens(question, 'sparseGrams')</code>를 배열로 넘기면 OR 의미로 찾습니다. <a href="https://github.com/ClickHouse/ClickHouse/issues/124156">ClickHouse/ClickHouse#124156</a>으로 보고했습니다.</li>
 <li><code>sparseGrams</code>는 최소 길이가 3이라 <code>tokens('결재', 'sparseGrams')</code>는 <code>[]</code>입니다.</li>
 <li><strong>컬럼 하나에 text index는 하나만 됩니다.</strong> 두 번째는 Code 36(<code>Column b must not have more than one text index</code>)으로 실패합니다. 그래서 02단계는 body의 <code>MATERIALIZED</code> 사본마다 인덱스를 만듭니다.</li>
 <li><strong>needle은 상수여야 합니다.</strong></li>

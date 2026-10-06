@@ -111,6 +111,7 @@ Vector and hybrid (step 06, reciprocal rank fusion with k = 60 of the top 20 of 
   - This is right for `hasAllTokens`. But `hasAnyTokens(col, '<question>')` then searches only the longest grams, so it behaves like a phrase search.
   - For question 1, `tokens()` shares a gram with 97 chunks. The index returned 1 chunk, which matched only `나요?`.
   - Step 03 applies the same compaction, and its positive control (48 rows, all 8 tokenizers) fails the step without it.
+  - Workaround: pass `tokens(question, 'sparseGrams')` as an Array to get OR semantics. Reported as [ClickHouse/ClickHouse#124156](https://github.com/ClickHouse/ClickHouse/issues/124156).
   - `sparseGrams` also has a minimum length of 3, so `tokens('결재', 'sparseGrams')` is `[]`.
 - **One text index per column.** A second one fails with Code 36, `Column b must not have more than one text index`. Step 02 indexes `MATERIALIZED` copies of the body instead.
 - **The needle must be a constant.**
@@ -415,6 +416,7 @@ ClickHouse 위의 RAG에서 벡터 쪽은 언어를 가리지 않습니다. 한�
   - `hasAllTokens`에는 맞는 처리입니다. 하지만 `hasAnyTokens(col, '<질문>')`은 가장 긴 gram만 찾게 되어 구 검색처럼 동작합니다.
   - 질문 1은 `tokens()` 기준으로 청크 97개와 gram을 공유합니다. 그런데 인덱스는 `나요?` 하나만 맞은 청크 1개를 돌려줬습니다.
   - 03단계도 같은 압축을 적용합니다. 압축을 빼면 positive control(48행, 토크나이저 8종 전부)이 단계를 실패시킵니다.
+  - 우회 방법: `tokens(question, 'sparseGrams')`를 배열로 넘기면 OR 의미로 찾습니다. [ClickHouse/ClickHouse#124156](https://github.com/ClickHouse/ClickHouse/issues/124156)으로 보고했습니다.
   - `sparseGrams`는 최소 길이가 3이라 `tokens('결재', 'sparseGrams')`는 `[]`입니다.
 - **컬럼 하나에 text index는 하나만 됩니다.** 두 번째는 Code 36(`Column b must not have more than one text index`)으로 실패합니다. 그래서 02단계는 body의 `MATERIALIZED` 사본마다 인덱스를 만듭니다.
 - **needle은 상수여야 합니다.**
