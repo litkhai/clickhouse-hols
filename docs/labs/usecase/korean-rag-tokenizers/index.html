@@ -482,19 +482,51 @@ ClickhouseSettings(index_type=&quot;vector_similarity&quot;, index_param=[&quot;
 - <strong><code>index_query_params</code> is broken.</strong> It emits <code>SETTING</code> instead of <code>SETTINGS</code> (line 576). The resulting syntax error is swallowed, and the search returns <code>[]</code>.
 - <strong><code>langchain-community</code> warns that it is being sunset.</strong> The <code>langchain-clickhouse</code> 0.1.0 on PyPI is a third-party package with no index options, not its successor.</p>
 <h3>ClickHouse Cloud</h3>
-<p>Checked read-only on 2026-10-06 against a Cloud service on <strong>26.6.1.2292</strong>, through <code>mcp-clickhouse</code>.</p>
+<p>Checked on 2026-10-06 against a Cloud service on <strong>26.6.1.2292</strong>, through <code>mcp-clickhouse</code>, by running
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a> statement by statement. The scratch database it
+creates was dropped afterwards.</p>
 <p>Tokenizers:
 - <code>system.tokenizers</code> lists <code>ngrams</code>, <code>splitByNonAlpha</code>, <code>sparseGrams</code>, <code>array</code>, <code>splitByString</code>, <code>asciiCJK</code>, <code>unicodeWord</code> (and the bloom-filter names). It does not list <code>icu</code>, <code>chinese</code>, <code>japanese</code> or <code>splitByRegexp</code>.
-- <code>tokens()</code> works for the five listed in this lab. <code>tokens(…, 'icu', 'ko')</code> and <code>tokens(…, 'splitByRegexp', …)</code> fail with Code 42 on that build.
-- That service already holds text indexes with <code>splitByNonAlpha</code>, <code>array</code> and <code>ngrams(2)</code>.
-- So the two setups recommended above, <code>kiwi</code> and <code>ngrams(2)</code>, are available on it.</p>
+- <code>tokens()</code> works for the five listed in this lab. <code>tokens(…, 'icu', 'ko')</code> and <code>tokens(…, 'splitByRegexp', …)</code> fail with Code 42 on that build.</p>
+<p>Text indexes, created exactly as <code>02-schema.sql</code> declares them:</p>
+<table>
+<thead>
+<tr>
+<th>Tokenizer</th>
+<th>Accepted on Cloud 26.6.1.2292</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>splitByNonAlpha</code>, <code>asciiCJK</code>, <code>ngrams(2)</code>, <code>ngrams(3)</code>, <code>sparseGrams</code> (each with <code>preprocessor = lower(b)</code>)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>array</code> (the <code>kiwi</code> column)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td>no: <code>Code: 36. Unknown tokenizer: 'icu': When validating secondary index</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp(…, true)</code></td>
+<td>no: <code>Code: 36. Unknown tokenizer: 'splitByRegexp'</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>One row inserted into the <code>array</code> and <code>ngrams(2)</code> tables was found by <code>hasAnyTokens(m, ['요청서'])</code> and <code>hasAnyTokens(b, '구매 요청서')</code>.</li>
+<li>So the two setups recommended above, <code>kiwi</code> and <code>ngrams(2)</code>, work on that service today.</li>
+<li><code>icu</code> and <code>splitByRegexp</code> need a newer Cloud build.</li>
+</ul>
 <p>Embeddings:
 - <code>aiEmbed</code> appears in <code>system.functions</code> there, but <code>allow_experimental_ai_functions</code> is 0.
 - The docs say AI functions are not available in Cloud services at the moment (<a href="https://clickhouse.com/docs/reference/functions/regular-functions/ai-functions">AI functions</a>, read 2026-10-06).
 - On Cloud the application produces the embeddings and inserts them as <code>Array(Float32)</code>. The <code>vector_similarity</code> part of step 06 is unchanged.</p>
 <p>Other notes:
 - The docs mark the <code>japanese</code> tokenizer's dictionary configuration as not supported on Cloud (<a href="https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes">text index</a>, read 2026-10-06).
-- <strong>Not run yet:</strong> creating each text index on Cloud. The connection was read-only. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a> does it on a service you own, statement by statement, and drops what it creates. Ask the service owner before running it.</p>
+- To repeat the check on another service, run <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a> statement by statement. It drops what it creates. Ask the service owner first.</p>
 <h3>Not covered</h3>
 <ul>
 <li>BM25. It is not in a release: <a href="https://github.com/ClickHouse/ClickHouse/pull/117519">ClickHouse/ClickHouse#117519</a>, a pull request, was open on 2026-10-06.</li>
@@ -919,19 +951,51 @@ docker exec -i hol-usecase-korean-rag-tokenizers clickhouse-client --multiline -
 - <strong><code>index_query_params</code>는 깨져 있습니다.</strong> <code>SETTINGS</code> 대신 <code>SETTING</code>을 내보냅니다(576행). 그 문법 오류는 삼켜지고 검색은 <code>[]</code>를 돌려줍니다.
 - <strong><code>langchain-community</code>는 지원 종료 예정이라고 경고합니다.</strong> PyPI의 <code>langchain-clickhouse</code> 0.1.0은 인덱스 옵션이 없는 서드파티 패키지이고, 후속 패키지가 아닙니다.</p>
 <h3>ClickHouse Cloud</h3>
-<p>2026-10-06에 <strong>26.6.1.2292</strong> Cloud 서비스에서 <code>mcp-clickhouse</code>로 읽기 전용 확인을 했습니다.</p>
+<p>2026-10-06에 <strong>26.6.1.2292</strong> Cloud 서비스에서 <code>mcp-clickhouse</code>로
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a>을 문장별로 실행해 확인했습니다. 이 스크립트가 만든
+scratch 데이터베이스는 끝나고 지웠습니다.</p>
 <p>토크나이저:
 - <code>system.tokenizers</code>에는 <code>ngrams</code>, <code>splitByNonAlpha</code>, <code>sparseGrams</code>, <code>array</code>, <code>splitByString</code>, <code>asciiCJK</code>, <code>unicodeWord</code>(와 bloom filter 이름)가 있습니다. <code>icu</code>, <code>chinese</code>, <code>japanese</code>, <code>splitByRegexp</code>는 없습니다.
-- 이 실습의 토크나이저 중 목록에 있는 다섯 가지는 <code>tokens()</code>가 동작합니다. 그 빌드에서 <code>tokens(…, 'icu', 'ko')</code>와 <code>tokens(…, 'splitByRegexp', …)</code>는 Code 42로 실패합니다.
-- 그 서비스에는 <code>splitByNonAlpha</code>, <code>array</code>, <code>ngrams(2)</code> text index가 이미 있습니다.
-- 그래서 위에서 권장한 두 설정 <code>kiwi</code>와 <code>ngrams(2)</code>는 그 서비스에서 쓸 수 있습니다.</p>
+- 이 실습의 토크나이저 중 목록에 있는 다섯 가지는 <code>tokens()</code>가 동작합니다. 그 빌드에서 <code>tokens(…, 'icu', 'ko')</code>와 <code>tokens(…, 'splitByRegexp', …)</code>는 Code 42로 실패합니다.</p>
+<p><code>02-schema.sql</code>과 똑같이 선언한 text index:</p>
+<table>
+<thead>
+<tr>
+<th>토크나이저</th>
+<th>Cloud 26.6.1.2292에서 생성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>splitByNonAlpha</code>, <code>asciiCJK</code>, <code>ngrams(2)</code>, <code>ngrams(3)</code>, <code>sparseGrams</code> (모두 <code>preprocessor = lower(b)</code>)</td>
+<td>됨</td>
+</tr>
+<tr>
+<td><code>array</code> (<code>kiwi</code> 컬럼)</td>
+<td>됨</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td>안 됨: <code>Code: 36. Unknown tokenizer: 'icu': When validating secondary index</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp(…, true)</code></td>
+<td>안 됨: <code>Code: 36. Unknown tokenizer: 'splitByRegexp'</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>array</code>와 <code>ngrams(2)</code> 테이블에 한 행씩 넣었고, <code>hasAnyTokens(m, ['요청서'])</code>와 <code>hasAnyTokens(b, '구매 요청서')</code>가 그 행을 찾았습니다.</li>
+<li>그래서 위에서 권장한 두 설정 <code>kiwi</code>와 <code>ngrams(2)</code>는 지금 그 서비스에서 동작합니다.</li>
+<li><code>icu</code>와 <code>splitByRegexp</code>는 더 새로운 Cloud 빌드가 필요합니다.</li>
+</ul>
 <p>임베딩:
 - <code>aiEmbed</code>는 그 서비스의 <code>system.functions</code>에 있지만 <code>allow_experimental_ai_functions</code>가 0입니다.
 - 문서는 AI 함수를 지금은 Cloud 서비스에서 쓸 수 없다고 적고 있습니다(<a href="https://clickhouse.com/docs/reference/functions/regular-functions/ai-functions">AI functions</a>, 2026-10-06 확인).
 - Cloud에서는 애플리케이션이 임베딩을 만들어 <code>Array(Float32)</code>로 넣습니다. 06단계의 <code>vector_similarity</code> 부분은 그대로입니다.</p>
 <p>그 밖에:
 - 문서는 <code>japanese</code> 토크나이저의 사전 설정을 Cloud 미지원으로 표시합니다(<a href="https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes">text index</a>, 2026-10-06 확인).
-- <strong>아직 실행 안 한 것:</strong> Cloud에서 text index를 토크나이저마다 만들어 보기. 연결이 읽기 전용이었습니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a>이 본인 서비스에서 문장별로 이 확인을 하고 만든 것을 지웁니다. 실행 전에 서비스 소유자에게 묻습니다.</p>
+- 다른 서비스에서 다시 확인하려면 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a>을 문장별로 실행합니다. 만든 것은 스크립트가 지웁니다. 먼저 서비스 소유자에게 묻습니다.</p>
 <h3>다루지 않는 것</h3>
 <ul>
 <li>BM25. 릴리스에 없습니다. 풀 리퀘스트 <a href="https://github.com/ClickHouse/ClickHouse/pull/117519">ClickHouse/ClickHouse#117519</a>는 2026-10-06에 열려 있었습니다.</li>

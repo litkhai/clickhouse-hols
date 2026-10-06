@@ -267,13 +267,26 @@ Pitfalls:
 
 ### ClickHouse Cloud
 
-Checked read-only on 2026-10-06 against a Cloud service on **26.6.1.2292**, through `mcp-clickhouse`.
+Checked on 2026-10-06 against a Cloud service on **26.6.1.2292**, through `mcp-clickhouse`, by running
+[`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql) statement by statement. The scratch database it
+creates was dropped afterwards.
 
 Tokenizers:
 - `system.tokenizers` lists `ngrams`, `splitByNonAlpha`, `sparseGrams`, `array`, `splitByString`, `asciiCJK`, `unicodeWord` (and the bloom-filter names). It does not list `icu`, `chinese`, `japanese` or `splitByRegexp`.
 - `tokens()` works for the five listed in this lab. `tokens(…, 'icu', 'ko')` and `tokens(…, 'splitByRegexp', …)` fail with Code 42 on that build.
-- That service already holds text indexes with `splitByNonAlpha`, `array` and `ngrams(2)`.
-- So the two setups recommended above, `kiwi` and `ngrams(2)`, are available on it.
+
+Text indexes, created exactly as `02-schema.sql` declares them:
+
+| Tokenizer | Accepted on Cloud 26.6.1.2292 |
+|---|---|
+| `splitByNonAlpha`, `asciiCJK`, `ngrams(2)`, `ngrams(3)`, `sparseGrams` (each with `preprocessor = lower(b)`) | yes |
+| `array` (the `kiwi` column) | yes |
+| `icu('ko')` | no: `Code: 36. Unknown tokenizer: 'icu': When validating secondary index` |
+| `splitByRegexp(…, true)` | no: `Code: 36. Unknown tokenizer: 'splitByRegexp'` |
+
+- One row inserted into the `array` and `ngrams(2)` tables was found by `hasAnyTokens(m, ['요청서'])` and `hasAnyTokens(b, '구매 요청서')`.
+- So the two setups recommended above, `kiwi` and `ngrams(2)`, work on that service today.
+- `icu` and `splitByRegexp` need a newer Cloud build.
 
 Embeddings:
 - `aiEmbed` appears in `system.functions` there, but `allow_experimental_ai_functions` is 0.
@@ -282,7 +295,7 @@ Embeddings:
 
 Other notes:
 - The docs mark the `japanese` tokenizer's dictionary configuration as not supported on Cloud ([text index](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes), read 2026-10-06).
-- **Not run yet:** creating each text index on Cloud. The connection was read-only. [`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql) does it on a service you own, statement by statement, and drops what it creates. Ask the service owner before running it.
+- To repeat the check on another service, run [`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql) statement by statement. It drops what it creates. Ask the service owner first.
 
 ### Not covered
 
@@ -526,13 +539,26 @@ python3 tools/hol down usecase/korean-rag-tokenizers
 
 ### ClickHouse Cloud
 
-2026-10-06에 **26.6.1.2292** Cloud 서비스에서 `mcp-clickhouse`로 읽기 전용 확인을 했습니다.
+2026-10-06에 **26.6.1.2292** Cloud 서비스에서 `mcp-clickhouse`로
+[`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql)을 문장별로 실행해 확인했습니다. 이 스크립트가 만든
+scratch 데이터베이스는 끝나고 지웠습니다.
 
 토크나이저:
 - `system.tokenizers`에는 `ngrams`, `splitByNonAlpha`, `sparseGrams`, `array`, `splitByString`, `asciiCJK`, `unicodeWord`(와 bloom filter 이름)가 있습니다. `icu`, `chinese`, `japanese`, `splitByRegexp`는 없습니다.
 - 이 실습의 토크나이저 중 목록에 있는 다섯 가지는 `tokens()`가 동작합니다. 그 빌드에서 `tokens(…, 'icu', 'ko')`와 `tokens(…, 'splitByRegexp', …)`는 Code 42로 실패합니다.
-- 그 서비스에는 `splitByNonAlpha`, `array`, `ngrams(2)` text index가 이미 있습니다.
-- 그래서 위에서 권장한 두 설정 `kiwi`와 `ngrams(2)`는 그 서비스에서 쓸 수 있습니다.
+
+`02-schema.sql`과 똑같이 선언한 text index:
+
+| 토크나이저 | Cloud 26.6.1.2292에서 생성 |
+|---|---|
+| `splitByNonAlpha`, `asciiCJK`, `ngrams(2)`, `ngrams(3)`, `sparseGrams` (모두 `preprocessor = lower(b)`) | 됨 |
+| `array` (`kiwi` 컬럼) | 됨 |
+| `icu('ko')` | 안 됨: `Code: 36. Unknown tokenizer: 'icu': When validating secondary index` |
+| `splitByRegexp(…, true)` | 안 됨: `Code: 36. Unknown tokenizer: 'splitByRegexp'` |
+
+- `array`와 `ngrams(2)` 테이블에 한 행씩 넣었고, `hasAnyTokens(m, ['요청서'])`와 `hasAnyTokens(b, '구매 요청서')`가 그 행을 찾았습니다.
+- 그래서 위에서 권장한 두 설정 `kiwi`와 `ngrams(2)`는 지금 그 서비스에서 동작합니다.
+- `icu`와 `splitByRegexp`는 더 새로운 Cloud 빌드가 필요합니다.
 
 임베딩:
 - `aiEmbed`는 그 서비스의 `system.functions`에 있지만 `allow_experimental_ai_functions`가 0입니다.
@@ -541,7 +567,7 @@ python3 tools/hol down usecase/korean-rag-tokenizers
 
 그 밖에:
 - 문서는 `japanese` 토크나이저의 사전 설정을 Cloud 미지원으로 표시합니다([text index](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes), 2026-10-06 확인).
-- **아직 실행 안 한 것:** Cloud에서 text index를 토크나이저마다 만들어 보기. 연결이 읽기 전용이었습니다. [`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql)이 본인 서비스에서 문장별로 이 확인을 하고 만든 것을 지웁니다. 실행 전에 서비스 소유자에게 묻습니다.
+- 다른 서비스에서 다시 확인하려면 [`cloud/tokenizer-check.sql`](cloud/tokenizer-check.sql)을 문장별로 실행합니다. 만든 것은 스크립트가 지웁니다. 먼저 서비스 소유자에게 묻습니다.
 
 ### 다루지 않는 것
 
