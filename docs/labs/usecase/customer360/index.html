@@ -255,6 +255,185 @@ done
 <h3>👤 Author</h3>
 <p>Ken (ClickHouse Solution Architect)
 Created: 2025-12-06</p>
+<h3>From the notes site (migrated, not verified)</h3>
+<blockquote>
+<p>Moved on 2026-10-06 from the author's notes site (clickhouse.kr); not re-run here. English is an LLM-assisted translation. The figures below are as written in the note and may differ from the dataset scale above.</p>
+</blockquote>
+<h4>What is Customer 360?</h4>
+<p>Customer 360 is not just about collecting customer data; it enables a multi-dimensional understanding of the customer:</p>
+<ul>
+<li><strong>Profile data</strong>: demographics, preferences, segments</li>
+<li><strong>Transaction data</strong>: purchase history, payment information, per-channel transactions</li>
+<li><strong>Behavioral data</strong>: web/app activity, session information, search patterns</li>
+<li><strong>Interaction data</strong>: customer-service tickets, inquiry history</li>
+<li><strong>Marketing data</strong>: campaign responses, conversion paths</li>
+<li><strong>Feedback data</strong>: reviews, ratings, NPS scores</li>
+</ul>
+<h4>Fit-Gap analysis: test environment and storage efficiency</h4>
+<p>The note's test used a six-month dataset (2025-06-09 to 2025-12-06, 180 days).</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Compressed</th>
+<th>Uncompressed</th>
+<th>Ratio</th>
+<th>Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>transactions</td>
+<td>3.55 GiB</td>
+<td>31.05 GiB</td>
+<td>8.73x</td>
+<td>463M</td>
+</tr>
+<tr>
+<td>customer_events</td>
+<td>907.34 MiB</td>
+<td>18.42 GiB</td>
+<td>20.79x</td>
+<td>200M</td>
+</tr>
+<tr>
+<td>campaign_responses</td>
+<td>450.69 MiB</td>
+<td>5.68 GiB</td>
+<td>12.90x</td>
+<td>100M</td>
+</tr>
+<tr>
+<td>customers</td>
+<td>268.03 MiB</td>
+<td>2.76 GiB</td>
+<td>10.56x</td>
+<td>30M</td>
+</tr>
+<tr>
+<td>product_reviews</td>
+<td>52.50 MiB</td>
+<td>889.85 MiB</td>
+<td>16.95x</td>
+<td>10M</td>
+</tr>
+<tr>
+<td>support_tickets</td>
+<td>11.50 MiB</td>
+<td>190.91 MiB</td>
+<td>16.60x</td>
+<td>5M</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>5.68 GiB</strong></td>
+<td><strong>58.85 GiB</strong></td>
+<td><strong>10.36x</strong></td>
+<td><strong>808M</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The note points out that more than 59 GB of data compressed to 5.7 GB, which it says could cut storage cost in a cloud environment by about 90%.</p>
+<h4>Weak patterns: where to be careful</h4>
+<p><strong>1. Complex self-joins and recursive queries</strong></p>
+<p>Complex self-joins on the same table (for example recommendation-network analysis) can degrade performance.</p>
+<pre><code class="language-sql">-- Be careful with this pattern
+SELECT
+    t1.product_category AS category_a,
+    t2.product_category AS category_b
+FROM transactions t1
+JOIN transactions t2
+    ON t1.customer_id = t2.customer_id
+    AND t1.transaction_id &lt; t2.transaction_id
+    AND dateDiff('day', t1.transaction_date, t2.transaction_date) &lt;= 7
+</code></pre>
+<p>Workarounds: use sampling (<code>WHERE customer_id % 1000 = 0</code>), pre-aggregate with a Materialized View, limit the analysis scope by time or segment.</p>
+<p><strong>2. Real-time updates and OLTP workloads</strong></p>
+<p>ClickHouse is optimized for OLAP, so frequent UPDATE/DELETE of individual records is inefficient. Workarounds: insert changes as new records and pick the latest version at query time, use the ReplacingMergeTree engine, batch updates (thousands of rows at a time).</p>
+<pre><code class="language-sql">-- Pattern for reading the latest customer record
+SELECT *
+FROM (
+    SELECT *, row_number() OVER (PARTITION BY customer_id ORDER BY last_updated DESC) AS rn
+    FROM customers
+)
+WHERE rn = 1
+</code></pre>
+<p><strong>3. Transactions and strong consistency</strong></p>
+<p>ClickHouse does not support multi-table transactions. Workarounds: manage consistency at the application level, accept an eventual-consistency model, handle critical transactions in an OLTP database and replicate them to ClickHouse.</p>
+<p><strong>4. Join reordering</strong></p>
+<p>The note says that from ClickHouse 25.10 the join order is optimized automatically, so less manual tuning is needed, but earlier versions still require thinking about join order. In a LEFT JOIN the left table is scanned first and the right table is loaded into memory, so put the large table on the left.</p>
+<pre><code class="language-sql">-- Recommended: large table on the LEFT
+SELECT ...
+FROM transactions t  -- large table
+LEFT JOIN customers c ON t.customer_id = c.customer_id
+</code></pre>
+<p>Join algorithms: <code>hash</code> (default, fits most cases), <code>direct</code> (small dimension tables, with a Dictionary), <code>parallel_hash</code> (very large tables).</p>
+<h4>Performance benchmark results (as recorded in the note)</h4>
+<table>
+<thead>
+<tr>
+<th>Query type</th>
+<th>Data scale</th>
+<th>Run time</th>
+<th>Throughput</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single-customer 360 view</td>
+<td>1 customer, 5-way JOIN</td>
+<td>&lt; 0.1 s</td>
+<td>-</td>
+</tr>
+<tr>
+<td>RFM segmentation</td>
+<td>30M customers</td>
+<td>2-3 s</td>
+<td>10M rows/sec</td>
+</tr>
+<tr>
+<td>Cohort analysis</td>
+<td>30M customers, 60 days</td>
+<td>3-5 s</td>
+<td>8M rows/sec</td>
+</tr>
+<tr>
+<td>Revenue by channel</td>
+<td>250M transactions</td>
+<td>1-2 s</td>
+<td>120M rows/sec</td>
+</tr>
+<tr>
+<td>Funnel analysis</td>
+<td>100M events, 7 days</td>
+<td>2-4 s</td>
+<td>25M rows/sec</td>
+</tr>
+<tr>
+<td>Multi-touch attribution</td>
+<td>50M campaign responses</td>
+<td>3-5 s</td>
+<td>10M rows/sec</td>
+</tr>
+</tbody>
+</table>
+<h4>Conclusion</h4>
+<p>Why ClickHouse fits Customer 360:</p>
+<ol>
+<li><strong>Large-scale processing</strong>: hundreds of millions of records can be queried and analyzed in seconds.</li>
+<li><strong>High compression</strong>: 11x or more compression cuts storage cost substantially.</li>
+<li><strong>Flexible schema</strong>: flexible data modelling for integrating many data sources.</li>
+<li><strong>SQL-friendly</strong>: existing analysts can use it with no learning curve.</li>
+<li><strong>Real-time analytics</strong>: Materialized Views and incremental processing enable near-real-time analysis.</li>
+</ol>
+<p>Things to consider when adopting:</p>
+<ol>
+<li><strong>Workload shape</strong>: it is optimized for OLAP-centric workloads; if you need OLTP, consider a hybrid architecture.</li>
+<li><strong>Data modelling</strong>: partitioning and sort-key design matched to query patterns is the key to performance.</li>
+<li><strong>Security requirements</strong>: a thorough security policy for handling sensitive personal data is essential.</li>
+<li><strong>Cost optimization</strong>: in the cloud, monitor storage and compute resources to optimize cost.</li>
+</ol>
+<p>Extensions: similar-customer discovery with vector search, BI integration for real-time monitoring, churn and CLV prediction models, and an A/B testing platform that analyzes experiment results in real time.</p>
 <hr /></div>
   <div class="readme ko"><p>ClickHouse를 활용한 대규모 고객 360도 분석 종합 실습으로, 6개월간의 고객 활동 데이터를 포함한 8억 1천 5백만 레코드를 제공합니다.</p>
 <h3>🎯 목적</h3>
@@ -472,7 +651,186 @@ done
 <p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
 <h3>👤 작성자</h3>
 <p>Ken (ClickHouse Solution Architect)
-작성일: 2025-12-06</p></div>
+작성일: 2025-12-06</p>
+<h3>노트 사이트에서 옮긴 내용 (이관본, 미검증)</h3>
+<blockquote>
+<p>2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 옮겼습니다. 이 저장소에서 다시 실행하지 않았습니다. 영어본은 LLM 도움으로 번역한 것입니다. 아래 수치는 노트 원문 그대로이며 위 데이터셋 규모와 다를 수 있습니다.</p>
+</blockquote>
+<h4>Customer 360이란?</h4>
+<p>Customer 360은 단순히 고객 데이터를 모으는 것이 아니라, 다음과 같은 다차원적인 고객 이해를 가능하게 합니다.</p>
+<ul>
+<li><strong>프로필 데이터</strong>: 인구통계학적 정보, 선호도, 세그먼트</li>
+<li><strong>거래 데이터</strong>: 구매 이력, 결제 정보, 채널별 거래</li>
+<li><strong>행동 데이터</strong>: 웹/앱 활동, 세션 정보, 검색 패턴</li>
+<li><strong>상호작용 데이터</strong>: 고객 서비스 티켓, 문의 이력</li>
+<li><strong>마케팅 데이터</strong>: 캠페인 반응, 전환 경로</li>
+<li><strong>피드백 데이터</strong>: 리뷰, 평점, NPS 점수</li>
+</ul>
+<h4>Fit-Gap 분석: 테스트 환경과 저장 효율</h4>
+<p>노트의 테스트는 6개월(2025년 6월 9일 ~ 12월 6일, 180일) 기간의 데이터셋을 사용했습니다.</p>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>압축 크기</th>
+<th>원본 크기</th>
+<th>압축률</th>
+<th>레코드 수</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>transactions</td>
+<td>3.55 GiB</td>
+<td>31.05 GiB</td>
+<td>8.73x</td>
+<td>463M</td>
+</tr>
+<tr>
+<td>customer_events</td>
+<td>907.34 MiB</td>
+<td>18.42 GiB</td>
+<td>20.79x</td>
+<td>200M</td>
+</tr>
+<tr>
+<td>campaign_responses</td>
+<td>450.69 MiB</td>
+<td>5.68 GiB</td>
+<td>12.90x</td>
+<td>100M</td>
+</tr>
+<tr>
+<td>customers</td>
+<td>268.03 MiB</td>
+<td>2.76 GiB</td>
+<td>10.56x</td>
+<td>30M</td>
+</tr>
+<tr>
+<td>product_reviews</td>
+<td>52.50 MiB</td>
+<td>889.85 MiB</td>
+<td>16.95x</td>
+<td>10M</td>
+</tr>
+<tr>
+<td>support_tickets</td>
+<td>11.50 MiB</td>
+<td>190.91 MiB</td>
+<td>16.60x</td>
+<td>5M</td>
+</tr>
+<tr>
+<td><strong>전체</strong></td>
+<td><strong>5.68 GiB</strong></td>
+<td><strong>58.85 GiB</strong></td>
+<td><strong>10.36x</strong></td>
+<td><strong>808M</strong></td>
+</tr>
+</tbody>
+</table>
+<p>노트는 59GB가 넘는 데이터가 5.7GB로 압축되어, 클라우드 환경에서 스토리지 비용을 약 90% 절감할 수 있다고 설명합니다.</p>
+<h4>약점 패턴: 주의해야 할 영역</h4>
+<p><strong>1. 복잡한 셀프 조인과 재귀 쿼리</strong></p>
+<p>동일 테이블의 복잡한 셀프 조인(예: 추천 네트워크 분석)은 성능이 저하될 수 있습니다.</p>
+<pre><code class="language-sql">-- 이런 패턴은 주의 필요
+SELECT
+    t1.product_category AS category_a,
+    t2.product_category AS category_b
+FROM transactions t1
+JOIN transactions t2
+    ON t1.customer_id = t2.customer_id
+    AND t1.transaction_id &lt; t2.transaction_id
+    AND dateDiff('day', t1.transaction_date, t2.transaction_date) &lt;= 7
+</code></pre>
+<p>해결책: 샘플링 사용(<code>WHERE customer_id % 1000 = 0</code>), Materialized View로 사전 집계, 분석 범위를 시간/세그먼트로 제한.</p>
+<p><strong>2. 실시간 업데이트와 OLTP 워크로드</strong></p>
+<p>ClickHouse는 OLAP에 최적화되어 있어, 개별 레코드의 빈번한 UPDATE/DELETE는 비효율적입니다. 해결책: 변경 이력을 새 레코드로 삽입하고 쿼리 시점에 최신 버전 선택, ReplacingMergeTree 엔진 활용, 배치 업데이트(수천 건 단위).</p>
+<pre><code class="language-sql">-- 최신 고객 정보 조회 패턴
+SELECT *
+FROM (
+    SELECT *, row_number() OVER (PARTITION BY customer_id ORDER BY last_updated DESC) AS rn
+    FROM customers
+)
+WHERE rn = 1
+</code></pre>
+<p><strong>3. 트랜잭션과 강한 일관성</strong></p>
+<p>ClickHouse는 멀티 테이블 트랜잭션을 지원하지 않습니다. 해결책: 애플리케이션 레벨에서 일관성 관리, 결과적 일관성 모델 수용, 중요한 트랜잭션은 OLTP DB에서 처리한 뒤 ClickHouse로 복제.</p>
+<p><strong>4. 조인 리오더링 최적화</strong></p>
+<p>노트는 ClickHouse 25.10부터 조인 순서가 자동으로 최적화되어 수동 최적화가 덜 필요하지만, 그 이전 버전에서는 여전히 조인 순서를 고려해야 한다고 설명합니다. LEFT JOIN에서는 왼쪽 테이블을 먼저 스캔하고 오른쪽 테이블을 메모리에 올리므로 큰 테이블을 왼쪽에 둡니다.</p>
+<pre><code class="language-sql">-- 권장 패턴: 큰 테이블을 LEFT에 배치
+SELECT ...
+FROM transactions t  -- 큰 테이블
+LEFT JOIN customers c ON t.customer_id = c.customer_id
+</code></pre>
+<p>조인 알고리즘: <code>hash</code>(기본값, 대부분의 경우), <code>direct</code>(작은 차원 테이블, Dictionary 활용), <code>parallel_hash</code>(매우 큰 테이블 조인).</p>
+<h4>성능 벤치마크 결과 (노트 기재값)</h4>
+<table>
+<thead>
+<tr>
+<th>쿼리 유형</th>
+<th>데이터 규모</th>
+<th>실행 시간</th>
+<th>처리량</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>단일 고객 360도 뷰</td>
+<td>1명, 5-way JOIN</td>
+<td>&lt; 0.1초</td>
+<td>-</td>
+</tr>
+<tr>
+<td>RFM 세그멘테이션</td>
+<td>3천만 고객</td>
+<td>2-3초</td>
+<td>1천만 rows/sec</td>
+</tr>
+<tr>
+<td>코호트 분석</td>
+<td>3천만 고객, 60일</td>
+<td>3-5초</td>
+<td>8백만 rows/sec</td>
+</tr>
+<tr>
+<td>채널별 매출 집계</td>
+<td>2.5억 거래</td>
+<td>1-2초</td>
+<td>1.2억 rows/sec</td>
+</tr>
+<tr>
+<td>퍼널 분석</td>
+<td>1억 이벤트, 7일</td>
+<td>2-4초</td>
+<td>2.5천만 rows/sec</td>
+</tr>
+<tr>
+<td>멀티터치 어트리뷰션</td>
+<td>5천만 캠페인 응답</td>
+<td>3-5초</td>
+<td>1천만 rows/sec</td>
+</tr>
+</tbody>
+</table>
+<h4>결론</h4>
+<p>ClickHouse가 Customer 360에 적합한 이유:</p>
+<ol>
+<li><strong>대규모 데이터 처리</strong>: 수억 건의 레코드를 초 단위로 조회하고 분석할 수 있습니다.</li>
+<li><strong>뛰어난 압축률</strong>: 11x 이상의 압축으로 스토리지 비용을 대폭 절감할 수 있습니다.</li>
+<li><strong>유연한 스키마</strong>: 다양한 데이터 소스를 통합하기 위한 유연한 데이터 모델링이 가능합니다.</li>
+<li><strong>SQL 친화적</strong>: 기존 분석가들이 학습 곡선 없이 바로 활용 가능합니다.</li>
+<li><strong>실시간 분석</strong>: Materialized View와 증분 처리로 실시간에 가까운 분석이 가능합니다.</li>
+</ol>
+<p>적용 시 고려사항:</p>
+<ol>
+<li><strong>워크로드 특성</strong>: OLAP 중심 워크로드에 최적화되어 있으므로, OLTP가 필요한 경우 하이브리드 아키텍처를 고려해야 합니다.</li>
+<li><strong>데이터 모델링</strong>: 쿼리 패턴에 맞춘 파티셔닝과 정렬 키 설계가 성능의 핵심입니다.</li>
+<li><strong>보안 요구사항</strong>: 민감한 개인정보 처리를 위한 철저한 보안 정책 수립이 필수입니다.</li>
+<li><strong>비용 최적화</strong>: 클라우드 환경에서는 스토리지와 컴퓨팅 리소스를 모니터링하여 비용을 최적화해야 합니다.</li>
+</ol>
+<p>확장 방안: 벡터 검색을 활용한 유사 고객 발굴, BI 통합 실시간 모니터링, 이탈 예측·CLV 예측 모델, 실험 결과를 실시간으로 분석하는 A/B 테스트 플랫폼.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/customer360"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/usecase/ads-analytics/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Ad Performance Analytics Cube with ClickHouse</span></a><a class="step next" href="../../../labs/usecase/device-360/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Device360 PoC - ClickHouse Cloud Performance Validation</span></a></nav>
 </main>

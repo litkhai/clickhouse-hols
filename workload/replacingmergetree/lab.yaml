@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "ReplacingMergeTree 정합성 지연과 FINAL"
+summary_ko: "ReplacingMergeTree의 중복 제거가 쓰기 시점이 아닌 merge 시점에 일어남을 FINAL 유무, OPTIMIZE FINAL, argMax 대안으로 확인하는 실습"
+title_en: "ReplacingMergeTree consistency lag and FINAL"
+summary_en: "Shows that ReplacingMergeTree deduplication happens at merge time, with and without FINAL, the cost of OPTIMIZE TABLE FINAL, and an argMax alternative"
+category: core-architecture

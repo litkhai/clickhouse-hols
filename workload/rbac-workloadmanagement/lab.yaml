@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "RBAC과 Workload Management 실습"
+summary_ko: "역할과 사용자, 행·컬럼 수준 보안, Settings Profile, Quota, Workload Scheduling을 다루는 ClickHouse RBAC 및 워크로드 관리 실습"
+title_en: "RBAC and workload management lab"
+summary_en: "Covers roles and users, row- and column-level security, settings profiles, quotas and workload scheduling in ClickHouse"
+category: feature

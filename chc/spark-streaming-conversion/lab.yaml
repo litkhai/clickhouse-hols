@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "Spark Streaming을 ClickHouse Cloud로 전환하기"
+summary_ko: "Spark Structured Streaming 변환 코드를 ClickPipes 변환과 Materialized View로 옮기는 방법, 비교 결과, 함수 매핑, 체크리스트를 다룹니다."
+title_en: "Spark Streaming Conversion to ClickHouse Cloud"
+summary_en: "Moving Spark Structured Streaming transformations to ClickPipes and Materialized Views: two architecture options, a benchmark, a function mapping and a checklist."
+category: case-study

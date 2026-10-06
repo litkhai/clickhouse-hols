@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "Kafka 파티셔닝과 ClickHouse 정렬 키 일치 실습"
+summary_ko: "Kafka 파티셔닝 전략과 수집 경로(Kafka 테이블 엔진, Kafka Connect Sink)가 MergeTree의 part 단위 pruning에 미치는 영향을 EXPLAIN으로 측정"
+title_en: "Kafka partitioning and ClickHouse sort-key alignment"
+summary_en: "Measures with EXPLAIN how Kafka partitioning and the ingestion path (Kafka table engine or Kafka Connect Sink) affect part-level pruning in MergeTree"
+category: core-architecture

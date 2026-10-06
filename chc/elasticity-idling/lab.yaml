@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "Elasticity & Ideling @ ClickHouse Cloud"
+summary_ko: "ClickHouse Cloud의 자동 확장과 자동 유휴 모드를 click-benchmark 부하로 확인한 실습."
+title_en: "Elasticity and Idling in ClickHouse Cloud"
+summary_en: "Trying ClickHouse Cloud autoscaling, manual replica scaling and automatic idle mode under a clickhouse-benchmark workload."
+category: cloud

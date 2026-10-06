@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "Async Insert 스트레스 테스트"
+summary_ko: "ClickHouse Cloud에서 async insert 파라미터 조합(wait_for_async_insert 등)을 바꿔 가며 성능과 안정성을 점검하는 스트레스 테스트 SQL 모음"
+title_en: "Async Insert stress test"
+summary_en: "A stress-test suite that varies async insert parameter combinations, including wait_for_async_insert, to check performance and stability on ClickHouse Cloud"
+category: cloud

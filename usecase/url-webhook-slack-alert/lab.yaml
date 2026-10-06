@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "url() 테이블 함수를 활용한 Webhook 기반 Slack 알림"
+summary_ko: "url() 테이블 함수와 Refreshable Materialized View로 ClickHouse에서 바로 Slack 알림을 보내는 방법과 한계를 정리했습니다."
+title_en: "Webhook-Based Slack Alerts with the url() Table Function"
+summary_en: "Send Slack alerts straight from ClickHouse with the url() table function and Refreshable Materialized Views, including limits such as no retry."
+category: feature

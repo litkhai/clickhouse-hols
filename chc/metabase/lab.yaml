@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "Metabase Pro 연동"
+summary_ko: "Metabase Pro에서 ClickHouse Cloud를 데이터베이스로 연결하고 질의, 대시보드, 권한 관리를 쓰는 과정을 화면과 함께 정리했습니다."
+title_en: "Metabase Pro Integration with ClickHouse Cloud"
+summary_en: "How to connect ClickHouse Cloud to Metabase Pro as a database and use queries, dashboards and permission management, with screenshots."
+category: third-party
