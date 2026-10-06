@@ -1,5 +1,21 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-02T15:18:06Z",
-  "labs": []
+  "generated": "2026-10-06T07:26:58Z",
+  "labs": [
+    {
+      "path": "usecase/korean-rag-tokenizers",
+      "title_ko": "한국어 RAG 키워드 검색: 토크나이저, 형태소 컬럼, 하이브리드 검색",
+      "summary_ko": "text index 토크나이저 8종과 Kiwi 형태소 컬럼을 한국어 질문 40개로 비교하고, bge-m3 벡터 검색과 RRF 하이브리드까지 측정한 실습 (ClickHouse 26.9.11.2)",
+      "title_en": "Korean keyword search for RAG: tokenizers, a morpheme column, hybrid retrieval",
+      "summary_en": "Eight text-index tokenizers and a Kiwi morpheme column compared on 40 Korean questions, plus bge-m3 vector search and RRF hybrid, on ClickHouse 26.9.11.2",
+      "category": "case-study",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.9",
+      "verified_on": "26.9.11.2",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/"
+    }
+  ]
 }
