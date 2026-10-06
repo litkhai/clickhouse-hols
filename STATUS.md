@@ -110,7 +110,6 @@ Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issu
 
 - [Confirm Cloud credentials exposed before the 2026-09-07 rewrite were rotated](https://github.com/litkhai/clickhouse-hols/issues/4)
 - [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
-- [Move the LibreChat labs to llmops-in-a-box (track H)](https://github.com/litkhai/clickhouse-hols/issues/8)
 - [Re-run usecase/device-360 scripts](https://github.com/litkhai/clickhouse-hols/issues/10)
 - [Delete the MOVED.md stub directories after 2027-03-31 (track J)](https://github.com/litkhai/clickhouse-hols/issues/12)
 
