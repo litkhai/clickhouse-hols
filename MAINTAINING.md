@@ -96,9 +96,9 @@ The `hygiene` job enforces the shared Secrets rules below.
 `tools/hol` is a generated copy (see its second line); changes to the runner arrive as pull requests from its source. Do not edit it here.
 
 A lab opts in to the runner with a flat `lab.yaml` next to its README
-(`target`, `tier`, `clickhouse`, `services`, `verified_on`). Only the 21
-release labs have one so far. 20 are tier **T0** — SQL only, one ClickHouse
-server, self-generated data — and run in `smoke`. `local/releases/25.8` is
+(`target`, `tier`, `clickhouse`, `services`, `verified_on`). The 21 release
+labs and `usecase/korean-rag-tokenizers` have one. 21 are tier **T0** — SQL
+only, one ClickHouse server, self-generated data — and run in `smoke`. `local/releases/25.8` is
 **T1**: its `06-minio-integration.sql` needs a MinIO next to ClickHouse
 (reached as `host.docker.internal`, which only Docker Desktop provides), so
 `smoke` skips it; run it by hand with MinIO up.

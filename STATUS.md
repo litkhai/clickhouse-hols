@@ -3,7 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-10-03** — `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
+**As of 2026-10-06** — `usecase/korean-rag-tokenizers` added, the first lab outside `local/releases` with a runner `lab.yaml` (T0). As of 2026-10-03, `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
 
 ---
 
@@ -11,9 +11,9 @@ section rather than trusting the date at the top.
 
 | Job | State | Notes |
 |-----|-------|-------|
-| `links` | ✅ | 154 markdown files, every relative link resolves |
-| `syntax` | ✅ | 203 shell, 66 python, 16 yaml files parse |
-| `site` | ✅ | `docs/` matches 21 releases + 38 labs = 59 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (0 published); 86 files on 2026-10-03, local `build_site.py --check` (84 on 2026-09-27) |
+| `links` | ✅ | 160 markdown files, every relative link resolves (local, 2026-10-06) |
+| `syntax` | ✅ | 204 shell, 68 python, 39 yaml files parse (local, 2026-10-06) |
+| `site` | ✅ | `docs/` matches 21 releases + 39 labs = 60 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (0 published); 87 files on 2026-10-06, local `build_site.py --check` (86 on 2026-10-03) |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `smoke` | ✅ manual | every T0 lab via `tools/hol`, started by hand. Last full run: 20/20 T0 labs pass ([run 36706392271](https://github.com/litkhai/clickhouse-hols/actions/runs/36706392271) on `ed625f8`, 2026-09-30). The monthly schedule only runs the stub-expiry check (last 2026-10-01, pass). `local/releases/25.8` is T1, so not in it |
@@ -32,14 +32,14 @@ gitleaks detect --config .gitleaks.toml --no-banner --redact
 
 ## Inventory
 
-38 indexed labs plus 21 per-release labs. Counts are rows in the **English**
+39 indexed labs plus 21 per-release labs. Counts are rows in the **English**
 area tables of `README.md`:
 
 | Area | Labs |
 |------|-----:|
 | `chc/` — ClickHouse Cloud integrations | 7 |
 | `local/` — local environments | 8 |
-| `usecase/` | 12 |
+| `usecase/` | 13 |
 | `workload/` | 11 |
 | `local/releases/` — per-release feature labs | 21 |
 
@@ -69,7 +69,7 @@ site redirect after that.
 
 | Gap | Impact | Notes |
 |-----|--------|-------|
-| 18 of 38 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
+| 18 of 39 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
 | `chc/{api,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
 | `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI.  |
 
@@ -165,10 +165,10 @@ Terraform state.
 - **CI 상태**: 6개 작업 모두 통과.
 - **주의**: `check_links.py`는 `git ls-files`를 읽으므로 **추적되지 않은**
   새 실습은 아예 검사하지 않습니다. 녹색 결과를 믿기 전에 `git add` 하세요.
-- **규모**: 색인된 실습 38개 + 릴리스별 실습 21개 = 사이트 페이지 59개, 그 외
+- **규모**: 색인된 실습 39개 + 릴리스별 실습 21개 = 사이트 페이지 60개, 그 외
   [MOVED.md](MOVED.md)의 redirect 19개. 2026-09-27 분리로 18개 실습이 새 저장소 4곳으로
   옮겨 갔고 `tpcds`는 은퇴(태그에만 남음). `device-360`은 `usecase/`로 이동.
-- **알려진 격차**: 38개 중 18개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
+- **알려진 격차**: 39개 중 18개가 단일 언어(구형 실습). 사이트는 양쪽 토글에
   같은 본문을 보여주므로 깨지지는 않음 — 백로그 항목.
 - **주의**: `git config core.hooksPath .githooks`는 클론마다 직접 설정해야
   합니다.
