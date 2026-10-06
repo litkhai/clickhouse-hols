@@ -3,7 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-10-06** — `usecase/korean-rag-tokenizers` added, the first lab outside `local/releases` with a runner `lab.yaml` (T0). As of 2026-10-03, `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
+**As of 2026-10-06** — `usecase/korean-rag-tokenizers` added, the first lab outside `local/releases` with a runner `lab.yaml` (T0), and the first published to the notes site (`web: true`, `case-study`). As of 2026-10-03, `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
 
 ---
 
@@ -13,7 +13,7 @@ section rather than trusting the date at the top.
 |-----|-------|-------|
 | `links` | ✅ | 160 markdown files, every relative link resolves (local, 2026-10-06) |
 | `syntax` | ✅ | 204 shell, 68 python, 39 yaml files parse (local, 2026-10-06) |
-| `site` | ✅ | `docs/` matches 21 releases + 39 labs = 60 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (0 published); 87 files on 2026-10-06, local `build_site.py --check` (86 on 2026-10-03) |
+| `site` | ✅ | `docs/` matches 21 releases + 39 labs = 60 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (1 published: `usecase/korean-rag-tokenizers`); 87 files on 2026-10-06, local `build_site.py --check` (86 on 2026-10-03) |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `smoke` | ✅ manual | every T0 lab via `tools/hol`, started by hand. Last full run: 20/20 T0 labs pass ([run 36706392271](https://github.com/litkhai/clickhouse-hols/actions/runs/36706392271) on `ed625f8`, 2026-09-30). The monthly schedule only runs the stub-expiry check (last 2026-10-01, pass). `local/releases/25.8` is T1, so not in it |
