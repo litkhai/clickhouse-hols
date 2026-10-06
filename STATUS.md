@@ -69,7 +69,7 @@ site redirect after that.
 
 | Gap | Impact | Notes |
 |-----|--------|-------|
-| 18 of 39 indexed labs are single-language | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
+| 12 of 39 indexed labs are single-language (2026-10-06, after #42; was 18) | Low | Predate the `[English](#english) \| [한국어](#한국어)` layout. The site shows the same body under both toggle positions, so nothing renders broken. Mostly `chc/` and older `local/` and `workload/` labs. |
 | `chc/{api,tool}` have no `README.md` | None | They are category directories, not labs; their children are indexed individually. |
 | `core.hooksPath` is per-clone | Medium | Not set automatically. An unconfigured clone commits without the secret / host-path / syntax guard and only finds out in CI.  |
 

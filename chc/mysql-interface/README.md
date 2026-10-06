@@ -1,8 +1,315 @@
-# ClickHouse Cloud MySQL Interface 자동 테스트 도구
+# ClickHouse Cloud MySQL Interface Automated Test Tool
+
+[English](#english) | [한국어](#한국어)
+
+---
+
+## English
+
+*English translation of the Korean original, LLM-assisted (2026-10-06).*
+
+Comprehensive test tool that automatically verifies the MySQL Wire Protocol compatibility of ClickHouse Cloud.
+
+### 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation and Setup](#installation-and-setup)
+- [Usage](#usage)
+- [Test Items](#test-items)
+- [Result Reports](#result-reports)
+- [Troubleshooting](#troubleshooting)
+
+### Overview
+
+This tool automatically runs the test plan defined in [chc-mysql-interface-test-plan.md](chc-mysql-interface-test-plan.md) to verify the MySQL interface compatibility of ClickHouse Cloud.
+
+#### Key Features
+
+- ✅ Automatic MySQL client installation and verification
+- ✅ ClickHouse Cloud connection information management
+- ✅ Compatibility tests in 7 categories
+- ✅ Performance benchmarks
+- ✅ Automatic report generation (Markdown)
+- ✅ Results saved as JSON
+
+### Features
+
+#### Test Categories
+
+1. **Environment setup**: check Python and the MySQL client
+2. **MySQL client installation**: supports versions 5.7 and 8.0
+3. **Connection check**: CHC MySQL interface connection test
+4. **Basic compatibility tests**: basic SQL operations (CREATE, INSERT, SELECT, etc.)
+5. **SQL syntax compatibility**: WHERE, JOIN, GROUP BY, HAVING, etc.
+6. **Data type compatibility**: INT, VARCHAR, DATE, DECIMAL, etc.
+7. **Function compatibility**: string, date, aggregate functions
+8. **TPC-DS benchmark**: complex analytical queries
+9. **Python drivers**: mysql-connector-python, PyMySQL
+10. **Performance tests**: measure throughput and response time
+
+### Installation and Setup
+
+#### Prerequisites
+
+- Python 3.7 or later
+- pip3
+- macOS, Linux, or WSL (Windows)
+- ClickHouse Cloud instance (MySQL interface enabled)
+
+#### Step 1: Clone the repository
+
+```bash
+git clone <repository-url>
+cd clickhouse-hols/chc/mysql-interface
+```
+
+#### Step 2: Configure connection information
+
+```bash
+# Copy the template
+cp config/chc-config.template config/chc-config.sh
+
+# Edit the configuration file
+vim config/chc-config.sh
+```
+
+**config/chc-config.sh example:**
+
+```bash
+export CHC_HOST="abc123.us-east-1.aws.clickhouse.cloud"
+export CHC_MYSQL_PORT="9004"
+export CHC_USER="default"
+export CHC_PASSWORD="your-secure-password"
+export CHC_DATABASE="mysql_interface"
+export CHC_SSL_MODE="REQUIRED"
+```
+
+⚠️ **Important**: `config/chc-config.sh` contains sensitive information, so do not commit it to Git!
+
+### Usage
+
+#### Run all tests
+
+```bash
+./run-mysql-test.sh
+```
+
+#### Run individual tests
+
+```bash
+# 1. Environment setup
+./scripts/01-setup-environment.sh
+
+# 2. Install MySQL clients
+./scripts/02-install-mysql-clients.sh
+
+# 3. Verify connection
+./scripts/03-verify-connection.sh
+
+# 4. Basic compatibility tests
+./scripts/04-basic-compatibility-tests.sh
+
+# 5. SQL syntax tests
+./scripts/05-sql-syntax-tests.sh
+
+# 6. Data type tests
+./scripts/06-datatype-tests.sh
+
+# 7. Function tests
+./scripts/07-function-tests.sh
+
+# 8. TPC-DS tests
+./scripts/08-tpcds-tests.sh
+
+# 9. Python driver tests
+./scripts/09-python-driver-tests.sh
+
+# 10. Performance tests
+./scripts/10-performance-tests.sh
+
+# 11. Generate report
+./scripts/11-generate-report.sh
+```
+
+### Test Items
+
+#### Basic compatibility tests
+- Basic SELECT query
+- Version query
+- Create/use database
+- Create/drop table
+- Insert/query data
+- COUNT aggregate
+- Prepared Statement
+
+#### SQL syntax compatibility
+- Single/Multiple INSERT
+- WHERE clause
+- ORDER BY
+- LIMIT
+- GROUP BY
+- HAVING
+- DISTINCT
+- IN clause
+- BETWEEN
+- LIKE patterns
+- CASE WHEN
+
+#### Data type compatibility
+- Numeric: TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DECIMAL
+- String: CHAR, VARCHAR, TEXT
+- Date/time: DATE, DATETIME, TIMESTAMP
+
+#### Function compatibility
+- String: CONCAT, UPPER, LOWER, LENGTH, SUBSTRING
+- Date: NOW, CURDATE, YEAR, MONTH
+- Aggregate: COUNT, SUM, AVG, MIN, MAX
+
+#### Performance tests
+- Simple query throughput
+- Aggregate query performance
+- Batch insert performance
+- Table scan performance
+
+### Result Reports
+
+#### Output directory
+
+```
+test-results/
+├── basic-compatibility.json    # basic compatibility results
+├── sql-syntax.json             # SQL syntax results
+├── datatype.json               # data type results
+├── function.json               # function results
+├── tpcds.json                  # TPC-DS results
+├── python-driver.json          # Python driver results
+├── performance.json            # performance results
+└── report_YYYYMMDD_HHMMSS.md  # summary report
+```
+
+#### Report contents
+
+The automatically generated report includes:
+
+- 📊 Overall summary (success rate, grade)
+- 📋 Results by category
+- 📝 Detailed test results
+- ⚡ Performance summary
+- 💡 Recommendations
+- ⚠️ Known limitations
+
+#### Grading criteria
+
+- **A (Excellent)**: 90% or higher 🌟
+- **B (Good)**: 80-89% ✅
+- **C (Acceptable)**: 70-79% ⚠️
+- **D (Needs Improvement)**: below 70% ❌
+
+### Troubleshooting
+
+#### MySQL client installation errors
+
+**macOS:**
+```bash
+brew install mysql-client
+echo 'export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install mysql-client
+```
+
+**CentOS/RHEL:**
+```bash
+sudo yum install mysql
+```
+
+#### Python package installation errors
+
+```bash
+pip3 install --upgrade pip
+pip3 install mysql-connector-python pymysql
+```
+
+#### Connection failures
+
+1. Check that the ClickHouse Cloud instance is running
+2. Check that the MySQL interface port (9004) is open
+3. Check firewall rules
+4. Check that the connection information is correct
+
+```bash
+# Connection test
+mysql --host=<your-host> --port=9004 --user=default --password=<password> --ssl-mode=REQUIRED
+```
+
+#### SSL certificate errors
+
+```bash
+# Check the SSL mode
+export CHC_SSL_MODE="REQUIRED"
+
+# Or in a Python script
+ssl_disabled=False
+```
+
+### Directory Structure
+
+```
+chc/mysql-interface/
+├── run-mysql-test.sh              # main run script
+├── chc-mysql-interface-test-plan.md  # test plan document
+├── README.md                       # this file
+├── config/
+│   ├── chc-config.template        # configuration template
+│   └── chc-config.sh              # actual configuration (gitignored)
+├── scripts/
+│   ├── 01-setup-environment.sh    # environment setup
+│   ├── 02-install-mysql-clients.sh # install MySQL clients
+│   ├── 03-verify-connection.sh    # verify connection
+│   ├── 04-basic-compatibility-tests.sh  # basic compatibility
+│   ├── 05-sql-syntax-tests.sh     # SQL syntax
+│   ├── 06-datatype-tests.sh       # data types
+│   ├── 07-function-tests.sh       # functions
+│   ├── 08-tpcds-tests.sh          # TPC-DS
+│   ├── 09-python-driver-tests.sh  # Python drivers
+│   ├── 10-performance-tests.sh    # performance
+│   └── 11-generate-report.sh      # generate report
+├── test-results/                  # test results (auto-generated)
+└── logs/                          # log files (auto-generated)
+```
+
+### Contributing
+
+Bug reports, feature suggestions, and pull requests are welcome!
+
+### License
+
+[MIT](../../LICENSE) — same as the whole repository. All scripts in this lab were written in-house, and there is no borrowed upstream code. (It was previously labeled Apache 2.0, but there was no basis for that, so it has been corrected.)
+
+### Contact
+
+- **Author**: Ken (Solution Architect, ClickHouse Inc.)
+- **Email**: support@clickhouse.com
+- **Docs**: https://clickhouse.com/docs
+
+### References
+
+- [ClickHouse MySQL Interface docs](https://clickhouse.com/docs/en/interfaces/mysql/)
+- [ClickHouse SQL Reference](https://clickhouse.com/docs/en/sql-reference/)
+- [TPC-DS benchmark](http://www.tpc.org/tpcds/)
+
+---
+
+## 한국어
 
 ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 종합 테스트 도구입니다.
 
-## 📋 목차
+### 📋 목차
 
 - [개요](#개요)
 - [기능](#기능)
@@ -12,11 +319,11 @@ ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 �
 - [결과 리포트](#결과-리포트)
 - [문제 해결](#문제-해결)
 
-## 개요
+### 개요
 
 이 도구는 [chc-mysql-interface-test-plan.md](chc-mysql-interface-test-plan.md)에 정의된 테스트 플랜을 자동으로 실행하여 ClickHouse Cloud의 MySQL interface 호환성을 검증합니다.
 
-### 주요 특징
+#### 주요 특징
 
 - ✅ MySQL 클라이언트 자동 설치 및 확인
 - ✅ ClickHouse Cloud 접속 정보 관리
@@ -25,9 +332,9 @@ ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 �
 - ✅ 자동 리포트 생성 (Markdown)
 - ✅ JSON 형식 결과 저장
 
-## 기능
+### 기능
 
-### 테스트 카테고리
+#### 테스트 카테고리
 
 1. **환경 설정**: Python, MySQL 클라이언트 확인
 2. **MySQL 클라이언트 설치**: 버전 5.7 및 8.0 지원
@@ -40,23 +347,23 @@ ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 �
 9. **Python 드라이버**: mysql-connector-python, PyMySQL
 10. **성능 테스트**: 처리량 및 응답 시간 측정
 
-## 설치 및 설정
+### 설치 및 설정
 
-### 사전 요구사항
+#### 사전 요구사항
 
 - Python 3.7 이상
 - pip3
 - macOS, Linux 또는 WSL (Windows)
 - ClickHouse Cloud 인스턴스 (MySQL interface 활성화)
 
-### 1단계: 저장소 클론
+#### 1단계: 저장소 클론
 
 ```bash
 git clone <repository-url>
 cd clickhouse-hols/chc/mysql-interface
 ```
 
-### 2단계: 접속 정보 설정
+#### 2단계: 접속 정보 설정
 
 ```bash
 # 템플릿 복사
@@ -79,15 +386,15 @@ export CHC_SSL_MODE="REQUIRED"
 
 ⚠️ **중요**: `config/chc-config.sh` 파일은 민감한 정보를 포함하므로 Git에 커밋하지 마세요!
 
-## 사용 방법
+### 사용 방법
 
-### 전체 테스트 실행
+#### 전체 테스트 실행
 
 ```bash
 ./run-mysql-test.sh
 ```
 
-### 개별 테스트 실행
+#### 개별 테스트 실행
 
 ```bash
 # 1. 환경 설정
@@ -124,9 +431,9 @@ export CHC_SSL_MODE="REQUIRED"
 ./scripts/11-generate-report.sh
 ```
 
-## 테스트 항목
+### 테스트 항목
 
-### 기본 호환성 테스트
+#### 기본 호환성 테스트
 - SELECT 기본 쿼리
 - 버전 조회
 - 데이터베이스 생성/사용
@@ -135,7 +442,7 @@ export CHC_SSL_MODE="REQUIRED"
 - COUNT 집계
 - Prepared Statement
 
-### SQL 구문 호환성
+#### SQL 구문 호환성
 - Single/Multiple INSERT
 - WHERE 절
 - ORDER BY
@@ -148,25 +455,25 @@ export CHC_SSL_MODE="REQUIRED"
 - LIKE 패턴
 - CASE WHEN
 
-### 데이터 타입 호환성
+#### 데이터 타입 호환성
 - 숫자형: TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DECIMAL
 - 문자열: CHAR, VARCHAR, TEXT
 - 날짜/시간: DATE, DATETIME, TIMESTAMP
 
-### 함수 호환성
+#### 함수 호환성
 - 문자열: CONCAT, UPPER, LOWER, LENGTH, SUBSTRING
 - 날짜: NOW, CURDATE, YEAR, MONTH
 - 집계: COUNT, SUM, AVG, MIN, MAX
 
-### 성능 테스트
+#### 성능 테스트
 - 단순 쿼리 처리량
 - 집계 쿼리 성능
 - 배치 삽입 성능
 - 테이블 스캔 성능
 
-## 결과 리포트
+### 결과 리포트
 
-### 출력 디렉토리
+#### 출력 디렉토리
 
 ```
 test-results/
@@ -180,7 +487,7 @@ test-results/
 └── report_YYYYMMDD_HHMMSS.md  # 종합 리포트
 ```
 
-### 리포트 내용
+#### 리포트 내용
 
 자동 생성되는 리포트에는 다음이 포함됩니다:
 
@@ -191,16 +498,16 @@ test-results/
 - 💡 권장 사항
 - ⚠️ 알려진 제한사항
 
-### 등급 기준
+#### 등급 기준
 
 - **A (Excellent)**: 90% 이상 🌟
 - **B (Good)**: 80-89% ✅
 - **C (Acceptable)**: 70-79% ⚠️
 - **D (Needs Improvement)**: 70% 미만 ❌
 
-## 문제 해결
+### 문제 해결
 
-### MySQL 클라이언트 설치 오류
+#### MySQL 클라이언트 설치 오류
 
 **macOS:**
 ```bash
@@ -220,14 +527,14 @@ sudo apt-get install mysql-client
 sudo yum install mysql
 ```
 
-### Python 패키지 설치 오류
+#### Python 패키지 설치 오류
 
 ```bash
 pip3 install --upgrade pip
 pip3 install mysql-connector-python pymysql
 ```
 
-### 연결 실패
+#### 연결 실패
 
 1. ClickHouse Cloud 인스턴스가 실행 중인지 확인
 2. MySQL interface 포트(9004)가 열려 있는지 확인
@@ -239,7 +546,7 @@ pip3 install mysql-connector-python pymysql
 mysql --host=<your-host> --port=9004 --user=default --password=<password> --ssl-mode=REQUIRED
 ```
 
-### SSL 인증서 오류
+#### SSL 인증서 오류
 
 ```bash
 # SSL 모드 확인
@@ -249,7 +556,7 @@ export CHC_SSL_MODE="REQUIRED"
 ssl_disabled=False
 ```
 
-## 디렉토리 구조
+### 디렉토리 구조
 
 ```
 chc/mysql-interface/
@@ -275,22 +582,22 @@ chc/mysql-interface/
 └── logs/                          # 로그 파일 (자동 생성)
 ```
 
-## 기여
+### 기여
 
 버그 리포트, 기능 제안, 풀 리퀘스트를 환영합니다!
 
-## 라이선스
+### 라이선스
 
 [MIT](../../LICENSE) — 저장소 전체와 동일합니다. 이 랩의 스크립트는 모두 직접 작성한 것으로,
 가져다 쓴 상류 코드가 없습니다. (이전에 Apache 2.0으로 표기돼 있었으나 근거가 없어 정정했습니다.)
 
-## 연락처
+### 연락처
 
 - **작성자**: Ken (Solution Architect, ClickHouse Inc.)
 - **이메일**: support@clickhouse.com
 - **문서**: https://clickhouse.com/docs
 
-## 참고 자료
+### 참고 자료
 
 - [ClickHouse MySQL Interface 문서](https://clickhouse.com/docs/en/interfaces/mysql/)
 - [ClickHouse SQL Reference](https://clickhouse.com/docs/en/sql-reference/)

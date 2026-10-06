@@ -37,8 +37,9 @@
     
   </nav>
   <div class="readme en"><h1>ClickHouse OSS Environment</h1>
+<hr />
 <p>ClickHouse development environment on Docker (macOS, Linux) with a seccomp security profile.</p>
-<h2>✨ Features</h2>
+<h3>✨ Features</h3>
 <ul>
 <li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
 <li>📦 <strong>Version Control</strong> - Specify ClickHouse version or use latest</li>
@@ -46,7 +47,7 @@
 <li>🧹 <strong>Easy Cleanup</strong> - Built-in cleanup options for data management</li>
 <li>🌐 <strong>Multiple Interfaces</strong> - Web UI, HTTP API, and TCP access</li>
 </ul>
-<h2>🚀 Quick Start</h2>
+<h3>🚀 Quick Start</h3>
 <pre><code class="language-bash"># 1. Setup (first time only) - defaults to latest version
 ./set.sh
 
@@ -59,22 +60,22 @@
 # 3. Connect
 ./client.sh
 </code></pre>
-<h2>📍 Connection Information</h2>
+<h3>📍 Connection Information</h3>
 <ul>
 <li><strong>Web UI</strong>: http://localhost:8123/play</li>
 <li><strong>HTTP API</strong>: http://localhost:8123</li>
 <li><strong>TCP</strong>: localhost:9000</li>
 <li><strong>User</strong>: default (no password)</li>
 </ul>
-<h2>🛠 Management Scripts</h2>
-<h3>Setup</h3>
+<h3>🛠 Management Scripts</h3>
+<h4>Setup</h4>
 <ul>
 <li><code>./set.sh [VERSION]</code> - Initial environment setup (first time only)</li>
 <li><code>./set.sh</code> - Install latest version</li>
 <li><code>./set.sh 25.10</code> - Install specific version</li>
 <li><code>./set.sh latest</code> - Explicitly install latest</li>
 </ul>
-<h3>Operations</h3>
+<h4>Operations</h4>
 <ul>
 <li><code>./start.sh</code> - Start ClickHouse (creates seccomp profile automatically)</li>
 <li><code>./stop.sh</code> - Stop ClickHouse (preserves data)</li>
@@ -83,7 +84,7 @@
 <li><code>./client.sh</code> - Connect to CLI client</li>
 <li><code>./cleanup.sh</code> - Complete data deletion (with confirmation prompt)</li>
 </ul>
-<h2>🔧 Advanced Usage</h2>
+<h3>🔧 Advanced Usage</h3>
 <pre><code class="language-bash"># View real-time logs
 docker compose logs -f
 
@@ -93,27 +94,27 @@ docker compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&qu
 # Access container shell
 docker compose exec clickhouse bash
 </code></pre>
-<h2>📂 Data Storage</h2>
+<h3>📂 Data Storage</h3>
 <p>Data is stored in Docker Named Volumes for persistence:
 - <code>clickhouse-oss_clickhouse_data</code> - Database files
 - <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
-<h2>🔄 Updates</h2>
+<h3>🔄 Updates</h3>
 <pre><code class="language-bash"># Update to new version
 docker compose pull
 docker compose up -d
 </code></pre>
-<h2>🔧 Troubleshooting</h2>
-<h3>get_mempolicy Error</h3>
+<h3>🔧 Troubleshooting</h3>
+<h4>get_mempolicy Error</h4>
 <p>This setup includes a custom seccomp profile that resolves the common <code>get_mempolicy: Operation not permitted</code> error. The profile allows necessary NUMA memory policy syscalls (<code>get_mempolicy</code>, <code>set_mempolicy</code>, <code>mbind</code>).</p>
-<h3>Container Won't Start</h3>
+<h4>Container Won't Start</h4>
 <ol>
 <li>Check Docker is running: <code>docker info</code></li>
 <li>Check logs: <code>docker logs clickhouse-oss</code></li>
 <li>Verify seccomp profile exists: <code>ls -la seccomp-profile.json</code></li>
 </ol>
-<h3>Permission issues</h3>
+<h4>Permission issues</h4>
 <p>This setup uses Docker Named Volumes instead of bind mounts to avoid host permission issues with ClickHouse data directories (macOS and Windows file sharing in particular).</p>
-<h2>📋 System Requirements</h2>
+<h3>📋 System Requirements</h3>
 <ul>
 <li>macOS (Apple Silicon or Intel) or Linux. Windows is not tested</li>
 <li>Docker Desktop, or Docker Engine with the Compose plugin on Linux</li>
@@ -121,26 +122,27 @@ docker compose up -d
 <li>4GB+ RAM recommended</li>
 <li>10GB+ disk space</li>
 </ul>
-<h2>🔐 Security</h2>
+<h3>🔐 Security</h3>
 <ul>
 <li>Includes custom seccomp profile for container security</li>
 <li>Default user with no password (suitable for development)</li>
 <li>Network isolation with dedicated Docker network</li>
 <li>Data persistence with named volumes</li>
 </ul>
-<h2>License</h2>
-<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p></div>
-  <div class="readme ko"><h1>ClickHouse OSS Environment</h1>
-<p>ClickHouse development environment on Docker (macOS, Linux) with a seccomp security profile.</p>
-<h2>✨ Features</h2>
+<h3>License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<hr /></div>
+  <div class="readme ko"><p><em>영어 원문을 LLM 도움으로 번역했습니다(2026-10-06).</em></p>
+<p>Docker(macOS, Linux)에서 seccomp 보안 프로파일과 함께 쓰는 ClickHouse 개발 환경입니다.</p>
+<h3>✨ 기능</h3>
 <ul>
-<li>🔒 <strong>Seccomp Security Profile</strong> - Fixes <code>get_mempolicy: Operation not permitted</code> errors</li>
-<li>📦 <strong>Version Control</strong> - Specify ClickHouse version or use latest</li>
-<li>🐳 <strong>Docker Named Volumes</strong> - Persistent data storage without host permission issues</li>
-<li>🧹 <strong>Easy Cleanup</strong> - Built-in cleanup options for data management</li>
-<li>🌐 <strong>Multiple Interfaces</strong> - Web UI, HTTP API, and TCP access</li>
+<li>🔒 <strong>Seccomp 보안 프로파일</strong> - <code>get_mempolicy: Operation not permitted</code> 오류를 해결합니다</li>
+<li>📦 <strong>버전 관리</strong> - ClickHouse 버전을 지정하거나 latest를 사용합니다</li>
+<li>🐳 <strong>Docker Named Volume</strong> - 호스트 권한 문제 없이 데이터를 영구 저장합니다</li>
+<li>🧹 <strong>간편한 정리</strong> - 데이터 관리를 위한 정리 옵션을 기본 제공합니다</li>
+<li>🌐 <strong>다양한 인터페이스</strong> - Web UI, HTTP API, TCP 접속</li>
 </ul>
-<h2>🚀 Quick Start</h2>
+<h3>🚀 빠른 시작</h3>
 <pre><code class="language-bash"># 1. Setup (first time only) - defaults to latest version
 ./set.sh
 
@@ -153,31 +155,31 @@ docker compose up -d
 # 3. Connect
 ./client.sh
 </code></pre>
-<h2>📍 Connection Information</h2>
+<h3>📍 접속 정보</h3>
 <ul>
 <li><strong>Web UI</strong>: http://localhost:8123/play</li>
 <li><strong>HTTP API</strong>: http://localhost:8123</li>
 <li><strong>TCP</strong>: localhost:9000</li>
-<li><strong>User</strong>: default (no password)</li>
+<li><strong>사용자</strong>: default (비밀번호 없음)</li>
 </ul>
-<h2>🛠 Management Scripts</h2>
-<h3>Setup</h3>
+<h3>🛠 관리 스크립트</h3>
+<h4>설정</h4>
 <ul>
-<li><code>./set.sh [VERSION]</code> - Initial environment setup (first time only)</li>
-<li><code>./set.sh</code> - Install latest version</li>
-<li><code>./set.sh 25.10</code> - Install specific version</li>
-<li><code>./set.sh latest</code> - Explicitly install latest</li>
+<li><code>./set.sh [VERSION]</code> - 초기 환경 설정 (최초 1회만)</li>
+<li><code>./set.sh</code> - 최신 버전 설치</li>
+<li><code>./set.sh 25.10</code> - 특정 버전 설치</li>
+<li><code>./set.sh latest</code> - 최신 버전을 명시적으로 설치</li>
 </ul>
-<h3>Operations</h3>
+<h4>운영</h4>
 <ul>
-<li><code>./start.sh</code> - Start ClickHouse (creates seccomp profile automatically)</li>
-<li><code>./stop.sh</code> - Stop ClickHouse (preserves data)</li>
-<li><code>./stop.sh --cleanup</code> or <code>./stop.sh -c</code> - Stop and delete all data</li>
-<li><code>./status.sh</code> - Check container status, health, and resource usage</li>
-<li><code>./client.sh</code> - Connect to CLI client</li>
-<li><code>./cleanup.sh</code> - Complete data deletion (with confirmation prompt)</li>
+<li><code>./start.sh</code> - ClickHouse 시작 (seccomp 프로파일을 자동 생성)</li>
+<li><code>./stop.sh</code> - ClickHouse 중지 (데이터 보존)</li>
+<li><code>./stop.sh --cleanup</code> 또는 <code>./stop.sh -c</code> - 중지하고 모든 데이터 삭제</li>
+<li><code>./status.sh</code> - 컨테이너 상태, 헬스, 리소스 사용량 확인</li>
+<li><code>./client.sh</code> - CLI 클라이언트 접속</li>
+<li><code>./cleanup.sh</code> - 데이터 완전 삭제 (확인 프롬프트 포함)</li>
 </ul>
-<h2>🔧 Advanced Usage</h2>
+<h3>🔧 고급 사용법</h3>
 <pre><code class="language-bash"># View real-time logs
 docker compose logs -f
 
@@ -187,43 +189,43 @@ docker compose exec clickhouse clickhouse-client --query &quot;SHOW DATABASES&qu
 # Access container shell
 docker compose exec clickhouse bash
 </code></pre>
-<h2>📂 Data Storage</h2>
-<p>Data is stored in Docker Named Volumes for persistence:
-- <code>clickhouse-oss_clickhouse_data</code> - Database files
-- <code>clickhouse-oss_clickhouse_logs</code> - Log files</p>
-<h2>🔄 Updates</h2>
+<h3>📂 데이터 저장</h3>
+<p>데이터는 영구 보존을 위해 Docker Named Volume에 저장됩니다.
+- <code>clickhouse-oss_clickhouse_data</code> - 데이터베이스 파일
+- <code>clickhouse-oss_clickhouse_logs</code> - 로그 파일</p>
+<h3>🔄 업데이트</h3>
 <pre><code class="language-bash"># Update to new version
 docker compose pull
 docker compose up -d
 </code></pre>
-<h2>🔧 Troubleshooting</h2>
-<h3>get_mempolicy Error</h3>
-<p>This setup includes a custom seccomp profile that resolves the common <code>get_mempolicy: Operation not permitted</code> error. The profile allows necessary NUMA memory policy syscalls (<code>get_mempolicy</code>, <code>set_mempolicy</code>, <code>mbind</code>).</p>
-<h3>Container Won't Start</h3>
+<h3>🔧 트러블슈팅</h3>
+<h4>get_mempolicy 오류</h4>
+<p>이 환경에는 흔히 발생하는 <code>get_mempolicy: Operation not permitted</code> 오류를 해결하는 커스텀 seccomp 프로파일이 포함되어 있습니다. 이 프로파일은 NUMA 메모리 정책에 필요한 시스템 콜(<code>get_mempolicy</code>, <code>set_mempolicy</code>, <code>mbind</code>)을 허용합니다.</p>
+<h4>컨테이너가 시작되지 않을 때</h4>
 <ol>
-<li>Check Docker is running: <code>docker info</code></li>
-<li>Check logs: <code>docker logs clickhouse-oss</code></li>
-<li>Verify seccomp profile exists: <code>ls -la seccomp-profile.json</code></li>
+<li>Docker가 실행 중인지 확인: <code>docker info</code></li>
+<li>로그 확인: <code>docker logs clickhouse-oss</code></li>
+<li>seccomp 프로파일이 있는지 확인: <code>ls -la seccomp-profile.json</code></li>
 </ol>
-<h3>Permission issues</h3>
-<p>This setup uses Docker Named Volumes instead of bind mounts to avoid host permission issues with ClickHouse data directories (macOS and Windows file sharing in particular).</p>
-<h2>📋 System Requirements</h2>
+<h4>권한 문제</h4>
+<p>이 환경은 ClickHouse 데이터 디렉터리에서 생기는 호스트 권한 문제(특히 macOS와 Windows의 파일 공유)를 피하기 위해 bind mount 대신 Docker Named Volume을 사용합니다.</p>
+<h3>📋 시스템 요구사항</h3>
 <ul>
-<li>macOS (Apple Silicon or Intel) or Linux. Windows is not tested</li>
-<li>Docker Desktop, or Docker Engine with the Compose plugin on Linux</li>
+<li>macOS(Apple Silicon 또는 Intel) 또는 Linux. Windows는 테스트하지 않았습니다</li>
+<li>Docker Desktop, 또는 Linux의 Docker Engine과 Compose 플러그인</li>
 <li><code>bash</code></li>
-<li>4GB+ RAM recommended</li>
-<li>10GB+ disk space</li>
+<li>4GB 이상 RAM 권장</li>
+<li>10GB 이상 디스크 공간</li>
 </ul>
-<h2>🔐 Security</h2>
+<h3>🔐 보안</h3>
 <ul>
-<li>Includes custom seccomp profile for container security</li>
-<li>Default user with no password (suitable for development)</li>
-<li>Network isolation with dedicated Docker network</li>
-<li>Data persistence with named volumes</li>
+<li>컨테이너 보안을 위한 커스텀 seccomp 프로파일 포함</li>
+<li>비밀번호 없는 default 사용자 (개발용으로 적합)</li>
+<li>전용 Docker 네트워크로 네트워크 격리</li>
+<li>Named Volume으로 데이터 영구 보존</li>
 </ul>
-<h2>License</h2>
-<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p></div>
+<h3>License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/local/releases/25.1/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse 25.1 New Features Lab</span></a><a class="step next" href="../../../labs/local/releases/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse Release Labs</span></a></nav>
 </main>

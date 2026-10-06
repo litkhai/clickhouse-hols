@@ -1,5 +1,360 @@
-# MV vs RMV 리소스 효율성 비교 테스트
 # MV vs RMV Resource Efficiency Comparison Test
+
+[English](#english) | [한국어](#한국어)
+
+---
+
+## English
+
+*English translation of the Korean original, LLM-assisted (2026-10-06).*
+
+ClickHouse's Materialized View (MV) and Refreshable Materialized View (RMV) are compared quantitatively for resource efficiency in this test project.
+
+---
+
+### 📋 Project Overview
+
+#### Purpose
+- Compare the resource usage patterns of MV (real-time processing) and RMV (batch processing)
+- Measure quantitative indicators such as part count, disk usage and query performance
+- Provide a guide to the best choice per use case
+
+#### Key Question
+**"Is RMV more resource-efficient than MV in high-frequency INSERT environments?"**
+
+---
+
+### 🎯 Test Results Summary
+
+✅ **Hypothesis Confirmed**
+
+#### Quick Test (5 min, 300K rows)
+| Metric | MV | RMV | Improvement |
+|---------------|-----|------|---------------------------|
+| **Part Count** | 5 | 1 | **5x reduction** |
+| **Disk Usage** | 9.83 KiB | 1.94 KiB | **5x reduction** |
+
+#### Full Test (30 min, 1.9M rows) ⭐
+| Metric | MV | RMV | Improvement |
+|---------------|-----|------|---------------------------|
+| **Part Count** | 3 | 1 | **3x reduction** |
+| **Disk Usage** | 11.63 KiB | 15.17 KiB | Similar (RMV covers more data) |
+| **Aggregated Rows** | 1,200 | 1,800 | **RMV covers 1.5x more** |
+
+📊 **[View the full results report](./test-results-report.md)**
+📊 **[30-minute Full Test final report](./FINAL-TEST-REPORT.md)** ⭐
+
+---
+
+### 🏗️ Project Structure
+
+```
+workload/mv-vs-rmv/
+├── README.md                           # Project overview
+├── mv-rmv-test-plan.md                # Original test plan
+├── detailed-test-plan.md              # Detailed execution plan
+├── test-results-report.md             # 📊 Final results report
+│
+├── setup/                             # Schema setup SQL scripts
+│   ├── 01-create-database.sql        # Create database
+│   ├── 02-create-source-table.sql    # Create source table
+│   ├── 03-create-mv-tables.sql       # Create MV
+│   ├── 04-create-rmv-tables.sql      # Create RMV
+│   └── 05-create-monitoring-tables.sql # Create monitoring tables
+│
+├── scripts/                           # Python execution scripts
+│   ├── quick_test.py                 # ✅ 5-minute Quick test
+│   ├── data_generator.py             # 30-minute Full test data generation
+│   ├── monitoring_collector.py       # Monitoring data collection
+│   └── run_test.py                   # Integrated run script
+│
+└── queries/                           # Analysis queries
+    └── analyze_results.sql           # Collection of result analysis queries
+```
+
+---
+
+### 🚀 Quick Start
+
+#### 1. Prerequisites
+
+```bash
+# Install Python package
+pip3 install clickhouse-connect
+
+# Connection settings are injected via environment variables (the scripts do not hard-code them)
+# Connection settings are injected via environment variables
+cd scripts
+cp .env.example .env      # Fill in CH_HOST / CH_PASSWORD etc.
+set -a && . ./.env && set +a
+```
+
+`scripts/*.py` read `CH_HOST`, `CH_USER`, `CH_PASSWORD` and `CH_DATABASE`,
+and exit with a guidance message if `CH_HOST` or `CH_PASSWORD` is missing.
+
+#### 2. Schema Setup
+
+```bash
+# Create database and tables
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < setup/01-create-database.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < setup/02-create-source-table.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < setup/03-create-mv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < setup/04-create-rmv-tables.sql
+
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < setup/05-create-monitoring-tables.sql
+```
+
+#### 3. Run Quick Test (5 minutes)
+
+```bash
+# Edit HOST and PASSWORD in the script, then run
+cd scripts/
+python3 quick_test.py
+```
+
+#### 4. Check Results
+
+```bash
+# Check table row counts
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query "
+SELECT 'Source' AS table_name, count() FROM mv_vs_rmv.events_source
+UNION ALL
+SELECT 'MV' AS table_name, count() FROM mv_vs_rmv.events_agg_mv
+UNION ALL
+SELECT 'RMV' AS table_name, count() FROM mv_vs_rmv.events_agg_rmv
+FORMAT Pretty"
+
+# Compare part counts
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD --query "
+SELECT table, count() AS parts, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table
+ORDER BY table
+FORMAT Pretty"
+```
+
+---
+
+### 📊 Test Scenarios
+
+#### Scenario 1: Quick Test (5 min) ✅ Done
+- **Duration**: 5 minutes
+- **Data volume**: 300,000 rows
+- **Purpose**: Quick validation and POC
+- **Status**: ✅ Done (2025-12-16)
+- **Report**: [test-results-report.md](./test-results-report.md)
+
+#### Scenario 2: Full Test (30 min) ✅ Done ⭐
+- **Duration**: 30.2 minutes (actual data generation)
+- **Data volume**: 1,908,000 rows (exceeded the target!)
+- **Purpose**: Long-running load test and observing several refresh cycles
+- **Status**: ✅ Done (2025-12-16)
+- **Session ID**: 6aeefe3f-e03a-4d0e-9766-5211e423ecbb
+- **Report**: [FINAL-TEST-REPORT.md](./FINAL-TEST-REPORT.md) ⭐
+
+---
+
+### 🔍 Key Findings
+
+#### 1. Part Management Efficiency
+- ✅ RMV **reduces the part count 5x** through batch processing
+- ✅ Fewer parts → less merge load → lower CPU/Memory usage
+
+#### 2. Disk Usage
+- ✅ RMV **reduces disk usage 5x** compared with MV
+- ✅ Creating fewer, larger parts is more efficient
+
+#### 3. Query Performance
+- ✅ RMV **reduces the number of query executions 3x** through batch processing
+- ✅ RMV **reduces the amount of data read 7x**
+
+#### 4. Processing Pattern
+- **MV**: Continuous, steady resource usage (real-time)
+- **RMV**: Intermittent spikes every 5 minutes (batch)
+
+---
+
+### 💡 Practical Recommendations
+
+#### Use MV When:
+- ✅ Real-time data reflection is required (< 1 second latency)
+- ✅ INSERT frequency is low (up to a few hundred per minute)
+- ✅ Real-time dashboard, alerting
+
+#### Use RMV When:
+- ✅ Batch delay is acceptable (5-10 minutes)
+- ✅ High-frequency INSERT (hundreds to thousands per second or more)
+- ✅ Resource efficiency matters (lower storage and CPU cost)
+- ✅ Complex aggregation logic
+- ✅ Analytical workloads, Reporting
+
+---
+
+### 🧪 Test Execution Guide
+
+#### Option 1: Quick Test (5 min - recommended)
+
+```bash
+cd scripts/
+python3 quick_test.py
+```
+
+**Advantages**:
+- Quick validation (done in 5 minutes)
+- Immediate results
+- Suited to POCs and demos
+
+#### Option 2: Full Test (30 min)
+
+```bash
+cd scripts/
+python3 run_test.py
+```
+
+**Advantages**:
+- More data (1.8M rows)
+- Observe several RMV refresh cycles
+- Long-running load test
+- More accurate statistics
+
+**Note**: The Full test includes monitoring collection
+
+---
+
+### 📈 Monitoring and Analysis
+
+#### Real-time Monitoring
+
+```sql
+-- Check table row counts
+SELECT
+    'Source' AS table_name, count() AS rows
+FROM mv_vs_rmv.events_source;
+
+-- Check part counts
+SELECT table, count() AS parts
+FROM system.parts
+WHERE database = 'mv_vs_rmv' AND active
+GROUP BY table;
+
+-- Check RMV refresh status
+SELECT status, last_success_time, next_refresh_time
+FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+```
+
+#### Analysis Queries
+
+```bash
+# See the queries/analyze_results.sql file
+clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
+  < queries/analyze_results.sql
+```
+
+---
+
+### 🎓 Learnings
+
+#### 1. ClickHouse Part Management
+- ClickHouse stores data in units of parts
+- Many parts → more merge load, lower query performance
+- Creating fewer, larger parts through batch processing is efficient
+
+#### 2. Real-time vs Batch Trade-off
+- **Real-time (MV)**: Low latency, high resource cost
+- **Batch (RMV)**: High latency, low resource cost
+- Choosing to fit the use case matters
+
+#### 3. Using Refreshable Materialized Views
+- A new feature in ClickHouse 25.x
+- Set the batch interval with the REFRESH EVERY clause
+- Add incremental data with APPEND mode
+
+---
+
+### 🔧 Troubleshooting
+
+#### Problem 1: Python package missing
+```bash
+pip3 install clickhouse-connect
+```
+
+#### Problem 2: Connection failure
+- Check the host address
+- Check the password
+- Use the --secure option (ClickHouse Cloud)
+
+#### Problem 3: RMV does not refresh
+```sql
+-- Check RMV status
+SELECT * FROM system.view_refreshes
+WHERE database = 'mv_vs_rmv';
+
+-- Manual refresh (if needed)
+SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
+```
+
+---
+
+### 📚 References
+
+#### ClickHouse Official Documentation
+- [Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views)
+- [Refreshable Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views)
+- [Part Management](https://clickhouse.com/docs/partitions)
+
+#### Related Documents
+- [Original test plan](./mv-rmv-test-plan.md)
+- [Detailed execution plan](./detailed-test-plan.md)
+- [Final results report](./test-results-report.md) 📊
+
+---
+
+### 👥 Contributors
+
+- **Test design and execution**: Claude Code
+- **Test environment**: ClickHouse Cloud
+- **Date**: 2025-12-16
+
+---
+
+### 📄 License
+
+[MIT](../../LICENSE) — same as the rest of the repository.
+
+---
+
+### 🎯 Next Steps
+
+1. ✅ Quick Test (5 min) - Done ✅
+2. ✅ Full Test (30 min) - Done ✅
+3. 📊 Test various refresh intervals (1, 10, 15 minutes)
+4. 🔍 Concurrent query load test
+5. 📈 Write a production rollout guide
+
+---
+
+**Project Status**: ✅ Phase 2 complete (Full Test) 🎉
+
+**Contact**: [GitHub Issues](https://github.com/anthropics/claude-code/issues)
+
+---
+
+**Last Updated**: 2025-12-16
+
+---
+
+## 한국어
+### MV vs RMV 리소스 효율성 비교 테스트
 
 ClickHouse의 Materialized View (MV)와 Refreshable Materialized View (RMV)의 리소스 효율성을 정량적으로 비교 분석하는 테스트 프로젝트입니다.
 
@@ -7,31 +362,31 @@ This is a test project that quantitatively compares and analyzes the resource ef
 
 ---
 
-## 📋 프로젝트 개요 / Project Overview
+### 📋 프로젝트 개요 / Project Overview
 
-### 목적 / Purpose
+#### 목적 / Purpose
 - MV (실시간 처리)와 RMV (배치 처리)의 리소스 사용 패턴 비교
 - Part 생성 수, Disk 사용량, 쿼리 성능 등 정량적 지표 측정
 - Use case별 최적의 선택 가이드 제공
 
-### 핵심 질문 / Key Question
+#### 핵심 질문 / Key Question
 **"고빈도 INSERT 환경에서 RMV가 MV보다 리소스 효율적인가?"**
 
 **"Is RMV more resource-efficient than MV in high-frequency INSERT environments?"**
 
 ---
 
-## 🎯 테스트 결과 요약 / Test Results Summary
+### 🎯 테스트 결과 요약 / Test Results Summary
 
 ✅ **가설 입증 완료 / Hypothesis Confirmed**
 
-### Quick Test (5분, 300K rows)
+#### Quick Test (5분, 300K rows)
 | 지표 / Metric | MV | RMV | 효율성 개선 / Improvement |
 |---------------|-----|------|---------------------------|
 | **Part Count** | 5 | 1 | **5배 감소 / 5x reduction** |
 | **Disk Usage** | 9.83 KiB | 1.94 KiB | **5배 감소 / 5x reduction** |
 
-### Full Test (30분, 1.9M rows) ⭐
+#### Full Test (30분, 1.9M rows) ⭐
 | 지표 / Metric | MV | RMV | 효율성 개선 / Improvement |
 |---------------|-----|------|---------------------------|
 | **Part Count** | 3 | 1 | **3배 감소 / 3x reduction** |
@@ -43,7 +398,7 @@ This is a test project that quantitatively compares and analyzes the resource ef
 
 ---
 
-## 🏗️ 프로젝트 구조 / Project Structure
+### 🏗️ 프로젝트 구조 / Project Structure
 
 ```
 workload/mv-vs-rmv/
@@ -71,9 +426,9 @@ workload/mv-vs-rmv/
 
 ---
 
-## 🚀 빠른 시작 / Quick Start
+### 🚀 빠른 시작 / Quick Start
 
-### 1. 사전 준비 / Prerequisites
+#### 1. 사전 준비 / Prerequisites
 
 ```bash
 # Python 패키지 설치
@@ -89,7 +444,7 @@ set -a && . ./.env && set +a
 `scripts/*.py`는 `CH_HOST`, `CH_USER`, `CH_PASSWORD`, `CH_DATABASE`를 읽고,
 `CH_HOST` 또는 `CH_PASSWORD`가 없으면 안내 메시지와 함께 종료합니다.
 
-### 2. 스키마 설정 / Schema Setup
+#### 2. 스키마 설정 / Schema Setup
 
 ```bash
 # Database 및 테이블 생성
@@ -109,7 +464,7 @@ clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
   < setup/05-create-monitoring-tables.sql
 ```
 
-### 3. Quick 테스트 실행 (5분) / Run Quick Test (5 minutes)
+#### 3. Quick 테스트 실행 (5분) / Run Quick Test (5 minutes)
 
 ```bash
 # 스크립트에서 HOST와 PASSWORD 수정 후 실행
@@ -117,7 +472,7 @@ cd scripts/
 python3 quick_test.py
 ```
 
-### 4. 결과 확인 / Check Results
+#### 4. 결과 확인 / Check Results
 
 ```bash
 # 테이블 행 수 확인
@@ -141,16 +496,16 @@ FORMAT Pretty"
 
 ---
 
-## 📊 테스트 시나리오 / Test Scenarios
+### 📊 테스트 시나리오 / Test Scenarios
 
-### Scenario 1: Quick Test (5분) ✅ 완료
+#### Scenario 1: Quick Test (5분) ✅ 완료
 - **지속 시간**: 5분
 - **데이터 볼륨**: 300,000 rows
 - **목적**: 빠른 검증 및 POC
 - **상태**: ✅ 완료 (2025-12-16)
 - **보고서**: [test-results-report.md](./test-results-report.md)
 
-### Scenario 2: Full Test (30분) ✅ 완료 ⭐
+#### Scenario 2: Full Test (30분) ✅ 완료 ⭐
 - **지속 시간**: 30.2분 (실제 데이터 생성)
 - **데이터 볼륨**: 1,908,000 rows (목표 초과 달성!)
 - **목적**: 장시간 부하 테스트 및 여러 refresh 주기 관찰
@@ -160,34 +515,34 @@ FORMAT Pretty"
 
 ---
 
-## 🔍 주요 발견사항 / Key Findings
+### 🔍 주요 발견사항 / Key Findings
 
-### 1. Part 관리 효율성 / Part Management Efficiency
+#### 1. Part 관리 효율성 / Part Management Efficiency
 - ✅ RMV는 배치 처리로 **Part 수를 5배 줄임**
 - ✅ 적은 Part 수 → 적은 Merge 부하 → 낮은 CPU/Memory 사용
 
-### 2. Disk 사용량 / Disk Usage
+#### 2. Disk 사용량 / Disk Usage
 - ✅ RMV는 MV 대비 **Disk 사용량 5배 감소**
 - ✅ 큰 Part를 적게 생성하는 것이 더 효율적
 
-### 3. 쿼리 성능 / Query Performance
+#### 3. 쿼리 성능 / Query Performance
 - ✅ RMV는 배치 처리로 **쿼리 실행 횟수 3배 감소**
 - ✅ RMV는 읽은 데이터 양 **7배 감소**
 
-### 4. 처리 패턴 / Processing Pattern
+#### 4. 처리 패턴 / Processing Pattern
 - **MV**: 지속적이고 일정한 리소스 사용 (Real-time)
 - **RMV**: 5분마다 간헐적 스파이크 (Batch)
 
 ---
 
-## 💡 실무 권장사항 / Practical Recommendations
+### 💡 실무 권장사항 / Practical Recommendations
 
-### MV 사용 권장 / Use MV When:
+#### MV 사용 권장 / Use MV When:
 - ✅ 실시간 데이터 반영 필수 (< 1초 latency)
 - ✅ INSERT 빈도가 낮음 (분당 수백 건 이하)
 - ✅ Real-time dashboard, alerting
 
-### RMV 사용 권장 / Use RMV When:
+#### RMV 사용 권장 / Use RMV When:
 - ✅ 배치 지연 허용 (5~10분)
 - ✅ 고빈도 INSERT (초당 수백~수천 건 이상)
 - ✅ 리소스 효율성 중요 (Storage, CPU 비용 절감)
@@ -196,9 +551,9 @@ FORMAT Pretty"
 
 ---
 
-## 🧪 테스트 실행 가이드 / Test Execution Guide
+### 🧪 테스트 실행 가이드 / Test Execution Guide
 
-### Option 1: Quick Test (5분 - 권장)
+#### Option 1: Quick Test (5분 - 권장)
 
 ```bash
 cd scripts/
@@ -210,7 +565,7 @@ python3 quick_test.py
 - 즉각적인 결과 확인
 - POC 및 데모에 적합
 
-### Option 2: Full Test (30분)
+#### Option 2: Full Test (30분)
 
 ```bash
 cd scripts/
@@ -227,9 +582,9 @@ python3 run_test.py
 
 ---
 
-## 📈 모니터링 및 분석 / Monitoring and Analysis
+### 📈 모니터링 및 분석 / Monitoring and Analysis
 
-### 실시간 모니터링 / Real-time Monitoring
+#### 실시간 모니터링 / Real-time Monitoring
 
 ```sql
 -- 테이블 행 수 확인
@@ -249,7 +604,7 @@ FROM system.view_refreshes
 WHERE database = 'mv_vs_rmv';
 ```
 
-### 결과 분석 쿼리 / Analysis Queries
+#### 결과 분석 쿼리 / Analysis Queries
 
 ```bash
 # queries/analyze_results.sql 파일 참조
@@ -259,38 +614,38 @@ clickhouse client --host YOUR_HOST --secure --password YOUR_PASSWORD \
 
 ---
 
-## 🎓 학습 내용 / Learnings
+### 🎓 학습 내용 / Learnings
 
-### 1. ClickHouse Part Management
+#### 1. ClickHouse Part Management
 - ClickHouse는 데이터를 Part 단위로 저장
 - Part 수가 많으면 → Merge 부하 증가, Query 성능 저하
 - 배치 처리로 큰 Part를 적게 생성하는 것이 효율적
 
-### 2. Real-time vs Batch Trade-off
+#### 2. Real-time vs Batch Trade-off
 - **Real-time (MV)**: 낮은 지연, 높은 리소스 비용
 - **Batch (RMV)**: 높은 지연, 낮은 리소스 비용
 - Use case에 맞는 선택이 중요
 
-### 3. Refreshable Materialized View 활용
+#### 3. Refreshable Materialized View 활용
 - ClickHouse 25.x의 새로운 기능
 - REFRESH EVERY 구문으로 배치 주기 설정
 - APPEND 모드로 증분 데이터 추가
 
 ---
 
-## 🔧 트러블슈팅 / Troubleshooting
+### 🔧 트러블슈팅 / Troubleshooting
 
-### 문제 1: Python 패키지 없음
+#### 문제 1: Python 패키지 없음
 ```bash
 pip3 install clickhouse-connect
 ```
 
-### 문제 2: 연결 실패
+#### 문제 2: 연결 실패
 - Host 주소 확인
 - Password 확인
 - --secure 옵션 사용 (ClickHouse Cloud)
 
-### 문제 3: RMV가 refresh되지 않음
+#### 문제 3: RMV가 refresh되지 않음
 ```sql
 -- RMV 상태 확인
 SELECT * FROM system.view_refreshes
@@ -302,21 +657,21 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 
 ---
 
-## 📚 참고 자료 / References
+### 📚 참고 자료 / References
 
-### ClickHouse 공식 문서
+#### ClickHouse 공식 문서
 - [Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views)
 - [Refreshable Materialized Views](https://clickhouse.com/docs/en/guides/developer/cascading-materialized-views#refreshable-materialized-views)
 - [Part Management](https://clickhouse.com/docs/partitions)
 
-### 관련 문서
+#### 관련 문서
 - [원본 테스트 계획](./mv-rmv-test-plan.md)
 - [상세 실행 계획](./detailed-test-plan.md)
 - [최종 결과 보고서](./test-results-report.md) 📊
 
 ---
 
-## 👥 기여자 / Contributors
+### 👥 기여자 / Contributors
 
 - **테스트 설계 및 실행**: Claude Code
 - **테스트 환경**: ClickHouse Cloud
@@ -324,7 +679,7 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 
 ---
 
-## 📄 라이선스 / License
+### 📄 라이선스 / License
 
 [MIT](../../LICENSE) — 저장소 전체와 동일합니다.
 
@@ -332,7 +687,7 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 
 ---
 
-## 🎯 다음 단계 / Next Steps
+### 🎯 다음 단계 / Next Steps
 
 1. ✅ Quick Test (5분) - 완료 ✅
 2. ✅ Full Test (30분) - 완료 ✅

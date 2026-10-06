@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClickHouse RBAC &amp; Workload Management 실습 · ClickHouse HOLs</title>
-<meta name="description" content="ClickHouse RBAC &amp; Workload Management 실습 — hands-on ClickHouse lab.">
+<title>ClickHouse RBAC &amp; Workload Management Lab · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse RBAC &amp; Workload Management Lab — hands-on ClickHouse lab.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
 <link rel="stylesheet" href="../../../assets/site.css">
@@ -36,9 +36,317 @@
     <span aria-hidden="true">/</span><code>workload/rbac-workloadmanagement</code>
     
   </nav>
-  <div class="readme en"><h1>ClickHouse RBAC &amp; Workload Management 실습</h1>
-<p>ClickHouse의 RBAC(Role-Based Access Control)와 워크로드 매니지먼트를 실습하는 환경입니다.</p>
-<h2>📋 실습 개요</h2>
+  <div class="readme en"><h1>ClickHouse RBAC &amp; Workload Management Lab</h1>
+<hr />
+<p><em>English translation of the Korean original, LLM-assisted (2026-10-06).</em></p>
+<p>A hands-on environment for practicing ClickHouse RBAC (Role-Based Access Control) and workload management.</p>
+<h3>📋 Lab Overview</h3>
+<p>In this lab you will learn:</p>
+<ol>
+<li>
+<p><strong>RBAC (Role-Based Access Control)</strong>
+   - Creating roles and granting privileges
+   - Creating users and assigning roles
+   - Row-Level Security
+   - Column-Level Security</p>
+</li>
+<li>
+<p><strong>Workload Management</strong>
+   - Settings Profile (query resource limits)
+   - Quota (time-based usage limits)
+   - Workload Scheduling (v25+)</p>
+</li>
+</ol>
+<h3>🗂️ File Structure</h3>
+<pre><code>rbac-workloadmanagement/
+├── README.md                      # This file
+├── rbac-blog-plan.md              # Detailed plan
+│
+├── 01-setup.sql                   # Create test environment and data
+├── 02-create-roles.sql            # Create roles and grant privileges
+├── 03-create-users.sql            # Create users and assign roles
+├── 04-row-policies.sql            # Row Policy (row-level security)
+├── 05-column-security.sql         # Column-Level Security
+├── 06-settings-profiles.sql       # Create Settings Profiles
+├── 07-quotas.sql                  # Create Quotas
+├── 08-workload-scheduling.sql     # Workload Scheduling (v25+)
+├── 09-monitoring.sql              # Monitoring and verification queries
+├── 99-cleanup.sql                 # Cleanup script
+│
+├── connect-as.sh                  # Helper script to connect as a user
+└── test-as.sh                     # Privilege test script
+</code></pre>
+<h3>🚀 Getting Started</h3>
+<h4>Prerequisites</h4>
+<ol>
+<li>A ClickHouse server (local or cloud)</li>
+<li>The <code>clickhouse-client</code> CLI tool</li>
+<li>An account with administrator privileges</li>
+</ol>
+<h4>Environment Variables (optional)</h4>
+<pre><code class="language-bash"># When using ClickHouse Cloud
+export CH_HOST=&quot;your-host.clickhouse.cloud&quot;
+export CH_PORT=&quot;9440&quot;
+export CH_SECURE=&quot;--secure&quot;
+
+# When using a local ClickHouse
+export CH_HOST=&quot;localhost&quot;
+export CH_PORT=&quot;9000&quot;
+export CH_SECURE=&quot;&quot;
+</code></pre>
+<h3>📚 Lab Steps</h3>
+<h4>Step 1: Create the test environment</h4>
+<p>Connect with the administrator account and create the test database and tables.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 01-setup.sql
+</code></pre>
+<p>What gets created:
+- The <code>rbac_demo</code> database
+- The <code>sales</code> table (sales data)
+- The <code>customers</code> table (customer data, including sensitive information)</p>
+<h4>Step 2: Create roles</h4>
+<p>Create four roles and grant each the appropriate privileges.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 02-create-roles.sql
+</code></pre>
+<p>Roles created:
+- <code>rbac_demo_readonly</code> - Read-only (BI developer)
+- <code>rbac_demo_analyst</code> - Analyst (read + temporary tables)
+- <code>rbac_demo_engineer</code> - Data engineer (full privileges)
+- <code>rbac_demo_partner</code> - External partner (restricted read)</p>
+<h4>Step 3: Create users</h4>
+<p>Create a user for each role.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 03-create-users.sql
+</code></pre>
+<p>Users created:
+- <code>demo_bi_user</code> (password: <code>SecurePass123!</code>)
+- <code>demo_analyst</code> (password: <code>AnalystPass456!</code>)
+- <code>demo_engineer</code> (password: <code>EngineerPass789!</code>)
+- <code>demo_partner</code> (password: <code>PartnerPass000!</code>)</p>
+<h4>Step 4: Set up the Row Policy</h4>
+<p>Set up row-level security. The partner is restricted to seeing only APAC region data.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 04-row-policies.sql
+</code></pre>
+<h4>Step 5: Set up column-level security</h4>
+<p>Restrict access to sensitive information (email, phone).</p>
+<pre><code class="language-bash">clickhouse-client &lt; 05-column-security.sql
+</code></pre>
+<h4>Step 6: Create Settings Profiles</h4>
+<p>Set query resource limits.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 06-settings-profiles.sql
+</code></pre>
+<p>Limits per role:
+- BI: 5GB memory, 1 minute execution, 2 threads
+- Analyst: 10GB memory, 5 minutes execution, 4 threads
+- Engineer: 50GB memory, 1 hour execution, 16 threads
+- Partner: 2GB memory, 30 seconds execution, 2 threads</p>
+<h4>Step 7: Create Quotas</h4>
+<p>Set time-based usage limits.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 07-quotas.sql
+</code></pre>
+<h4>Step 8: Workload Scheduling (ClickHouse 25+)</h4>
+<p>Set up workload scheduling. (Requires ClickHouse 25.4 or later)</p>
+<pre><code class="language-bash">clickhouse-client &lt; 08-workload-scheduling.sql
+</code></pre>
+<h4>Step 9: Monitoring</h4>
+<p>Review and monitor what has been configured.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 09-monitoring.sql
+</code></pre>
+<h3>🔧 User Connection Tools</h3>
+<h4>connect-as.sh - Interactive connection</h4>
+<p>Connect to ClickHouse as a specific user.</p>
+<pre><code class="language-bash"># Connect as analyst
+./connect-as.sh analyst
+
+# Connect as BI user
+./connect-as.sh bi
+
+# Connect as engineer
+./connect-as.sh engineer
+
+# Connect as partner
+./connect-as.sh partner
+</code></pre>
+<h4>Running queries directly</h4>
+<pre><code class="language-bash"># Run a single query
+./connect-as.sh analyst &quot;SELECT count() FROM rbac_demo.sales&quot;
+
+# Check a setting
+./connect-as.sh analyst &quot;SELECT getSetting('max_memory_usage')&quot;
+</code></pre>
+<h4>test-as.sh - Privilege test</h4>
+<p>Automatically tests the privileges of every user.</p>
+<pre><code class="language-bash">./test-as.sh
+</code></pre>
+<h3>🧪 Test Scenarios</h3>
+<h4>1. Row Policy test</h4>
+<p><strong>Connect as demo_partner:</strong></p>
+<pre><code class="language-sql">-- Only APAC data is visible (3 rows)
+SELECT region, count() FROM rbac_demo.sales GROUP BY region;
+</code></pre>
+<p><strong>Connect as demo_analyst:</strong></p>
+<pre><code class="language-sql">-- Data for all regions is visible (8 rows)
+SELECT region, count() FROM rbac_demo.sales GROUP BY region;
+</code></pre>
+<h4>2. Column Security test</h4>
+<p><strong>Connect as demo_analyst:</strong></p>
+<pre><code class="language-sql">-- ✗ Error (no privilege on email, phone)
+SELECT * FROM rbac_demo.customers;
+
+-- ✓ Succeeds (allowed columns only)
+SELECT id, name, region FROM rbac_demo.customers;
+
+-- ✗ Error
+SELECT email FROM rbac_demo.customers;
+</code></pre>
+<p><strong>Connect as demo_engineer:</strong></p>
+<pre><code class="language-sql">-- ✓ Succeeds (all columns accessible)
+SELECT * FROM rbac_demo.customers;
+</code></pre>
+<h4>3. Settings Profile test</h4>
+<p><strong>Connect as demo_analyst:</strong></p>
+<pre><code class="language-sql">-- Check current settings
+SELECT getSetting('max_memory_usage');  -- 10000000000 (10GB)
+SELECT getSetting('max_execution_time');  -- 300 (5 minutes)
+
+-- Time limit test (error after 5 minutes)
+SELECT sleep(1) FROM numbers(400);
+
+-- readonly test (error)
+INSERT INTO rbac_demo.sales VALUES (999, 'TEST', 'Test', 0, today(), 0);
+</code></pre>
+<h4>4. Quota test</h4>
+<p><strong>Connect as demo_analyst:</strong></p>
+<pre><code class="language-sql">-- Check current Quota usage
+SELECT * FROM system.quota_usage;
+
+-- Run queries several times, then check usage
+SELECT count() FROM rbac_demo.sales;  -- Run several times
+SELECT * FROM system.quota_usage;  -- Confirm the queries count increases
+</code></pre>
+<h4>5. Workload Scheduling test</h4>
+<p><strong>Run queries with different workloads:</strong></p>
+<pre><code class="language-sql">-- High priority (analytics)
+SELECT count() FROM rbac_demo.sales
+SETTINGS workload = 'demo_analytics';
+
+-- Low priority (adhoc)
+SELECT * FROM numbers(1000000)
+SETTINGS workload = 'demo_adhoc';
+
+-- Check scheduler state
+SELECT * FROM system.scheduler ORDER BY path;
+</code></pre>
+<h3>📊 Monitoring Queries</h3>
+<h4>Per-user query statistics (last hour)</h4>
+<pre><code class="language-sql">SELECT
+    user,
+    count() as query_count,
+    countIf(type = 'QueryFinish') as successful,
+    countIf(type = 'ExceptionWhileProcessing') as failed,
+    round(avg(query_duration_ms), 2) as avg_duration_ms
+FROM system.query_log
+WHERE event_time &gt; now() - INTERVAL 1 HOUR
+  AND user LIKE 'demo_%'
+GROUP BY user;
+</code></pre>
+<h4>Currently running queries</h4>
+<pre><code class="language-sql">SELECT
+    query_id,
+    user,
+    elapsed,
+    formatReadableSize(memory_usage) as memory,
+    substring(query, 1, 100) as query_preview
+FROM system.processes
+WHERE user LIKE 'demo_%';
+</code></pre>
+<h4>Check Quota usage</h4>
+<pre><code class="language-sql">SELECT
+    quota_name,
+    queries,
+    max_queries,
+    execution_time,
+    max_execution_time,
+    formatReadableSize(read_bytes) as read_bytes,
+    formatReadableSize(max_read_bytes) as max_read_bytes
+FROM system.quota_usage
+WHERE quota_name LIKE 'demo_%';
+</code></pre>
+<h3>🧹 Cleanup</h3>
+<p>When the lab is over, clean up all resources.</p>
+<pre><code class="language-bash">clickhouse-client &lt; 99-cleanup.sql
+</code></pre>
+<p>Items cleaned up:
+- Row Policies
+- Quotas
+- Settings Profiles
+- Users
+- Roles
+- Workloads
+- Resources
+- Database (rbac_demo)</p>
+<h3>📖 References</h3>
+<h4>Official Documentation</h4>
+<ul>
+<li><a href="https://clickhouse.com/docs/operations/access-rights">ClickHouse Access Rights</a></li>
+<li><a href="https://clickhouse.com/docs/operations/settings/settings-profiles">Settings Profiles</a></li>
+<li><a href="https://clickhouse.com/docs/operations/quotas">Quotas</a></li>
+<li><a href="https://clickhouse.com/docs/operations/workload-scheduling">Workload Scheduling</a></li>
+</ul>
+<h4>System Tables</h4>
+<ul>
+<li><code>system.users</code> - User list</li>
+<li><code>system.roles</code> - Role list</li>
+<li><code>system.grants</code> - Grant history</li>
+<li><code>system.row_policies</code> - Row Policy list</li>
+<li><code>system.settings_profiles</code> - Settings Profile list</li>
+<li><code>system.quotas</code> - Quota settings</li>
+<li><code>system.quota_usage</code> - Quota usage</li>
+<li><code>system.workloads</code> - Workload settings</li>
+<li><code>system.scheduler</code> - Scheduler state</li>
+<li><code>system.query_log</code> - Query log</li>
+</ul>
+<h3>💡 Best Practices</h3>
+<h4>RBAC</h4>
+<ol>
+<li><strong>Principle of least privilege</strong>: Grant only the minimum privileges needed</li>
+<li><strong>Role-based management</strong>: Use Roles instead of granting privileges directly to users</li>
+<li><strong>Naming convention</strong>: Use a clear naming rule (<code>{env}_{team}_{access_level}</code>)</li>
+<li><strong>Regular audits</strong>: Review privileges quarterly and remove unnecessary ones</li>
+<li><strong>Use Row Policy</strong>: Apply row-level security to sensitive data</li>
+</ol>
+<h4>Workload Management</h4>
+<ol>
+<li><strong>Tiered profiles</strong>: Design profiles to fit real-time / interactive / batch jobs</li>
+<li><strong>Dual limits</strong>: Apply hourly and daily Quotas together</li>
+<li><strong>Workload separation</strong>: Separate jobs with different priorities into separate workloads</li>
+<li><strong>Monitoring</strong>: Check resource usage periodically</li>
+</ol>
+<h3>❗ Cautions</h3>
+<ol>
+<li><strong>Password security</strong>: Do not use the lab passwords in production</li>
+<li><strong>HOST restriction</strong>: In production, always restrict to specific IPs</li>
+<li><strong>Workload Scheduling</strong>: Available only on ClickHouse 25.4 or later</li>
+<li><strong>Cleanup script</strong>: 99-cleanup.sql deletes all data, so be careful</li>
+</ol>
+<h3>🆘 Troubleshooting</h3>
+<h4>"Access Denied" error</h4>
+<pre><code class="language-sql">-- Check privileges
+SHOW GRANTS FOR demo_analyst;
+SELECT * FROM system.grants WHERE user_name = 'demo_analyst';
+</code></pre>
+<h4>Queries are slow (Profile/Quota limits)</h4>
+<pre><code class="language-sql">-- Check current settings
+SELECT name, value FROM system.settings WHERE changed = 1;
+SELECT * FROM system.quota_usage;
+</code></pre>
+<h4>Row Policy is not applied</h4>
+<pre><code class="language-sql">-- Check Row Policy
+SELECT * FROM system.row_policies WHERE table = 'sales';
+</code></pre>
+<h3>📝 License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse의 RBAC(Role-Based Access Control)와 워크로드 매니지먼트를 실습하는 환경입니다.</p>
+<h3>📋 실습 개요</h3>
 <p>이 실습에서는 다음을 배울 수 있습니다:</p>
 <ol>
 <li>
@@ -55,7 +363,7 @@
    - Workload Scheduling (워크로드 스케줄링, v25+)</p>
 </li>
 </ol>
-<h2>🗂️ 파일 구조</h2>
+<h3>🗂️ 파일 구조</h3>
 <pre><code>rbac-workloadmanagement/
 ├── README.md                      # 이 파일
 ├── rbac-blog-plan.md              # 상세 계획서
@@ -74,14 +382,14 @@
 ├── connect-as.sh                  # 사용자 접속 헬퍼 스크립트
 └── test-as.sh                     # 권한 테스트 스크립트
 </code></pre>
-<h2>🚀 시작하기</h2>
-<h3>사전 준비</h3>
+<h3>🚀 시작하기</h3>
+<h4>사전 준비</h4>
 <ol>
 <li>ClickHouse 서버 (로컬 또는 클라우드)</li>
 <li><code>clickhouse-client</code> CLI 도구</li>
 <li>관리자 권한을 가진 계정</li>
 </ol>
-<h3>환경 변수 설정 (선택사항)</h3>
+<h4>환경 변수 설정 (선택사항)</h4>
 <pre><code class="language-bash"># ClickHouse Cloud를 사용하는 경우
 export CH_HOST=&quot;your-host.clickhouse.cloud&quot;
 export CH_PORT=&quot;9440&quot;
@@ -92,8 +400,8 @@ export CH_HOST=&quot;localhost&quot;
 export CH_PORT=&quot;9000&quot;
 export CH_SECURE=&quot;&quot;
 </code></pre>
-<h2>📚 실습 단계</h2>
-<h3>Step 1: 테스트 환경 생성</h3>
+<h3>📚 실습 단계</h3>
+<h4>Step 1: 테스트 환경 생성</h4>
 <p>관리자 계정으로 접속하여 테스트 데이터베이스와 테이블을 생성합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 01-setup.sql
 </code></pre>
@@ -101,7 +409,7 @@ export CH_SECURE=&quot;&quot;
 - <code>rbac_demo</code> 데이터베이스
 - <code>sales</code> 테이블 (판매 데이터)
 - <code>customers</code> 테이블 (고객 데이터, 민감 정보 포함)</p>
-<h3>Step 2: 역할(Role) 생성</h3>
+<h4>Step 2: 역할(Role) 생성</h4>
 <p>4가지 역할을 생성하고 각각에 적절한 권한을 부여합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 02-create-roles.sql
 </code></pre>
@@ -110,7 +418,7 @@ export CH_SECURE=&quot;&quot;
 - <code>rbac_demo_analyst</code> - 분석가 (읽기 + 임시 테이블)
 - <code>rbac_demo_engineer</code> - 데이터 엔지니어 (전체 권한)
 - <code>rbac_demo_partner</code> - 외부 파트너 (제한된 읽기)</p>
-<h3>Step 3: 사용자(User) 생성</h3>
+<h4>Step 3: 사용자(User) 생성</h4>
 <p>각 역할에 맞는 사용자를 생성합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 03-create-users.sql
 </code></pre>
@@ -119,15 +427,15 @@ export CH_SECURE=&quot;&quot;
 - <code>demo_analyst</code> (비밀번호: <code>AnalystPass456!</code>)
 - <code>demo_engineer</code> (비밀번호: <code>EngineerPass789!</code>)
 - <code>demo_partner</code> (비밀번호: <code>PartnerPass000!</code>)</p>
-<h3>Step 4: Row Policy 설정</h3>
+<h4>Step 4: Row Policy 설정</h4>
 <p>행 수준 보안을 설정합니다. 파트너는 APAC 지역 데이터만 볼 수 있도록 제한됩니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 04-row-policies.sql
 </code></pre>
-<h3>Step 5: 컬럼 수준 보안 설정</h3>
+<h4>Step 5: 컬럼 수준 보안 설정</h4>
 <p>민감한 정보(email, phone)에 대한 접근을 제한합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 05-column-security.sql
 </code></pre>
-<h3>Step 6: Settings Profile 생성</h3>
+<h4>Step 6: Settings Profile 생성</h4>
 <p>쿼리 리소스 제한을 설정합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 06-settings-profiles.sql
 </code></pre>
@@ -136,20 +444,20 @@ export CH_SECURE=&quot;&quot;
 - Analyst: 10GB 메모리, 5분 실행, 4 스레드
 - Engineer: 50GB 메모리, 1시간 실행, 16 스레드
 - Partner: 2GB 메모리, 30초 실행, 2 스레드</p>
-<h3>Step 7: Quota 생성</h3>
+<h4>Step 7: Quota 생성</h4>
 <p>시간 기반 사용량 제한을 설정합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 07-quotas.sql
 </code></pre>
-<h3>Step 8: Workload Scheduling (ClickHouse 25+)</h3>
+<h4>Step 8: Workload Scheduling (ClickHouse 25+)</h4>
 <p>워크로드 스케줄링을 설정합니다. (ClickHouse 25.4 이상 필요)</p>
 <pre><code class="language-bash">clickhouse-client &lt; 08-workload-scheduling.sql
 </code></pre>
-<h3>Step 9: 모니터링</h3>
+<h4>Step 9: 모니터링</h4>
 <p>설정된 내용을 확인하고 모니터링합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 09-monitoring.sql
 </code></pre>
-<h2>🔧 사용자 접속 도구</h2>
-<h3>connect-as.sh - 대화형 접속</h3>
+<h3>🔧 사용자 접속 도구</h3>
+<h4>connect-as.sh - 대화형 접속</h4>
 <p>특정 사용자로 ClickHouse에 접속합니다.</p>
 <pre><code class="language-bash"># 분석가로 접속
 ./connect-as.sh analyst
@@ -163,19 +471,19 @@ export CH_SECURE=&quot;&quot;
 # 파트너로 접속
 ./connect-as.sh partner
 </code></pre>
-<h3>쿼리 직접 실행</h3>
+<h4>쿼리 직접 실행</h4>
 <pre><code class="language-bash"># 단일 쿼리 실행
 ./connect-as.sh analyst &quot;SELECT count() FROM rbac_demo.sales&quot;
 
 # 설정 확인
 ./connect-as.sh analyst &quot;SELECT getSetting('max_memory_usage')&quot;
 </code></pre>
-<h3>test-as.sh - 권한 테스트</h3>
+<h4>test-as.sh - 권한 테스트</h4>
 <p>모든 사용자의 권한을 자동으로 테스트합니다.</p>
 <pre><code class="language-bash">./test-as.sh
 </code></pre>
-<h2>🧪 테스트 시나리오</h2>
-<h3>1. Row Policy 테스트</h3>
+<h3>🧪 테스트 시나리오</h3>
+<h4>1. Row Policy 테스트</h4>
 <p><strong>demo_partner로 접속:</strong></p>
 <pre><code class="language-sql">-- APAC 데이터만 보임 (3개 행)
 SELECT region, count() FROM rbac_demo.sales GROUP BY region;
@@ -184,7 +492,7 @@ SELECT region, count() FROM rbac_demo.sales GROUP BY region;
 <pre><code class="language-sql">-- 모든 지역 데이터 보임 (8개 행)
 SELECT region, count() FROM rbac_demo.sales GROUP BY region;
 </code></pre>
-<h3>2. Column Security 테스트</h3>
+<h4>2. Column Security 테스트</h4>
 <p><strong>demo_analyst로 접속:</strong></p>
 <pre><code class="language-sql">-- ✗ 에러 발생 (email, phone 권한 없음)
 SELECT * FROM rbac_demo.customers;
@@ -199,7 +507,7 @@ SELECT email FROM rbac_demo.customers;
 <pre><code class="language-sql">-- ✓ 성공 (모든 컬럼 접근 가능)
 SELECT * FROM rbac_demo.customers;
 </code></pre>
-<h3>3. Settings Profile 테스트</h3>
+<h4>3. Settings Profile 테스트</h4>
 <p><strong>demo_analyst로 접속:</strong></p>
 <pre><code class="language-sql">-- 현재 설정 확인
 SELECT getSetting('max_memory_usage');  -- 10000000000 (10GB)
@@ -211,7 +519,7 @@ SELECT sleep(1) FROM numbers(400);
 -- readonly 테스트 (에러 발생)
 INSERT INTO rbac_demo.sales VALUES (999, 'TEST', 'Test', 0, today(), 0);
 </code></pre>
-<h3>4. Quota 테스트</h3>
+<h4>4. Quota 테스트</h4>
 <p><strong>demo_analyst로 접속:</strong></p>
 <pre><code class="language-sql">-- 현재 Quota 사용량 확인
 SELECT * FROM system.quota_usage;
@@ -220,7 +528,7 @@ SELECT * FROM system.quota_usage;
 SELECT count() FROM rbac_demo.sales;  -- 여러 번 실행
 SELECT * FROM system.quota_usage;  -- queries 카운트 증가 확인
 </code></pre>
-<h3>5. Workload Scheduling 테스트</h3>
+<h4>5. Workload Scheduling 테스트</h4>
 <p><strong>서로 다른 워크로드로 쿼리 실행:</strong></p>
 <pre><code class="language-sql">-- 높은 우선순위 (analytics)
 SELECT count() FROM rbac_demo.sales
@@ -233,8 +541,8 @@ SETTINGS workload = 'demo_adhoc';
 -- 스케줄러 상태 확인
 SELECT * FROM system.scheduler ORDER BY path;
 </code></pre>
-<h2>📊 모니터링 쿼리</h2>
-<h3>사용자별 쿼리 통계 (최근 1시간)</h3>
+<h3>📊 모니터링 쿼리</h3>
+<h4>사용자별 쿼리 통계 (최근 1시간)</h4>
 <pre><code class="language-sql">SELECT
     user,
     count() as query_count,
@@ -246,7 +554,7 @@ WHERE event_time &gt; now() - INTERVAL 1 HOUR
   AND user LIKE 'demo_%'
 GROUP BY user;
 </code></pre>
-<h3>현재 실행 중인 쿼리</h3>
+<h4>현재 실행 중인 쿼리</h4>
 <pre><code class="language-sql">SELECT
     query_id,
     user,
@@ -256,7 +564,7 @@ GROUP BY user;
 FROM system.processes
 WHERE user LIKE 'demo_%';
 </code></pre>
-<h3>Quota 사용량 확인</h3>
+<h4>Quota 사용량 확인</h4>
 <pre><code class="language-sql">SELECT
     quota_name,
     queries,
@@ -268,7 +576,7 @@ WHERE user LIKE 'demo_%';
 FROM system.quota_usage
 WHERE quota_name LIKE 'demo_%';
 </code></pre>
-<h2>🧹 정리</h2>
+<h3>🧹 정리</h3>
 <p>실습이 끝나면 모든 리소스를 정리합니다.</p>
 <pre><code class="language-bash">clickhouse-client &lt; 99-cleanup.sql
 </code></pre>
@@ -281,15 +589,15 @@ WHERE quota_name LIKE 'demo_%';
 - Workloads
 - Resources
 - Database (rbac_demo)</p>
-<h2>📖 참고 자료</h2>
-<h3>공식 문서</h3>
+<h3>📖 참고 자료</h3>
+<h4>공식 문서</h4>
 <ul>
 <li><a href="https://clickhouse.com/docs/operations/access-rights">ClickHouse Access Rights</a></li>
 <li><a href="https://clickhouse.com/docs/operations/settings/settings-profiles">Settings Profiles</a></li>
 <li><a href="https://clickhouse.com/docs/operations/quotas">Quotas</a></li>
 <li><a href="https://clickhouse.com/docs/operations/workload-scheduling">Workload Scheduling</a></li>
 </ul>
-<h3>시스템 테이블</h3>
+<h4>시스템 테이블</h4>
 <ul>
 <li><code>system.users</code> - 사용자 목록</li>
 <li><code>system.roles</code> - 역할 목록</li>
@@ -302,8 +610,8 @@ WHERE quota_name LIKE 'demo_%';
 <li><code>system.scheduler</code> - 스케줄러 상태</li>
 <li><code>system.query_log</code> - 쿼리 로그</li>
 </ul>
-<h2>💡 Best Practices</h2>
-<h3>RBAC</h3>
+<h3>💡 Best Practices</h3>
+<h4>RBAC</h4>
 <ol>
 <li><strong>최소 권한 원칙</strong>: 필요한 최소한의 권한만 부여</li>
 <li><strong>Role 기반 관리</strong>: 사용자에게 직접 권한 부여 대신 Role 사용</li>
@@ -311,342 +619,36 @@ WHERE quota_name LIKE 'demo_%';
 <li><strong>정기 감사</strong>: 분기별 권한 리뷰 및 불필요한 권한 제거</li>
 <li><strong>Row Policy 활용</strong>: 민감 데이터는 행 수준 보안 적용</li>
 </ol>
-<h3>Workload Management</h3>
+<h4>Workload Management</h4>
 <ol>
 <li><strong>티어별 프로필</strong>: 실시간/대화형/배치 작업에 맞는 프로필 설계</li>
 <li><strong>이중 제한</strong>: 시간당 + 일당 Quota 동시 적용</li>
 <li><strong>워크로드 분리</strong>: 우선순위가 다른 작업은 별도 워크로드로 분리</li>
 <li><strong>모니터링</strong>: 주기적으로 리소스 사용량 확인</li>
 </ol>
-<h2>❗ 주의사항</h2>
+<h3>❗ 주의사항</h3>
 <ol>
 <li><strong>비밀번호 보안</strong>: 실습용 비밀번호를 프로덕션에 사용하지 마세요</li>
 <li><strong>HOST 제한</strong>: 프로덕션 환경에서는 반드시 특정 IP로 제한</li>
 <li><strong>Workload Scheduling</strong>: ClickHouse 25.4 이상에서만 사용 가능</li>
 <li><strong>정리 스크립트</strong>: 99-cleanup.sql은 모든 데이터를 삭제하므로 주의</li>
 </ol>
-<h2>🆘 트러블슈팅</h2>
-<h3>"Access Denied" 에러</h3>
+<h3>🆘 트러블슈팅</h3>
+<h4>"Access Denied" 에러</h4>
 <pre><code class="language-sql">-- 권한 확인
 SHOW GRANTS FOR demo_analyst;
 SELECT * FROM system.grants WHERE user_name = 'demo_analyst';
 </code></pre>
-<h3>쿼리가 느림 (Profile/Quota 제한)</h3>
+<h4>쿼리가 느림 (Profile/Quota 제한)</h4>
 <pre><code class="language-sql">-- 현재 설정 확인
 SELECT name, value FROM system.settings WHERE changed = 1;
 SELECT * FROM system.quota_usage;
 </code></pre>
-<h3>Row Policy가 적용 안 됨</h3>
+<h4>Row Policy가 적용 안 됨</h4>
 <pre><code class="language-sql">-- Row Policy 확인
 SELECT * FROM system.row_policies WHERE table = 'sales';
 </code></pre>
-<h2>📝 라이선스</h2>
-<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
-  <div class="readme ko"><h1>ClickHouse RBAC &amp; Workload Management 실습</h1>
-<p>ClickHouse의 RBAC(Role-Based Access Control)와 워크로드 매니지먼트를 실습하는 환경입니다.</p>
-<h2>📋 실습 개요</h2>
-<p>이 실습에서는 다음을 배울 수 있습니다:</p>
-<ol>
-<li>
-<p><strong>RBAC (Role-Based Access Control)</strong>
-   - 역할(Role) 생성 및 권한 부여
-   - 사용자(User) 생성 및 역할 할당
-   - Row-Level Security (행 수준 보안)
-   - Column-Level Security (컬럼 수준 보안)</p>
-</li>
-<li>
-<p><strong>Workload Management</strong>
-   - Settings Profile (쿼리 리소스 제한)
-   - Quota (시간 기반 사용량 제한)
-   - Workload Scheduling (워크로드 스케줄링, v25+)</p>
-</li>
-</ol>
-<h2>🗂️ 파일 구조</h2>
-<pre><code>rbac-workloadmanagement/
-├── README.md                      # 이 파일
-├── rbac-blog-plan.md              # 상세 계획서
-│
-├── 01-setup.sql                   # 테스트 환경 및 데이터 생성
-├── 02-create-roles.sql            # 역할 생성 및 권한 부여
-├── 03-create-users.sql            # 사용자 생성 및 역할 할당
-├── 04-row-policies.sql            # Row Policy (행 수준 보안)
-├── 05-column-security.sql         # Column-Level Security
-├── 06-settings-profiles.sql       # Settings Profile 생성
-├── 07-quotas.sql                  # Quota 생성
-├── 08-workload-scheduling.sql     # Workload Scheduling (v25+)
-├── 09-monitoring.sql              # 모니터링 및 검증 쿼리
-├── 99-cleanup.sql                 # 정리 스크립트
-│
-├── connect-as.sh                  # 사용자 접속 헬퍼 스크립트
-└── test-as.sh                     # 권한 테스트 스크립트
-</code></pre>
-<h2>🚀 시작하기</h2>
-<h3>사전 준비</h3>
-<ol>
-<li>ClickHouse 서버 (로컬 또는 클라우드)</li>
-<li><code>clickhouse-client</code> CLI 도구</li>
-<li>관리자 권한을 가진 계정</li>
-</ol>
-<h3>환경 변수 설정 (선택사항)</h3>
-<pre><code class="language-bash"># ClickHouse Cloud를 사용하는 경우
-export CH_HOST=&quot;your-host.clickhouse.cloud&quot;
-export CH_PORT=&quot;9440&quot;
-export CH_SECURE=&quot;--secure&quot;
-
-# 로컬 ClickHouse를 사용하는 경우
-export CH_HOST=&quot;localhost&quot;
-export CH_PORT=&quot;9000&quot;
-export CH_SECURE=&quot;&quot;
-</code></pre>
-<h2>📚 실습 단계</h2>
-<h3>Step 1: 테스트 환경 생성</h3>
-<p>관리자 계정으로 접속하여 테스트 데이터베이스와 테이블을 생성합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 01-setup.sql
-</code></pre>
-<p>생성되는 것들:
-- <code>rbac_demo</code> 데이터베이스
-- <code>sales</code> 테이블 (판매 데이터)
-- <code>customers</code> 테이블 (고객 데이터, 민감 정보 포함)</p>
-<h3>Step 2: 역할(Role) 생성</h3>
-<p>4가지 역할을 생성하고 각각에 적절한 권한을 부여합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 02-create-roles.sql
-</code></pre>
-<p>생성되는 역할:
-- <code>rbac_demo_readonly</code> - 읽기 전용 (BI 개발자)
-- <code>rbac_demo_analyst</code> - 분석가 (읽기 + 임시 테이블)
-- <code>rbac_demo_engineer</code> - 데이터 엔지니어 (전체 권한)
-- <code>rbac_demo_partner</code> - 외부 파트너 (제한된 읽기)</p>
-<h3>Step 3: 사용자(User) 생성</h3>
-<p>각 역할에 맞는 사용자를 생성합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 03-create-users.sql
-</code></pre>
-<p>생성되는 사용자:
-- <code>demo_bi_user</code> (비밀번호: <code>SecurePass123!</code>)
-- <code>demo_analyst</code> (비밀번호: <code>AnalystPass456!</code>)
-- <code>demo_engineer</code> (비밀번호: <code>EngineerPass789!</code>)
-- <code>demo_partner</code> (비밀번호: <code>PartnerPass000!</code>)</p>
-<h3>Step 4: Row Policy 설정</h3>
-<p>행 수준 보안을 설정합니다. 파트너는 APAC 지역 데이터만 볼 수 있도록 제한됩니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 04-row-policies.sql
-</code></pre>
-<h3>Step 5: 컬럼 수준 보안 설정</h3>
-<p>민감한 정보(email, phone)에 대한 접근을 제한합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 05-column-security.sql
-</code></pre>
-<h3>Step 6: Settings Profile 생성</h3>
-<p>쿼리 리소스 제한을 설정합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 06-settings-profiles.sql
-</code></pre>
-<p>각 역할별 제한:
-- BI: 5GB 메모리, 1분 실행, 2 스레드
-- Analyst: 10GB 메모리, 5분 실행, 4 스레드
-- Engineer: 50GB 메모리, 1시간 실행, 16 스레드
-- Partner: 2GB 메모리, 30초 실행, 2 스레드</p>
-<h3>Step 7: Quota 생성</h3>
-<p>시간 기반 사용량 제한을 설정합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 07-quotas.sql
-</code></pre>
-<h3>Step 8: Workload Scheduling (ClickHouse 25+)</h3>
-<p>워크로드 스케줄링을 설정합니다. (ClickHouse 25.4 이상 필요)</p>
-<pre><code class="language-bash">clickhouse-client &lt; 08-workload-scheduling.sql
-</code></pre>
-<h3>Step 9: 모니터링</h3>
-<p>설정된 내용을 확인하고 모니터링합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 09-monitoring.sql
-</code></pre>
-<h2>🔧 사용자 접속 도구</h2>
-<h3>connect-as.sh - 대화형 접속</h3>
-<p>특정 사용자로 ClickHouse에 접속합니다.</p>
-<pre><code class="language-bash"># 분석가로 접속
-./connect-as.sh analyst
-
-# BI 사용자로 접속
-./connect-as.sh bi
-
-# 엔지니어로 접속
-./connect-as.sh engineer
-
-# 파트너로 접속
-./connect-as.sh partner
-</code></pre>
-<h3>쿼리 직접 실행</h3>
-<pre><code class="language-bash"># 단일 쿼리 실행
-./connect-as.sh analyst &quot;SELECT count() FROM rbac_demo.sales&quot;
-
-# 설정 확인
-./connect-as.sh analyst &quot;SELECT getSetting('max_memory_usage')&quot;
-</code></pre>
-<h3>test-as.sh - 권한 테스트</h3>
-<p>모든 사용자의 권한을 자동으로 테스트합니다.</p>
-<pre><code class="language-bash">./test-as.sh
-</code></pre>
-<h2>🧪 테스트 시나리오</h2>
-<h3>1. Row Policy 테스트</h3>
-<p><strong>demo_partner로 접속:</strong></p>
-<pre><code class="language-sql">-- APAC 데이터만 보임 (3개 행)
-SELECT region, count() FROM rbac_demo.sales GROUP BY region;
-</code></pre>
-<p><strong>demo_analyst로 접속:</strong></p>
-<pre><code class="language-sql">-- 모든 지역 데이터 보임 (8개 행)
-SELECT region, count() FROM rbac_demo.sales GROUP BY region;
-</code></pre>
-<h3>2. Column Security 테스트</h3>
-<p><strong>demo_analyst로 접속:</strong></p>
-<pre><code class="language-sql">-- ✗ 에러 발생 (email, phone 권한 없음)
-SELECT * FROM rbac_demo.customers;
-
--- ✓ 성공 (허용된 컬럼만)
-SELECT id, name, region FROM rbac_demo.customers;
-
--- ✗ 에러 발생
-SELECT email FROM rbac_demo.customers;
-</code></pre>
-<p><strong>demo_engineer로 접속:</strong></p>
-<pre><code class="language-sql">-- ✓ 성공 (모든 컬럼 접근 가능)
-SELECT * FROM rbac_demo.customers;
-</code></pre>
-<h3>3. Settings Profile 테스트</h3>
-<p><strong>demo_analyst로 접속:</strong></p>
-<pre><code class="language-sql">-- 현재 설정 확인
-SELECT getSetting('max_memory_usage');  -- 10000000000 (10GB)
-SELECT getSetting('max_execution_time');  -- 300 (5분)
-
--- 시간 제한 테스트 (5분 초과 시 에러)
-SELECT sleep(1) FROM numbers(400);
-
--- readonly 테스트 (에러 발생)
-INSERT INTO rbac_demo.sales VALUES (999, 'TEST', 'Test', 0, today(), 0);
-</code></pre>
-<h3>4. Quota 테스트</h3>
-<p><strong>demo_analyst로 접속:</strong></p>
-<pre><code class="language-sql">-- 현재 Quota 사용량 확인
-SELECT * FROM system.quota_usage;
-
--- 쿼리 여러 번 실행 후 사용량 확인
-SELECT count() FROM rbac_demo.sales;  -- 여러 번 실행
-SELECT * FROM system.quota_usage;  -- queries 카운트 증가 확인
-</code></pre>
-<h3>5. Workload Scheduling 테스트</h3>
-<p><strong>서로 다른 워크로드로 쿼리 실행:</strong></p>
-<pre><code class="language-sql">-- 높은 우선순위 (analytics)
-SELECT count() FROM rbac_demo.sales
-SETTINGS workload = 'demo_analytics';
-
--- 낮은 우선순위 (adhoc)
-SELECT * FROM numbers(1000000)
-SETTINGS workload = 'demo_adhoc';
-
--- 스케줄러 상태 확인
-SELECT * FROM system.scheduler ORDER BY path;
-</code></pre>
-<h2>📊 모니터링 쿼리</h2>
-<h3>사용자별 쿼리 통계 (최근 1시간)</h3>
-<pre><code class="language-sql">SELECT
-    user,
-    count() as query_count,
-    countIf(type = 'QueryFinish') as successful,
-    countIf(type = 'ExceptionWhileProcessing') as failed,
-    round(avg(query_duration_ms), 2) as avg_duration_ms
-FROM system.query_log
-WHERE event_time &gt; now() - INTERVAL 1 HOUR
-  AND user LIKE 'demo_%'
-GROUP BY user;
-</code></pre>
-<h3>현재 실행 중인 쿼리</h3>
-<pre><code class="language-sql">SELECT
-    query_id,
-    user,
-    elapsed,
-    formatReadableSize(memory_usage) as memory,
-    substring(query, 1, 100) as query_preview
-FROM system.processes
-WHERE user LIKE 'demo_%';
-</code></pre>
-<h3>Quota 사용량 확인</h3>
-<pre><code class="language-sql">SELECT
-    quota_name,
-    queries,
-    max_queries,
-    execution_time,
-    max_execution_time,
-    formatReadableSize(read_bytes) as read_bytes,
-    formatReadableSize(max_read_bytes) as max_read_bytes
-FROM system.quota_usage
-WHERE quota_name LIKE 'demo_%';
-</code></pre>
-<h2>🧹 정리</h2>
-<p>실습이 끝나면 모든 리소스를 정리합니다.</p>
-<pre><code class="language-bash">clickhouse-client &lt; 99-cleanup.sql
-</code></pre>
-<p>정리되는 항목:
-- Row Policies
-- Quotas
-- Settings Profiles
-- Users
-- Roles
-- Workloads
-- Resources
-- Database (rbac_demo)</p>
-<h2>📖 참고 자료</h2>
-<h3>공식 문서</h3>
-<ul>
-<li><a href="https://clickhouse.com/docs/operations/access-rights">ClickHouse Access Rights</a></li>
-<li><a href="https://clickhouse.com/docs/operations/settings/settings-profiles">Settings Profiles</a></li>
-<li><a href="https://clickhouse.com/docs/operations/quotas">Quotas</a></li>
-<li><a href="https://clickhouse.com/docs/operations/workload-scheduling">Workload Scheduling</a></li>
-</ul>
-<h3>시스템 테이블</h3>
-<ul>
-<li><code>system.users</code> - 사용자 목록</li>
-<li><code>system.roles</code> - 역할 목록</li>
-<li><code>system.grants</code> - 권한 부여 내역</li>
-<li><code>system.row_policies</code> - Row Policy 목록</li>
-<li><code>system.settings_profiles</code> - Settings Profile 목록</li>
-<li><code>system.quotas</code> - Quota 설정</li>
-<li><code>system.quota_usage</code> - Quota 사용량</li>
-<li><code>system.workloads</code> - Workload 설정</li>
-<li><code>system.scheduler</code> - 스케줄러 상태</li>
-<li><code>system.query_log</code> - 쿼리 로그</li>
-</ul>
-<h2>💡 Best Practices</h2>
-<h3>RBAC</h3>
-<ol>
-<li><strong>최소 권한 원칙</strong>: 필요한 최소한의 권한만 부여</li>
-<li><strong>Role 기반 관리</strong>: 사용자에게 직접 권한 부여 대신 Role 사용</li>
-<li><strong>네이밍 컨벤션</strong>: 명확한 이름 규칙 사용 (<code>{env}_{team}_{access_level}</code>)</li>
-<li><strong>정기 감사</strong>: 분기별 권한 리뷰 및 불필요한 권한 제거</li>
-<li><strong>Row Policy 활용</strong>: 민감 데이터는 행 수준 보안 적용</li>
-</ol>
-<h3>Workload Management</h3>
-<ol>
-<li><strong>티어별 프로필</strong>: 실시간/대화형/배치 작업에 맞는 프로필 설계</li>
-<li><strong>이중 제한</strong>: 시간당 + 일당 Quota 동시 적용</li>
-<li><strong>워크로드 분리</strong>: 우선순위가 다른 작업은 별도 워크로드로 분리</li>
-<li><strong>모니터링</strong>: 주기적으로 리소스 사용량 확인</li>
-</ol>
-<h2>❗ 주의사항</h2>
-<ol>
-<li><strong>비밀번호 보안</strong>: 실습용 비밀번호를 프로덕션에 사용하지 마세요</li>
-<li><strong>HOST 제한</strong>: 프로덕션 환경에서는 반드시 특정 IP로 제한</li>
-<li><strong>Workload Scheduling</strong>: ClickHouse 25.4 이상에서만 사용 가능</li>
-<li><strong>정리 스크립트</strong>: 99-cleanup.sql은 모든 데이터를 삭제하므로 주의</li>
-</ol>
-<h2>🆘 트러블슈팅</h2>
-<h3>"Access Denied" 에러</h3>
-<pre><code class="language-sql">-- 권한 확인
-SHOW GRANTS FOR demo_analyst;
-SELECT * FROM system.grants WHERE user_name = 'demo_analyst';
-</code></pre>
-<h3>쿼리가 느림 (Profile/Quota 제한)</h3>
-<pre><code class="language-sql">-- 현재 설정 확인
-SELECT name, value FROM system.settings WHERE changed = 1;
-SELECT * FROM system.quota_usage;
-</code></pre>
-<h3>Row Policy가 적용 안 됨</h3>
-<pre><code class="language-sql">-- Row Policy 확인
-SELECT * FROM system.row_policies WHERE table = 'sales';
-</code></pre>
-<h2>📝 라이선스</h2>
+<h3>📝 라이선스</h3>
 <p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/rbac-workloadmanagement"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/workload/kafka-partitioning-ingestion/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Kafka Partitioning ↔ ClickHouse Sort-Key Alignment — a hands-on lab</span></a><span class="step empty"></span></nav>

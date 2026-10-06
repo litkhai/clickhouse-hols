@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClickHouse Cloud MySQL Interface 자동 테스트 도구 · ClickHouse HOLs</title>
-<meta name="description" content="ClickHouse Cloud MySQL Interface 자동 테스트 도구 — hands-on ClickHouse lab.">
+<title>ClickHouse Cloud MySQL Interface Automated Test Tool · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse Cloud MySQL Interface Automated Test Tool — hands-on ClickHouse lab.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
 <link rel="stylesheet" href="../../../assets/site.css">
@@ -36,63 +36,65 @@
     <span aria-hidden="true">/</span><code>chc/mysql-interface</code>
     
   </nav>
-  <div class="readme en"><h1>ClickHouse Cloud MySQL Interface 자동 테스트 도구</h1>
-<p>ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 종합 테스트 도구입니다.</p>
-<h2>📋 목차</h2>
+  <div class="readme en"><h1>ClickHouse Cloud MySQL Interface Automated Test Tool</h1>
+<hr />
+<p><em>English translation of the Korean original, LLM-assisted (2026-10-06).</em></p>
+<p>Comprehensive test tool that automatically verifies the MySQL Wire Protocol compatibility of ClickHouse Cloud.</p>
+<h3>📋 Table of Contents</h3>
 <ul>
-<li><a href="#개요">개요</a></li>
-<li><a href="#기능">기능</a></li>
-<li><a href="#설치-및-설정">설치 및 설정</a></li>
-<li><a href="#사용-방법">사용 방법</a></li>
-<li><a href="#테스트-항목">테스트 항목</a></li>
-<li><a href="#결과-리포트">결과 리포트</a></li>
-<li><a href="#문제-해결">문제 해결</a></li>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#installation-and-setup">Installation and Setup</a></li>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#test-items">Test Items</a></li>
+<li><a href="#result-reports">Result Reports</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
 </ul>
-<h2>개요</h2>
-<p>이 도구는 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/chc-mysql-interface-test-plan.md">chc-mysql-interface-test-plan.md</a>에 정의된 테스트 플랜을 자동으로 실행하여 ClickHouse Cloud의 MySQL interface 호환성을 검증합니다.</p>
-<h3>주요 특징</h3>
+<h3>Overview</h3>
+<p>This tool automatically runs the test plan defined in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/chc-mysql-interface-test-plan.md">chc-mysql-interface-test-plan.md</a> to verify the MySQL interface compatibility of ClickHouse Cloud.</p>
+<h4>Key Features</h4>
 <ul>
-<li>✅ MySQL 클라이언트 자동 설치 및 확인</li>
-<li>✅ ClickHouse Cloud 접속 정보 관리</li>
-<li>✅ 7가지 카테고리별 호환성 테스트</li>
-<li>✅ 성능 벤치마크</li>
-<li>✅ 자동 리포트 생성 (Markdown)</li>
-<li>✅ JSON 형식 결과 저장</li>
+<li>✅ Automatic MySQL client installation and verification</li>
+<li>✅ ClickHouse Cloud connection information management</li>
+<li>✅ Compatibility tests in 7 categories</li>
+<li>✅ Performance benchmarks</li>
+<li>✅ Automatic report generation (Markdown)</li>
+<li>✅ Results saved as JSON</li>
 </ul>
-<h2>기능</h2>
-<h3>테스트 카테고리</h3>
+<h3>Features</h3>
+<h4>Test Categories</h4>
 <ol>
-<li><strong>환경 설정</strong>: Python, MySQL 클라이언트 확인</li>
-<li><strong>MySQL 클라이언트 설치</strong>: 버전 5.7 및 8.0 지원</li>
-<li><strong>접속 정보 확인</strong>: CHC MySQL interface 연결 테스트</li>
-<li><strong>기본 호환성 테스트</strong>: 기본 SQL 작업 (CREATE, INSERT, SELECT 등)</li>
-<li><strong>SQL 구문 호환성</strong>: WHERE, JOIN, GROUP BY, HAVING 등</li>
-<li><strong>데이터 타입 호환성</strong>: INT, VARCHAR, DATE, DECIMAL 등</li>
-<li><strong>함수 호환성</strong>: 문자열, 날짜, 집계 함수</li>
-<li><strong>TPC-DS 벤치마크</strong>: 복잡한 분석 쿼리</li>
-<li><strong>Python 드라이버</strong>: mysql-connector-python, PyMySQL</li>
-<li><strong>성능 테스트</strong>: 처리량 및 응답 시간 측정</li>
+<li><strong>Environment setup</strong>: check Python and the MySQL client</li>
+<li><strong>MySQL client installation</strong>: supports versions 5.7 and 8.0</li>
+<li><strong>Connection check</strong>: CHC MySQL interface connection test</li>
+<li><strong>Basic compatibility tests</strong>: basic SQL operations (CREATE, INSERT, SELECT, etc.)</li>
+<li><strong>SQL syntax compatibility</strong>: WHERE, JOIN, GROUP BY, HAVING, etc.</li>
+<li><strong>Data type compatibility</strong>: INT, VARCHAR, DATE, DECIMAL, etc.</li>
+<li><strong>Function compatibility</strong>: string, date, aggregate functions</li>
+<li><strong>TPC-DS benchmark</strong>: complex analytical queries</li>
+<li><strong>Python drivers</strong>: mysql-connector-python, PyMySQL</li>
+<li><strong>Performance tests</strong>: measure throughput and response time</li>
 </ol>
-<h2>설치 및 설정</h2>
-<h3>사전 요구사항</h3>
+<h3>Installation and Setup</h3>
+<h4>Prerequisites</h4>
 <ul>
-<li>Python 3.7 이상</li>
+<li>Python 3.7 or later</li>
 <li>pip3</li>
-<li>macOS, Linux 또는 WSL (Windows)</li>
-<li>ClickHouse Cloud 인스턴스 (MySQL interface 활성화)</li>
+<li>macOS, Linux, or WSL (Windows)</li>
+<li>ClickHouse Cloud instance (MySQL interface enabled)</li>
 </ul>
-<h3>1단계: 저장소 클론</h3>
+<h4>Step 1: Clone the repository</h4>
 <pre><code class="language-bash">git clone &lt;repository-url&gt;
 cd clickhouse-hols/chc/mysql-interface
 </code></pre>
-<h3>2단계: 접속 정보 설정</h3>
-<pre><code class="language-bash"># 템플릿 복사
+<h4>Step 2: Configure connection information</h4>
+<pre><code class="language-bash"># Copy the template
 cp config/chc-config.template config/chc-config.sh
 
-# 설정 파일 편집
+# Edit the configuration file
 vim config/chc-config.sh
 </code></pre>
-<p><strong>config/chc-config.sh 예시:</strong></p>
+<p><strong>config/chc-config.sh example:</strong></p>
 <pre><code class="language-bash">export CHC_HOST=&quot;abc123.us-east-1.aws.clickhouse.cloud&quot;
 export CHC_MYSQL_PORT=&quot;9004&quot;
 export CHC_USER=&quot;default&quot;
@@ -100,120 +102,120 @@ export CHC_PASSWORD=&quot;your-secure-password&quot;
 export CHC_DATABASE=&quot;mysql_interface&quot;
 export CHC_SSL_MODE=&quot;REQUIRED&quot;
 </code></pre>
-<p>⚠️ <strong>중요</strong>: <code>config/chc-config.sh</code> 파일은 민감한 정보를 포함하므로 Git에 커밋하지 마세요!</p>
-<h2>사용 방법</h2>
-<h3>전체 테스트 실행</h3>
+<p>⚠️ <strong>Important</strong>: <code>config/chc-config.sh</code> contains sensitive information, so do not commit it to Git!</p>
+<h3>Usage</h3>
+<h4>Run all tests</h4>
 <pre><code class="language-bash">./run-mysql-test.sh
 </code></pre>
-<h3>개별 테스트 실행</h3>
-<pre><code class="language-bash"># 1. 환경 설정
+<h4>Run individual tests</h4>
+<pre><code class="language-bash"># 1. Environment setup
 ./scripts/01-setup-environment.sh
 
-# 2. MySQL 클라이언트 설치
+# 2. Install MySQL clients
 ./scripts/02-install-mysql-clients.sh
 
-# 3. 접속 확인
+# 3. Verify connection
 ./scripts/03-verify-connection.sh
 
-# 4. 기본 호환성 테스트
+# 4. Basic compatibility tests
 ./scripts/04-basic-compatibility-tests.sh
 
-# 5. SQL 구문 테스트
+# 5. SQL syntax tests
 ./scripts/05-sql-syntax-tests.sh
 
-# 6. 데이터 타입 테스트
+# 6. Data type tests
 ./scripts/06-datatype-tests.sh
 
-# 7. 함수 테스트
+# 7. Function tests
 ./scripts/07-function-tests.sh
 
-# 8. TPC-DS 테스트
+# 8. TPC-DS tests
 ./scripts/08-tpcds-tests.sh
 
-# 9. Python 드라이버 테스트
+# 9. Python driver tests
 ./scripts/09-python-driver-tests.sh
 
-# 10. 성능 테스트
+# 10. Performance tests
 ./scripts/10-performance-tests.sh
 
-# 11. 리포트 생성
+# 11. Generate report
 ./scripts/11-generate-report.sh
 </code></pre>
-<h2>테스트 항목</h2>
-<h3>기본 호환성 테스트</h3>
+<h3>Test Items</h3>
+<h4>Basic compatibility tests</h4>
 <ul>
-<li>SELECT 기본 쿼리</li>
-<li>버전 조회</li>
-<li>데이터베이스 생성/사용</li>
-<li>테이블 생성/삭제</li>
-<li>데이터 삽입/조회</li>
-<li>COUNT 집계</li>
+<li>Basic SELECT query</li>
+<li>Version query</li>
+<li>Create/use database</li>
+<li>Create/drop table</li>
+<li>Insert/query data</li>
+<li>COUNT aggregate</li>
 <li>Prepared Statement</li>
 </ul>
-<h3>SQL 구문 호환성</h3>
+<h4>SQL syntax compatibility</h4>
 <ul>
 <li>Single/Multiple INSERT</li>
-<li>WHERE 절</li>
+<li>WHERE clause</li>
 <li>ORDER BY</li>
 <li>LIMIT</li>
 <li>GROUP BY</li>
 <li>HAVING</li>
 <li>DISTINCT</li>
-<li>IN 절</li>
+<li>IN clause</li>
 <li>BETWEEN</li>
-<li>LIKE 패턴</li>
+<li>LIKE patterns</li>
 <li>CASE WHEN</li>
 </ul>
-<h3>데이터 타입 호환성</h3>
+<h4>Data type compatibility</h4>
 <ul>
-<li>숫자형: TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DECIMAL</li>
-<li>문자열: CHAR, VARCHAR, TEXT</li>
-<li>날짜/시간: DATE, DATETIME, TIMESTAMP</li>
+<li>Numeric: TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DECIMAL</li>
+<li>String: CHAR, VARCHAR, TEXT</li>
+<li>Date/time: DATE, DATETIME, TIMESTAMP</li>
 </ul>
-<h3>함수 호환성</h3>
+<h4>Function compatibility</h4>
 <ul>
-<li>문자열: CONCAT, UPPER, LOWER, LENGTH, SUBSTRING</li>
-<li>날짜: NOW, CURDATE, YEAR, MONTH</li>
-<li>집계: COUNT, SUM, AVG, MIN, MAX</li>
+<li>String: CONCAT, UPPER, LOWER, LENGTH, SUBSTRING</li>
+<li>Date: NOW, CURDATE, YEAR, MONTH</li>
+<li>Aggregate: COUNT, SUM, AVG, MIN, MAX</li>
 </ul>
-<h3>성능 테스트</h3>
+<h4>Performance tests</h4>
 <ul>
-<li>단순 쿼리 처리량</li>
-<li>집계 쿼리 성능</li>
-<li>배치 삽입 성능</li>
-<li>테이블 스캔 성능</li>
+<li>Simple query throughput</li>
+<li>Aggregate query performance</li>
+<li>Batch insert performance</li>
+<li>Table scan performance</li>
 </ul>
-<h2>결과 리포트</h2>
-<h3>출력 디렉토리</h3>
+<h3>Result Reports</h3>
+<h4>Output directory</h4>
 <pre><code>test-results/
-├── basic-compatibility.json    # 기본 호환성 결과
-├── sql-syntax.json             # SQL 구문 결과
-├── datatype.json               # 데이터 타입 결과
-├── function.json               # 함수 결과
-├── tpcds.json                  # TPC-DS 결과
-├── python-driver.json          # Python 드라이버 결과
-├── performance.json            # 성능 결과
-└── report_YYYYMMDD_HHMMSS.md  # 종합 리포트
+├── basic-compatibility.json    # basic compatibility results
+├── sql-syntax.json             # SQL syntax results
+├── datatype.json               # data type results
+├── function.json               # function results
+├── tpcds.json                  # TPC-DS results
+├── python-driver.json          # Python driver results
+├── performance.json            # performance results
+└── report_YYYYMMDD_HHMMSS.md  # summary report
 </code></pre>
-<h3>리포트 내용</h3>
-<p>자동 생성되는 리포트에는 다음이 포함됩니다:</p>
+<h4>Report contents</h4>
+<p>The automatically generated report includes:</p>
 <ul>
-<li>📊 전체 요약 (성공률, 등급)</li>
-<li>📋 카테고리별 결과</li>
-<li>📝 상세 테스트 결과</li>
-<li>⚡ 성능 요약</li>
-<li>💡 권장 사항</li>
-<li>⚠️ 알려진 제한사항</li>
+<li>📊 Overall summary (success rate, grade)</li>
+<li>📋 Results by category</li>
+<li>📝 Detailed test results</li>
+<li>⚡ Performance summary</li>
+<li>💡 Recommendations</li>
+<li>⚠️ Known limitations</li>
 </ul>
-<h3>등급 기준</h3>
+<h4>Grading criteria</h4>
 <ul>
-<li><strong>A (Excellent)</strong>: 90% 이상 🌟</li>
+<li><strong>A (Excellent)</strong>: 90% or higher 🌟</li>
 <li><strong>B (Good)</strong>: 80-89% ✅</li>
 <li><strong>C (Acceptable)</strong>: 70-79% ⚠️</li>
-<li><strong>D (Needs Improvement)</strong>: 70% 미만 ❌</li>
+<li><strong>D (Needs Improvement)</strong>: below 70% ❌</li>
 </ul>
-<h2>문제 해결</h2>
-<h3>MySQL 클라이언트 설치 오류</h3>
+<h3>Troubleshooting</h3>
+<h4>MySQL client installation errors</h4>
 <p><strong>macOS:</strong></p>
 <pre><code class="language-bash">brew install mysql-client
 echo 'export PATH=&quot;/opt/homebrew/opt/mysql-client/bin:$PATH&quot;' &gt;&gt; ~/.zshrc
@@ -226,70 +228,69 @@ sudo apt-get install mysql-client
 <p><strong>CentOS/RHEL:</strong></p>
 <pre><code class="language-bash">sudo yum install mysql
 </code></pre>
-<h3>Python 패키지 설치 오류</h3>
+<h4>Python package installation errors</h4>
 <pre><code class="language-bash">pip3 install --upgrade pip
 pip3 install mysql-connector-python pymysql
 </code></pre>
-<h3>연결 실패</h3>
+<h4>Connection failures</h4>
 <ol>
-<li>ClickHouse Cloud 인스턴스가 실행 중인지 확인</li>
-<li>MySQL interface 포트(9004)가 열려 있는지 확인</li>
-<li>방화벽 규칙 확인</li>
-<li>접속 정보가 올바른지 확인</li>
+<li>Check that the ClickHouse Cloud instance is running</li>
+<li>Check that the MySQL interface port (9004) is open</li>
+<li>Check firewall rules</li>
+<li>Check that the connection information is correct</li>
 </ol>
-<pre><code class="language-bash"># 연결 테스트
+<pre><code class="language-bash"># Connection test
 mysql --host=&lt;your-host&gt; --port=9004 --user=default --password=&lt;password&gt; --ssl-mode=REQUIRED
 </code></pre>
-<h3>SSL 인증서 오류</h3>
-<pre><code class="language-bash"># SSL 모드 확인
+<h4>SSL certificate errors</h4>
+<pre><code class="language-bash"># Check the SSL mode
 export CHC_SSL_MODE=&quot;REQUIRED&quot;
 
-# 또는 Python 스크립트에서
+# Or in a Python script
 ssl_disabled=False
 </code></pre>
-<h2>디렉토리 구조</h2>
+<h3>Directory Structure</h3>
 <pre><code>chc/mysql-interface/
-├── run-mysql-test.sh              # 메인 실행 스크립트
-├── chc-mysql-interface-test-plan.md  # 테스트 플랜 문서
-├── README.md                       # 이 파일
+├── run-mysql-test.sh              # main run script
+├── chc-mysql-interface-test-plan.md  # test plan document
+├── README.md                       # this file
 ├── config/
-│   ├── chc-config.template        # 설정 템플릿
-│   └── chc-config.sh              # 실제 설정 (gitignore)
+│   ├── chc-config.template        # configuration template
+│   └── chc-config.sh              # actual configuration (gitignored)
 ├── scripts/
-│   ├── 01-setup-environment.sh    # 환경 설정
-│   ├── 02-install-mysql-clients.sh # MySQL 클라이언트 설치
-│   ├── 03-verify-connection.sh    # 접속 확인
-│   ├── 04-basic-compatibility-tests.sh  # 기본 호환성
-│   ├── 05-sql-syntax-tests.sh     # SQL 구문
-│   ├── 06-datatype-tests.sh       # 데이터 타입
-│   ├── 07-function-tests.sh       # 함수
+│   ├── 01-setup-environment.sh    # environment setup
+│   ├── 02-install-mysql-clients.sh # install MySQL clients
+│   ├── 03-verify-connection.sh    # verify connection
+│   ├── 04-basic-compatibility-tests.sh  # basic compatibility
+│   ├── 05-sql-syntax-tests.sh     # SQL syntax
+│   ├── 06-datatype-tests.sh       # data types
+│   ├── 07-function-tests.sh       # functions
 │   ├── 08-tpcds-tests.sh          # TPC-DS
-│   ├── 09-python-driver-tests.sh  # Python 드라이버
-│   ├── 10-performance-tests.sh    # 성능
-│   └── 11-generate-report.sh      # 리포트 생성
-├── test-results/                  # 테스트 결과 (자동 생성)
-└── logs/                          # 로그 파일 (자동 생성)
+│   ├── 09-python-driver-tests.sh  # Python drivers
+│   ├── 10-performance-tests.sh    # performance
+│   └── 11-generate-report.sh      # generate report
+├── test-results/                  # test results (auto-generated)
+└── logs/                          # log files (auto-generated)
 </code></pre>
-<h2>기여</h2>
-<p>버그 리포트, 기능 제안, 풀 리퀘스트를 환영합니다!</p>
-<h2>라이선스</h2>
-<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다. 이 랩의 스크립트는 모두 직접 작성한 것으로,
-가져다 쓴 상류 코드가 없습니다. (이전에 Apache 2.0으로 표기돼 있었으나 근거가 없어 정정했습니다.)</p>
-<h2>연락처</h2>
+<h3>Contributing</h3>
+<p>Bug reports, feature suggestions, and pull requests are welcome!</p>
+<h3>License</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the whole repository. All scripts in this lab were written in-house, and there is no borrowed upstream code. (It was previously labeled Apache 2.0, but there was no basis for that, so it has been corrected.)</p>
+<h3>Contact</h3>
 <ul>
-<li><strong>작성자</strong>: Ken (Solution Architect, ClickHouse Inc.)</li>
-<li><strong>이메일</strong>: support@clickhouse.com</li>
-<li><strong>문서</strong>: https://clickhouse.com/docs</li>
+<li><strong>Author</strong>: Ken (Solution Architect, ClickHouse Inc.)</li>
+<li><strong>Email</strong>: support@clickhouse.com</li>
+<li><strong>Docs</strong>: https://clickhouse.com/docs</li>
 </ul>
-<h2>참고 자료</h2>
+<h3>References</h3>
 <ul>
-<li><a href="https://clickhouse.com/docs/en/interfaces/mysql/">ClickHouse MySQL Interface 문서</a></li>
+<li><a href="https://clickhouse.com/docs/en/interfaces/mysql/">ClickHouse MySQL Interface docs</a></li>
 <li><a href="https://clickhouse.com/docs/en/sql-reference/">ClickHouse SQL Reference</a></li>
-<li><a href="http://www.tpc.org/tpcds/">TPC-DS 벤치마크</a></li>
-</ul></div>
-  <div class="readme ko"><h1>ClickHouse Cloud MySQL Interface 자동 테스트 도구</h1>
-<p>ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 종합 테스트 도구입니다.</p>
-<h2>📋 목차</h2>
+<li><a href="http://www.tpc.org/tpcds/">TPC-DS benchmark</a></li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse Cloud의 MySQL Wire Protocol 호환성을 자동으로 검증하는 종합 테스트 도구입니다.</p>
+<h3>📋 목차</h3>
 <ul>
 <li><a href="#개요">개요</a></li>
 <li><a href="#기능">기능</a></li>
@@ -299,9 +300,9 @@ ssl_disabled=False
 <li><a href="#결과-리포트">결과 리포트</a></li>
 <li><a href="#문제-해결">문제 해결</a></li>
 </ul>
-<h2>개요</h2>
+<h3>개요</h3>
 <p>이 도구는 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/chc-mysql-interface-test-plan.md">chc-mysql-interface-test-plan.md</a>에 정의된 테스트 플랜을 자동으로 실행하여 ClickHouse Cloud의 MySQL interface 호환성을 검증합니다.</p>
-<h3>주요 특징</h3>
+<h4>주요 특징</h4>
 <ul>
 <li>✅ MySQL 클라이언트 자동 설치 및 확인</li>
 <li>✅ ClickHouse Cloud 접속 정보 관리</li>
@@ -310,8 +311,8 @@ ssl_disabled=False
 <li>✅ 자동 리포트 생성 (Markdown)</li>
 <li>✅ JSON 형식 결과 저장</li>
 </ul>
-<h2>기능</h2>
-<h3>테스트 카테고리</h3>
+<h3>기능</h3>
+<h4>테스트 카테고리</h4>
 <ol>
 <li><strong>환경 설정</strong>: Python, MySQL 클라이언트 확인</li>
 <li><strong>MySQL 클라이언트 설치</strong>: 버전 5.7 및 8.0 지원</li>
@@ -324,19 +325,19 @@ ssl_disabled=False
 <li><strong>Python 드라이버</strong>: mysql-connector-python, PyMySQL</li>
 <li><strong>성능 테스트</strong>: 처리량 및 응답 시간 측정</li>
 </ol>
-<h2>설치 및 설정</h2>
-<h3>사전 요구사항</h3>
+<h3>설치 및 설정</h3>
+<h4>사전 요구사항</h4>
 <ul>
 <li>Python 3.7 이상</li>
 <li>pip3</li>
 <li>macOS, Linux 또는 WSL (Windows)</li>
 <li>ClickHouse Cloud 인스턴스 (MySQL interface 활성화)</li>
 </ul>
-<h3>1단계: 저장소 클론</h3>
+<h4>1단계: 저장소 클론</h4>
 <pre><code class="language-bash">git clone &lt;repository-url&gt;
 cd clickhouse-hols/chc/mysql-interface
 </code></pre>
-<h3>2단계: 접속 정보 설정</h3>
+<h4>2단계: 접속 정보 설정</h4>
 <pre><code class="language-bash"># 템플릿 복사
 cp config/chc-config.template config/chc-config.sh
 
@@ -352,11 +353,11 @@ export CHC_DATABASE=&quot;mysql_interface&quot;
 export CHC_SSL_MODE=&quot;REQUIRED&quot;
 </code></pre>
 <p>⚠️ <strong>중요</strong>: <code>config/chc-config.sh</code> 파일은 민감한 정보를 포함하므로 Git에 커밋하지 마세요!</p>
-<h2>사용 방법</h2>
-<h3>전체 테스트 실행</h3>
+<h3>사용 방법</h3>
+<h4>전체 테스트 실행</h4>
 <pre><code class="language-bash">./run-mysql-test.sh
 </code></pre>
-<h3>개별 테스트 실행</h3>
+<h4>개별 테스트 실행</h4>
 <pre><code class="language-bash"># 1. 환경 설정
 ./scripts/01-setup-environment.sh
 
@@ -390,8 +391,8 @@ export CHC_SSL_MODE=&quot;REQUIRED&quot;
 # 11. 리포트 생성
 ./scripts/11-generate-report.sh
 </code></pre>
-<h2>테스트 항목</h2>
-<h3>기본 호환성 테스트</h3>
+<h3>테스트 항목</h3>
+<h4>기본 호환성 테스트</h4>
 <ul>
 <li>SELECT 기본 쿼리</li>
 <li>버전 조회</li>
@@ -401,7 +402,7 @@ export CHC_SSL_MODE=&quot;REQUIRED&quot;
 <li>COUNT 집계</li>
 <li>Prepared Statement</li>
 </ul>
-<h3>SQL 구문 호환성</h3>
+<h4>SQL 구문 호환성</h4>
 <ul>
 <li>Single/Multiple INSERT</li>
 <li>WHERE 절</li>
@@ -415,27 +416,27 @@ export CHC_SSL_MODE=&quot;REQUIRED&quot;
 <li>LIKE 패턴</li>
 <li>CASE WHEN</li>
 </ul>
-<h3>데이터 타입 호환성</h3>
+<h4>데이터 타입 호환성</h4>
 <ul>
 <li>숫자형: TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DECIMAL</li>
 <li>문자열: CHAR, VARCHAR, TEXT</li>
 <li>날짜/시간: DATE, DATETIME, TIMESTAMP</li>
 </ul>
-<h3>함수 호환성</h3>
+<h4>함수 호환성</h4>
 <ul>
 <li>문자열: CONCAT, UPPER, LOWER, LENGTH, SUBSTRING</li>
 <li>날짜: NOW, CURDATE, YEAR, MONTH</li>
 <li>집계: COUNT, SUM, AVG, MIN, MAX</li>
 </ul>
-<h3>성능 테스트</h3>
+<h4>성능 테스트</h4>
 <ul>
 <li>단순 쿼리 처리량</li>
 <li>집계 쿼리 성능</li>
 <li>배치 삽입 성능</li>
 <li>테이블 스캔 성능</li>
 </ul>
-<h2>결과 리포트</h2>
-<h3>출력 디렉토리</h3>
+<h3>결과 리포트</h3>
+<h4>출력 디렉토리</h4>
 <pre><code>test-results/
 ├── basic-compatibility.json    # 기본 호환성 결과
 ├── sql-syntax.json             # SQL 구문 결과
@@ -446,7 +447,7 @@ export CHC_SSL_MODE=&quot;REQUIRED&quot;
 ├── performance.json            # 성능 결과
 └── report_YYYYMMDD_HHMMSS.md  # 종합 리포트
 </code></pre>
-<h3>리포트 내용</h3>
+<h4>리포트 내용</h4>
 <p>자동 생성되는 리포트에는 다음이 포함됩니다:</p>
 <ul>
 <li>📊 전체 요약 (성공률, 등급)</li>
@@ -456,15 +457,15 @@ export CHC_SSL_MODE=&quot;REQUIRED&quot;
 <li>💡 권장 사항</li>
 <li>⚠️ 알려진 제한사항</li>
 </ul>
-<h3>등급 기준</h3>
+<h4>등급 기준</h4>
 <ul>
 <li><strong>A (Excellent)</strong>: 90% 이상 🌟</li>
 <li><strong>B (Good)</strong>: 80-89% ✅</li>
 <li><strong>C (Acceptable)</strong>: 70-79% ⚠️</li>
 <li><strong>D (Needs Improvement)</strong>: 70% 미만 ❌</li>
 </ul>
-<h2>문제 해결</h2>
-<h3>MySQL 클라이언트 설치 오류</h3>
+<h3>문제 해결</h3>
+<h4>MySQL 클라이언트 설치 오류</h4>
 <p><strong>macOS:</strong></p>
 <pre><code class="language-bash">brew install mysql-client
 echo 'export PATH=&quot;/opt/homebrew/opt/mysql-client/bin:$PATH&quot;' &gt;&gt; ~/.zshrc
@@ -477,11 +478,11 @@ sudo apt-get install mysql-client
 <p><strong>CentOS/RHEL:</strong></p>
 <pre><code class="language-bash">sudo yum install mysql
 </code></pre>
-<h3>Python 패키지 설치 오류</h3>
+<h4>Python 패키지 설치 오류</h4>
 <pre><code class="language-bash">pip3 install --upgrade pip
 pip3 install mysql-connector-python pymysql
 </code></pre>
-<h3>연결 실패</h3>
+<h4>연결 실패</h4>
 <ol>
 <li>ClickHouse Cloud 인스턴스가 실행 중인지 확인</li>
 <li>MySQL interface 포트(9004)가 열려 있는지 확인</li>
@@ -491,14 +492,14 @@ pip3 install mysql-connector-python pymysql
 <pre><code class="language-bash"># 연결 테스트
 mysql --host=&lt;your-host&gt; --port=9004 --user=default --password=&lt;password&gt; --ssl-mode=REQUIRED
 </code></pre>
-<h3>SSL 인증서 오류</h3>
+<h4>SSL 인증서 오류</h4>
 <pre><code class="language-bash"># SSL 모드 확인
 export CHC_SSL_MODE=&quot;REQUIRED&quot;
 
 # 또는 Python 스크립트에서
 ssl_disabled=False
 </code></pre>
-<h2>디렉토리 구조</h2>
+<h3>디렉토리 구조</h3>
 <pre><code>chc/mysql-interface/
 ├── run-mysql-test.sh              # 메인 실행 스크립트
 ├── chc-mysql-interface-test-plan.md  # 테스트 플랜 문서
@@ -521,18 +522,18 @@ ssl_disabled=False
 ├── test-results/                  # 테스트 결과 (자동 생성)
 └── logs/                          # 로그 파일 (자동 생성)
 </code></pre>
-<h2>기여</h2>
+<h3>기여</h3>
 <p>버그 리포트, 기능 제안, 풀 리퀘스트를 환영합니다!</p>
-<h2>라이선스</h2>
+<h3>라이선스</h3>
 <p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다. 이 랩의 스크립트는 모두 직접 작성한 것으로,
 가져다 쓴 상류 코드가 없습니다. (이전에 Apache 2.0으로 표기돼 있었으나 근거가 없어 정정했습니다.)</p>
-<h2>연락처</h2>
+<h3>연락처</h3>
 <ul>
 <li><strong>작성자</strong>: Ken (Solution Architect, ClickHouse Inc.)</li>
 <li><strong>이메일</strong>: support@clickhouse.com</li>
 <li><strong>문서</strong>: https://clickhouse.com/docs</li>
 </ul>
-<h2>참고 자료</h2>
+<h3>참고 자료</h3>
 <ul>
 <li><a href="https://clickhouse.com/docs/en/interfaces/mysql/">ClickHouse MySQL Interface 문서</a></li>
 <li><a href="https://clickhouse.com/docs/en/sql-reference/">ClickHouse SQL Reference</a></li>
