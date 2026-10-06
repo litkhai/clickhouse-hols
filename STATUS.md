@@ -109,7 +109,6 @@ exploitable**:
 Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issues) · [needs a re-run](https://github.com/litkhai/clickhouse-hols/issues?q=is%3Aopen+label%3Are-verify):
 
 - [Confirm Cloud credentials exposed before the 2026-09-07 rewrite were rotated](https://github.com/litkhai/clickhouse-hols/issues/4)
-- [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
 - [Re-run usecase/device-360 scripts](https://github.com/litkhai/clickhouse-hols/issues/10)
 - [Delete the MOVED.md stub directories after 2027-03-31 (track J)](https://github.com/litkhai/clickhouse-hols/issues/12)
 
