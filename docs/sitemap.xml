@@ -46,6 +46,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/json-explode-confluent-clickpipes/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/korea-geo/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-on-clickhouse/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-prewhere/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-protocol-benchmark/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/security-traffic-analysis/</loc></url>
