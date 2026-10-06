@@ -1,0 +1,40 @@
+{"qid": 1, "fcase": "particle", "question": "출장비를 미리 받으려면 어떻게 해야 하나요?", "relevant": [24, 25], "note": "query 출장비를 / chunks 출장비는, 출장비가"}
+{"qid": 2, "fcase": "particle", "question": "영수증을 잃어버렸는데 정산은 어떻게 하나요?", "relevant": [36, 37], "note": "query 영수증을 / chunks 영수증이, 영수증은"}
+{"qid": 3, "fcase": "particle", "question": "방문자를 등록하려면 어떻게 해야 하나요?", "relevant": [58, 59], "note": "query 방문자를 / chunks 방문자는, 방문자의 (never bare)"}
+{"qid": 4, "fcase": "particle", "question": "회의실을 예약하려면 어떻게 하나요?", "relevant": [68, 69], "note": "query 회의실을 / chunks 회의실은, 회의실이"}
+{"qid": 5, "fcase": "particle", "question": "결재선을 바꾸려면 어떻게 하나요?", "relevant": [114, 115], "note": "query 결재선을 / chunks 결재선은, 결재선이"}
+{"qid": 6, "fcase": "particle", "question": "비밀번호를 바꾸려면 어떻게 하나요?", "relevant": [136, 137], "note": "query 비밀번호를 / chunks 비밀번호는, 비밀번호가 (never bare)"}
+{"qid": 7, "fcase": "particle", "question": "개인정보를 외부로 보내야 하면 어떻게 하나요?", "relevant": [147, 148], "note": "query 개인정보를 / chunks 개인정보는, 개인정보가 (never bare)"}
+{"qid": 8, "fcase": "particle", "question": "프린터가 용지 걸림으로 멈췄어요. 어떻게 하나요?", "relevant": [216, 217], "note": "query 프린터가 / chunks 프린터는, 프린터의 (never bare)"}
+{"qid": 9, "fcase": "spacing", "question": "재택근무 신청서 작성은 어디서 하나요?", "relevant": [2, 3], "note": "query 재택근무 (joined) / chunks 재택 근무 (spaced); non-relevant chunks of the doc use 재택근무"}
+{"qid": 10, "fcase": "spacing", "question": "연차휴가는 1년에 며칠이나 생기나요?", "relevant": [12, 13], "note": "query 연차휴가는 (joined) / chunks 연차 휴가는 (spaced)"}
+{"qid": 11, "fcase": "spacing", "question": "법인 카드 한도를 올리려면 어떻게 하나요?", "relevant": [38, 39], "note": "query 법인 카드 (spaced) / chunks 법인카드 (joined)"}
+{"qid": 12, "fcase": "spacing", "question": "교육신청 마감일이 언제인가요?", "relevant": [47, 48], "note": "query 교육신청 (joined) / chunks 교육 신청 (spaced)"}
+{"qid": 13, "fcase": "spacing", "question": "화상 회의 장비는 어떻게 연결하나요?", "relevant": [75, 76], "note": "query 화상 회의 (spaced) / chunks 화상회의 (joined)"}
+{"qid": 14, "fcase": "spacing", "question": "법인차량 이용 신청은 어디서 하나요?", "relevant": [80, 81], "note": "query 법인차량 (joined) / chunks 법인 차량 (spaced)"}
+{"qid": 15, "fcase": "spacing", "question": "사무 용품이 필요하면 어떻게 받나요?", "relevant": [91, 92], "note": "query 사무 용품 (spaced) / chunks 사무용품 (joined)"}
+{"qid": 16, "fcase": "spacing", "question": "구매 요청서는 어디서 작성하나요?", "relevant": [102, 103], "note": "query 구매 요청서 (spaced) / chunks 구매요청서 (joined)"}
+{"qid": 17, "fcase": "ending", "question": "승인받은 연차를 취소하려면 어떻게 해야 하나요?", "relevant": [16, 17], "note": "query 취소하려면 (verb) / chunks 취소는, 취소 요청, 취소한 (noun/other forms)"}
+{"qid": 18, "fcase": "ending", "question": "외부 교육을 수료했어요. 수강료는 어떻게 환급받나요?", "relevant": [50, 51], "note": "query 수료했어요 (verb) / chunks 수료한, 수료 후 (noun / other form)"}
+{"qid": 19, "fcase": "ending", "question": "이전 비밀번호를 재사용해도 되나요?", "relevant": [139, 140], "note": "query 재사용해도 (verb+ending) / chunks 재사용할, 재사용 여부는 (other forms)"}
+{"qid": 20, "fcase": "ending", "question": "외부 저장장치에 파일을 저장할 때 암호화하려면 어떻게 하나요?", "relevant": [159, 160], "note": "query 암호화하려면 (verb) / chunks 암호화는, 암호화 설정, 암호화 옵션 (noun)"}
+{"qid": 21, "fcase": "ending", "question": "의심스러운 메일을 신고하려면 어떻게 하나요?", "relevant": [169, 170], "note": "query 신고하려면 (verb) / chunks 신고 버튼, 신고 즉시, 신고는 (noun)"}
+{"qid": 22, "fcase": "ending", "question": "계정이 잠겼어요. 어떻게 풀어야 하나요?", "relevant": [202, 203], "note": "query 잠겼어요 (verb) / chunks 계정 잠금, 잠긴 계정을 (noun / adnominal)"}
+{"qid": 23, "fcase": "ending", "question": "노트북을 반납하려면 어떻게 해야 하나요?", "relevant": [225, 226], "note": "query 반납하려면 (verb) / chunks 반납 시에는, 반납 신청, 반납한 (noun / other forms)"}
+{"qid": 24, "fcase": "ending", "question": "업무용 소프트웨어를 설치하려면 어떻게 요청하나요?", "relevant": [279, 280, 281], "note": "query 설치하려면 (verb) / chunks 설치는, 설치 요청, 설치할 (noun / other forms)"}
+{"qid": 25, "fcase": "mixed", "question": "usb 사용 승인은 어떻게 받나요?", "relevant": [157, 158], "note": "query usb (lowercase) / chunks USB (uppercase)"}
+{"qid": 26, "fcase": "mixed", "question": "VPN이 자꾸 끊겨요. 어떻게 해야 하나요?", "relevant": [181, 182, 184], "note": "query VPN이 (glued particle) / chunks VPN 연결이, VPN 접속이, VPN 동시 접속은 (spaced)"}
+{"qid": 27, "fcase": "mixed", "question": "Outlook에서 큰 파일을 첨부하려면 어떻게 하나요?", "relevant": [192, 193], "note": "query Outlook에서 (glued particle) / chunks Outlook 첨부, Outlook 첨부 화면에서 (spaced)"}
+{"qid": 28, "fcase": "mixed", "question": "아웃룩 용량이 가득 찼다고 떠요. 어떻게 해야 하나요?", "relevant": [190, 191], "note": "query 아웃룩 (Korean transliteration) / chunks Outlook only (unfixable by any tokenizer)"}
+{"qid": 29, "fcase": "mixed", "question": "sso 로그인으로 어떤 시스템을 쓸 수 있나요?", "relevant": [204, 205], "note": "query sso (lowercase) / chunks SSO (uppercase)"}
+{"qid": 30, "fcase": "mixed", "question": "팀즈 알림이 안 와요. 어떻게 하나요?", "relevant": [247, 248], "note": "query 팀즈 (Korean transliteration) / chunks Teams only (unfixable by any tokenizer)"}
+{"qid": 31, "fcase": "mixed", "question": "ERP-4012 오류가 뜨는데 어떻게 해결하나요?", "relevant": [258, 259], "note": "query ERP-4012 (code with hyphen) / chunks ERP-4012는, ERP-4012가; siblings ERP-4013, ERP-4021 are hard negatives"}
+{"qid": 32, "fcase": "mixed", "question": "설치할 때 0x80070005 오류가 떠요. 어떻게 해야 하나요?", "relevant": [282, 283], "note": "query 0x80070005 (hex code) / chunks 0x80070005, 0x80070005가; siblings 0x80070057, 0x800F0922 are hard negatives"}
+{"qid": 33, "fcase": "short", "question": "출장지별 일비 표는 어디서 볼 수 있나요?", "relevant": [26, 27], "note": "query 표는 / chunks 표를, 표가 (one-syllable noun)"}
+{"qid": 34, "fcase": "short", "question": "출입 키를 재발급받으려면 어디로 가야 하나요?", "relevant": [62, 63], "note": "query 키를 / chunks 키는, 키가 (one-syllable noun)"}
+{"qid": 35, "fcase": "short", "question": "소회의실이 몇 층에 있는지 알려 주세요.", "relevant": [70, 71], "note": "query 층에 / chunks 3층, 5층은 (digit-attached one-syllable noun; never 층에)"}
+{"qid": 36, "fcase": "short", "question": "법인 차를 쓰다가 사고가 나면 어떻게 하나요?", "relevant": [83, 84], "note": "query 차를 / chunks 차가, 차는 (one-syllable noun)"}
+{"qid": 37, "fcase": "short", "question": "망을 넘어서 파일을 옮기려면 어떻게 하나요?", "relevant": [126, 127], "note": "query 망을 / chunks 망이, 망에서, 망 간 (one-syllable noun)"}
+{"qid": 38, "fcase": "short", "question": "팀을 새로 만들려면 어떻게 해야 하나요?", "relevant": [249, 250], "note": "query 팀을 / chunks 팀은, 팀의, 팀이 (one-syllable noun)"}
+{"qid": 39, "fcase": "short", "question": "개인 폰으로 사내 메일을 써도 되나요?", "relevant": [269, 270], "note": "query 폰으로 / chunks 폰은, 폰에서 (one-syllable noun)"}
+{"qid": 40, "fcase": "short", "question": "사내 앱을 최신 버전으로 업데이트하려면 어떻게 하나요?", "relevant": [291, 292], "note": "query 앱을 / chunks 앱은, 앱이 (one-syllable noun)"}

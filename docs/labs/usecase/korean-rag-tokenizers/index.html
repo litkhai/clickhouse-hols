@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval · ClickHouse HOLs</title>
+<meta name="description" content="Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/korean-rag-tokenizers</code>
+    
+  </nav>
+  <div class="readme en"><h1>Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval</h1>
+<hr />
+<p>In a RAG stack on ClickHouse the vector half does not care about the language: Korean quality
+comes from the embedding model. The keyword half does care, and ClickHouse has no Korean analyser
+(nothing like nori or mecab-ko). This lab measures what each text-index tokenizer gets right and
+wrong when Korean questions are asked over Korean document chunks. It then measures what a
+morpheme column produced outside ClickHouse adds, and what hybrid retrieval adds on top.</p>
+<p>Two labs cover the ground before this one:
+- <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">local/releases/26.8</a> shows <code>tokens()</code> for <code>asciiCJK</code>, <code>chinese</code> and <code>icu</code> on one sentence.
+- <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/fulltext-search">usecase/fulltext-search</a> measures recall lost to particles and spacing over 1M support tickets on Cloud.</p>
+<p>This lab adds:
+- questions with labelled relevant chunks
+- a Kiwi morpheme column
+- <code>splitByRegexp</code> and <code>sparseGrams</code>
+- keyword ranking without BM25
+- vector search and fusion
+- a Cloud check</p>
+<p><strong>Verified on ClickHouse 26.9.11.2</strong> (<code>clickhouse/clickhouse-server:26.9</code>), 2026-10-06, steps 00–05 through
+<code>tools/hol run</code> and step 06 by hand. Kiwi: kiwipiepy 0.24.0, model 0.24.0. Step 06: Ollama 0.35.0,
+<code>bge-m3</code> (digest <code>7907646426…</code>), 1024 dimensions. Machine: Docker Desktop on macOS, 12 CPUs, 8 GB.</p>
+<h3>Results</h3>
+<p>40 questions, 300 chunks, ranked by matched query tokens ÷ query tokens (step 04). Index size is on the
+300-chunk table (step 05). The body column itself is 27.6 KB compressed.</p>
+<table>
+<thead>
+<tr>
+<th>Keyword setup</th>
+<th style="text-align: right;">recall@5</th>
+<th style="text-align: right;">recall@10</th>
+<th style="text-align: right;">MRR@10</th>
+<th style="text-align: right;">unranked recall@10</th>
+<th style="text-align: right;">index size</th>
+<th style="text-align: right;">× body</th>
+<th style="text-align: right;">scan without index (30k rows)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kiwi</code> — morphemes, <code>tokenizer = array</code></td>
+<td style="text-align: right;"><strong>0.925</strong></td>
+<td style="text-align: right;"><strong>0.962</strong></td>
+<td style="text-align: right;"><strong>0.919</strong></td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;"><strong>16.4 KB</strong></td>
+<td style="text-align: right;"><strong>0.60</strong></td>
+<td style="text-align: right;">6 ms</td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code> — particle-stripping regexp</td>
+<td style="text-align: right;">0.667</td>
+<td style="text-align: right;">0.846</td>
+<td style="text-align: right;">0.686</td>
+<td style="text-align: right;">0.588</td>
+<td style="text-align: right;">22.6 KB</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">794 ms</td>
+</tr>
+<tr>
+<td><code>ngrams(2)</code></td>
+<td style="text-align: right;">0.692</td>
+<td style="text-align: right;">0.817</td>
+<td style="text-align: right;">0.745</td>
+<td style="text-align: right;">0.025</td>
+<td style="text-align: right;">57.9 KB</td>
+<td style="text-align: right;">2.10</td>
+<td style="text-align: right;">15 ms</td>
+</tr>
+<tr>
+<td><code>ngrams(3)</code></td>
+<td style="text-align: right;">0.704</td>
+<td style="text-align: right;">0.767</td>
+<td style="text-align: right;">0.707</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">85.1 KB</td>
+<td style="text-align: right;">3.09</td>
+<td style="text-align: right;">16 ms</td>
+</tr>
+<tr>
+<td><code>asciiCJK</code></td>
+<td style="text-align: right;">0.562</td>
+<td style="text-align: right;">0.700</td>
+<td style="text-align: right;">0.613</td>
+<td style="text-align: right;">0.025</td>
+<td style="text-align: right;">29.1 KB</td>
+<td style="text-align: right;">1.06</td>
+<td style="text-align: right;">12 ms</td>
+</tr>
+<tr>
+<td><code>sparseGrams</code></td>
+<td style="text-align: right;">0.371</td>
+<td style="text-align: right;">0.462</td>
+<td style="text-align: right;">0.303</td>
+<td style="text-align: right;">0.417</td>
+<td style="text-align: right;">227.4 KB</td>
+<td style="text-align: right;">8.24</td>
+<td style="text-align: right;">52 ms</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td style="text-align: right;">0.346</td>
+<td style="text-align: right;">0.450</td>
+<td style="text-align: right;">0.359</td>
+<td style="text-align: right;">0.338</td>
+<td style="text-align: right;">26.4 KB</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">70 ms</td>
+</tr>
+<tr>
+<td><code>splitByNonAlpha</code></td>
+<td style="text-align: right;">0.296</td>
+<td style="text-align: right;">0.396</td>
+<td style="text-align: right;">0.306</td>
+<td style="text-align: right;">0.308</td>
+<td style="text-align: right;">26.4 KB</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">4 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Ranked recall@10 by failure case (8 questions each):</p>
+<table>
+<thead>
+<tr>
+<th>Keyword setup</th>
+<th style="text-align: right;">particle 조사</th>
+<th style="text-align: right;">spacing 띄어쓰기</th>
+<th style="text-align: right;">ending 어미</th>
+<th style="text-align: right;">mixed 한영</th>
+<th style="text-align: right;">short 1음절</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kiwi</code></td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code></td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.854</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td><code>ngrams(2)</code></td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.896</td>
+<td style="text-align: right;">0.750</td>
+</tr>
+<tr>
+<td><code>ngrams(3)</code></td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.958</td>
+<td style="text-align: right;">0.812</td>
+</tr>
+<tr>
+<td><code>asciiCJK</code></td>
+<td style="text-align: right;">0.688</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">0.771</td>
+<td style="text-align: right;">0.542</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+<tr>
+<td><code>sparseGrams</code></td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">0.104</td>
+<td style="text-align: right;">0.521</td>
+<td style="text-align: right;">0.562</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.938</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+<tr>
+<td><code>splitByNonAlpha</code></td>
+<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.792</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+</tbody>
+</table>
+<p>With the index, every tokenizer answers <code>hasAllTokens(col, '법인카드 분실')</code> at 30,000 rows in 2–3 ms and
+reads 800 rows; the scans in the first table read all 30,000. A plain <code>LIKE</code> scan took 3 ms at that size,
+so wall time does not separate the setups at this scale; rows read do. The 30k-row table repeats the
+300 chunks 100 times, so dictionaries do not grow; it measures posting-list reads, not vocabulary.
+Three runs on the same day differed by under 10%.</p>
+<p>Vector and hybrid (step 06, reciprocal rank fusion with k = 60 of the top 20 of each list):</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">recall@5</th>
+<th style="text-align: right;">recall@10</th>
+<th style="text-align: right;">MRR@10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>vector only (<code>bge-m3</code>)</td>
+<td style="text-align: right;"><strong>0.979</strong></td>
+<td style="text-align: right;"><strong>1.000</strong></td>
+<td style="text-align: right;"><strong>0.975</strong></td>
+</tr>
+<tr>
+<td>hybrid vector + <code>kiwi</code></td>
+<td style="text-align: right;">0.962</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.966</td>
+</tr>
+<tr>
+<td>hybrid vector + <code>ngrams(2)</code></td>
+<td style="text-align: right;">0.892</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.870</td>
+</tr>
+<tr>
+<td>keyword <code>kiwi</code></td>
+<td style="text-align: right;">0.925</td>
+<td style="text-align: right;">0.962</td>
+<td style="text-align: right;">0.919</td>
+</tr>
+<tr>
+<td>keyword <code>ngrams(2)</code></td>
+<td style="text-align: right;">0.692</td>
+<td style="text-align: right;">0.817</td>
+<td style="text-align: right;">0.745</td>
+</tr>
+</tbody>
+</table>
+<h3>Which keyword setup to use for Korean RAG, and why</h3>
+<ol>
+<li><strong>A morpheme column indexed with <code>tokenizer = array</code>.</strong> Run a Korean analyser (here Kiwi) at ingest,
+   store <code>morphemes Array(String)</code>, search with the question's morphemes and rank by overlap.
+   - It is best on every failure case but verb endings. It has the highest recall@5 (0.925) and the smallest index (0.6 × body).
+   - The analyser runs outside ClickHouse, and nothing inside the server changes.
+   - <code>array</code> is accepted on the Cloud service checked below.
+   - It needs the same analyser, version and rule on the query side. <code>lab_meta</code> records them.</li>
+<li><strong>No analyser available: <code>ngrams(2)</code>, ranked.</strong>
+   - Recall@10 is 0.817 for 2.1 × the body on disk.
+   - Never use it as a filter. <code>hasAnyTokens</code> returns 250 of 300 chunks for a question, so unranked recall@10 is 0.025.
+   - The particle-stripping <code>splitByRegexp</code> gets 0.846 at recall@10 but only 0.5 on spacing.
+   - That regexp also over-strips: <code>사이</code> becomes <code>사</code>.
+   - It costs the most to tokenize: 794 ms to scan 30k rows without the index.
+   - It is not on the Cloud build checked below.</li>
+<li><strong>Avoid for question search:</strong>
+   - <code>icu('ko')</code> and <code>splitByNonAlpha</code> keep the particle on the word: particle recall@10 is 0.062.
+   - <code>asciiCJK</code> matches 296 of 300 chunks per question: no pruning, 38 of 38 granules.
+   - <code>sparseGrams</code>: see the next section.</li>
+<li><strong>Always rank.</strong> Unranked filtering stays at 0.025–0.588 recall@10.</li>
+<li><strong><code>hasAllTokens</code> on a question is not usable as is.</strong>
+   - The question's endings (<code>하나요</code>, <code>어떻게</code>) are not in the chunks, so every raw tokenizer returns nothing.
+   - <code>kiwi</code> reaches 0.308 recall, because its rule drops those words.</li>
+<li><strong>On this corpus, hybrid did not beat vector search.</strong>
+   - <code>bge-m3</code> alone reaches recall@10 = 1.0. Hybrid with <code>kiwi</code> ties at @10 and is 0.017 lower at @5.
+   - The two transliteration questions (<code>아웃룩</code>/<code>Outlook</code>, <code>팀즈</code>/<code>Teams</code>) were found by keywords too, because the rest of the question carries them.
+   - So this lab shows that the keyword setup decides how much a hybrid loses (vector + <code>ngrams(2)</code>: 0.892 at @5).
+   - It does not show what hybrid gains.
+   - <em>Hypothesis, unmeasured:</em> the keyword half earns its place on corpora with many near-duplicate chunks, or exact identifiers the embedding model has not seen.</li>
+</ol>
+<h3>Things that surprised us (26.9.11.2)</h3>
+<ul>
+<li><strong><code>sparseGrams</code> treats a String needle as a phrase.</strong></li>
+<li>A String needle goes through <code>compactTokens()</code> (<code>src/Functions/hasAnyAllTokens.cpp:64</code> at <code>v26.9.11.2-stable</code>).</li>
+<li>For <code>sparseGrams</code> that drops every gram contained in a longer one (<code>src/Interpreters/ITokenizer.cpp:677</code>).</li>
+<li>This is right for <code>hasAllTokens</code>. But <code>hasAnyTokens(col, '&lt;question&gt;')</code> then searches only the longest grams, so it behaves like a phrase search.</li>
+<li>For question 1, <code>tokens()</code> shares a gram with 97 chunks. The index returned 1 chunk, which matched only <code>나요?</code>.</li>
+<li>Step 03 applies the same compaction, and its positive control (48 rows, all 8 tokenizers) fails the step without it.</li>
+<li>Workaround: pass <code>tokens(question, 'sparseGrams')</code> as an Array to get OR semantics. Reported as <a href="https://github.com/ClickHouse/ClickHouse/issues/124156">ClickHouse/ClickHouse#124156</a>.</li>
+<li><code>sparseGrams</code> also has a minimum length of 3, so <code>tokens('결재', 'sparseGrams')</code> is <code>[]</code>.</li>
+<li><strong>One text index per column.</strong> A second one fails with Code 36, <code>Column b must not have more than one text index</code>. Step 02 indexes <code>MATERIALIZED</code> copies of the body instead.</li>
+<li><strong>The needle must be a constant.</strong></li>
+<li>A column from a join is rejected with Code 44.</li>
+<li>A scalar subquery <code>(SELECT question FROM queries WHERE qid = 1)</code> is accepted, and the index is used.</li>
+<li>Steps 03–04 therefore compare token arrays, and step 03 checks them against the index.</li>
+<li><strong>The 26.8 findings hold on 26.9.</strong> <code>asciiCJK</code> gives single syllables, and <code>icu</code> keeps particles. The locale (<code>ko</code>, <code>ko_KR</code>, <code>en</code>, <code>ja</code>) does not change the result.</li>
+</ul>
+<h3>Data</h3>
+<p>All of it is in the lab, so the T0 run needs neither Python nor network.</p>
+<ul>
+<li><code>data/chunks.jsonl</code>: 300 chunks from 27 documents of a fictional company.</li>
+<li>Internal policy: remote work, leave, travel, corporate card, purchasing, approvals, security.</li>
+<li>IT helpdesk: VPN, Outlook, SSO, Teams, ERP error codes, devices.</li>
+<li><code>data/queries.jsonl</code>: 40 questions phrased as an employee would ask a helpdesk bot.</li>
+<li>8 per failure case, each with 2–3 relevant chunks (qrels) and a <code>note</code> naming its trap.</li>
+<li><strong>particle</strong>: <code>결재선을</code> in the question, <code>결재선은</code> / <code>결재선이</code> in the chunks.</li>
+<li><strong>spacing</strong>: <code>구매 요청서</code> against <code>구매요청서</code>, and the other way round.</li>
+<li><strong>ending</strong>: <code>잠겼어요</code> against <code>계정 잠금</code> / <code>잠긴 계정</code>.</li>
+<li><strong>mixed</strong>: lowercase codes, English glued to a particle (<code>VPN이</code>), error codes (<code>ERP-4012</code>, <code>0x80070005</code>), and transliterations (<code>아웃룩</code> against <code>Outlook</code>).</li>
+<li><strong>short</strong>: one-syllable terms (<code>키</code>, <code>망</code>, <code>폰</code>, <code>앱</code>, <code>차</code>, <code>층</code>, <code>팀</code>, <code>표</code>).</li>
+<li>Every question also has hard negatives: chunks that share its key term and answer something else.</li>
+<li>The text is synthetic, drafted for this lab with an AI model.</li>
+<li>The qrels are by construction: the relevant chunks were written for the question.</li>
+<li>Script checks: the trap holds in every relevant chunk, ids are contiguous, and there are 8 questions per case.</li>
+<li>A sample was read by hand.</li>
+<li><code>gen_data.py</code> runs Kiwi once and writes <code>00-data.sql</code>, which is committed.</li>
+<li>Rule: keep tags <code>NNG NNP NR SL SN SH XR VV VA</code> (the part before <code>-</code>), lowercase them, and drop <code>하 되 있 어떻</code>.</li>
+<li>It is deliberately simple: <code>그렇</code> and <code>없</code> survive, for example.</li>
+<li>To regenerate: <code>uv run usecase/korean-rag-tokenizers/gen_data.py</code>. Re-running it with unchanged inputs writes a byte-identical file.</li>
+</ul>
+<h3>Steps</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Tier</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00-data.sql</code></td>
+<td>T0</td>
+<td>generated: <code>chunks_src</code>, <code>queries</code>, <code>phrases</code>, <code>lab_meta</code></td>
+</tr>
+<tr>
+<td><code>01-tokens.sql</code></td>
+<td>T0</td>
+<td><code>tokens()</code> of 8 tokenizers on 11 failure-case phrases; the 26.8 re-check; <code>sparseGrams</code> minimum; constant needles</td>
+</tr>
+<tr>
+<td><code>02-schema.sql</code></td>
+<td>T0</td>
+<td><code>chunks</code>: the body, 7 <code>MATERIALIZED</code> copies each with its own text index (<code>preprocessor = lower(...)</code>), <code>morphemes</code> with <code>tokenizer = array</code>; <code>index_granularity = 8</code> so pruning shows on 300 rows</td>
+</tr>
+<tr>
+<td><code>03-recall.sql</code></td>
+<td>T0</td>
+<td><code>hasAny</code> / <code>hasAll</code> filtering: recall, precision and chunks returned, by tokenizer and failure case; positive control against the index (48 rows, fails the step on any mismatch)</td>
+</tr>
+<tr>
+<td><code>04-ranking.sql</code></td>
+<td>T0</td>
+<td>ranking by matched ÷ query tokens: recall@5/@10, MRR@10, unranked baseline, by failure case; <code>keyword_ranked</code> for step 06</td>
+</tr>
+<tr>
+<td><code>05-index-cost.sql</code></td>
+<td>T0</td>
+<td>index bytes, distinct tokens, granules read (<code>EXPLAIN indexes = 1</code>), latency and rows read at 30k rows with and without the index</td>
+</tr>
+<tr>
+<td><code>t1/06-hybrid.sh</code> + <code>t1/06-hybrid.sql</code></td>
+<td>T1</td>
+<td><code>aiEmbed</code> through a local Ollama, a <code>vector_similarity</code> HNSW index, exact top 20, RRF with the <code>kiwi</code> and <code>ngrams(2)</code> lists</td>
+</tr>
+<tr>
+<td><code>cloud/tokenizer-check.sql</code></td>
+<td>by hand</td>
+<td>which tokenizers a ClickHouse Cloud service accepts, as <code>tokens()</code> and as a text index; drops what it creates</td>
+</tr>
+</tbody>
+</table>
+<p><code>t1/</code> and <code>cloud/</code> sit outside the top-level <code>NN-*.sql</code> that <code>tools/hol</code> runs, so steps 00–05 stay T0.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">python3 tools/hol run usecase/korean-rag-tokenizers
+</code></pre>
+<p>To read each step's output, keep the container and pipe the step in again:</p>
+<pre><code class="language-bash">python3 tools/hol run usecase/korean-rag-tokenizers --keep
+docker exec -i hol-usecase-korean-rag-tokenizers clickhouse-client --multiline --multiquery &lt; usecase/korean-rag-tokenizers/04-ranking.sql
+</code></pre>
+<p>Step 06 needs Ollama on the host, with the model pulled:</p>
+<pre><code class="language-bash">ollama pull bge-m3
+</code></pre>
+<p>Then run it against the kept container:</p>
+<pre><code class="language-bash">usecase/korean-rag-tokenizers/t1/06-hybrid.sh
+</code></pre>
+<p>What the script does:
+- It checks the container, the step-04 tables, Ollama and the model, and prints the Ollama version and model digest.
+- It gives the container's <code>default</code> user <code>named_collection_control</code> through a users.d file. The hol container has no right to <code>CREATE NAMED COLLECTION</code> without it.
+- It then runs <code>06-hybrid.sql</code>.
+- The SQL reaches Ollama as <code>host.docker.internal:11434</code>. Docker Desktop provides that name; on Linux add <code>--add-host=host.docker.internal:host-gateway</code> (not tested).</p>
+<pre><code class="language-bash">python3 tools/hol down usecase/korean-rag-tokenizers
+</code></pre>
+<h3>Two framework defaults that break Korean</h3>
+<p>Reproduced on 26.9.11.2 on 2026-10-06 in a scratch environment, with mock embeddings.</p>
+<p><strong>LlamaIndex</strong> — <code>llama-index-vector-stores-clickhouse</code> 0.8.0 (llama-index-core 0.14.25, clickhouse-connect 1.9.0).</p>
+<p>How it searches keywords:
+- HYBRID and TEXT_SEARCH match keywords with regexes built in <code>_build_text_search_statement</code> / <code>_build_hybrid_search_statement</code>.
+- <code>base.py:351</code> builds <code>\b(?i)&lt;token&gt;\b</code> for <code>multiMatchAllIndices</code>.
+- <code>\b</code> is an ASCII word boundary, so a Hangul keyword never matches: <code>match('클릭하우스 테스트', '\\b(?i)클릭하우스\\b')</code> = 0 on 26.9.11.2, while the English equivalent is 1.
+- No text index is created; the keyword path is a regex scan.</p>
+<p>What goes wrong:
+- <strong>TEXT_SEARCH crashes.</strong> With no matching row, <code>base.py:516</code> raises <code>ValueError: tuple.index(x): x not in tuple</code>.
+- <strong>HYBRID silently ignores the Korean keyword.</strong>
+- <strong>The second term is broken even for English.</strong> <code>base.py:360</code> writes a single <code>\b</code> into a SQL literal, which ClickHouse reads as a backspace (<code>hex('\b')</code> = <code>08</code>), so <code>countMatches</code> is always 0.</p>
+<p>There is no constructor option. Override the two builders in a subclass:</p>
+<pre><code class="language-python">from llama_index.vector_stores.clickhouse import ClickHouseVectorStore
+from llama_index.vector_stores.clickhouse.base import _default_tokenizer, escape_str
+
+class KoreanClickHouseVectorStore(ClickHouseVectorStore):
+    def _terms(self, query_str):
+        arr = &quot;[&quot; + &quot;,&quot;.join(&quot;'&quot; + escape_str(t) + &quot;'&quot; for t in _default_tokenizer(query_str)) + &quot;]&quot;
+        hits = f&quot;arraySum(arrayMap(p -&gt; p &gt; 0, multiSearchAllPositionsCaseInsensitiveUTF8(text, {arr})))&quot;
+        tf = f&quot;log(1 + arraySum(arrayMap(t -&gt; countSubstringsCaseInsensitiveUTF8(text, t), {arr})))&quot;
+        return hits, tf
+
+    def _build_text_search_statement(self, query_str, similarity_top_k):
+        hits, tf = self._terms(query_str)
+        cols = &quot;,&quot;.join(k for k in self._column_config if k != &quot;vector&quot;)
+        return (f&quot;SELECT {cols}, score FROM {self._config.database}.{self._config.table} &quot;
+                f&quot;WHERE score &gt; 0 ORDER BY {hits} AS score DESC, {tf} AS d2 DESC LIMIT {similarity_top_k}&quot;)
+
+    def _build_hybrid_search_statement(self, stage_one_sql, query_str, similarity_top_k):
+        hits, tf = self._terms(query_str)
+        cols = &quot;,&quot;.join(k for k in self._column_config if k != &quot;vector&quot;)
+        return (f&quot;SELECT {cols}, score FROM ({stage_one_sql}) tempt &quot;
+                f&quot;ORDER BY {hits} AS d1 DESC, {tf} AS d2 DESC, score ASC LIMIT {similarity_top_k}&quot;)
+</code></pre>
+<p>How the override behaves:
+- Substring matching finds <code>클릭하우스</code> in <code>클릭하우스는 빠르다</code>.
+- A query with no match still raises the <code>ValueError</code> above, so catch it around <code>query()</code>.
+- To use a text index instead, add <code>WHERE hasAnyTokens(text, '&lt;query&gt;')</code> on a column indexed as in this lab.</p>
+<p><strong>LangChain</strong> — <code>langchain-community</code> 0.4.2 (<code>langchain_community/vectorstores/clickhouse.py</code>).</p>
+<p>The default index:
+- <code>ClickhouseSettings.index_type</code> defaults to <code>"annoy"</code> (line 78), with <code>index_param = ["'L2Distance'", 100]</code> (line 80).
+- ClickHouse removed <code>annoy</code> in 25.5, so on 26.9 the constructor fails with:
+  <code>Code: 80. DB::Exception: Unknown Index type 'annoy'. Available index types: hypothesis, text, vector_similarity, …</code></p>
+<p>Override both settings:</p>
+<pre><code class="language-python">from langchain_community.vectorstores import Clickhouse, ClickhouseSettings
+
+# no ANN index (exact scan)
+ClickhouseSettings(index_type=None, ...)
+# or HNSW; the dimension goes inside index_param, and the metric must stay L2Distance
+ClickhouseSettings(index_type=&quot;vector_similarity&quot;, index_param=[&quot;'hnsw'&quot;, &quot;'L2Distance'&quot;, DIM], ...)
+</code></pre>
+<p>Pitfalls:
+- <strong>The metric must be L2Distance.</strong> The store's search is hard-coded to <code>L2Distance</code> (line 582); an index built on <code>cosineDistance</code> is not used.
+- <strong>Changing only <code>index_type</code> fails</strong>, with <code>Vector similarity index must have three or six arguments</code>.
+- <strong><code>index_query_params</code> is broken.</strong> It emits <code>SETTING</code> instead of <code>SETTINGS</code> (line 576). The resulting syntax error is swallowed, and the search returns <code>[]</code>.
+- <strong><code>langchain-community</code> warns that it is being sunset.</strong> The <code>langchain-clickhouse</code> 0.1.0 on PyPI is a third-party package with no index options, not its successor.</p>
+<h3>ClickHouse Cloud</h3>
+<p>Checked on 2026-10-06 against a Cloud service on <strong>26.6.1.2292</strong>, through <code>mcp-clickhouse</code>, by running
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a> statement by statement. The scratch database it
+creates was dropped afterwards.</p>
+<p>Tokenizers:
+- <code>system.tokenizers</code> lists <code>ngrams</code>, <code>splitByNonAlpha</code>, <code>sparseGrams</code>, <code>array</code>, <code>splitByString</code>, <code>asciiCJK</code>, <code>unicodeWord</code> (and the bloom-filter names). It does not list <code>icu</code>, <code>chinese</code>, <code>japanese</code> or <code>splitByRegexp</code>.
+- <code>tokens()</code> works for the five listed in this lab. <code>tokens(…, 'icu', 'ko')</code> and <code>tokens(…, 'splitByRegexp', …)</code> fail with Code 42 on that build.</p>
+<p>Text indexes, created exactly as <code>02-schema.sql</code> declares them:</p>
+<table>
+<thead>
+<tr>
+<th>Tokenizer</th>
+<th>Accepted on Cloud 26.6.1.2292</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>splitByNonAlpha</code>, <code>asciiCJK</code>, <code>ngrams(2)</code>, <code>ngrams(3)</code>, <code>sparseGrams</code> (each with <code>preprocessor = lower(b)</code>)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>array</code> (the <code>kiwi</code> column)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td>no: <code>Code: 36. Unknown tokenizer: 'icu': When validating secondary index</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp(…, true)</code></td>
+<td>no: <code>Code: 36. Unknown tokenizer: 'splitByRegexp'</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>One row inserted into the <code>array</code> and <code>ngrams(2)</code> tables was found by <code>hasAnyTokens(m, ['요청서'])</code> and <code>hasAnyTokens(b, '구매 요청서')</code>.</li>
+<li>So the two setups recommended above, <code>kiwi</code> and <code>ngrams(2)</code>, work on that service today.</li>
+<li><code>icu</code> and <code>splitByRegexp</code> need a newer Cloud build.</li>
+</ul>
+<p>Embeddings:
+- <code>aiEmbed</code> appears in <code>system.functions</code> there, but <code>allow_experimental_ai_functions</code> is 0.
+- The docs say AI functions are not available in Cloud services at the moment (<a href="https://clickhouse.com/docs/reference/functions/regular-functions/ai-functions">AI functions</a>, read 2026-10-06).
+- On Cloud the application produces the embeddings and inserts them as <code>Array(Float32)</code>. The <code>vector_similarity</code> part of step 06 is unchanged.</p>
+<p>Other notes:
+- The docs mark the <code>japanese</code> tokenizer's dictionary configuration as not supported on Cloud (<a href="https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes">text index</a>, read 2026-10-06).
+- To repeat the check on another service, run <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a> statement by statement. It drops what it creates. Ask the service owner first.</p>
+<h3>Not covered</h3>
+<ul>
+<li>BM25. It is not in a release: <a href="https://github.com/ClickHouse/ClickHouse/pull/117519">ClickHouse/ClickHouse#117519</a>, a pull request, was open on 2026-10-06.</li>
+<li>A Korean analyser inside ClickHouse.</li>
+<li>Scale. 300 chunks are enough to separate tokenizers by recall, but not to measure latency or hybrid gains. Both are open questions for a larger corpus.</li>
+</ul>
+<h3>Author</h3>
+<p>Ken (ClickHouse Solution Architect) · 2026-10-06</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse 위의 RAG에서 벡터 쪽은 언어를 가리지 않습니다. 한국어 품질은 임베딩 모델이 결정합니다. 언어를
+타는 쪽은 키워드 쪽입니다. 그런데 ClickHouse에는 nori나 mecab-ko 같은 한국어 분석기가 없습니다. 이 실습은
+한국어 문서 청크에 한국어 질문을 던졌을 때 text index 토크나이저마다 무엇을 맞히고 무엇을 놓치는지 잽니다.
+이어서 ClickHouse 밖에서 만든 형태소 컬럼이 얼마나 보태는지, 그 위에 하이브리드 검색이 무엇을 더하는지 잽니다.</p>
+<p>앞선 실습 두 개가 일부를 다룹니다.
+- <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8">local/releases/26.8</a>은 문장 하나에서 <code>asciiCJK</code>·<code>chinese</code>·<code>icu</code>의 <code>tokens()</code> 결과를 보여 줍니다.
+- <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/fulltext-search">usecase/fulltext-search</a>는 Cloud의 지원 티켓 100만 건에서 조사·띄어쓰기로 잃는 재현율을 잽니다.</p>
+<p>이 실습이 더하는 것:
+- 정답 청크가 붙은 질문
+- Kiwi 형태소 컬럼
+- <code>splitByRegexp</code>와 <code>sparseGrams</code>
+- BM25 없는 키워드 순위
+- 벡터 검색과 결합(fusion)
+- Cloud 확인</p>
+<p><strong>ClickHouse 26.9.11.2에서 검증</strong> (<code>clickhouse/clickhouse-server:26.9</code>, 2026-10-06). 00–05단계는
+<code>tools/hol run</code>으로, 06단계는 손으로 실행했습니다. Kiwi는 kiwipiepy 0.24.0, 모델 0.24.0입니다. 06단계는 Ollama 0.35.0,
+<code>bge-m3</code>(digest <code>7907646426…</code>), 1024차원입니다. 머신은 macOS의 Docker Desktop, CPU 12개, 8 GB입니다.</p>
+<h3>결과</h3>
+<p>질문 40개, 청크 300개입니다. 순위는 "맞은 질문 토큰 수 ÷ 질문 토큰 수"로 매겼습니다(04단계). 인덱스 크기는 청크 300개
+테이블 기준입니다(05단계). body 컬럼 자체는 압축 27.6 KB입니다.</p>
+<table>
+<thead>
+<tr>
+<th>키워드 설정</th>
+<th style="text-align: right;">recall@5</th>
+<th style="text-align: right;">recall@10</th>
+<th style="text-align: right;">MRR@10</th>
+<th style="text-align: right;">순위 없는 recall@10</th>
+<th style="text-align: right;">인덱스 크기</th>
+<th style="text-align: right;">body 대비</th>
+<th style="text-align: right;">인덱스 없이 스캔 (3만 행)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kiwi</code> — 형태소, <code>tokenizer = array</code></td>
+<td style="text-align: right;"><strong>0.925</strong></td>
+<td style="text-align: right;"><strong>0.962</strong></td>
+<td style="text-align: right;"><strong>0.919</strong></td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;"><strong>16.4 KB</strong></td>
+<td style="text-align: right;"><strong>0.60</strong></td>
+<td style="text-align: right;">6 ms</td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code> — 조사 제거 정규식</td>
+<td style="text-align: right;">0.667</td>
+<td style="text-align: right;">0.846</td>
+<td style="text-align: right;">0.686</td>
+<td style="text-align: right;">0.588</td>
+<td style="text-align: right;">22.6 KB</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">794 ms</td>
+</tr>
+<tr>
+<td><code>ngrams(2)</code></td>
+<td style="text-align: right;">0.692</td>
+<td style="text-align: right;">0.817</td>
+<td style="text-align: right;">0.745</td>
+<td style="text-align: right;">0.025</td>
+<td style="text-align: right;">57.9 KB</td>
+<td style="text-align: right;">2.10</td>
+<td style="text-align: right;">15 ms</td>
+</tr>
+<tr>
+<td><code>ngrams(3)</code></td>
+<td style="text-align: right;">0.704</td>
+<td style="text-align: right;">0.767</td>
+<td style="text-align: right;">0.707</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">85.1 KB</td>
+<td style="text-align: right;">3.09</td>
+<td style="text-align: right;">16 ms</td>
+</tr>
+<tr>
+<td><code>asciiCJK</code></td>
+<td style="text-align: right;">0.562</td>
+<td style="text-align: right;">0.700</td>
+<td style="text-align: right;">0.613</td>
+<td style="text-align: right;">0.025</td>
+<td style="text-align: right;">29.1 KB</td>
+<td style="text-align: right;">1.06</td>
+<td style="text-align: right;">12 ms</td>
+</tr>
+<tr>
+<td><code>sparseGrams</code></td>
+<td style="text-align: right;">0.371</td>
+<td style="text-align: right;">0.462</td>
+<td style="text-align: right;">0.303</td>
+<td style="text-align: right;">0.417</td>
+<td style="text-align: right;">227.4 KB</td>
+<td style="text-align: right;">8.24</td>
+<td style="text-align: right;">52 ms</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td style="text-align: right;">0.346</td>
+<td style="text-align: right;">0.450</td>
+<td style="text-align: right;">0.359</td>
+<td style="text-align: right;">0.338</td>
+<td style="text-align: right;">26.4 KB</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">70 ms</td>
+</tr>
+<tr>
+<td><code>splitByNonAlpha</code></td>
+<td style="text-align: right;">0.296</td>
+<td style="text-align: right;">0.396</td>
+<td style="text-align: right;">0.306</td>
+<td style="text-align: right;">0.308</td>
+<td style="text-align: right;">26.4 KB</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">4 ms</td>
+</tr>
+</tbody>
+</table>
+<p>실패 유형별 순위 recall@10 (유형마다 질문 8개):</p>
+<table>
+<thead>
+<tr>
+<th>키워드 설정</th>
+<th style="text-align: right;">조사</th>
+<th style="text-align: right;">띄어쓰기</th>
+<th style="text-align: right;">어미</th>
+<th style="text-align: right;">한영 혼용</th>
+<th style="text-align: right;">1음절</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kiwi</code></td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td><code>splitByRegexp</code></td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.854</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td><code>ngrams(2)</code></td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.896</td>
+<td style="text-align: right;">0.750</td>
+</tr>
+<tr>
+<td><code>ngrams(3)</code></td>
+<td style="text-align: right;">0.812</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.958</td>
+<td style="text-align: right;">0.812</td>
+</tr>
+<tr>
+<td><code>asciiCJK</code></td>
+<td style="text-align: right;">0.688</td>
+<td style="text-align: right;">0.875</td>
+<td style="text-align: right;">0.771</td>
+<td style="text-align: right;">0.542</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+<tr>
+<td><code>sparseGrams</code></td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">0.104</td>
+<td style="text-align: right;">0.521</td>
+<td style="text-align: right;">0.562</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.375</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.938</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+<tr>
+<td><code>splitByNonAlpha</code></td>
+<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.250</td>
+<td style="text-align: right;">0.792</td>
+<td style="text-align: right;">0.625</td>
+</tr>
+</tbody>
+</table>
+<p>인덱스를 쓰면 모든 토크나이저가 3만 행에서 <code>hasAllTokens(col, '법인카드 분실')</code>을 2–3 ms에 답하고 800행만 읽습니다.
+첫 표의 스캔은 3만 행을 전부 읽습니다. 같은 크기에서 단순 <code>LIKE</code> 스캔은 3 ms였습니다. 그래서 이 규모에서는
+시간으로는 설정이 갈리지 않고, 읽은 행 수로 갈립니다. 3만 행 테이블은 청크 300개를 100번 반복한 것이라
+사전(dictionary)이 커지지 않습니다. 즉 어휘량이 아니라 posting list 읽기를 잰 것입니다. 같은 날 세 번 돌린
+결과의 차이는 10% 미만이었습니다.</p>
+<p>벡터와 하이브리드 (06단계, 각 목록의 상위 20개를 k = 60인 reciprocal rank fusion으로 결합):</p>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th style="text-align: right;">recall@5</th>
+<th style="text-align: right;">recall@10</th>
+<th style="text-align: right;">MRR@10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>벡터만 (<code>bge-m3</code>)</td>
+<td style="text-align: right;"><strong>0.979</strong></td>
+<td style="text-align: right;"><strong>1.000</strong></td>
+<td style="text-align: right;"><strong>0.975</strong></td>
+</tr>
+<tr>
+<td>하이브리드 벡터 + <code>kiwi</code></td>
+<td style="text-align: right;">0.962</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.966</td>
+</tr>
+<tr>
+<td>하이브리드 벡터 + <code>ngrams(2)</code></td>
+<td style="text-align: right;">0.892</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.870</td>
+</tr>
+<tr>
+<td>키워드 <code>kiwi</code></td>
+<td style="text-align: right;">0.925</td>
+<td style="text-align: right;">0.962</td>
+<td style="text-align: right;">0.919</td>
+</tr>
+<tr>
+<td>키워드 <code>ngrams(2)</code></td>
+<td style="text-align: right;">0.692</td>
+<td style="text-align: right;">0.817</td>
+<td style="text-align: right;">0.745</td>
+</tr>
+</tbody>
+</table>
+<h3>한국어 RAG의 키워드 설정은 무엇으로, 왜</h3>
+<ol>
+<li><strong>형태소 컬럼을 <code>tokenizer = array</code>로 인덱싱합니다.</strong> 적재할 때 한국어 분석기(여기서는 Kiwi)를 돌려
+   <code>morphemes Array(String)</code>에 저장합니다. 질문의 형태소로 검색하고 겹치는 비율로 순위를 매깁니다.
+   - 어미를 뺀 모든 실패 유형에서 가장 좋습니다. recall@5가 가장 높고(0.925) 인덱스는 가장 작습니다(body의 0.6배).
+   - 분석기는 ClickHouse 밖에서 돌고, 서버 안은 아무것도 바꾸지 않습니다.
+   - <code>array</code>는 아래에서 확인한 Cloud 서비스에도 있습니다.
+   - 질문 쪽에도 같은 분석기·버전·규칙을 써야 합니다. 그 값은 <code>lab_meta</code>에 기록합니다.</li>
+<li><strong>분석기를 쓸 수 없으면 <code>ngrams(2)</code>에 순위를 매겨 씁니다.</strong>
+   - 디스크를 body의 2.1배 쓰고 recall@10은 0.817입니다.
+   - 필터로만 쓰면 안 됩니다. 질문 하나에 <code>hasAnyTokens</code>가 청크 300개 중 250개를 돌려주므로 순위 없는 recall@10이 0.025입니다.
+   - 조사 제거 <code>splitByRegexp</code>는 recall@10이 0.846이지만 띄어쓰기에서는 0.5입니다.
+   - 이 정규식은 과하게 깎기도 합니다(<code>사이</code> → <code>사</code>).
+   - 토큰화 비용이 가장 큽니다. 인덱스 없이 3만 행을 스캔하는 데 794 ms가 걸립니다.
+   - 아래에서 확인한 Cloud 빌드에는 없습니다.</li>
+<li><strong>질문 검색에 쓰지 말 것:</strong>
+   - <code>icu('ko')</code>와 <code>splitByNonAlpha</code>는 조사를 단어에 붙인 채 둡니다. 조사 유형의 recall@10이 0.062입니다.
+   - <code>asciiCJK</code>는 질문마다 300개 중 296개 청크와 맞습니다. 가지치기가 없어서 granule을 38개 중 38개 다 읽습니다.
+   - <code>sparseGrams</code>는 다음 절을 보세요.</li>
+<li><strong>항상 순위를 매깁니다.</strong> 순위 없는 필터링은 recall@10이 0.025–0.588에 머뭅니다.</li>
+<li><strong>질문에 <code>hasAllTokens</code>를 그대로 쓸 수 없습니다.</strong>
+   - 질문의 어미(<code>하나요</code>, <code>어떻게</code>)가 청크에 없어서, 원문 토크나이저는 모두 아무것도 돌려주지 않습니다.
+   - <code>kiwi</code>만 0.308이 나옵니다. 규칙이 그런 단어를 버리기 때문입니다.</li>
+<li><strong>이 코퍼스에서는 하이브리드가 벡터 검색을 이기지 못했습니다.</strong>
+   - <code>bge-m3</code> 단독이 이미 recall@10 1.0입니다. <code>kiwi</code>와의 하이브리드는 @10에서 같고, @5에서 0.017 낮습니다.
+   - 음차 질문 두 개(<code>아웃룩</code>/<code>Outlook</code>, <code>팀즈</code>/<code>Teams</code>)도 질문의 나머지 단어 덕분에 키워드로 찾았습니다.
+   - 그래서 이 실습이 보여 주는 것은, 키워드 설정에 따라 하이브리드가 얼마나 손해를 보는지입니다(벡터 + <code>ngrams(2)</code>는 @5에서 0.892).
+   - 하이브리드가 얼마나 얻는지는 보여 주지 못합니다.
+   - <em>가설, 측정 안 함:</em> 거의 같은 청크가 많은 코퍼스나, 임베딩 모델이 본 적 없는 정확한 식별자가 있는 코퍼스에서 키워드 쪽이 제 몫을 할 것입니다.</li>
+</ol>
+<h3>26.9.11.2에서 의외였던 것</h3>
+<ul>
+<li><strong><code>sparseGrams</code>는 문자열 needle을 구(phrase)처럼 다룹니다.</strong></li>
+<li>문자열 needle은 <code>compactTokens()</code>를 거칩니다(<code>v26.9.11.2-stable</code>의 <code>src/Functions/hasAnyAllTokens.cpp:64</code>).</li>
+<li><code>sparseGrams</code>는 이 단계에서 더 긴 gram에 들어 있는 gram을 모두 버립니다(<code>src/Interpreters/ITokenizer.cpp:677</code>).</li>
+<li><code>hasAllTokens</code>에는 맞는 처리입니다. 하지만 <code>hasAnyTokens(col, '&lt;질문&gt;')</code>은 가장 긴 gram만 찾게 되어 구 검색처럼 동작합니다.</li>
+<li>질문 1은 <code>tokens()</code> 기준으로 청크 97개와 gram을 공유합니다. 그런데 인덱스는 <code>나요?</code> 하나만 맞은 청크 1개를 돌려줬습니다.</li>
+<li>03단계도 같은 압축을 적용합니다. 압축을 빼면 positive control(48행, 토크나이저 8종 전부)이 단계를 실패시킵니다.</li>
+<li>우회 방법: <code>tokens(question, 'sparseGrams')</code>를 배열로 넘기면 OR 의미로 찾습니다. <a href="https://github.com/ClickHouse/ClickHouse/issues/124156">ClickHouse/ClickHouse#124156</a>으로 보고했습니다.</li>
+<li><code>sparseGrams</code>는 최소 길이가 3이라 <code>tokens('결재', 'sparseGrams')</code>는 <code>[]</code>입니다.</li>
+<li><strong>컬럼 하나에 text index는 하나만 됩니다.</strong> 두 번째는 Code 36(<code>Column b must not have more than one text index</code>)으로 실패합니다. 그래서 02단계는 body의 <code>MATERIALIZED</code> 사본마다 인덱스를 만듭니다.</li>
+<li><strong>needle은 상수여야 합니다.</strong></li>
+<li>join으로 들어온 컬럼은 Code 44로 거부됩니다.</li>
+<li>scalar subquery <code>(SELECT question FROM queries WHERE qid = 1)</code>는 받아들여지고 인덱스도 탑니다.</li>
+<li>그래서 03–04단계는 토큰 배열을 비교하고, 03단계가 그 결과를 인덱스와 대조합니다.</li>
+<li><strong>26.8의 관찰은 26.9에서도 그대로입니다.</strong> <code>asciiCJK</code>는 한 음절씩 쪼개고, <code>icu</code>는 조사를 붙여 둡니다. 로캘(<code>ko</code>, <code>ko_KR</code>, <code>en</code>, <code>ja</code>)은 결과를 바꾸지 않습니다.</li>
+</ul>
+<h3>데이터</h3>
+<p>데이터는 모두 실습 안에 있어서, T0 실행에는 Python도 네트워크도 필요 없습니다.</p>
+<ul>
+<li><code>data/chunks.jsonl</code>: 가상 회사의 문서 27개에서 나온 청크 300개.</li>
+<li>사내 규정: 재택근무, 휴가, 출장, 법인카드, 구매, 결재, 보안.</li>
+<li>IT 헬프데스크: VPN, Outlook, SSO, Teams, ERP 오류 코드, 기기.</li>
+<li><code>data/queries.jsonl</code>: 직원이 헬프데스크 봇에 묻듯 쓴 질문 40개.</li>
+<li>실패 유형마다 8개이고, 질문마다 정답 청크(qrels) 2–3개와 함정을 적은 <code>note</code>가 있습니다.</li>
+<li><strong>조사</strong>: 질문은 <code>결재선을</code>, 청크는 <code>결재선은</code> / <code>결재선이</code>.</li>
+<li><strong>띄어쓰기</strong>: <code>구매 요청서</code> 대 <code>구매요청서</code>, 그리고 그 반대.</li>
+<li><strong>어미</strong>: <code>잠겼어요</code> 대 <code>계정 잠금</code> / <code>잠긴 계정</code>.</li>
+<li><strong>한영 혼용</strong>: 소문자 코드, 조사가 붙은 영어(<code>VPN이</code>), 오류 코드(<code>ERP-4012</code>, <code>0x80070005</code>), 음차(<code>아웃룩</code> 대 <code>Outlook</code>).</li>
+<li><strong>1음절</strong>: <code>키</code>, <code>망</code>, <code>폰</code>, <code>앱</code>, <code>차</code>, <code>층</code>, <code>팀</code>, <code>표</code>.</li>
+<li>질문마다 hard negative도 있습니다. 핵심어는 같지만 다른 것을 답하는 청크입니다.</li>
+<li>텍스트는 이 실습을 위해 AI 모델로 초안을 쓴 합성 데이터입니다.</li>
+<li>정답 청크를 질문에 맞춰 썼으므로 qrels는 구성상 정해집니다.</li>
+<li>스크립트로 확인한 것: 모든 정답 청크에서 함정이 성립하는지, id가 연속인지, 유형마다 질문이 8개인지.</li>
+<li>일부는 사람이 직접 읽었습니다.</li>
+<li><code>gen_data.py</code>가 Kiwi를 한 번 돌려 <code>00-data.sql</code>을 쓰고, 이 파일을 커밋합니다.</li>
+<li>규칙: 태그 <code>NNG NNP NR SL SN SH XR VV VA</code>(<code>-</code> 앞부분)만 남기고 소문자로 바꾼 뒤 <code>하 되 있 어떻</code>을 버립니다.</li>
+<li>일부러 단순하게 두었습니다. 예를 들어 <code>그렇</code>, <code>없</code>은 남습니다.</li>
+<li>다시 만들려면 <code>uv run usecase/korean-rag-tokenizers/gen_data.py</code>를 실행합니다. 입력이 같으면 바이트까지 같은 파일이 나옵니다.</li>
+</ul>
+<h3>단계</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>Tier</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00-data.sql</code></td>
+<td>T0</td>
+<td>생성 파일: <code>chunks_src</code>, <code>queries</code>, <code>phrases</code>, <code>lab_meta</code></td>
+</tr>
+<tr>
+<td><code>01-tokens.sql</code></td>
+<td>T0</td>
+<td>실패 유형 문구 11개에 토크나이저 8종의 <code>tokens()</code>; 26.8 재확인; <code>sparseGrams</code> 최소 길이; 상수 needle</td>
+</tr>
+<tr>
+<td><code>02-schema.sql</code></td>
+<td>T0</td>
+<td><code>chunks</code>: body, 각자 text index(<code>preprocessor = lower(...)</code>)를 가진 <code>MATERIALIZED</code> 사본 7개, <code>tokenizer = array</code>인 <code>morphemes</code>; 300행에서도 가지치기가 보이도록 <code>index_granularity = 8</code></td>
+</tr>
+<tr>
+<td><code>03-recall.sql</code></td>
+<td>T0</td>
+<td><code>hasAny</code> / <code>hasAll</code> 필터링: 토크나이저·실패 유형별 재현율, 정밀도, 돌려준 청크 수; 인덱스 대조 positive control(48행, 하나라도 다르면 단계 실패)</td>
+</tr>
+<tr>
+<td><code>04-ranking.sql</code></td>
+<td>T0</td>
+<td>맞은 토큰 ÷ 질문 토큰 순위: recall@5/@10, MRR@10, 순위 없는 기준선, 실패 유형별; 06단계용 <code>keyword_ranked</code></td>
+</tr>
+<tr>
+<td><code>05-index-cost.sql</code></td>
+<td>T0</td>
+<td>인덱스 바이트, 고유 토큰 수, 읽은 granule(<code>EXPLAIN indexes = 1</code>), 3만 행에서 인덱스 유무별 지연과 읽은 행</td>
+</tr>
+<tr>
+<td><code>t1/06-hybrid.sh</code> + <code>t1/06-hybrid.sql</code></td>
+<td>T1</td>
+<td>로컬 Ollama로 <code>aiEmbed</code>, <code>vector_similarity</code> HNSW 인덱스, 정확한 상위 20개, <code>kiwi</code>·<code>ngrams(2)</code> 목록과의 RRF</td>
+</tr>
+<tr>
+<td><code>cloud/tokenizer-check.sql</code></td>
+<td>수동</td>
+<td>ClickHouse Cloud 서비스가 <code>tokens()</code>와 text index로 받는 토크나이저; 만든 것은 지움</td>
+</tr>
+</tbody>
+</table>
+<p><code>t1/</code>과 <code>cloud/</code>는 <code>tools/hol</code>이 실행하는 최상위 <code>NN-*.sql</code> 밖에 있어서, 00–05단계는 T0로 남습니다.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">python3 tools/hol run usecase/korean-rag-tokenizers
+</code></pre>
+<p>단계별 출력을 보려면 컨테이너를 남기고 단계를 다시 넣습니다.</p>
+<pre><code class="language-bash">python3 tools/hol run usecase/korean-rag-tokenizers --keep
+docker exec -i hol-usecase-korean-rag-tokenizers clickhouse-client --multiline --multiquery &lt; usecase/korean-rag-tokenizers/04-ranking.sql
+</code></pre>
+<p>06단계에는 호스트의 Ollama와 받아 둔 모델이 필요합니다.</p>
+<pre><code class="language-bash">ollama pull bge-m3
+</code></pre>
+<p>그다음 남겨 둔 컨테이너에 대해 실행합니다.</p>
+<pre><code class="language-bash">usecase/korean-rag-tokenizers/t1/06-hybrid.sh
+</code></pre>
+<p>스크립트가 하는 일:
+- 컨테이너, 04단계 테이블, Ollama, 모델을 확인하고 Ollama 버전과 모델 digest를 출력합니다.
+- users.d 파일로 컨테이너의 <code>default</code> 사용자에게 <code>named_collection_control</code>을 줍니다. 이게 없으면 hol 컨테이너에는 <code>CREATE NAMED COLLECTION</code> 권한이 없습니다.
+- 그다음 <code>06-hybrid.sql</code>을 실행합니다.
+- SQL은 Ollama에 <code>host.docker.internal:11434</code>로 접속합니다. Docker Desktop이 이 이름을 제공합니다. Linux에서는 <code>--add-host=host.docker.internal:host-gateway</code>를 더해야 합니다(테스트 안 함).</p>
+<pre><code class="language-bash">python3 tools/hol down usecase/korean-rag-tokenizers
+</code></pre>
+<h3>한국어를 깨뜨리는 프레임워크 기본값 두 가지</h3>
+<p>2026-10-06에 26.9.11.2에서 별도 환경과 mock 임베딩으로 재현했습니다.</p>
+<p><strong>LlamaIndex</strong> — <code>llama-index-vector-stores-clickhouse</code> 0.8.0 (llama-index-core 0.14.25, clickhouse-connect 1.9.0).</p>
+<p>키워드를 찾는 방식:
+- HYBRID와 TEXT_SEARCH는 <code>_build_text_search_statement</code> / <code>_build_hybrid_search_statement</code>에서 만든 정규식으로 키워드를 찾습니다.
+- <code>base.py:351</code>이 <code>multiMatchAllIndices</code>용으로 <code>\b(?i)&lt;token&gt;\b</code>를 만듭니다.
+- <code>\b</code>는 ASCII 단어 경계라서 한글 키워드는 절대 맞지 않습니다. 26.9.11.2에서 <code>match('클릭하우스 테스트', '\\b(?i)클릭하우스\\b')</code>는 0이고, 영어로 같은 식을 쓰면 1입니다.
+- text index는 만들지 않습니다. 키워드 경로는 정규식 스캔입니다.</p>
+<p>어떻게 깨지는가:
+- <strong>TEXT_SEARCH는 죽습니다.</strong> 맞는 행이 없으면 <code>base.py:516</code>이 <code>ValueError: tuple.index(x): x not in tuple</code>을 던집니다.
+- <strong>HYBRID는 한글 키워드를 조용히 무시합니다.</strong>
+- <strong>두 번째 항은 영어에서도 깨져 있습니다.</strong> <code>base.py:360</code>은 SQL 리터럴에 <code>\b</code>를 하나만 쓰는데, ClickHouse는 이를 백스페이스로 읽습니다(<code>hex('\b')</code> = <code>08</code>). 그래서 <code>countMatches</code>는 항상 0입니다.</p>
+<p>생성자 옵션은 없습니다. 하위 클래스에서 두 빌더를 덮어씁니다. 코드는 위 English 절과 같습니다.</p>
+<p>덮어쓴 뒤의 동작:
+- 부분 문자열 일치로 <code>클릭하우스는 빠르다</code>에서 <code>클릭하우스</code>를 찾습니다.
+- 맞는 것이 없는 질의는 여전히 위의 <code>ValueError</code>를 던지므로, <code>query()</code>를 감싸서 잡습니다.
+- text index를 쓰려면 이 실습처럼 인덱싱한 컬럼에 <code>WHERE hasAnyTokens(text, '&lt;질의&gt;')</code>를 더합니다.</p>
+<p><strong>LangChain</strong> — <code>langchain-community</code> 0.4.2 (<code>langchain_community/vectorstores/clickhouse.py</code>).</p>
+<p>기본 인덱스:
+- <code>ClickhouseSettings.index_type</code>의 기본값은 <code>"annoy"</code>(78행)이고, <code>index_param = ["'L2Distance'", 100]</code>(80행)입니다.
+- ClickHouse는 25.5에서 <code>annoy</code>를 없앴습니다. 그래서 26.9에서는 생성자가 다음 오류로 실패합니다.
+  <code>Code: 80. DB::Exception: Unknown Index type 'annoy'. Available index types: hypothesis, text, vector_similarity, …</code></p>
+<p>두 설정을 함께 바꿉니다. <code>index_type=None</code>(ANN 인덱스 없이 정확한 스캔)으로 두거나,
+<code>index_type="vector_similarity", index_param=["'hnsw'", "'L2Distance'", DIM]</code>으로 둡니다. 차원은 <code>index_param</code> 안에 넣습니다.</p>
+<p>주의할 점:
+- <strong>거리 함수는 L2Distance여야 합니다.</strong> 스토어의 검색이 <code>L2Distance</code>로 고정되어 있어서(582행), <code>cosineDistance</code>로 만든 인덱스는 쓰이지 않습니다.
+- <strong><code>index_type</code>만 바꾸면 실패합니다.</strong> <code>Vector similarity index must have three or six arguments</code> 오류가 납니다.
+- <strong><code>index_query_params</code>는 깨져 있습니다.</strong> <code>SETTINGS</code> 대신 <code>SETTING</code>을 내보냅니다(576행). 그 문법 오류는 삼켜지고 검색은 <code>[]</code>를 돌려줍니다.
+- <strong><code>langchain-community</code>는 지원 종료 예정이라고 경고합니다.</strong> PyPI의 <code>langchain-clickhouse</code> 0.1.0은 인덱스 옵션이 없는 서드파티 패키지이고, 후속 패키지가 아닙니다.</p>
+<h3>ClickHouse Cloud</h3>
+<p>2026-10-06에 <strong>26.6.1.2292</strong> Cloud 서비스에서 <code>mcp-clickhouse</code>로
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a>을 문장별로 실행해 확인했습니다. 이 스크립트가 만든
+scratch 데이터베이스는 끝나고 지웠습니다.</p>
+<p>토크나이저:
+- <code>system.tokenizers</code>에는 <code>ngrams</code>, <code>splitByNonAlpha</code>, <code>sparseGrams</code>, <code>array</code>, <code>splitByString</code>, <code>asciiCJK</code>, <code>unicodeWord</code>(와 bloom filter 이름)가 있습니다. <code>icu</code>, <code>chinese</code>, <code>japanese</code>, <code>splitByRegexp</code>는 없습니다.
+- 이 실습의 토크나이저 중 목록에 있는 다섯 가지는 <code>tokens()</code>가 동작합니다. 그 빌드에서 <code>tokens(…, 'icu', 'ko')</code>와 <code>tokens(…, 'splitByRegexp', …)</code>는 Code 42로 실패합니다.</p>
+<p><code>02-schema.sql</code>과 똑같이 선언한 text index:</p>
+<table>
+<thead>
+<tr>
+<th>토크나이저</th>
+<th>Cloud 26.6.1.2292에서 생성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>splitByNonAlpha</code>, <code>asciiCJK</code>, <code>ngrams(2)</code>, <code>ngrams(3)</code>, <code>sparseGrams</code> (모두 <code>preprocessor = lower(b)</code>)</td>
+<td>됨</td>
+</tr>
+<tr>
+<td><code>array</code> (<code>kiwi</code> 컬럼)</td>
+<td>됨</td>
+</tr>
+<tr>
+<td><code>icu('ko')</code></td>
+<td>안 됨: <code>Code: 36. Unknown tokenizer: 'icu': When validating secondary index</code></td>
+</tr>
+<tr>
+<td><code>splitByRegexp(…, true)</code></td>
+<td>안 됨: <code>Code: 36. Unknown tokenizer: 'splitByRegexp'</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>array</code>와 <code>ngrams(2)</code> 테이블에 한 행씩 넣었고, <code>hasAnyTokens(m, ['요청서'])</code>와 <code>hasAnyTokens(b, '구매 요청서')</code>가 그 행을 찾았습니다.</li>
+<li>그래서 위에서 권장한 두 설정 <code>kiwi</code>와 <code>ngrams(2)</code>는 지금 그 서비스에서 동작합니다.</li>
+<li><code>icu</code>와 <code>splitByRegexp</code>는 더 새로운 Cloud 빌드가 필요합니다.</li>
+</ul>
+<p>임베딩:
+- <code>aiEmbed</code>는 그 서비스의 <code>system.functions</code>에 있지만 <code>allow_experimental_ai_functions</code>가 0입니다.
+- 문서는 AI 함수를 지금은 Cloud 서비스에서 쓸 수 없다고 적고 있습니다(<a href="https://clickhouse.com/docs/reference/functions/regular-functions/ai-functions">AI functions</a>, 2026-10-06 확인).
+- Cloud에서는 애플리케이션이 임베딩을 만들어 <code>Array(Float32)</code>로 넣습니다. 06단계의 <code>vector_similarity</code> 부분은 그대로입니다.</p>
+<p>그 밖에:
+- 문서는 <code>japanese</code> 토크나이저의 사전 설정을 Cloud 미지원으로 표시합니다(<a href="https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/textindexes">text index</a>, 2026-10-06 확인).
+- 다른 서비스에서 다시 확인하려면 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/cloud/tokenizer-check.sql"><code>cloud/tokenizer-check.sql</code></a>을 문장별로 실행합니다. 만든 것은 스크립트가 지웁니다. 먼저 서비스 소유자에게 묻습니다.</p>
+<h3>다루지 않는 것</h3>
+<ul>
+<li>BM25. 릴리스에 없습니다. 풀 리퀘스트 <a href="https://github.com/ClickHouse/ClickHouse/pull/117519">ClickHouse/ClickHouse#117519</a>는 2026-10-06에 열려 있었습니다.</li>
+<li>ClickHouse 안의 한국어 분석기.</li>
+<li>규모. 청크 300개로 재현율 기준의 토크나이저 차이는 갈리지만, 지연이나 하이브리드의 이득은 잴 수 없습니다. 둘 다 더 큰 코퍼스에서 열린 질문입니다.</li>
+</ul>
+<h3>작성자</h3>
+<p>Ken (ClickHouse Solution Architect) · 2026-10-06</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/korean-rag-tokenizers"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/usecase/fulltext-search/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Full-Text Search Lab with ClickHouse — Bilingual (ko/en) Support Ticket Search</span></a><a class="step next" href="../../../labs/usecase/ch-geo-analytics/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Geospatial Analytics with ClickHouse — H3 Indexing Lab</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
