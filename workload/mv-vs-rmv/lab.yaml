@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "MV와 RMV 리소스 효율성 비교"
+summary_ko: "고빈도 INSERT 환경에서 Materialized View와 Refreshable Materialized View의 part 수, 디스크 사용량, 쿼리 성능을 비교하는 테스트"
+title_en: "MV vs RMV resource efficiency comparison"
+summary_en: "Compares Materialized Views and Refreshable Materialized Views on part count, disk usage and query performance under high-frequency INSERT"
+category: core-architecture

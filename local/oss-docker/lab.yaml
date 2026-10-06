@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "ClickHouse OSS 로컬 Docker 환경"
+summary_ko: "macOS와 Linux의 Docker에서 seccomp 프로파일을 적용해 ClickHouse 버전을 지정해 띄우고 데이터를 관리하는 로컬 개발 환경"
+title_en: "Local ClickHouse OSS environment on Docker"
+summary_en: "A Docker environment for macOS and Linux with a seccomp profile, a selectable ClickHouse version, named volumes and easy cleanup"
+category: core-architecture

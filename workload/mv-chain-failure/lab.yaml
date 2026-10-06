@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "ClickHouse Materialized View 체인 장애 전파 테스트"
+summary_ko: "Materialized View 체인 중간에서 에러가 나면 데이터가 어디까지 남는지, 체인 안과 체인 사이의 부분 성공을 확인한 실험"
+title_en: "Failure Propagation in a ClickHouse Materialized View Chain"
+summary_en: "An experiment on where data survives when an error hits the middle of a Materialized View chain: partial success within and across chains."
+category: core-architecture

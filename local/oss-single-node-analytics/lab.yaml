@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "ClickHouse OSS 싱글 노드로 분석 시작하기"
+summary_ko: "소규모 팀이 ClickHouse OSS 싱글 노드로 분석을 시작하는 방법과 클러스터 및 Cloud로 넘어갈 시점을 정리한 글."
+title_en: "Starting Analytics on a Single-Node ClickHouse OSS"
+summary_en: "When a single ClickHouse OSS node is enough for small-team analytics, typical use cases, and when to move to a cluster or ClickHouse Cloud."
+category: core-architecture

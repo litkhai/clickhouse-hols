@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "ClickHouse와 Superset으로 한국 행정구역(시군구) 지도 분석"
+summary_ko: "Polygon Dictionary로 좌표를 시군구로 역지오코딩하고 Superset deck.gl로 단계구분도를 그리는 로컬 Docker 실습"
+title_en: "Korean administrative-boundary (Sigungu) map lab with ClickHouse and Superset"
+summary_en: "Reverse geocoding with a Polygon Dictionary and a deck.gl choropleth in Superset on local Docker, including the WGS84 versus UTM-K coordinate trap"
+category: case-study

@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "ClickHouse Cloud 시작하기"
+summary_ko: "ClickHouse Cloud 계정 생성부터 프로비저닝, 테이블 생성, 로그 확인까지 처음 시작하는 과정"
+title_en: "Getting Started with ClickHouse Cloud"
+summary_en: "A first walkthrough of ClickHouse Cloud: sign-up, provisioning, creating a table and checking logs."
+category: cloud

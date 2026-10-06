@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "ClickHouse MCP (feat. Claude)"
+summary_ko: "ClickHouse Cloud에 MCP 서버를 설정하고 Claude Desktop에서 자연어로 데이터를 분석하는 실습"
+title_en: "ClickHouse MCP with Claude Desktop (feat. Claude)"
+summary_en: "A walkthrough of setting up an MCP server for ClickHouse Cloud and analysing data in natural language from Claude Desktop."
+category: feature

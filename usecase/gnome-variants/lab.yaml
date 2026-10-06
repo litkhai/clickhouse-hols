@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "유전체 변이 데이터 분석 실습"
+summary_ko: "염색체 기반 파티션 전략과 인덱싱 기법을 다루며 30억 건 규모의 유전체 변이 레코드로 쿼리 성능을 측정하는 실습"
+title_en: "Genome variants analysis lab"
+summary_en: "Works with 3 billion genome variant records: chromosome-based partitioning, indexing techniques and query performance for genomics workloads"
+category: case-study

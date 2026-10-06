@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-06, owner's choice
+web: true
+title_ko: "ClickHouse Customer 360 분석 실습"
+summary_ko: "8억 건 규모의 6개월 고객 활동 데이터로 RFM, 코호트, CLV 분석과 Materialized View 최적화, RBAC·마스킹을 다루는 Customer 360 실습"
+title_en: "Customer 360 lab with ClickHouse"
+summary_en: "A Customer 360 lab on about 815 million records of six months of customer activity: RFM, cohort and CLV analysis, Materialized View tuning, RBAC and masking"
+category: case-study

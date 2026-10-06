@@ -1,7 +1,186 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-06T07:26:58Z",
+  "generated": "2026-10-06T08:11:49Z",
   "labs": [
+    {
+      "path": "chc/clickpipes-kafka",
+      "title_ko": "Clickpipes를 통한 Kafka 입수",
+      "summary_ko": "ClickHouse Cloud의 ClickPipes로 Confluent Kafka 토픽을 입수하는 과정과 Kafka 입수 방식 세 가지 비교.",
+      "title_en": "Ingesting Kafka with ClickPipes",
+      "summary_en": "Ingesting a Confluent Kafka topic into ClickHouse Cloud with ClickPipes, plus a comparison of the three ways to ingest Kafka data into ClickHouse.",
+      "category": "cloud",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-kafka/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-kafka/README.md#english"
+    },
+    {
+      "path": "chc/elasticity-idling",
+      "title_ko": "Elasticity & Ideling @ ClickHouse Cloud",
+      "summary_ko": "ClickHouse Cloud의 자동 확장과 자동 유휴 모드를 click-benchmark 부하로 확인한 실습.",
+      "title_en": "Elasticity and Idling in ClickHouse Cloud",
+      "summary_en": "Trying ClickHouse Cloud autoscaling, manual replica scaling and automatic idle mode under a clickhouse-benchmark workload.",
+      "category": "cloud",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/elasticity-idling/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/elasticity-idling/README.md#english"
+    },
+    {
+      "path": "chc/getting-started",
+      "title_ko": "ClickHouse Cloud 시작하기",
+      "summary_ko": "ClickHouse Cloud 계정 생성부터 프로비저닝, 테이블 생성, 로그 확인까지 처음 시작하는 과정",
+      "title_en": "Getting Started with ClickHouse Cloud",
+      "summary_en": "A first walkthrough of ClickHouse Cloud: sign-up, provisioning, creating a table and checking logs.",
+      "category": "cloud",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/getting-started/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/getting-started/README.md#english"
+    },
+    {
+      "path": "chc/mcp-claude-desktop",
+      "title_ko": "ClickHouse MCP (feat. Claude)",
+      "summary_ko": "ClickHouse Cloud에 MCP 서버를 설정하고 Claude Desktop에서 자연어로 데이터를 분석하는 실습",
+      "title_en": "ClickHouse MCP with Claude Desktop (feat. Claude)",
+      "summary_en": "A walkthrough of setting up an MCP server for ClickHouse Cloud and analysing data in natural language from Claude Desktop.",
+      "category": "feature",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mcp-claude-desktop/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mcp-claude-desktop/README.md#english"
+    },
+    {
+      "path": "chc/metabase",
+      "title_ko": "Metabase Pro 연동",
+      "summary_ko": "Metabase Pro에서 ClickHouse Cloud를 데이터베이스로 연결하고 질의, 대시보드, 권한 관리를 쓰는 과정을 화면과 함께 정리했습니다.",
+      "title_en": "Metabase Pro Integration with ClickHouse Cloud",
+      "summary_en": "How to connect ClickHouse Cloud to Metabase Pro as a database and use queries, dashboards and permission management, with screenshots.",
+      "category": "third-party",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/metabase/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/metabase/README.md#english"
+    },
+    {
+      "path": "chc/mysql-interface",
+      "title_ko": "ClickHouse Cloud MySQL Interface 자동 테스트",
+      "summary_ko": "ClickHouse Cloud의 MySQL Wire Protocol 호환성을 테스트 플랜에 따라 자동으로 검증하고 결과 리포트를 만드는 도구",
+      "title_en": "Automated test tool for the ClickHouse Cloud MySQL interface",
+      "summary_en": "A tool that runs a test plan automatically to check ClickHouse Cloud MySQL wire-protocol compatibility and produces a result report",
+      "category": "feature",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/mysql-interface/"
+    },
+    {
+      "path": "chc/spark-streaming-conversion",
+      "title_ko": "Spark Streaming을 ClickHouse Cloud로 전환하기",
+      "summary_ko": "Spark Structured Streaming 변환 코드를 ClickPipes 변환과 Materialized View로 옮기는 방법, 비교 결과, 함수 매핑, 체크리스트를 다룹니다.",
+      "title_en": "Spark Streaming Conversion to ClickHouse Cloud",
+      "summary_en": "Moving Spark Structured Streaming transformations to ClickPipes and Materialized Views: two architecture options, a benchmark, a function mapping and a checklist.",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/spark-streaming-conversion/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/spark-streaming-conversion/README.md#english"
+    },
+    {
+      "path": "chc/tool/costkeeper",
+      "title_ko": "CostKeeper: ClickHouse Cloud 비용 모니터링과 알림",
+      "summary_ko": "Refreshable MV 기반으로 ClickHouse Cloud 비용을 추적하고 외부 시스템으로 알림을 보내는 CostKeeper 설치와 사용 안내",
+      "title_en": "CostKeeper: ClickHouse Cloud cost monitoring and alerting",
+      "summary_en": "CostKeeper tracks ClickHouse Cloud cost with refreshable materialized views and alerts external systems; the README covers install, usage and troubleshooting",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/tool/costkeeper/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/tool/costkeeper/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/tool/costkeeper/"
+    },
+    {
+      "path": "local/kafka-mysql-table-engines",
+      "title_ko": "Kafka-MySQL 연동과 Materialized View Block Size 검증",
+      "summary_ko": "Kafka에서 ClickHouse로 pull하고 MV로 MySQL에 쓰는 환경에서 min_insert_block_size_rows와 max_block_size 설정이 적용되는지 검증",
+      "title_en": "Kafka-MySQL integration and MView block-size testing",
+      "summary_en": "A Kafka to ClickHouse to MySQL environment for checking whether min_insert_block_size_rows and max_block_size actually apply to a materialized view",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/kafka-mysql-table-engines/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/kafka-mysql-table-engines/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/kafka-mysql-table-engines/"
+    },
+    {
+      "path": "local/oss-docker",
+      "title_ko": "ClickHouse OSS 로컬 Docker 환경",
+      "summary_ko": "macOS와 Linux의 Docker에서 seccomp 프로파일을 적용해 ClickHouse 버전을 지정해 띄우고 데이터를 관리하는 로컬 개발 환경",
+      "title_en": "Local ClickHouse OSS environment on Docker",
+      "summary_en": "A Docker environment for macOS and Linux with a seccomp profile, a selectable ClickHouse version, named volumes and easy cleanup",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-docker/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-docker/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/oss-docker/"
+    },
+    {
+      "path": "local/oss-single-node-analytics",
+      "title_ko": "ClickHouse OSS 싱글 노드로 분석 시작하기",
+      "summary_ko": "소규모 팀이 ClickHouse OSS 싱글 노드로 분석을 시작하는 방법과 클러스터 및 Cloud로 넘어갈 시점을 정리한 글.",
+      "title_en": "Starting Analytics on a Single-Node ClickHouse OSS",
+      "summary_en": "When a single ClickHouse OSS node is enough for small-team analytics, typical use cases, and when to move to a cluster or ClickHouse Cloud.",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-single-node-analytics/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-single-node-analytics/README.md#english"
+    },
+    {
+      "path": "usecase/ads-analytics",
+      "title_ko": "ClickHouse 광고 성과 분석 큐브",
+      "summary_ko": "합성 광고 이벤트 1천만 행으로 조건부 집계, 근사 distinct, dictGet, AggregatingMergeTree 롤업을 실습하는 광고 성과 분석 큐브",
+      "title_en": "Ad performance analytics cube on ClickHouse",
+      "summary_en": "A hands-on ad-performance cube over 10 million synthetic events: conditional aggregation, approximate distinct, dictGet and AggregatingMergeTree roll-ups",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/ads-analytics/"
+    },
+    {
+      "path": "usecase/customer360",
+      "title_ko": "ClickHouse Customer 360 분석 실습",
+      "summary_ko": "8억 건 규모의 6개월 고객 활동 데이터로 RFM, 코호트, CLV 분석과 Materialized View 최적화, RBAC·마스킹을 다루는 Customer 360 실습",
+      "title_en": "Customer 360 lab with ClickHouse",
+      "summary_en": "A Customer 360 lab on about 815 million records of six months of customer activity: RFM, cohort and CLV analysis, Materialized View tuning, RBAC and masking",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/customer360/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/customer360/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/customer360/"
+    },
+    {
+      "path": "usecase/fulltext-search",
+      "title_ko": "Full-Text Search 기반 한/영 고객지원 티켓 검색",
+      "summary_ko": "고객지원 티켓 100만 건에서 tokenbf_v1, ngrambf_v1, text 역색인 세 가지 인덱스 전략을 한/영 혼합 검색으로 비교하는 실습",
+      "title_en": "Bilingual (ko/en) support-ticket full-text search",
+      "summary_en": "Compares the tokenbf_v1, ngrambf_v1 and GA text indexes on 1,000,000 Korean and English support tickets, showing where each helps and where it misses",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/fulltext-search/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/fulltext-search/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/fulltext-search/"
+    },
+    {
+      "path": "usecase/gnome-variants",
+      "title_ko": "유전체 변이 데이터 분석 실습",
+      "summary_ko": "염색체 기반 파티션 전략과 인덱싱 기법을 다루며 30억 건 규모의 유전체 변이 레코드로 쿼리 성능을 측정하는 실습",
+      "title_en": "Genome variants analysis lab",
+      "summary_en": "Works with 3 billion genome variant records: chromosome-based partitioning, indexing techniques and query performance for genomics workloads",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/gnome-variants/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/gnome-variants/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/gnome-variants/"
+    },
+    {
+      "path": "usecase/json-survey-consolidation",
+      "title_ko": "JSON 컬럼 활용을 위한 설문 테이블 통합",
+      "summary_ko": "설문마다 테이블을 만들던 구조를 JSON 컬럼 하나의 통합 테이블로 옮기는 과정과 쿼리 패턴을 ClickHouse Cloud에서 검증한 사례.",
+      "title_en": "Consolidating Survey Tables for a JSON Column",
+      "summary_en": "Migrating per-survey tables into one unified table with a JSON column on ClickHouse Cloud, with query patterns, MV/View use and migration steps.",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-survey-consolidation/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-survey-consolidation/README.md#english"
+    },
+    {
+      "path": "usecase/korea-geo",
+      "title_ko": "ClickHouse와 Superset으로 한국 행정구역(시군구) 지도 분석",
+      "summary_ko": "Polygon Dictionary로 좌표를 시군구로 역지오코딩하고 Superset deck.gl로 단계구분도를 그리는 로컬 Docker 실습",
+      "title_en": "Korean administrative-boundary (Sigungu) map lab with ClickHouse and Superset",
+      "summary_en": "Reverse geocoding with a Polygon Dictionary and a deck.gl choropleth in Superset on local Docker, including the WGS84 versus UTM-K coordinate trap",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korea-geo/"
+    },
     {
       "path": "usecase/korean-rag-tokenizers",
       "title_ko": "한국어 RAG 키워드 검색: 토크나이저, 형태소 컬럼, 하이브리드 검색",
@@ -16,6 +195,124 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/"
+    },
+    {
+      "path": "usecase/security-traffic-analysis",
+      "title_ko": "ClickHouse 보안 트래픽 분석 플랫폼",
+      "summary_ko": "HTTP 패킷의 실시간 PII 비식별화, 공격 패턴 자동 탐지, 취약점 재현 검증과 선택 실습 Vector Search를 다루는 보안 트래픽 분석 실습",
+      "title_en": "Security traffic analysis platform with ClickHouse",
+      "summary_en": "Real-time PII anonymization of HTTP packets, automated attack detection and vulnerability reproduction checks, plus an optional Vector Search lab",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/security-traffic-analysis/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/security-traffic-analysis/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/security-traffic-analysis/"
+    },
+    {
+      "path": "usecase/timeseries-promql-oss",
+      "title_ko": "OSS ClickHouse TimeSeries 엔진과 PromQL",
+      "summary_ko": "실험 기능인 TimeSeries 테이블 엔진과 PromQL 쿼리 방언을 자체 관리형 ClickHouse 26.8.8 컨테이너에서 실행해 확인한 실습",
+      "title_en": "TimeSeries engine and PromQL on self-managed ClickHouse",
+      "summary_en": "A hands-on lab for the experimental TimeSeries table engine and its PromQL dialect, run against a real ClickHouse 26.8.8 container",
+      "category": "feature",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/timeseries-promql-oss/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/timeseries-promql-oss/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/timeseries-promql-oss/"
+    },
+    {
+      "path": "usecase/url-webhook-slack-alert",
+      "title_ko": "url() 테이블 함수를 활용한 Webhook 기반 Slack 알림",
+      "summary_ko": "url() 테이블 함수와 Refreshable Materialized View로 ClickHouse에서 바로 Slack 알림을 보내는 방법과 한계를 정리했습니다.",
+      "title_en": "Webhook-Based Slack Alerts with the url() Table Function",
+      "summary_en": "Send Slack alerts straight from ClickHouse with the url() table function and Refreshable Materialized Views, including limits such as no retry.",
+      "category": "feature",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/url-webhook-slack-alert/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/url-webhook-slack-alert/README.md#english"
+    },
+    {
+      "path": "workload/async-insert-stress",
+      "title_ko": "Async Insert 스트레스 테스트",
+      "summary_ko": "ClickHouse Cloud에서 async insert 파라미터 조합(wait_for_async_insert 등)을 바꿔 가며 성능과 안정성을 점검하는 스트레스 테스트 SQL 모음",
+      "title_en": "Async Insert stress test",
+      "summary_en": "A stress-test suite that varies async insert parameter combinations, including wait_for_async_insert, to check performance and stability on ClickHouse Cloud",
+      "category": "cloud",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/async-insert-stress/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/async-insert-stress/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/async-insert-stress/"
+    },
+    {
+      "path": "workload/cascading-mv-ttl",
+      "title_ko": "Cascading Materialized Views와 TTL을 활용한 Data Lifecycle Management",
+      "summary_ko": "Cascading Materialized View와 TTL로 로그 데이터의 시간별·일별 집계와 보관 기간을 자동으로 관리하는 방법",
+      "title_en": "Data Lifecycle Management with Cascading Materialized Views and TTL",
+      "summary_en": "How to manage hourly and daily aggregation and retention of log data automatically with Cascading Materialized Views and TTL.",
+      "category": "case-study",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/cascading-mv-ttl/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/cascading-mv-ttl/README.md#english"
+    },
+    {
+      "path": "workload/delete-benchmark",
+      "title_ko": "DELETE 메커니즘 성능 비교",
+      "summary_ko": "ALTER TABLE DELETE, ReplacingMergeTree is_deleted, CollapsingMergeTree sign 세 가지 삭제 방식의 성능을 단계별로 측정하는 벤치마크",
+      "title_en": "ClickHouse DELETE mechanism benchmark",
+      "summary_en": "A step-by-step benchmark of three deletion approaches: ALTER TABLE DELETE, ReplacingMergeTree with is_deleted, and CollapsingMergeTree with a sign column",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/delete-benchmark/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/delete-benchmark/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/"
+    },
+    {
+      "path": "workload/kafka-partitioning-ingestion",
+      "title_ko": "Kafka 파티셔닝과 ClickHouse 정렬 키 일치 실습",
+      "summary_ko": "Kafka 파티셔닝 전략과 수집 경로(Kafka 테이블 엔진, Kafka Connect Sink)가 MergeTree의 part 단위 pruning에 미치는 영향을 EXPLAIN으로 측정",
+      "title_en": "Kafka partitioning and ClickHouse sort-key alignment",
+      "summary_en": "Measures with EXPLAIN how Kafka partitioning and the ingestion path (Kafka table engine or Kafka Connect Sink) affect part-level pruning in MergeTree",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/kafka-partitioning-ingestion/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/kafka-partitioning-ingestion/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/kafka-partitioning-ingestion/"
+    },
+    {
+      "path": "workload/mv-chain-failure",
+      "title_ko": "ClickHouse Materialized View 체인 장애 전파 테스트",
+      "summary_ko": "Materialized View 체인 중간에서 에러가 나면 데이터가 어디까지 남는지, 체인 안과 체인 사이의 부분 성공을 확인한 실험",
+      "title_en": "Failure Propagation in a ClickHouse Materialized View Chain",
+      "summary_en": "An experiment on where data survives when an error hits the middle of a Materialized View chain: partial success within and across chains.",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#english"
+    },
+    {
+      "path": "workload/mv-vs-rmv",
+      "title_ko": "MV와 RMV 리소스 효율성 비교",
+      "summary_ko": "고빈도 INSERT 환경에서 Materialized View와 Refreshable Materialized View의 part 수, 디스크 사용량, 쿼리 성능을 비교하는 테스트",
+      "title_en": "MV vs RMV resource efficiency comparison",
+      "summary_en": "Compares Materialized Views and Refreshable Materialized Views on part count, disk usage and query performance under high-frequency INSERT",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/mv-vs-rmv/"
+    },
+    {
+      "path": "workload/rbac-workloadmanagement",
+      "title_ko": "RBAC과 Workload Management 실습",
+      "summary_ko": "역할과 사용자, 행·컬럼 수준 보안, Settings Profile, Quota, Workload Scheduling을 다루는 ClickHouse RBAC 및 워크로드 관리 실습",
+      "title_en": "RBAC and workload management lab",
+      "summary_en": "Covers roles and users, row- and column-level security, settings profiles, quotas and workload scheduling in ClickHouse",
+      "category": "feature",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/rbac-workloadmanagement/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/rbac-workloadmanagement/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/rbac-workloadmanagement/"
+    },
+    {
+      "path": "workload/replacingmergetree",
+      "title_ko": "ReplacingMergeTree 정합성 지연과 FINAL",
+      "summary_ko": "ReplacingMergeTree의 중복 제거가 쓰기 시점이 아닌 merge 시점에 일어남을 FINAL 유무, OPTIMIZE FINAL, argMax 대안으로 확인하는 실습",
+      "title_en": "ReplacingMergeTree consistency lag and FINAL",
+      "summary_en": "Shows that ReplacingMergeTree deduplication happens at merge time, with and without FINAL, the cost of OPTIMIZE TABLE FINAL, and an argMax alternative",
+      "category": "core-architecture",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/replacingmergetree/"
     }
   ]
 }

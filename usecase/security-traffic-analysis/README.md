@@ -574,8 +574,146 @@ Updated: 2026-02-01
 
 ---
 
----
+### From the notes site (migrated, not verified)
 
+> Moved on 2026-10-06 from the author's notes site (clickhouse.kr); not re-run here. English is an LLM-assisted translation.
+
+#### Background: challenges in a security-testing environment
+
+Running penetration tests, red-team exercises or external security-validation programs raises a few common challenges.
+
+**1) Validation bottleneck**
+
+- Tens to hundreds of security events occur every day
+- Each event's reproducibility has to be checked by hand
+- Classifying "not reproducible" events takes a lot of time
+
+**2) Identifying anomalous traffic**
+
+- Behavior outside the test scope has to be detected
+- Malicious behavior such as bruteforce, scanners and DDoS has to be identified
+- It is hard to tell normal test activity from anomalous behavior
+
+**3) Risk of exposing sensitive data**
+
+- Real user data can end up in responses during testing
+- JWTs, API keys and personal data are stored in logs as they are
+- Compliance issues (GDPR, personal-data protection law)
+
+#### Why ClickHouse?
+
+| Feature | Use in security traffic analysis |
+| --- | --- |
+| **Very fast aggregation** | Detect threat patterns across millions of packets in real time |
+| **Column-oriented storage** | Quickly scan only specific fields such as HTTP headers or bodies |
+| **Materialized View** | Real-time anonymization, automatic aggregation pipelines |
+| **Regex functions** | Detect and mask sensitive-data patterns |
+| **TTL management** | Automatic cleanup by retention period |
+
+#### Use case 1: security-event sequence analysis and patch verification
+
+Pull the requests that belong to one event (`event_id`) in time order to rebuild the attack sequence, then compare before and after a patch to check for regressions.
+
+```sql
+-- Full request sequence of a SQL Injection event
+SELECT
+    timestamp,
+    request_method,
+    request_uri,
+    response_status,
+    substring(response_body, 1, 80) as response_preview
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+ORDER BY timestamp;
+```
+
+The note's example result: before the patch, `/api/users/1' OR '1'='1` returned 500 (SQL syntax error), and a request with `SELECT password` after a semicolon returned 200 with `password_hash` exposed; after the patch the same requests returned 400 (Invalid input).
+
+Automatic verdicts classify severity from the response body and status code.
+
+```sql
+SELECT
+    event_id,
+    count() as total_requests,
+    countIf(response_status >= 500) as server_errors,
+    countIf(response_body LIKE '%password%') as sensitive_exposed,
+
+    -- automatic verdict
+    multiIf(
+        countIf(response_body LIKE '%password%') > 0,
+            'CRITICAL - sensitive data exposed',
+        countIf(response_status >= 500) > 0,
+            'HIGH - triggers server error',
+        'LOW - needs further review'
+    ) as verdict
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+GROUP BY event_id;
+```
+
+Regression verification splits the data into phases by time and compares `vuln_triggered`.
+
+```sql
+SELECT
+    if(timestamp < now() - INTERVAL 36 HOUR,
+       '1_BEFORE_PATCH', '2_AFTER_PATCH') as phase,
+    count() as requests,
+    countIf(response_body LIKE '%password_hash%') as vuln_triggered,
+    if(countIf(response_body LIKE '%password_hash%') > 0,
+       'vulnerable', 'fixed') as status
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+GROUP BY phase
+ORDER BY phase;
+```
+
+The note's example result: in BEFORE_PATCH, 3 of 4 requests triggered the vulnerability; in AFTER_PATCH, 0 of 2.
+
+#### Use case 2: real-time detection and blocking of anomalous traffic
+
+The note scores anomaly types from traffic patterns (request count, unique endpoints, response time, error rate) and hands detected sources to a block list and WAF integration.
+
+| Type | Condition | Score |
+| --- | --- | --- |
+| BRUTEFORCE | more than 100 requests, fewer than 5 unique endpoints | 0.95 |
+| SCANNER | more than 50 unique endpoints, more than 100 requests | 0.95 |
+| EDoS | average response time over 5 s, more than 50 requests | 0.95 |
+| ENUM | more than 20 requests matching the `/users/ID` pattern | 0.90 |
+
+#### Use case 3: automatic anonymization of response data
+
+When a raw packet arrives, a Materialized View writes it to an anonymized table in real time. Identifiers (tester_id, source_ip) become SHA256 hashes, the response body is masked with regexes (JWT, API key, email and so on), and the detected PII types (`detected_pii_types`) are recorded alongside. For example `{token: eyJhbG..., email: ...}` becomes `{token: [JWT_REDACTED], email: [EMAIL_REDACTED]}`.
+
+```sql
+CREATE MATERIALIZED VIEW security_analytics.mv_anonymize_packets
+TO security_analytics.http_packets_anonymized
+AS
+SELECT
+    packet_id,
+    session_id,
+    event_id,
+    hex(SHA256(tester_id)) as tester_id_hash,
+    timestamp,
+    request_method,
+    -- ... (the response body is then masked with replaceRegexpAll)
+```
+
+#### Conclusion
+
+| Use case | How ClickHouse is used | Expected effect |
+| --- | --- | --- |
+| Security-event sequence analysis | Sequence extraction + pattern matching | 80% shorter validation time |
+| Anomalous traffic detection | Refreshable MV + scoring | Real-time blocking of anomalous behavior |
+| Response-data anonymization | Regex + real-time MV | Compliance + AI use |
+| **Vector Search** | **Embeddings + similarity search** | **Variant-attack detection + automatic duplicate-event handling** |
+
+"80% shorter validation time" is the note's stated expected effect, not a measurement.
+
+Extensions: Grafana dashboards and real-time alerts (Slack/PagerDuty); WAF integration, CI/CD integration and automated regression tests; better Vector Search, anomaly-detection models, automatic classifiers and RAG-based analysis; more data sources such as DNS query logs, TLS handshakes and application logs.
+
+The note summarizes that **Refreshable Materialized Views** let ClickHouse run periodic batch jobs without a separate scheduler, keeping the architecture simple. Adding Vector Search makes it possible to detect variant attack patterns that regexes miss, filter out duplicate events automatically, and search past security events in natural language.
+
+---
 ## 한국어
 
 ClickHouse를 활용한 보안 트래픽 분석 패킷 분석 플랫폼입니다. 실시간 PII 비식별화, 자동화된 공격 탐지, 취약점 재현 검증 기능을 제공합니다.
@@ -1143,3 +1281,142 @@ clickhouse-client --queries-file 99-cleanup.sql
 
 작성일: 2026-01-31
 업데이트: 2026-02-01
+
+### 노트 사이트에서 옮긴 내용 (이관본, 미검증)
+
+> 2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 옮겼습니다. 이 저장소에서 다시 실행하지 않았습니다. 영어본은 LLM 도움으로 번역한 것입니다.
+
+#### 배경: 보안 테스트 환경의 도전 과제
+
+침투 테스트, 레드팀 훈련, 외부 보안 검증 프로그램 등을 운영할 때 몇 가지 공통적인 도전 과제가 발생합니다.
+
+**1) 검증(Validation) 병목**
+
+- 매일 수십~수백 건의 보안 이벤트가 발생
+- 각 이벤트의 재현 가능성을 수동으로 확인해야 함
+- "재현 불가" 이벤트 분류에 많은 시간 소요
+
+**2) 이상(Anomaly) 트래픽 식별**
+
+- 테스트 범위를 벗어난 비정상 행위 탐지 필요
+- Bruteforce, Scanner, DDoS 등 악성 행위 식별
+- 정상 테스트 활동과 이상 행위 구분의 어려움
+
+**3) 민감정보 노출 위험**
+
+- 테스트 과정에서 실제 사용자 데이터가 응답에 포함될 수 있음
+- JWT, API Key, 개인정보 등이 로그에 그대로 저장됨
+- 규정 준수(GDPR, 개인정보보호법) 이슈
+
+#### 왜 ClickHouse인가?
+
+| 특징 | 보안 트래픽 분석에서의 활용 |
+| --- | --- |
+| **초고속 집계** | 수백만 패킷에서 실시간 위협 패턴 탐지 |
+| **컬럼 지향 저장** | HTTP 헤더/바디 등 특정 필드만 빠르게 스캔 |
+| **Materialized View** | 실시간 비식별화, 자동 집계 파이프라인 |
+| **정규식 함수** | 민감정보 패턴 탐지 및 마스킹 |
+| **TTL 관리** | 보존 기간에 따른 자동 데이터 정리 |
+
+#### 유즈케이스 1: 보안 이벤트 시퀀스 분석과 패치 검증
+
+한 이벤트(`event_id`)에 속한 요청을 시간순으로 뽑아 공격 시퀀스를 재구성하고, 패치 전후를 비교해 회귀를 검증합니다.
+
+```sql
+-- SQL Injection 이벤트의 전체 요청 시퀀스
+SELECT
+    timestamp,
+    request_method,
+    request_uri,
+    response_status,
+    substring(response_body, 1, 80) as response_preview
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+ORDER BY timestamp;
+```
+
+노트의 예시 결과: 패치 전에는 `/api/users/1' OR '1'='1`이 500(SQL 구문 오류)을, 세미콜론 뒤에 `SELECT password`를 붙인 요청이 200과 `password_hash` 노출을 일으켰고, 패치 후 같은 요청은 400(Invalid input)을 반환했습니다.
+
+자동 판정은 응답 본문과 상태 코드로 심각도를 분류합니다.
+
+```sql
+SELECT
+    event_id,
+    count() as total_requests,
+    countIf(response_status >= 500) as server_errors,
+    countIf(response_body LIKE '%password%') as sensitive_exposed,
+
+    -- 자동 판정
+    multiIf(
+        countIf(response_body LIKE '%password%') > 0,
+            'CRITICAL - 민감정보 노출',
+        countIf(response_status >= 500) > 0,
+            'HIGH - 서버 에러 유발',
+        'LOW - 추가 검토 필요'
+    ) as verdict
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+GROUP BY event_id;
+```
+
+패치 전후 회귀 검증은 시점으로 phase를 나눠 `vuln_triggered`를 비교합니다.
+
+```sql
+SELECT
+    if(timestamp < now() - INTERVAL 36 HOUR,
+       '1_BEFORE_PATCH', '2_AFTER_PATCH') as phase,
+    count() as requests,
+    countIf(response_body LIKE '%password_hash%') as vuln_triggered,
+    if(countIf(response_body LIKE '%password_hash%') > 0,
+       'vulnerable', 'fixed') as status
+FROM security_analytics.http_packets
+WHERE event_id = 'SEC-2024-1234'
+GROUP BY phase
+ORDER BY phase;
+```
+
+노트의 예시 결과: BEFORE_PATCH 4건 중 3건이 취약점을 일으켰고, AFTER_PATCH 2건 중 0건이었습니다.
+
+#### 유즈케이스 2: 이상 트래픽 실시간 탐지와 차단
+
+노트는 트래픽 패턴(요청 수, 고유 엔드포인트 수, 응답 시간, 에러율)으로 이상 유형을 점수화하고, 탐지된 대상을 차단 목록과 WAF 연동으로 넘기는 구조를 설명합니다.
+
+| 유형 | 조건 | 점수 |
+| --- | --- | --- |
+| BRUTEFORCE | 요청 100건 초과, 고유 엔드포인트 5개 미만 | 0.95 |
+| SCANNER | 고유 엔드포인트 50개 초과, 요청 100건 초과 | 0.95 |
+| EDoS | 평균 응답 시간 5초 초과, 요청 50건 초과 | 0.95 |
+| ENUM | `/users/ID` 패턴 요청 20건 초과 | 0.90 |
+
+#### 유즈케이스 3: 응답 데이터 자동 비식별화
+
+원본 패킷이 들어오면 Materialized View가 실시간으로 비식별화 테이블에 씁니다. 식별자(tester_id, source_ip)는 SHA256 해시로, 응답 본문은 정규식으로 마스킹(JWT, API Key, 이메일 등)하고, 탐지된 PII 유형(`detected_pii_types`)을 함께 기록합니다. 예: `{token: eyJhbG..., email: ...}`는 `{token: [JWT_REDACTED], email: [EMAIL_REDACTED]}`가 됩니다.
+
+```sql
+CREATE MATERIALIZED VIEW security_analytics.mv_anonymize_packets
+TO security_analytics.http_packets_anonymized
+AS
+SELECT
+    packet_id,
+    session_id,
+    event_id,
+    hex(SHA256(tester_id)) as tester_id_hash,
+    timestamp,
+    request_method,
+    -- ... (이하 응답 본문을 replaceRegexpAll로 마스킹)
+```
+
+#### 결론
+
+| 유즈케이스 | ClickHouse 활용 | 기대 효과 |
+| --- | --- | --- |
+| 보안 이벤트 시퀀스 분석 | 시퀀스 추출 + 패턴 매칭 | 검증 시간 80% 단축 |
+| 이상 트래픽 탐지 | Refreshable MV + 점수 기반 | 실시간 이상 행위 차단 |
+| 응답 데이터 비식별화 | 정규식 + 실시간 MV | 규정 준수 + AI 활용 |
+| **Vector Search** | **임베딩 + 유사도 검색** | **변형 공격 탐지 + 중복 이벤트 자동화** |
+
+"검증 시간 80% 단축"은 노트의 기대 효과 표기이며 측정값이 아닙니다.
+
+확장 방안: Grafana 대시보드·실시간 알림(Slack/PagerDuty), WAF 자동 연동·CI/CD 통합·회귀 테스트 자동화, Vector Search 고도화·이상 탐지 모델·자동 분류기·RAG 기반 분석, DNS 쿼리 로그·TLS 핸드셰이크·애플리케이션 로그 등 데이터 소스 추가.
+
+노트는 **Refreshable Materialized View**가 별도 스케줄러 없이 주기적 배치 작업을 ClickHouse 안에서 처리하게 해 아키텍처를 단순하게 유지한다고 정리합니다. 여기에 Vector Search를 더하면 정규식으로 잡지 못하는 변형 공격 패턴 탐지, 중복 이벤트 자동 걸러내기, 자연어 과거 이벤트 검색이 가능해집니다.

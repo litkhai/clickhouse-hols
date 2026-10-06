@@ -1,0 +1,7 @@
+# Publishing keys (tools/lab.schema.md) — migrated from the notes site 2026-10-06, not verified (no runner keys)
+web: true
+title_ko: "JSON 컬럼 활용을 위한 설문 테이블 통합"
+summary_ko: "설문마다 테이블을 만들던 구조를 JSON 컬럼 하나의 통합 테이블로 옮기는 과정과 쿼리 패턴을 ClickHouse Cloud에서 검증한 사례."
+title_en: "Consolidating Survey Tables for a JSON Column"
+summary_en: "Migrating per-survey tables into one unified table with a JSON column on ClickHouse Cloud, with query patterns, MV/View use and migration steps."
+category: case-study
