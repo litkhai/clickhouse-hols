@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-06T08:11:49Z",
+  "generated": "2026-10-06T12:17:59Z",
   "labs": [
     {
       "path": "chc/clickpipes-kafka",
@@ -195,6 +195,21 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/"
+    },
+    {
+      "path": "usecase/langfuse-on-clickhouse",
+      "title_ko": "Langfuse 없이 보는 Langfuse의 ClickHouse: 트레이스와 점수를 SQL로",
+      "summary_ko": "Langfuse v4가 ClickHouse에 쓰는 테이블(events_full, events_core, scores) 스냅샷을 일반 ClickHouse에 올려, Langfuse 없이 탐색, LLM 관측 분석, 품질 점수 SQL을 돌리는 실습 (ClickHouse 26.8.18.2)",
+      "title_en": "Langfuse's ClickHouse without Langfuse: traces and scores in SQL",
+      "summary_en": "A snapshot of the tables Langfuse v4 writes to ClickHouse (events_full, events_core, scores) in a plain ClickHouse, for the exploration, LLM-observability analytics and quality-score SQL with no Langfuse running (ClickHouse 26.8.18.2)",
+      "category": "third-party",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.8.18.2",
+      "verified_on": "26.8.18.2",
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-on-clickhouse/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-on-clickhouse/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-on-clickhouse/"
     },
     {
       "path": "usecase/security-traffic-analysis",

@@ -3,7 +3,7 @@
 Repository health snapshot. Regenerate the numbers with the commands in each
 section rather than trusting the date at the top.
 
-**As of 2026-10-06 (notes-site migration)** — 11 labs moved in from the author's notes site, Korean as written plus an LLM-assisted English translation, each opening with a "migrated, not verified" banner and carrying publishing keys only (no runner keys, no verification claim): `chc/{getting-started,mcp-claude-desktop,clickpipes-kafka,elasticity-idling,metabase,spark-streaming-conversion}`, `local/oss-single-node-analytics`, `usecase/{json-survey-consolidation,url-webhook-slack-alert}`, `workload/{cascading-mv-ttl,mv-chain-failure}`. 17 existing labs gained publishing keys, and `usecase/customer360` and `usecase/security-traffic-analysis` a migrated subsection with the notes the README lacked. `docs/labs.json`: 29 labs. Screenshots with a service host or a personal path were pixelated or left out. Before that, **as of 2026-10-06** — `usecase/korean-rag-tokenizers` added, the first lab outside `local/releases` with a runner `lab.yaml` (T0), and the first published to the notes site (`web: true`, `case-study`). As of 2026-10-03, `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
+**As of 2026-10-06 (langfuse-on-clickhouse)** — `usecase/langfuse-on-clickhouse` added (#7): a T0 lab on a committed snapshot of Langfuse v4's ClickHouse tables, published to the notes site (`third-party`). Before that, **as of 2026-10-06 (notes-site migration)** — 11 labs moved in from the author's notes site, Korean as written plus an LLM-assisted English translation, each opening with a "migrated, not verified" banner and carrying publishing keys only (no runner keys, no verification claim): `chc/{getting-started,mcp-claude-desktop,clickpipes-kafka,elasticity-idling,metabase,spark-streaming-conversion}`, `local/oss-single-node-analytics`, `usecase/{json-survey-consolidation,url-webhook-slack-alert}`, `workload/{cascading-mv-ttl,mv-chain-failure}`. 17 existing labs gained publishing keys, and `usecase/customer360` and `usecase/security-traffic-analysis` a migrated subsection with the notes the README lacked. `docs/labs.json`: 29 labs. Screenshots with a service host or a personal path were pixelated or left out. Before that, **as of 2026-10-06** — `usecase/korean-rag-tokenizers` added, the first lab outside `local/releases` with a runner `lab.yaml` (T0), and the first published to the notes site (`web: true`, `case-study`). As of 2026-10-03, `docs/labs.json` added: the notes-site export written by `build_site.py`, 0 labs published (none sets `web: true`). Before that, as of 2026-09-27: repository split done (see [MOVED.md](MOVED.md)), `local/oss-mac-setup` renamed to `local/oss-docker`, `tools/hol` runner and `smoke` workflow added. All checks green locally.
 
 ---
 
@@ -11,9 +11,9 @@ section rather than trusting the date at the top.
 
 | Job | State | Notes |
 |-----|-------|-------|
-| `links` | ✅ | 160 markdown files, every relative link resolves (local, 2026-10-06) |
-| `syntax` | ✅ | 204 shell, 68 python, 39 yaml files parse (local, 2026-10-06) |
-| `site` | ✅ | `docs/` matches 21 releases + 39 labs = 60 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (1 published: `usecase/korean-rag-tokenizers`); 87 files on 2026-10-06, local `build_site.py --check` (86 on 2026-10-03) |
+| `links` | ✅ | 172 markdown files, every relative link resolves (local, 2026-10-06) |
+| `syntax` | ✅ | 204 shell, 69 python, 68 yaml files parse (local, 2026-10-06) |
+| `site` | ✅ | `docs/` matches 21 releases + 40 labs = 61 lab pages, plus 19 redirects from [MOVED.md](MOVED.md) and `labs.json` (30 published); 88 files on 2026-10-06, local `build_site.py --check` |
 | `hygiene` | ✅ | no shadowed tracked files, no `/Users/` paths, no TF state |
 | `secrets` | ✅ | gitleaks, `.gitleaks.toml` rules |
 | `smoke` | ✅ manual | every T0 lab via `tools/hol`, started by hand. Last full run: 20/20 T0 labs pass ([run 36706392271](https://github.com/litkhai/clickhouse-hols/actions/runs/36706392271) on `ed625f8`, 2026-09-30). The monthly schedule only runs the stub-expiry check (last 2026-10-01, pass). `local/releases/25.8` is T1, so not in it |
@@ -32,14 +32,14 @@ gitleaks detect --config .gitleaks.toml --no-banner --redact
 
 ## Inventory
 
-39 indexed labs plus 21 per-release labs. Counts are rows in the **English**
+40 indexed labs plus 21 per-release labs. Counts are rows in the **English**
 area tables of `README.md`:
 
 | Area | Labs |
 |------|-----:|
 | `chc/` — ClickHouse Cloud integrations | 7 |
 | `local/` — local environments | 8 |
-| `usecase/` | 13 |
+| `usecase/` | 14 |
 | `workload/` | 11 |
 | `local/releases/` — per-release feature labs | 21 |
 
@@ -110,7 +110,6 @@ Tracked as issues — [all open](https://github.com/litkhai/clickhouse-hols/issu
 
 - [Confirm Cloud credentials exposed before the 2026-09-07 rewrite were rotated](https://github.com/litkhai/clickhouse-hols/issues/4)
 - [Shared ClickHouse Cloud provisioning module (track E)](https://github.com/litkhai/clickhouse-hols/issues/6)
-- [Langfuse on ClickHouse without Langfuse (track G)](https://github.com/litkhai/clickhouse-hols/issues/7)
 - [Move the LibreChat labs to llmops-in-a-box (track H)](https://github.com/litkhai/clickhouse-hols/issues/8)
 - [Re-run usecase/device-360 scripts](https://github.com/litkhai/clickhouse-hols/issues/10)
 - [Delete the MOVED.md stub directories after 2027-03-31 (track J)](https://github.com/litkhai/clickhouse-hols/issues/12)

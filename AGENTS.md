@@ -14,7 +14,7 @@ committing** — it holds the couplings that have already broken `main`. The sho
   table, and the regenerated, committed `docs/` (`python3 .github/scripts/build_site.py`).
 - Never link to a lab that does not exist yet; the `links` job fails. Use a code span.
 - Before committing: `check_links.py`, `check_syntax.sh`, `build_site.py --check`.
-- `tools/hol run <lab>` runs a lab that has a `lab.yaml` (the 21 release labs and `usecase/korean-rag-tokenizers`; 21 are tier T0 and run in `smoke`, 25.8 is T1 — needs MinIO).
+- `tools/hol run <lab>` runs a lab that has a `lab.yaml` (the 21 release labs, `usecase/korean-rag-tokenizers` and `usecase/langfuse-on-clickhouse`; 22 are tier T0 and run in `smoke`, 25.8 is T1 — needs MinIO).
 - A lab reaches the notes site only when its `lab.yaml` sets `web: true` with `title_ko`, `summary_ko`, `category` (`tools/lab.schema.md`). `build_site.py` writes `docs/labs.json`; the `site` job checks it. Never set `web` without the owner's choice for that lab.
 
 ## 한국어 요약

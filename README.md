@@ -62,6 +62,7 @@ and [MOVED.md](MOVED.md).
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: Cloud performance validation at billions of rows |
 | [usecase/fulltext-search](usecase/fulltext-search/) | Bilingual (ko/en) full-text search over support tickets |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | Korean keyword search for RAG: text-index tokenizers, a Kiwi morpheme column, hybrid retrieval (OSS 26.9) |
+| [usecase/langfuse-on-clickhouse](usecase/langfuse-on-clickhouse/) | Langfuse's ClickHouse tables without Langfuse: a v4 snapshot and the langfuse-hols trace, analytics and score SQL (OSS 26.8) |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | Geospatial analytics with H3 indexing |
 | [usecase/korea-geo](usecase/korea-geo/) | Korean administrative boundaries with Superset |
 | [usecase/gnome-variants](usecase/gnome-variants/) | Genome variant analysis |
@@ -274,6 +275,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: 수십억 행 규모 Cloud 성능 검증 |
 | [usecase/fulltext-search](usecase/fulltext-search/) | 한/영 이중 언어 지원 티켓 전문 검색 |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | 한국어 RAG 키워드 검색: text index 토크나이저, Kiwi 형태소 컬럼, 하이브리드 검색 (OSS 26.9) |
+| [usecase/langfuse-on-clickhouse](usecase/langfuse-on-clickhouse/) | Langfuse 없이 보는 Langfuse의 ClickHouse 테이블: v4 스냅샷과 langfuse-hols의 trace, 분석, 점수 SQL (OSS 26.8) |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | H3 인덱싱 기반 공간 분석 |
 | [usecase/korea-geo](usecase/korea-geo/) | 한국 행정경계(시군구) + Superset |
 | [usecase/gnome-variants](usecase/gnome-variants/) | 유전체 변이 분석 |
