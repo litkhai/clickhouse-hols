@@ -22,11 +22,19 @@ RESULTS_DIR="$PROJECT_DIR/results"
 mkdir -p "$RESULTS_DIR"
 RESULTS_FILE="$RESULTS_DIR/query_benchmark_$(date +%Y%m%d_%H%M%S).md"
 
+# Header values are read from the service, not hard-coded
+ch_value() {
+    clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
+        --query="$1" 2>/dev/null || echo "unknown"
+}
+CURRENT_VCPU=$(ch_value "SELECT value FROM system.settings WHERE name = 'max_threads'")
+TOTAL_ROWS=$(ch_value "SELECT formatReadableQuantity(count()) FROM device360.ad_requests")
+
 echo "# Device360 Query Benchmark Results" > $RESULTS_FILE
 echo "" >> $RESULTS_FILE
 echo "**Test Date**: $(date)" >> $RESULTS_FILE
-echo "**vCPU Scale**: 32" >> $RESULTS_FILE
-echo "**Total Rows**: 448,000,000" >> $RESULTS_FILE
+echo "**vCPU Scale**: $CURRENT_VCPU" >> $RESULTS_FILE
+echo "**Total Rows**: $TOTAL_ROWS" >> $RESULTS_FILE
 echo "**Test Device ID**: $DEVICE_ID" >> $RESULTS_FILE
 echo "" >> $RESULTS_FILE
 echo "---" >> $RESULTS_FILE
@@ -152,6 +160,7 @@ echo "" >> $RESULTS_FILE
 echo "**Benchmark completed at**: $(date)" >> $RESULTS_FILE
 
 echo ""
-echo "========================================" echo "Query Benchmark Complete!"
+echo "========================================"
+echo "Query Benchmark Complete!"
 echo "Results saved to: $RESULTS_FILE"
 echo "========================================"
