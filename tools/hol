@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# Generated from khai-workbench domains/clickhouse/tools/hol @cb8d56a — edit there, not here (sync.py).
+# Generated from khai-workbench domains/clickhouse/tools/hol @3f80d0b — edit there, not here (sync.py).
 """hol — run hands-on labs against a throwaway ClickHouse container.
 
-Needs only Python 3 and Docker, so it behaves the same on macOS, Linux and
-Windows. Labs opt in with a lab.yaml next to their README.
+Needs only Python 3 and Docker; run on macOS and Linux. Labs opt in with a
+lab.yaml next to their README.
 
     tools/hol list [--tier T0] [--json]
     tools/hol up   <lab>        start the lab's ClickHouse version
