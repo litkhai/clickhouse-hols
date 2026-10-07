@@ -462,6 +462,7 @@ The Device360 PoC successfully demonstrates production-ready performance on Clic
 ---
 
 **Test Completed**: December 12, 2025
+**SQL re-checked**: October 7, 2026 on ClickHouse Cloud 26.6.1 — `sql/02`–`03` and all 50 statements in `queries/` over 1M synthetic rows; three queries that no longer parsed were fixed. The generator, S3 ingestion and benchmark scripts were not re-run, and the numbers above are from the December 2025 run.
 **Status**: Production-ready ✅
 **Documentation Version**: 1.0
 
