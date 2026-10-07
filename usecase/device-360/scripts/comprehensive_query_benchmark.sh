@@ -38,12 +38,14 @@ get_vcpu_scale() {
 }
 
 CURRENT_VCPU=$(get_vcpu_scale)
+TOTAL_ROWS=$(clickhouse client --host=${CLICKHOUSE_HOST} --user=${CLICKHOUSE_USER} --password=${CLICKHOUSE_PASSWORD} --secure \
+    --query="SELECT formatReadableQuantity(count()) FROM device360.ad_requests" 2>/dev/null || echo "unknown")
 
 echo "# Comprehensive Query Benchmark Results" > $RESULTS_FILE
 echo "" >> $RESULTS_FILE
 echo "**Test Date**: $(date)" >> $RESULTS_FILE
 echo "**vCPU Scale**: $CURRENT_VCPU" >> $RESULTS_FILE
-echo "**Total Rows**: 448,000,000" >> $RESULTS_FILE
+echo "**Total Rows**: $TOTAL_ROWS" >> $RESULTS_FILE
 echo "**Index**: Bloom filter on device_id + ORDER BY (device_id, event_date, event_ts)" >> $RESULTS_FILE
 echo "" >> $RESULTS_FILE
 echo "---" >> $RESULTS_FILE
