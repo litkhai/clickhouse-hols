@@ -18,13 +18,15 @@ Complete end-to-end validation of Device360 pattern on ClickHouse Cloud with 300
 usecase/device-360/
 ├── README.md                          # This file
 ├── scripts/
-│   ├── generate_with_persistence.py   # Data generator (500M rows with time persistence)
+│   ├── generate_with_persistence.py   # Benchmark-track generator (500M rows with time persistence, to S3)
+│   ├── generate_data.py               # Query-suite generator (local gzipped JSON)
 │   ├── run_query_benchmark.sh         # Basic query benchmark script
 │   └── comprehensive_query_benchmark.sh # Concurrency testing script
 ├── sql/
 │   ├── 01_create_database.sql         # Database setup
-│   ├── 02_create_main_table.sql       # Main table schema
-│   └── 03_create_materialized_views.sql # Materialized views
+│   ├── 02_create_main_table.sql       # Query-suite table (29 columns)
+│   ├── 02b_create_benchmark_table.sql # Benchmark table (12 columns)
+│   └── 03_create_materialized_views.sql # Materialized views (query suite)
 ├── queries/
 │   ├── 01_device_journey_queries.sql  # Sample Device360 queries
 │   ├── 02_aggregation_queries.sql     # Aggregation queries
@@ -131,6 +133,17 @@ CROSS JOIN (SELECT number as replica_num FROM numbers(9)) AS replicas
 ---
 
 ## Table Schema
+
+The lab has two shapes of `device360.ad_requests`. They share the table name, so one database holds one of them:
+
+| Track | Table | Generator | Queries |
+|---|---|---|---|
+| Benchmark: the 4.48B-row run reported here | [`sql/02b_create_benchmark_table.sql`](sql/02b_create_benchmark_table.sql), 12 columns | `scripts/generate_with_persistence.py` (to S3) | `scripts/run_query_benchmark.sh`, `scripts/comprehensive_query_benchmark.sh` |
+| Query suite: the [test plan](device360-test-plan.md) | [`sql/02_create_main_table.sql`](sql/02_create_main_table.sql), 29 columns | `scripts/generate_data.py` (local files) | `sql/03_create_materialized_views.sql`, `queries/01`–`04` |
+
+Loading one track's files into the other track's table does not fail by default: JSONEachRow skips unknown fields and leaves the missing columns empty. Set `input_format_skip_unknown_fields = 0` to make a mismatch an error (checked both ways on ClickHouse 26.9.6.6). `scripts/ec2_generate_and_upload.py` writes the 12 benchmark fields plus 21 more, which the benchmark table drops this way.
+
+The benchmark table, as used for the results below:
 
 ```sql
 CREATE TABLE device360.ad_requests (
@@ -329,22 +342,30 @@ ORDER BY event_date
 
 ## Testing Scripts
 
+Pick one track from [Table Schema](#table-schema) and use its generator, table and queries together.
+
 ### 1. Data Generation
 ```bash
 cd scripts/
+# Benchmark track (12 columns)
 python3 generate_with_persistence.py
 # Output: 500M rows → S3 (streaming upload)
 # Duration: ~6 hours on c6i.4xlarge
+
+# Query-suite track (29 columns): records and devices as arguments, files under DATA_OUTPUT_DIR
+DATA_OUTPUT_DIR=./data python3 generate_data.py 20000 500
 ```
 
 ### 2. Table Setup
 ```bash
 cd sql/
-# Create database and table
 clickhouse client < 01_create_database.sql
-clickhouse client < 02_create_main_table.sql
 
-# Create the materialized views
+# Benchmark track
+clickhouse client < 02b_create_benchmark_table.sql
+
+# Query-suite track: table, then the materialized views
+clickhouse client < 02_create_main_table.sql
 clickhouse client < 03_create_materialized_views.sql
 ```
 
@@ -413,14 +434,16 @@ cd scripts/
 ## Files Reference
 
 ### Scripts
-- [scripts/generate_with_persistence.py](scripts/generate_with_persistence.py) - Data generator with time persistence
+- [scripts/generate_with_persistence.py](scripts/generate_with_persistence.py) - Benchmark-track generator with time persistence
+- [scripts/generate_data.py](scripts/generate_data.py) - Query-suite generator
 - [scripts/run_query_benchmark.sh](scripts/run_query_benchmark.sh) - Basic query benchmark
 - [scripts/comprehensive_query_benchmark.sh](scripts/comprehensive_query_benchmark.sh) - Concurrency testing
 
 ### SQL
 - [sql/01_create_database.sql](sql/01_create_database.sql) - Database setup
-- [sql/02_create_main_table.sql](sql/02_create_main_table.sql) - Table schema
-- [sql/03_create_materialized_views.sql](sql/03_create_materialized_views.sql) - Materialized views
+- [sql/02_create_main_table.sql](sql/02_create_main_table.sql) - Query-suite table (29 columns)
+- [sql/02b_create_benchmark_table.sql](sql/02b_create_benchmark_table.sql) - Benchmark table (12 columns)
+- [sql/03_create_materialized_views.sql](sql/03_create_materialized_views.sql) - Materialized views (query suite)
 
 ### Results
 - [REPORT_KOR.md](REPORT_KOR.md) - **⭐ Main results document (Korean)**
@@ -462,7 +485,7 @@ The Device360 PoC successfully demonstrates production-ready performance on Clic
 ---
 
 **Test Completed**: December 12, 2025
-**SQL re-checked**: October 7, 2026 on ClickHouse Cloud 26.6.1 — `sql/02`–`03` and all 50 statements in `queries/` over 1M synthetic rows; three queries that no longer parsed were fixed. The generator, S3 ingestion and benchmark scripts were not re-run, and the numbers above are from the December 2025 run.
+**SQL re-checked**: October 7, 2026 on ClickHouse Cloud 26.6.1 — `sql/02`–`03` and all 50 statements in `queries/` over 1M synthetic rows; three queries that no longer parsed were fixed. The same day on local ClickHouse 26.9.6.6: `generate_data.py` (20k rows) → `sql/02`–`03` → all 50 `queries/` statements, and the query strings of both benchmark scripts against `sql/02b`. `generate_with_persistence.py`, S3 ingestion and the benchmark runs themselves were not re-run, and the numbers above are from the December 2025 run.
 **Status**: Production-ready ✅
 **Documentation Version**: 1.0
 
