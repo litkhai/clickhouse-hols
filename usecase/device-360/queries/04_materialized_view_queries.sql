@@ -15,7 +15,7 @@ SELECT
     uniqMerge(unique_ips) as unique_ips,
     uniqMerge(unique_countries) as unique_countries,
     avgMerge(avg_fraud_score_ifa) as avg_fraud_score_ifa,
-    dateDiff('day', minMerge(first_seen), maxMerge(last_seen)) as lifetime_days
+    dateDiff('day', first_seen, last_seen) as lifetime_days  -- the aliases above, already merged
 FROM device360.device_profiles
 WHERE device_id = 'e68bfaae-4981-4f64-b67b-0108daa2f896'
 GROUP BY device_id;
@@ -241,7 +241,7 @@ ORDER BY total_requests DESC;
 SELECT
     'device_profiles' as view_name,
     count() as row_count,
-    max(maxMerge(last_seen)) as latest_update
+    maxMerge(last_seen) as latest_update
 FROM device360.device_profiles
 
 UNION ALL

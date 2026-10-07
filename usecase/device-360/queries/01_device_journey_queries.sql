@@ -60,19 +60,27 @@ ORDER BY event_ts;
 -- Test 1.4: Device Session Summary
 -- Target: < 1 second
 -- Aggregates session-level metrics
-WITH sessions AS (
+-- The gap is computed one level down: a window function cannot sit inside another
+WITH gaps AS (
     SELECT
         device_id,
         event_ts,
         app_name,
-        sum(if(dateDiff('minute',
-               lagInFrame(event_ts) OVER (PARTITION BY device_id ORDER BY event_ts),
-               event_ts) > 30 OR
-               lagInFrame(event_ts) OVER (PARTITION BY device_id ORDER BY event_ts) IS NULL,
-            1, 0)) OVER (PARTITION BY device_id ORDER BY event_ts) as session_id
+        dateDiff('minute',
+                 lagInFrame(event_ts) OVER (PARTITION BY device_id ORDER BY event_ts),
+                 event_ts) as gap_minutes
     FROM device360.ad_requests
     WHERE device_id = 'e68bfaae-4981-4f64-b67b-0108daa2f896'
       AND event_date >= today() - 7
+),
+sessions AS (
+    SELECT
+        device_id,
+        event_ts,
+        app_name,
+        sum(if(gap_minutes > 30 OR gap_minutes IS NULL, 1, 0))
+            OVER (PARTITION BY device_id ORDER BY event_ts) as session_id
+    FROM gaps
 )
 SELECT
     session_id,
