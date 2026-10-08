@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Langfuse, 그리고 ClickHouse: LLM 옵저버빌리티 데이터 스택 해부](https://clickhouse.litkhai.dev/articles/third-party/langfuse-clickhouse-llm/) · [Langfuse 중심 기능 - 모델 관제 및 평가](https://clickhouse.litkhai.dev/articles/third-party/langfuse/)
+
 [Langfuse](https://langfuse.com) (open-source LLM observability) keeps its OLTP state in
 Postgres, but every observation and score lands in ClickHouse. This lab loads a snapshot of that
 ClickHouse database into a plain ClickHouse server and runs the ClickHouse SQL from the
@@ -104,6 +106,8 @@ The generator writes byte-identical output for the same data and `--date`.
 ---
 
 ## 한국어
+
+> **관련 글**: [Langfuse, 그리고 ClickHouse: LLM 옵저버빌리티 데이터 스택 해부](https://clickhouse.litkhai.dev/articles/third-party/langfuse-clickhouse-llm/) · [Langfuse 중심 기능 - 모델 관제 및 평가](https://clickhouse.litkhai.dev/articles/third-party/langfuse/)
 
 [Langfuse](https://langfuse.com)(오픈소스 LLM 관측 도구)는 OLTP 상태를 Postgres에 두지만,
 모든 observation과 score는 ClickHouse에 쌓입니다. 이 실습은 그 ClickHouse 데이터베이스의

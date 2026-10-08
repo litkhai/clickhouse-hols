@@ -22,8 +22,8 @@ that had a site page gets a redirect page there.
 | `chc/tool/ch2otel` | https://github.com/litkhai/clickstack-hyperdx-hols/tree/main/labs/ch2otel |
 | `workshop/o11y-vector-ai` | https://github.com/litkhai/clickstack-hyperdx-hols/tree/main/workshops/o11y-vector-ai |
 | `workshop/observability-waf` | https://github.com/litkhai/clickstack-hyperdx-hols/tree/main/workshops/observability-waf |
-| `usecase/langfuse-ee` | https://github.com/litkhai/langfuse-hols/tree/main/labs/langfuse-ee |
-| `usecase/langfuse-eval` | https://github.com/litkhai/langfuse-hols/tree/main/labs/langfuse-eval |
+| `usecase/langfuse-ee` | https://github.com/litkhai/langfuse-hols/tree/main/labs/v4/langfuse-ee |
+| `usecase/langfuse-eval` | https://github.com/litkhai/langfuse-hols/tree/main/labs/v4/langfuse-eval |
 | `chc/kafka/terraform-confluent-aws` | https://github.com/litkhai/clickhouse-cloud-aws-hols/tree/main/labs/kafka/terraform-confluent-aws |
 | `chc/kafka/terraform-confluent-aws-nlb-ssl` | https://github.com/litkhai/clickhouse-cloud-aws-hols/tree/main/labs/kafka/terraform-confluent-aws-nlb-ssl |
 | `chc/kafka/terraform-confluent-aws-connect-sink` | https://github.com/litkhai/clickhouse-cloud-aws-hols/tree/main/labs/kafka/terraform-confluent-aws-connect-sink |

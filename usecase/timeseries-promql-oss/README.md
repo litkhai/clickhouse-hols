@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Alternative Query Languages (대체 쿼리 지원)](https://clickhouse.litkhai.dev/articles/feature/alternative-query-languages/) · [Tesla: ClickHouse 기반 플랫폼 'Comet'](https://clickhouse.litkhai.dev/articles/customer-story/tesla-clickhouse-comet/)
+
 A hands-on lab for ClickHouse's `TimeSeries` table engine and its PromQL query
 dialect — both still experimental, both changing release to release, and
 both barely documented beyond "here is the flag name". This lab was built by
@@ -139,6 +141,8 @@ To see the second and third points on a preview service, run
 ---
 
 ## 한국어
+
+> **관련 글**: [Alternative Query Languages (대체 쿼리 지원)](https://clickhouse.litkhai.dev/articles/feature/alternative-query-languages/) · [Tesla: ClickHouse 기반 플랫폼 'Comet'](https://clickhouse.litkhai.dev/articles/customer-story/tesla-clickhouse-comet/)
 
 ClickHouse의 `TimeSeries` 테이블 엔진과 그 위에서 동작하는 PromQL 쿼리 dialect를
 직접 실행해보는 실습입니다. 둘 다 아직 실험적 기능이고 릴리스마다 계속 바뀌며,

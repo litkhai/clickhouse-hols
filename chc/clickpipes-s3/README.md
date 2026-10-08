@@ -1,5 +1,7 @@
 # ClickPipes S3 Checkpoint Test Suite
 
+> **Related notes · 관련 글**: [ClickPipes 소개](https://clickhouse.litkhai.dev/articles/cloud/clickpipes/)
+
 S3 ClickPipe의 Pause/Resume 시 체크포인트 동작을 검증하기 위한 자동화된 테스트 스위트입니다.
 
 ## 테스트 목적

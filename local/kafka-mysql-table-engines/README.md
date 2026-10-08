@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Too Many Parts와 Async Insert](https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/)
+
 *English translation of the Korean original, LLM-assisted (2026-10-06).*
 
 An integrated environment that pulls data from Kafka into ClickHouse and automatically transforms it into MySQL through a Materialized View. You can verify whether MView settings such as `min_insert_block_size_rows` and `max_block_size` are actually applied.
@@ -423,6 +425,8 @@ Expected: multiple batch INSERTs occur, and the block size can be checked in `qu
 ---
 
 ## 한국어
+
+> **관련 글**: [Too Many Parts와 Async Insert](https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/)
 
 Kafka에서 ClickHouse로 데이터를 pull하고, Materialized View를 통해 MySQL로 자동 변환하는 통합 환경입니다. MView의 `min_insert_block_size_rows`, `max_block_size` 등의 설정이 실제로 적용되는지 검증할 수 있습니다.
 

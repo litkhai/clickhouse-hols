@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>ClickHouse Index Granularity Point Query Benchmark</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/">Primary Index 와  ORDER BY 설계</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/point-query-index-granularity/">Point Query 를 위한 Index Granularity 조정</a> · <a href="https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/">MySQL 마이그레이션시 Point Query 성능 극대화</a></p>
+</blockquote>
 <p>A comprehensive benchmark test suite for comparing ClickHouse index_granularity settings and their impact on point query performance.</p>
 <h3>🎯 Purpose</h3>
 <p>This lab provides practical experience testing different index_granularity values in ClickHouse:
@@ -341,7 +344,10 @@ WHERE player_id IN (10, 100, 1000, 10000, 100000)
 <p>Ken (ClickHouse Solution Architect)
 Created: 2025-12-25</p>
 <hr /></div>
-  <div class="readme ko"><p>ClickHouse의 index_granularity 설정을 비교하고 point query 성능에 미치는 영향을 측정하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/">Primary Index 와  ORDER BY 설계</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/point-query-index-granularity/">Point Query 를 위한 Index Granularity 조정</a> · <a href="https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/">MySQL 마이그레이션시 Point Query 성능 극대화</a></p>
+</blockquote>
+<p>ClickHouse의 index_granularity 설정을 비교하고 point query 성능에 미치는 영향을 측정하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
 <h3>🎯 목적</h3>
 <p>이 랩은 ClickHouse의 다양한 index_granularity 값을 테스트하는 실무 경험을 제공합니다:
 - <strong>Granularity 256</strong> - 정확한 point query에 최적화

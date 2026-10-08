@@ -1,5 +1,7 @@
 # ClickHouse Deduplication Test Suite
 
+> **Related notes · 관련 글**: [ClickHouse Refreshable Materialized View](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-refreshable-materialized-view/) · [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/) · [Too Many Parts와 Async Insert](https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/) · [ClickHouse의 FINAL 키워드](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-final/)
+
 ClickHouse의 다양한 테이블 엔진과 Insert 패턴별 Deduplication 효과를 테스트하는 실행 가능한 테스트 스위트입니다.
 
 ## 📋 테스트 개요

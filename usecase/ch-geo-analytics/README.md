@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse의 PostGIS 대체 가능성](https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/)
+
 A hands-on, end-to-end laboratory for geospatial analytics on ClickHouse, centered on **H3 hexagonal indexing**. Built around a synthetic 5 million-trip NYC ride-hailing dataset, it walks you through every geo primitive ClickHouse ships with — hex indexing, distance calculations, point-in-polygon, k-ring neighbor search, polygon-to-hex coverage, side-by-side comparison with Geohash and S2, and real-time aggregation via `AggregatingMergeTree` + Materialized Views.
 
 ### 🎯 Why this lab
@@ -243,6 +245,8 @@ For questions, see the main [clickhouse-hols README](../../README.md).
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse의 PostGIS 대체 가능성](https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/)
 
 ClickHouse에서 지리정보 분석을 위한 종단간 실습 환경입니다. 핵심은 **H3 육각 인덱싱**이며, 합성된 NYC 라이드 헤일링 트립 500만 건을 사용해 ClickHouse가 기본 제공하는 지리 함수 전반 — hex 인덱싱, 거리 계산, 점-폴리곤 포함, k-ring 이웃 검색, 폴리곤→hex 변환, Geohash/S2와의 비교, `AggregatingMergeTree` + Materialized View를 통한 실시간 집계 — 을 모두 다룹니다.
 

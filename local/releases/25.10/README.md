@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse에서의 JOIN 기능 발전 연대기](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-join/) · [ClickHouse 26.2 QBit: 쿼리 시점에 정밀도를 고르는 벡터 데이터 타입](https://clickhouse.litkhai.dev/articles/feature/clickhouse-26-2-qbit/)
+
 A hands-on laboratory for learning and testing ClickHouse 25.10 new features. This directory focuses on verified and working features newly added in ClickHouse 25.10 (released 2025-10-30).
 
 ### 📋 Overview
@@ -289,6 +291,8 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse에서의 JOIN 기능 발전 연대기](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-join/) · [ClickHouse 26.2 QBit: 쿼리 시점에 정밀도를 고르는 벡터 데이터 타입](https://clickhouse.litkhai.dev/articles/feature/clickhouse-26-2-qbit/)
 
 ClickHouse 25.10 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 10월 30일 출시된 ClickHouse 25.10에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 

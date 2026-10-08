@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse의 PostGIS 대체 가능성](https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/)
+
 A hands-on lab that implements **coordinate → district reverse geocoding** (ClickHouse Polygon Dictionary) and a **deck.gl Polygon choropleth** (Superset) entirely on local Docker. It demonstrates the full pipeline where **ClickHouse classifies & aggregates** and **Superset visualizes**, and ends with a weather-station dashboard that overlays 3,000 points on per-district aggregates.
 
 > **Key trap:** ClickHouse geo functions (`pointInPolygon`, `geoToH3`, polygon dictionary) assume **WGS84 longitude/latitude in degrees (EPSG:4326)**. Feeding EPSG:5179 (UTM-K, meters) coordinates produces a **silently wrong result with no error**. So data must be loaded in 4326.
@@ -187,6 +189,8 @@ docker compose down -v         # also drop volumes (ClickHouse data + Superset m
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse의 PostGIS 대체 가능성](https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/)
 
 좌표 → 시군구 **리버스 지오코딩**(ClickHouse Polygon Dictionary)과 **deck.gl Polygon choropleth**(Superset)를 전부 로컬 Docker에서 구현한 핸즈온 랩. **ClickHouse가 분류·집계**하고 **Superset이 시각화**하는 풀 파이프라인을 보여주며, 마지막엔 관측소 3,000개 포인트를 시군구별 집계 위에 오버레이한 대시보드까지 만든다.
 

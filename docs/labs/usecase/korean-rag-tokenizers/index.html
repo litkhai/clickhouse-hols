@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/">ClickHouse의 INDEX 개념</a> · <a href="https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/">ClickHouse Vector Search (25.8)</a></p>
+</blockquote>
 <p>In a RAG stack on ClickHouse the vector half does not care about the language: Korean quality
 comes from the embedding model. The keyword half does care, and ClickHouse has no Korean analyser
 (nothing like nori or mecab-ko). This lab measures what each text-index tokenizer gets right and
@@ -537,7 +540,10 @@ creates was dropped afterwards.</p>
 <h3>Author</h3>
 <p>Ken (ClickHouse Solution Architect) · 2026-10-06</p>
 <hr /></div>
-  <div class="readme ko"><p>ClickHouse 위의 RAG에서 벡터 쪽은 언어를 가리지 않습니다. 한국어 품질은 임베딩 모델이 결정합니다. 언어를
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/">ClickHouse의 INDEX 개념</a> · <a href="https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/">ClickHouse Vector Search (25.8)</a></p>
+</blockquote>
+<p>ClickHouse 위의 RAG에서 벡터 쪽은 언어를 가리지 않습니다. 한국어 품질은 임베딩 모델이 결정합니다. 언어를
 타는 쪽은 키워드 쪽입니다. 그런데 ClickHouse에는 nori나 mecab-ko 같은 한국어 분석기가 없습니다. 이 실습은
 한국어 문서 청크에 한국어 질문을 던졌을 때 text index 토크나이저마다 무엇을 맞히고 무엇을 놓치는지 잽니다.
 이어서 ClickHouse 밖에서 만든 형태소 컬럼이 얼마나 보태는지, 그 위에 하이브리드 검색이 무엇을 더하는지 잽니다.</p>

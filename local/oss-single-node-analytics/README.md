@@ -334,7 +334,7 @@ Whether you start with OSS or choose Cloud, what matters is to **start fast and 
 
 The ClickHouse OSS binary can be downloaded from the official site, and for those who want to test easily on Docker, the following scripts were written.
 
-[clickhouse-hols/oss-mac-setup at main · litkhai/clickhouse-hols](https://github.com/litkhai/clickhouse-hols/tree/main/oss-mac-setup)
+[clickhouse-hols/local/oss-docker](https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker)
 
 #### Getting started with Cloud
 
@@ -682,7 +682,7 @@ OSS로 시작하든 Cloud를 선택하든, 중요한 것은 **빠르게 시작�
 
 ClickHouse OSS 바이너리는 공식 사이트에서 다운로드 받을 수 있으며, 쉽게 Docker 기반으로 테스트를 수행하고자 하는 경우를 위해 다음과 같은 스크립트를 작성하였습니다.
 
-[clickhouse-hols/oss-mac-setup at main · litkhai/clickhouse-hols](https://github.com/litkhai/clickhouse-hols/tree/main/oss-mac-setup)
+[clickhouse-hols/local/oss-docker](https://github.com/litkhai/clickhouse-hols/tree/main/local/oss-docker)
 
 #### Cloud 시작하기
 

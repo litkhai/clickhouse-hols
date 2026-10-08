@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse에서의 JOIN 기능 발전 연대기](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-join/)
+
 A hands-on laboratory for learning and testing ClickHouse 25.9 new features. This directory focuses on verified and working features newly added in ClickHouse 25.9 (released 2025-09-25; 25 new features, 22 performance optimizations, 83 bug fixes).
 
 ### 📋 Overview
@@ -377,6 +379,8 @@ For questions or issues:
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse에서의 JOIN 기능 발전 연대기](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-join/)
 
 ClickHouse 25.9 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 9월 25일 출시된 ClickHouse 25.9(신기능 25건, 성능 최적화 22건, 버그 수정 83건)에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 

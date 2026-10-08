@@ -8,6 +8,8 @@
 
 > **Migrated, not verified.** Moved on 2026-10-06 from the author's notes site (clickhouse.kr), as written there. The steps and numbers have not been re-run in this repository. The English text is an LLM-assisted translation of the Korean original.
 
+> **Related notes** (Korean): [ClickHouse의 파티션 이해](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse/)
+
 ### Introduction
 
 Running a large application means hundreds of millions of log records piling up in real time. Managing that data efficiently and querying it quickly is one of the biggest challenges data engineers face. ClickHouse offers powerful features for this problem: Materialized Views and TTL (Time To Live).
@@ -530,6 +532,8 @@ This pattern applies to many time-series scenarios such as log analytics, IoT se
 ## 한국어
 
 > **이관본, 미검증.** 2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 원문 그대로 옮겼습니다. 이 저장소에서 단계와 수치를 다시 실행하지 않았습니다. 영어본은 한국어 원문을 LLM 도움으로 번역한 것입니다.
+
+> **관련 글**: [ClickHouse의 파티션 이해](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse/)
 
 ### 들어가며
 

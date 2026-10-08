@@ -8,6 +8,8 @@
 
 > **Migrated, not verified.** Moved on 2026-10-06 from the author's notes site (clickhouse.kr), as written there. The steps and numbers have not been re-run in this repository. The English text is an LLM-assisted translation of the Korean original.
 
+> **Related notes** (Korean): [ClickPipes 소개](https://clickhouse.litkhai.dev/articles/cloud/clickpipes/)
+
 ### Introduction to ClickPipes
 
 ClickPipes introduction
@@ -116,6 +118,8 @@ You can check the data with an immediate query and run aggregation queries on it
 ## 한국어
 
 > **이관본, 미검증.** 2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 원문 그대로 옮겼습니다. 이 저장소에서 단계와 수치를 다시 실행하지 않았습니다. 영어본은 한국어 원문을 LLM 도움으로 번역한 것입니다.
+
+> **관련 글**: [ClickPipes 소개](https://clickhouse.litkhai.dev/articles/cloud/clickpipes/)
 
 ### Clickpipes 소개 및 개요
 

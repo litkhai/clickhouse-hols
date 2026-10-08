@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse의 INDEX 개념](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/) · [Canva: 쿼리는 10배 빠르게, 비용 70% 절감](https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/)
+
 A hands-on laboratory that builds a **bilingual (Korean + English) full-text search** over **1,000,000 customer-support tickets** and rigorously compares the three indexing strategies ClickHouse offers — `tokenbf_v1`, `ngrambf_v1`, and the GA `text` inverted index — side by side.
 
 The lab is designed to be driven from **Claude Code through the [mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse) MCP server** against ClickHouse Cloud, so each SQL block can be executed and reasoned about interactively.
@@ -157,6 +159,8 @@ Ken (ClickHouse Solution Architect) · 2026-06-07
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse의 INDEX 개념](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/) · [Canva: 쿼리는 10배 빠르게, 비용 70% 절감](https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/)
 
 ClickHouse로 **한국어+영어 혼용 풀텍스트 검색**을 100만 건의 고객지원 티켓 위에 구축하고, ClickHouse가 제공하는 세 가지 인덱스 전략 — `tokenbf_v1`, `ngrambf_v1`, GA된 `text` 역인덱스 — 을 동일 데이터에서 정량적으로 비교하는 실습입니다.
 

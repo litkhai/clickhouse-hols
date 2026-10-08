@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Basic Tuning 의 이해](https://clickhouse.litkhai.dev/articles/core-architecture/basic-tuning/)
+
 *English translation of the Korean original, LLM-assisted (2026-10-06).*
 
 A hands-on environment for practicing ClickHouse RBAC (Role-Based Access Control) and workload management.
@@ -417,6 +419,8 @@ SELECT * FROM system.row_policies WHERE table = 'sales';
 ---
 
 ## 한국어
+
+> **관련 글**: [Basic Tuning 의 이해](https://clickhouse.litkhai.dev/articles/core-architecture/basic-tuning/)
 
 ClickHouse의 RBAC(Role-Based Access Control)와 워크로드 매니지먼트를 실습하는 환경입니다.
 

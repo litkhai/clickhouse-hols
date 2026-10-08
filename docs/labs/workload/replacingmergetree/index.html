@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>ReplacingMergeTree Lab</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/">ClickHouse 입수와 데이터 저장 (Ingestion &amp; Merge)</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/">ClickHouse Upsert 메커니즘의 발전 과정</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-final/">ClickHouse의 FINAL 키워드</a></p>
+</blockquote>
 <p>A hands-on lab for the behaviour that surprises most ReplacingMergeTree users: deduplication is a <strong>merge-time</strong> side effect, not a write-time guarantee. Until parts merge, duplicate rows are visible, and every query that omits <code>FINAL</code> reads them.</p>
 <h3>📋 Overview</h3>
 <p>The lab inserts the same keys across several parts, then measures what queries return with and without <code>FINAL</code>, how long merges take to collapse the duplicates, what <code>OPTIMIZE TABLE FINAL</code> actually costs, and which <code>argMax</code> rewrite avoids <code>FINAL</code> altogether. Every step runs as plain SQL against any ClickHouse server.</p>
@@ -119,7 +122,10 @@ clickhouse-client --queries-file 99-cleanup.sql
 <li><code>99-cleanup.sql</code> is destructive and separate on purpose</li>
 </ul>
 <hr /></div>
-  <div class="readme ko"><p>ReplacingMergeTree에서 가장 많이 오해되는 지점을 직접 확인하는 실습입니다: 중복 제거는 쓰기 시점의 보장이 아니라 <strong>머지 시점</strong>의 부수 효과입니다. 파트가 머지되기 전까지 중복 행은 그대로 보이고, <code>FINAL</code>을 생략한 모든 쿼리가 그 중복을 읽습니다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/">ClickHouse 입수와 데이터 저장 (Ingestion &amp; Merge)</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/">ClickHouse Upsert 메커니즘의 발전 과정</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-final/">ClickHouse의 FINAL 키워드</a></p>
+</blockquote>
+<p>ReplacingMergeTree에서 가장 많이 오해되는 지점을 직접 확인하는 실습입니다: 중복 제거는 쓰기 시점의 보장이 아니라 <strong>머지 시점</strong>의 부수 효과입니다. 파트가 머지되기 전까지 중복 행은 그대로 보이고, <code>FINAL</code>을 생략한 모든 쿼리가 그 중복을 읽습니다.</p>
 <h3>📋 개요</h3>
 <p>같은 키를 여러 파트에 걸쳐 삽입한 뒤, <code>FINAL</code> 유무에 따라 결과가 어떻게 달라지는지, 머지가 중복을 정리하는 데 얼마나 걸리는지, <code>OPTIMIZE TABLE FINAL</code>의 실제 비용은 무엇인지, <code>FINAL</code> 없이 최신 버전을 얻는 <code>argMax</code> 대안은 어떤 모습인지 측정합니다. 모든 단계는 일반 SQL이므로 어떤 ClickHouse 서버에서도 실행됩니다.</p>
 <h3>🎯 주요 기능</h3>

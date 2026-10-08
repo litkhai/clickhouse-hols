@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Primary Index 와  ORDER BY 설계](https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/) · [ClickHouse 입수와 데이터 저장 (Ingestion & Merge)](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/)
+
 A reproducible, end-to-end lab that proves how a **Kafka partitioning strategy**
 turns into the **part-level pruning** behavior of a ClickHouse `MergeTree` — and
 how the **ingestion path** (Kafka table engine vs Kafka Connect Sink) changes
@@ -181,6 +183,8 @@ Ken Lee (ClickHouse Solution Architect) — ken.lee@clickhouse.com
 ---
 
 ## 한국어
+
+> **관련 글**: [Primary Index 와  ORDER BY 설계](https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/) · [ClickHouse 입수와 데이터 저장 (Ingestion & Merge)](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/)
 
 **Kafka 파티셔닝 전략**이 어떻게 ClickHouse `MergeTree`의 **part 레벨 pruning**
 동작으로 이어지는지, 그리고 **인제스천 경로**(Kafka 테이블 엔진 vs Kafka Connect

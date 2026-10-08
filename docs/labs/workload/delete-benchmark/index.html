@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>ClickHouse DELETE Mechanism Benchmark Test Guide</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/">ClickHouse Upsert 메커니즘의 발전 과정</a></p>
+</blockquote>
 <p>A comprehensive benchmark test suite comparing three main mechanisms for handling data deletion in ClickHouse.</p>
 <h3>🎯 Purpose</h3>
 <p>This lab provides practical experience testing and comparing different DELETE mechanisms in ClickHouse:
@@ -303,7 +306,10 @@ OPTIMIZE TABLE delete_test.collapsing_merge_table FINAL;
 <p>Ken (ClickHouse Solution Architect)
 Created: 2025-12-01</p>
 <hr /></div>
-  <div class="readme ko"><p>ClickHouse의 데이터 삭제를 처리하는 세 가지 주요 메커니즘을 비교하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/">ClickHouse Upsert 메커니즘의 발전 과정</a></p>
+</blockquote>
+<p>ClickHouse의 데이터 삭제를 처리하는 세 가지 주요 메커니즘을 비교하는 포괄적인 벤치마크 테스트 스위트입니다.</p>
 <h3>🎯 목적</h3>
 <p>이 랩은 ClickHouse의 다양한 DELETE 메커니즘을 테스트하고 비교하는 실무 경험을 제공합니다:
 - <strong>ALTER TABLE DELETE</strong> - 물리적 삭제

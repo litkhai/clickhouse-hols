@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>Langfuse on ClickHouse, without Langfuse</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/third-party/langfuse-clickhouse-llm/">Langfuse, 그리고 ClickHouse: LLM 옵저버빌리티 데이터 스택 해부</a> · <a href="https://clickhouse.litkhai.dev/articles/third-party/langfuse/">Langfuse 중심 기능 - 모델 관제 및 평가</a></p>
+</blockquote>
 <p><a href="https://langfuse.com">Langfuse</a> (open-source LLM observability) keeps its OLTP state in
 Postgres, but every observation and score lands in ClickHouse. This lab loads a snapshot of that
 ClickHouse database into a plain ClickHouse server and runs the ClickHouse SQL from the
@@ -175,7 +178,10 @@ instructions changed.</p>
   with Langfuse itself: v4 <code>langfuse-ee</code> (OSS 01–04, Enterprise 05–11) and <code>langfuse-eval</code>.</li>
 </ul>
 <hr /></div>
-  <div class="readme ko"><p><a href="https://langfuse.com">Langfuse</a>(오픈소스 LLM 관측 도구)는 OLTP 상태를 Postgres에 두지만,
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/third-party/langfuse-clickhouse-llm/">Langfuse, 그리고 ClickHouse: LLM 옵저버빌리티 데이터 스택 해부</a> · <a href="https://clickhouse.litkhai.dev/articles/third-party/langfuse/">Langfuse 중심 기능 - 모델 관제 및 평가</a></p>
+</blockquote>
+<p><a href="https://langfuse.com">Langfuse</a>(오픈소스 LLM 관측 도구)는 OLTP 상태를 Postgres에 두지만,
 모든 observation과 score는 ClickHouse에 쌓입니다. 이 실습은 그 ClickHouse 데이터베이스의
 스냅샷을 일반 ClickHouse 서버에 올리고,
 <a href="https://github.com/litkhai/langfuse-hols">langfuse-hols</a> 워크숍의 ClickHouse SQL을 그 위에서

@@ -39,6 +39,9 @@
   <div class="readme en"><h1>Real-time JSON Explode Demo — Confluent → ClickPipes → ClickHouse / 실시간 JSON 평탄화 데모</h1>
 <p>Author: Ken Lee (ClickHouse SA) · License: MIT</p>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/cloud/clickpipes/">ClickPipes 소개</a></p>
+</blockquote>
 <p>A fully-automated, one-command version of the webinar live demo <em>"Real-time data transformation and flattening-based analytics with ClickPipes and Materialized Views."</em> You produce nested order-event JSON locally, it flows through <strong>Confluent Cloud → ClickPipes → ClickHouse Cloud</strong>, and two Materialized Views transform and <strong>explode</strong> each order into per-line fact rows — with <strong>no scheduler, no batch job, no Spark cluster</strong>.</p>
 <p>Everything (schema, object names, credentials, demo behavior) is configured in a single gitignored <code>.env</code>. A bilingual (ko/en) <strong>web dashboard</strong> ships in <code>webapp/</code> and runs via Docker.</p>
 <blockquote>
@@ -196,7 +199,10 @@ python scripts/99_teardown.py --drop-db  # + DROP database
 </table>
 <p>Verified end-to-end on ClickHouse Cloud (v26.4) with Confluent Cloud.</p>
 <hr /></div>
-  <div class="readme ko"><p>웨비나 <em>"ClickPipes와 Materialized View로 구현하는 실시간 데이터 변환과 평탄화 기반 분석"</em> 라이브 데모를 <strong>명령 한 줄로 자동화</strong>한 버전입니다. 로컬에서 중첩된 주문 이벤트 JSON을 발행하면 <strong>Confluent Cloud → ClickPipes → ClickHouse Cloud</strong>로 흐르고, 두 개의 Materialized View가 이를 변환하고 주문을 라인 단위로 <strong>explode(평탄화)</strong>합니다 — <strong>스케줄러도, 배치 잡도, Spark 클러스터도 없이.</strong></p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/cloud/clickpipes/">ClickPipes 소개</a></p>
+</blockquote>
+<p>웨비나 <em>"ClickPipes와 Materialized View로 구현하는 실시간 데이터 변환과 평탄화 기반 분석"</em> 라이브 데모를 <strong>명령 한 줄로 자동화</strong>한 버전입니다. 로컬에서 중첩된 주문 이벤트 JSON을 발행하면 <strong>Confluent Cloud → ClickPipes → ClickHouse Cloud</strong>로 흐르고, 두 개의 Materialized View가 이를 변환하고 주문을 라인 단위로 <strong>explode(평탄화)</strong>합니다 — <strong>스케줄러도, 배치 잡도, Spark 클러스터도 없이.</strong></p>
 <p>모든 것(스키마·오브젝트 이름·크리덴셜·동작)은 gitignore된 단일 <code>.env</code>에서 설정합니다. 이중언어(ko/en) <strong>웹 대시보드</strong>가 <code>webapp/</code>에 포함되어 Docker로 실행됩니다.</p>
 <blockquote>
 <p>원본 시나리오·멘트·타임라인은 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/instruction.md">instruction.md</a> 를 보세요. 이 문서는 <strong>자동 실행 방법</strong>을 다룹니다.</p>
