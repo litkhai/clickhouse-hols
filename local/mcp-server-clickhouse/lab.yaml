@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "Docker로 띄우는 ClickHouse MCP 서버"
+summary_ko: "쿼리 실행, 데이터베이스와 테이블 목록, 스키마 조회 도구를 AI 어시스턴트에 제공하는 Python 기반 ClickHouse MCP 서버를 Docker로 띄우고 LibreChat에 연결합니다."
+title_en: "ClickHouse MCP server on Docker"
+summary_en: "A Python MCP server on Docker that gives AI assistants query, list-databases, list-tables and describe-table tools over ClickHouse, wired for LibreChat."
+category: feature
+tags: [ai-agents, librechat]

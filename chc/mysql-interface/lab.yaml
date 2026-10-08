@@ -5,3 +5,4 @@ summary_ko: "ClickHouse Cloud의 MySQL Wire Protocol 호환성을 테스트 플�
 title_en: "Automated test tool for the ClickHouse Cloud MySQL interface"
 summary_en: "A tool that runs a test plan automatically to check ClickHouse Cloud MySQL wire-protocol compatibility and produces a result report"
 category: feature
+tags: [mysql, migration]

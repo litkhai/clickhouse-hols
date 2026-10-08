@@ -5,3 +5,4 @@ summary_ko: "url() 테이블 함수와 Refreshable Materialized View로 ClickHou
 title_en: "Webhook-Based Slack Alerts with the url() Table Function"
 summary_en: "Send Slack alerts straight from ClickHouse with the url() table function and Refreshable Materialized Views, including limits such as no retry."
 category: feature
+tags: [materialized-view]

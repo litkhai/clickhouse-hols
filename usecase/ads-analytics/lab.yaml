@@ -5,3 +5,4 @@ summary_ko: "합성 광고 이벤트 1천만 행으로 조건부 집계, 근사 
 title_en: "Ad performance analytics cube on ClickHouse"
 summary_en: "A hands-on ad-performance cube over 10 million synthetic events: conditional aggregation, approximate distinct, dictGet and AggregatingMergeTree roll-ups"
 category: case-study
+tags: [materialized-view, mergetree]

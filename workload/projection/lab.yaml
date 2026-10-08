@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "Projection으로 쿼리 성능 개선하기"
+summary_ko: "Projection을 만들고 materialize한 뒤 같은 질의를 Materialized View와 비교하며 성능, 저장 공간 메타데이터, 모니터링 방법을 단계별 SQL로 실습합니다."
+title_en: "Improving query performance with projections"
+summary_en: "Step-by-step SQL that creates and materializes projections, compares them with Materialized Views, and inspects performance, storage metadata and monitoring."
+category: core-architecture
+tags: [projection, materialized-view, performance]

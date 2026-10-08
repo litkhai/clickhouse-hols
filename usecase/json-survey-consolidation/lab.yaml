@@ -5,3 +5,4 @@ summary_ko: "설문마다 테이블을 만들던 구조를 JSON 컬럼 하나의
 title_en: "Consolidating Survey Tables for a JSON Column"
 summary_en: "Migrating per-survey tables into one unified table with a JSON column on ClickHouse Cloud, with query patterns, MV/View use and migration steps."
 category: case-study
+tags: [migration, materialized-view]

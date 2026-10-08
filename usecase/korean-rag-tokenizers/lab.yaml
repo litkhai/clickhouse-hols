@@ -11,3 +11,4 @@ summary_ko: "text index 토크나이저 8종과 Kiwi 형태소 컬럼을 한국�
 title_en: "Korean keyword search for RAG: tokenizers, a morpheme column, hybrid retrieval"
 summary_en: "Eight text-index tokenizers and a Kiwi morpheme column compared on 40 Korean questions, plus bge-m3 vector search and RRF hybrid, on ClickHouse 26.9.11.2"
 category: case-study
+tags: [full-text-search, vector-search, llm]

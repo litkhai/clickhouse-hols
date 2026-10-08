@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "ClickPipes S3 Pause/Resume 체크포인트 테스트"
+summary_ko: "S3 ClickPipe를 일시정지했다가 다시 시작할 때 체크포인트에서 이어 입수하는지, 처음부터 다시 읽어 중복이 생기는지를 스크립트와 Terraform으로 확인하는 테스트 모음입니다."
+title_en: "ClickPipes S3 pause/resume checkpoint test"
+summary_en: "Scripts, with an optional Terraform path, that check whether an S3 ClickPipe resumes from its checkpoint after a pause or re-reads from the start and duplicates rows."
+category: cloud
+tags: [clickpipes, ingestion]

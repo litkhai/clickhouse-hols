@@ -5,3 +5,4 @@ summary_ko: "ReplacingMergeTree의 중복 제거가 쓰기 시점이 아닌 merg
 title_en: "ReplacingMergeTree consistency lag and FINAL"
 summary_en: "Shows that ReplacingMergeTree deduplication happens at merge time, with and without FINAL, the cost of OPTIMIZE TABLE FINAL, and an argMax alternative"
 category: core-architecture
+tags: [updates-deletes, mergetree]

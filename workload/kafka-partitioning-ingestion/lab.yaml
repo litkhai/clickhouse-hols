@@ -5,3 +5,4 @@ summary_ko: "Kafka 파티셔닝 전략과 수집 경로(Kafka 테이블 엔진, 
 title_en: "Kafka partitioning and ClickHouse sort-key alignment"
 summary_en: "Measures with EXPLAIN how Kafka partitioning and the ingestion path (Kafka table engine or Kafka Connect Sink) affect part-level pruning in MergeTree"
 category: core-architecture
+tags: [kafka, ingestion, index]

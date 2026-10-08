@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "테이블 엔진과 Insert 패턴별 중복 제거 테스트"
+summary_ko: "MergeTree 계열 네 엔진의 중복 제거 동작, row-by-row·배치·async insert 패턴의 차이를 비교하고 Landing, Main, Refreshable MV 구조를 검증하는 Python 테스트 모음입니다."
+title_en: "Deduplication by table engine and insert pattern"
+summary_en: "A Python test suite comparing deduplication across four MergeTree engines and row-by-row, batch and async insert patterns, then checking a landing, main and refreshable-MV design."
+category: core-architecture
+tags: [updates-deletes, mergetree, ingestion, materialized-view]

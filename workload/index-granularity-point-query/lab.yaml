@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "Index Granularity에 따른 Point Query 성능 비교"
+summary_ko: "index_granularity를 256, 1024, 4096, 8192로 둔 테이블에 200만 행을 넣고 메타데이터와 Point Query 성능을 단계별 SQL로 비교합니다."
+title_en: "Index granularity and point-query performance"
+summary_en: "Step-by-step SQL that loads 2 million rows into tables with index_granularity 256, 1024, 4096 and 8192, then compares their metadata and point-query performance."
+category: core-architecture
+tags: [index, performance, mergetree]

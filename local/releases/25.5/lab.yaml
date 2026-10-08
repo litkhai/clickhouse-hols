@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "25.5"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "25.5.11.15"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.5 새 기능 실습"
+summary_ko: "벡터 유사도 인덱스(베타), Hive Metastore 카탈로그, clickhouse-local의 암묵적 테이블, Parquet 지오 타입 등 ClickHouse 25.5 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 25.5 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 25.5 features: the vector similarity index (beta), the Hive Metastore catalog, implicit tables in clickhouse-local and geo types in Parquet."
+category: feature
+tags: [roadmap, vector-search, data-lake, geo]

@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "MinIO와 5개 카탈로그로 만드는 로컬 데이터 레이크"
+summary_ko: "MinIO에 Nessie, Hive Metastore, Iceberg REST, Polaris, Unity Catalog 중 하나 이상을 띄우고 Jupyter와 ClickHouse 예제로 Iceberg, Delta Lake를 다룹니다."
+title_en: "Local data lake with MinIO and five catalogs"
+summary_en: "MinIO with one or several of Nessie, Hive Metastore, Iceberg REST, Polaris and Unity Catalog, plus Jupyter notebooks and ClickHouse examples for Iceberg and Delta Lake data."
+category: feature
+tags: [data-lake]

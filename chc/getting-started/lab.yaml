@@ -5,3 +5,4 @@ summary_ko: "ClickHouse Cloud 계정 생성부터 프로비저닝, 테이블 생
 title_en: "Getting Started with ClickHouse Cloud"
 summary_en: "A first walkthrough of ClickHouse Cloud: sign-up, provisioning, creating a table and checking logs."
 category: cloud
+tags: [cloud-operations]

@@ -5,3 +5,4 @@ summary_ko: "고빈도 INSERT 환경에서 Materialized View와 Refreshable Mate
 title_en: "MV vs RMV resource efficiency comparison"
 summary_en: "Compares Materialized Views and Refreshable Materialized Views on part count, disk usage and query performance under high-frequency INSERT"
 category: core-architecture
+tags: [materialized-view, ingestion]

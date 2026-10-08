@@ -5,3 +5,4 @@ summary_ko: "Kafka에서 ClickHouse로 pull하고 MV로 MySQL에 쓰는 환경�
 title_en: "Kafka-MySQL integration and MView block-size testing"
 summary_en: "A Kafka to ClickHouse to MySQL environment for checking whether min_insert_block_size_rows and max_block_size actually apply to a materialized view"
 category: case-study
+tags: [kafka, mysql, materialized-view, ingestion]

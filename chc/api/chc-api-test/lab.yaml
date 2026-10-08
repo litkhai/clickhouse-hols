@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "ClickHouse Cloud API 테스트 도구"
+summary_ko: "Python 스크립트로 ClickHouse Cloud의 Billing, Services, Management API를 호출해 사용 비용, 서비스, 백업, API 키, 멤버 정보를 조회하고 리포트로 남깁니다."
+title_en: "ClickHouse Cloud API tester"
+summary_en: "A Python script that calls the ClickHouse Cloud Billing, Services and Management APIs (usage cost, services, backups, API keys, members) and writes a report."
+category: cloud
+tags: [cloud-operations]

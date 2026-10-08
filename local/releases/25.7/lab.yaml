@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "25.7"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "25.7.8.71"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.7 새 기능 실습"
+summary_ko: "패치 파트 기반 SQL UPDATE와 DELETE, count() 집계 최적화, JOIN 성능 개선, 대량 UPDATE 등 ClickHouse 25.7 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 25.7 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 25.7 features: SQL UPDATE and DELETE on patch parts, the count() aggregation optimisation, faster JOINs and bulk UPDATE."
+category: feature
+tags: [roadmap, updates-deletes, join, performance]

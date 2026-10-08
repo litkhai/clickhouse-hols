@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "LibreChat, 로컬 LLM, ClickHouse MCP 서버 (Mac)"
+summary_ko: "Mac에서 Ollama 로컬 모델과 ClickHouse MCP 서버를 LibreChat에 묶어 자연어로 ClickHouse를 조회하는 환경과, tool calling을 지원하는 경량 모델 고르는 법을 담았습니다."
+title_en: "LibreChat with a local LLM and the ClickHouse MCP server (Mac)"
+summary_en: "LibreChat on a Mac wired to Ollama local models and a ClickHouse MCP server for natural-language queries, with guidance on light models that support tool calling."
+category: third-party
+tags: [librechat, llm, ai-agents]

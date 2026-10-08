@@ -5,3 +5,4 @@ summary_ko: "Materialized View 체인 중간에서 에러가 나면 데이터가
 title_en: "Failure Propagation in a ClickHouse Materialized View Chain"
 summary_en: "An experiment on where data survives when an error hits the middle of a Materialized View chain: partial success within and across chains."
 category: core-architecture
+tags: [materialized-view]

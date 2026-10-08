@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "ClickPipes MySQL CDC 데모 환경"
+summary_ko: "binlog와 GTID를 켠 MySQL을 Docker로 띄우고 DML 스크립트로 INSERT, UPDATE, DELETE를 일으켜 ClickPipes MySQL CDC 파이프라인으로 복제하는 데모 환경입니다."
+title_en: "ClickPipes MySQL CDC demo environment"
+summary_en: "A Docker MySQL with binlog and GTID enabled, plus a DML script that generates inserts, updates and deletes for a ClickPipes MySQL CDC pipeline to replicate."
+category: cloud
+tags: [clickpipes, mysql, ingestion]

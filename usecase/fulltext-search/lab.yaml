@@ -5,3 +5,4 @@ summary_ko: "고객지원 티켓 100만 건에서 tokenbf_v1, ngrambf_v1, text �
 title_en: "Bilingual (ko/en) support-ticket full-text search"
 summary_en: "Compares the tokenbf_v1, ngrambf_v1 and GA text indexes on 1,000,000 Korean and English support tickets, showing where each helps and where it misses"
 category: case-study
+tags: [full-text-search, index]
