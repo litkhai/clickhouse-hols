@@ -5,3 +5,4 @@ summary_ko: "Polygon Dictionary로 좌표를 시군구로 역지오코딩하고 
 title_en: "Korean administrative-boundary (Sigungu) map lab with ClickHouse and Superset"
 summary_en: "Reverse geocoding with a Polygon Dictionary and a deck.gl choropleth in Superset on local Docker, including the WGS84 versus UTM-K coordinate trap"
 category: case-study
+tags: [geo]

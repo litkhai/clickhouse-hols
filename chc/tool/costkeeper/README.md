@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Cloud API 기반 메트릭 가이드](https://clickhouse.litkhai.dev/articles/cloud/clickhouse-cloud-api/)
+
 *English translation of the Korean original, LLM-assisted (2026-10-06).*
 
 **ClickHouse Cloud Cost Monitoring & Alerting System**
@@ -1224,6 +1226,8 @@ Last Updated: 2025-12-06
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Cloud API 기반 메트릭 가이드](https://clickhouse.litkhai.dev/articles/cloud/clickhouse-cloud-api/)
 
 **ClickHouse Cloud Cost Monitoring & Alerting System**
 

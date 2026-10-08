@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [pg_clickhouse — PostgreSQL에서 ClickHouse 사용하기](https://clickhouse.litkhai.dev/articles/feature/pg-clickhouse-postgresql-clickhouse/) · [pg_lake 기반 Iceberg 비교 — pg_duckdb vs pg_clickhouse (TPC-H SF10)](https://clickhouse.litkhai.dev/articles/competition/pg-lake-iceberg-pg-duckdb-vs-pg-clickhouse/)
+
 Postgres is the OLTP system; old rows are tiered by **pg_lake** into Iceberg
 tables registered in an **Apache Polaris** REST catalog. This lab asks which
 **read path** should serve analytics on that cold data, measured on one frozen
@@ -172,6 +174,8 @@ Created: 2026-09-25
 ---
 
 ## 한국어
+
+> **관련 글**: [pg_clickhouse — PostgreSQL에서 ClickHouse 사용하기](https://clickhouse.litkhai.dev/articles/feature/pg-clickhouse-postgresql-clickhouse/) · [pg_lake 기반 Iceberg 비교 — pg_duckdb vs pg_clickhouse (TPC-H SF10)](https://clickhouse.litkhai.dev/articles/competition/pg-lake-iceberg-pg-duckdb-vs-pg-clickhouse/)
 
 Postgres가 OLTP 원장이고, 오래된 행은 **pg_lake**가 **Apache Polaris** REST 카탈로그에
 등록된 Iceberg 테이블로 내립니다. 이 실습은 콜드 데이터 분석을 어떤 **읽기 경로**로

@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Too Many Parts와 Async Insert](https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/) · [ClickHouse Cloud 데이터 처리 아키텍처](https://clickhouse.litkhai.dev/articles/cloud/cloud-data-processing-architecture/) · [Canva: 쿼리는 10배 빠르게, 비용 70% 절감](https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/)
+
 A comprehensive stress test suite for ClickHouse Async Insert functionality with various parameter combinations.
 
 ### 🎯 Test Overview
@@ -129,6 +131,8 @@ In ClickHouse Cloud environment, the `async_insert=1, wait_for_async_insert=0` c
 ---
 
 ## 한국어
+
+> **관련 글**: [Too Many Parts와 Async Insert](https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/) · [ClickHouse Cloud 데이터 처리 아키텍처](https://clickhouse.litkhai.dev/articles/cloud/cloud-data-processing-architecture/) · [Canva: 쿼리는 10배 빠르게, 비용 70% 절감](https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/)
 
 ClickHouse의 Async Insert 기능에 대한 다양한 파라미터 조합과 스트레스 테스트를 수행합니다.
 

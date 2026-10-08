@@ -5,3 +5,4 @@ summary_ko: "ALTER TABLE DELETE, ReplacingMergeTree is_deleted, CollapsingMergeT
 title_en: "ClickHouse DELETE mechanism benchmark"
 summary_en: "A step-by-step benchmark of three deletion approaches: ALTER TABLE DELETE, ReplacingMergeTree with is_deleted, and CollapsingMergeTree with a sign column"
 category: core-architecture
+tags: [updates-deletes, mergetree, benchmark]

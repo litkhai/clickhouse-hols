@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "25.9"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "25.9.7.56"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.9 새 기능 실습"
+summary_ko: "통계 기반 자동 JOIN 순서 재배치, 실험적 텍스트 인덱스, 스트리밍 보조 인덱스, arrayExcept 함수 등 ClickHouse 25.9 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 25.9 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 25.9 features: statistics-based global join reordering, the experimental text index, streaming secondary indices and arrayExcept."
+category: feature
+tags: [roadmap, join, full-text-search, index]

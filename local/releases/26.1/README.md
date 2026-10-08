@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Keeper 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-keeper/)
+
 A hands-on laboratory for learning and testing ClickHouse 26.1 new features. This directory focuses on verified and working features newly added in ClickHouse 26.1 (released 2026-01-29, the first release of 2026).
 
 ### 📋 Overview
@@ -274,6 +276,8 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Keeper 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-keeper/)
 
 ClickHouse 26.1 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2026년 1월 29일 출시된 2026년 첫 번째 릴리스 ClickHouse 26.1에서 검증된 작동 기능에 집중합니다.
 

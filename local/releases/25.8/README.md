@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/)
+
 A hands-on laboratory for learning and testing ClickHouse 25.8 new features (released 2025-08-28). This directory is designed for practical exercises with **integrated MinIO-based Data Lake environment**.
 
 ### 📋 Overview
@@ -784,6 +786,8 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 ---
 
 ## 한국어
+
+> **관련 글**: [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/)
 
 ClickHouse 25.8 신기능 테스트 및 학습 환경입니다. 이 디렉토리는 2025년 8월 28일 출시된 ClickHouse 25.8에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있으며, **MinIO 기반 Data Lake 환경이 통합**되어 있습니다.
 

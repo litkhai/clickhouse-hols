@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "MySQL 프로토콜에서 PREWHERE 쓰기"
+summary_ko: "MySQL 클라이언트로 ClickHouse에 접속해도 PREWHERE 구문과 자동 PREWHERE 최적화가 동작하는지, WHERE만 쓸 때와 성능이 어떻게 다른지 스크립트와 EXPLAIN으로 확인합니다."
+title_en: "PREWHERE over the MySQL protocol"
+summary_en: "Scripts that check with EXPLAIN and timings that PREWHERE syntax and automatic PREWHERE optimisation work when clients reach ClickHouse over the MySQL protocol."
+category: case-study
+tags: [mysql, performance, migration]

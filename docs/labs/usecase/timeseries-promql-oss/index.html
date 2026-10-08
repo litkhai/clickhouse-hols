@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>TimeSeries Engine + PromQL — Self-managed ClickHouse</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/feature/alternative-query-languages/">Alternative Query Languages (대체 쿼리 지원)</a> · <a href="https://clickhouse.litkhai.dev/articles/customer-story/tesla-clickhouse-comet/">Tesla: ClickHouse 기반 플랫폼 'Comet'</a></p>
+</blockquote>
 <p>A hands-on lab for ClickHouse's <code>TimeSeries</code> table engine and its PromQL query
 dialect — both still experimental, both changing release to release, and
 both barely documented beyond "here is the flag name". This lab was built by
@@ -206,7 +209,10 @@ docs, read 2026-10-01. None of this has been run on a Cloud service.</p>
 <code>SELECT version()</code> after <code>01-schema.sql</code>. Then run the inner-table query in
 <code>05-management.sql</code> without its <code>DROP</code>, adding <code>engine</code> to the columns.</p>
 <hr /></div>
-  <div class="readme ko"><p>ClickHouse의 <code>TimeSeries</code> 테이블 엔진과 그 위에서 동작하는 PromQL 쿼리 dialect를
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/feature/alternative-query-languages/">Alternative Query Languages (대체 쿼리 지원)</a> · <a href="https://clickhouse.litkhai.dev/articles/customer-story/tesla-clickhouse-comet/">Tesla: ClickHouse 기반 플랫폼 'Comet'</a></p>
+</blockquote>
+<p>ClickHouse의 <code>TimeSeries</code> 테이블 엔진과 그 위에서 동작하는 PromQL 쿼리 dialect를
 직접 실행해보는 실습입니다. 둘 다 아직 실험적 기능이고 릴리스마다 계속 바뀌며,
 공식 문서는 "이 설정을 켜세요" 수준 이상을 다루지 않는 경우가 많습니다. 이
 실습은 실제 컨테이너에 모든 문장을 직접 실행해보고 그 결과 — 문서가 틀렸거나

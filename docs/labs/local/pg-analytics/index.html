@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>pg_lake ILM Analytics — pg_duckdb vs pg_clickhouse on Iceberg (Polaris)</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/feature/pg-clickhouse-postgresql-clickhouse/">pg_clickhouse — PostgreSQL에서 ClickHouse 사용하기</a> · <a href="https://clickhouse.litkhai.dev/articles/competition/pg-lake-iceberg-pg-duckdb-vs-pg-clickhouse/">pg_lake 기반 Iceberg 비교 — pg_duckdb vs pg_clickhouse (TPC-H SF10)</a></p>
+</blockquote>
 <p>Postgres is the OLTP system; old rows are tiered by <strong>pg_lake</strong> into Iceberg
 tables registered in an <strong>Apache Polaris</strong> REST catalog. This lab asks which
 <strong>read path</strong> should serve analytics on that cold data, measured on one frozen
@@ -239,7 +242,10 @@ change to pg_lake (Apache-2.0) and is offered upstream under that licence.</p>
 <p>Ken (ClickHouse Solution Architect)
 Created: 2026-09-25</p>
 <hr /></div>
-  <div class="readme ko"><p>Postgres가 OLTP 원장이고, 오래된 행은 <strong>pg_lake</strong>가 <strong>Apache Polaris</strong> REST 카탈로그에
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/feature/pg-clickhouse-postgresql-clickhouse/">pg_clickhouse — PostgreSQL에서 ClickHouse 사용하기</a> · <a href="https://clickhouse.litkhai.dev/articles/competition/pg-lake-iceberg-pg-duckdb-vs-pg-clickhouse/">pg_lake 기반 Iceberg 비교 — pg_duckdb vs pg_clickhouse (TPC-H SF10)</a></p>
+</blockquote>
+<p>Postgres가 OLTP 원장이고, 오래된 행은 <strong>pg_lake</strong>가 <strong>Apache Polaris</strong> REST 카탈로그에
 등록된 Iceberg 테이블로 내립니다. 이 실습은 콜드 데이터 분석을 어떤 <strong>읽기 경로</strong>로
 처리해야 하는지를, 모든 경로가 공유하는 동결된 Iceberg 스냅샷 하나로 측정합니다.</p>
 <table>

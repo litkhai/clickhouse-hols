@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Projection에서 다른 Granularity 설정 (25.12)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-projection-granularity-25-12/)
+
 A hands-on laboratory for learning how to configure custom settings (especially index_granularity) for ClickHouse Projections.
 
 ### 🎯 Purpose
@@ -278,6 +280,8 @@ Created: 2025-01-09
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Projection에서 다른 Granularity 설정 (25.12)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-projection-granularity-25-12/)
 
 ClickHouse Projection에 커스텀 설정(특히 index_granularity)을 적용하는 방법을 학습하는 실습 환경입니다.
 

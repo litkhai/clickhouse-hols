@@ -5,3 +5,4 @@ summary_ko: "ClickHouse Cloud의 자동 확장과 자동 유휴 모드를 click-
 title_en: "Elasticity and Idling in ClickHouse Cloud"
 summary_en: "Trying ClickHouse Cloud autoscaling, manual replica scaling and automatic idle mode under a clickhouse-benchmark workload."
 category: cloud
+tags: [cloud-architecture, cloud-operations]

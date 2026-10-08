@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse의 INDEX 개념](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/) · [ClickHouse Vector Search (25.8)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/)
+
 In a RAG stack on ClickHouse the vector half does not care about the language: Korean quality
 comes from the embedding model. The keyword half does care, and ClickHouse has no Korean analyser
 (nothing like nori or mecab-ko). This lab measures what each text-index tokenizer gets right and
@@ -311,6 +313,8 @@ Ken (ClickHouse Solution Architect) · 2026-10-06
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse의 INDEX 개념](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/) · [ClickHouse Vector Search (25.8)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/)
 
 ClickHouse 위의 RAG에서 벡터 쪽은 언어를 가리지 않습니다. 한국어 품질은 임베딩 모델이 결정합니다. 언어를
 타는 쪽은 키워드 쪽입니다. 그런데 ClickHouse에는 nori나 mecab-ko 같은 한국어 분석기가 없습니다. 이 실습은

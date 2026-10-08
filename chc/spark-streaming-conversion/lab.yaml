@@ -5,3 +5,4 @@ summary_ko: "Spark Structured Streaming 변환 코드를 ClickPipes 변환과 Ma
 title_en: "Spark Streaming Conversion to ClickHouse Cloud"
 summary_en: "Moving Spark Structured Streaming transformations to ClickPipes and Materialized Views: two architecture options, a benchmark, a function mapping and a checklist."
 category: case-study
+tags: [migration, clickpipes, kafka, materialized-view]

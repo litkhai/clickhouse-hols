@@ -5,3 +5,4 @@ summary_ko: "HTTP 패킷의 실시간 PII 비식별화, 공격 패턴 자동 탐
 title_en: "Security traffic analysis platform with ClickHouse"
 summary_en: "Real-time PII anonymization of HTTP packets, automated attack detection and vulnerability reproduction checks, plus an optional Vector Search lab"
 category: case-study
+tags: [materialized-view, vector-search]

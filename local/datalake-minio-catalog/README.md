@@ -1,5 +1,7 @@
 # Data Lake with MinIO and Multiple Catalogs
 
+> **Related notes · 관련 글**: [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/)
+
 **English** | [한국어](README.ko.md)
 
 A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.

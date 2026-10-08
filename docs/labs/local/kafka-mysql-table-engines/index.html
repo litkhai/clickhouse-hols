@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>Kafka-MySQL-ClickHouse Integration with MView Block Size Testing</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/">Too Many Parts와 Async Insert</a></p>
+</blockquote>
 <p><em>English translation of the Korean original, LLM-assisted (2026-10-06).</em></p>
 <p>An integrated environment that pulls data from Kafka into ClickHouse and automatically transforms it into MySQL through a Materialized View. You can verify whether MView settings such as <code>min_insert_block_size_rows</code> and <code>max_block_size</code> are actually applied.</p>
 <h3>📋 Table of Contents</h3>
@@ -401,7 +404,10 @@ WHERE engine = 'MaterializedView'
 <p><strong>Written</strong>: 2025-12-13
 <strong>Test environment</strong>: Docker Desktop, ClickHouse latest, MySQL 8.0, Kafka 7.5.0</p>
 <hr /></div>
-  <div class="readme ko"><p>Kafka에서 ClickHouse로 데이터를 pull하고, Materialized View를 통해 MySQL로 자동 변환하는 통합 환경입니다. MView의 <code>min_insert_block_size_rows</code>, <code>max_block_size</code> 등의 설정이 실제로 적용되는지 검증할 수 있습니다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/too-many-parts-async-insert/">Too Many Parts와 Async Insert</a></p>
+</blockquote>
+<p>Kafka에서 ClickHouse로 데이터를 pull하고, Materialized View를 통해 MySQL로 자동 변환하는 통합 환경입니다. MView의 <code>min_insert_block_size_rows</code>, <code>max_block_size</code> 등의 설정이 실제로 적용되는지 검증할 수 있습니다.</p>
 <h3>📋 목차</h3>
 <ul>
 <li><a href="#아키텍처">아키텍처</a></li>

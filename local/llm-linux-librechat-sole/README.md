@@ -1,5 +1,7 @@
 # LibreChat Standalone (Linux Edition)
 
+> **Related notes · 관련 글**: [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/third-party/librechat-llm-portal/)
+
 **Ollama를 사용한 독립형 LibreChat 배포**
 
 이 프로젝트는 LibreChat과 MongoDB만 포함된 경량 배포 버전입니다. MCP 서버는 사용자가 별도로 구성할 수 있습니다.

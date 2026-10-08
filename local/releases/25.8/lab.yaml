@@ -4,3 +4,12 @@ tier: T1            # needs a second local service: 06-minio-integration.sql wri
 clickhouse: "25.8"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse, minio]
 verified_on: "25.8.28.1"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.8 새 기능 실습"
+summary_ko: "새 Parquet 리더, Hive 방식 파티셔닝, S3 임시 데이터, UNION ALL의 _table 가상 컬럼, MinIO 기반 데이터 레이크 기능 등 ClickHouse 25.8 새 기능을 실습합니다."
+title_en: "ClickHouse 25.8 new-features lab"
+summary_en: "Hands-on ClickHouse 25.8 features: the new Parquet reader, Hive-style partitioning, temporary data on S3, the _table column in UNION ALL and data-lake features on MinIO."
+category: feature
+tags: [roadmap, data-lake, performance]

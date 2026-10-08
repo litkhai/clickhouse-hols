@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "25.10"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "25.10.7.6"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.10 새 기능 실습"
+summary_ko: "벡터 검색용 QBit 타입, 음수 LIMIT/OFFSET, JOIN 개선, LIMIT BY ALL, 자동 통계 등 ClickHouse 25.10 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 25.10 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 25.10 features: the QBit type for vector search, negative LIMIT/OFFSET, JOIN improvements, LIMIT BY ALL and automatic statistics."
+category: feature
+tags: [roadmap, vector-search, join]

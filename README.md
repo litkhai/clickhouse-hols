@@ -214,7 +214,7 @@ here.
 
 - [ClickHouse Documentation](https://clickhouse.com/docs)
 - [ClickHouse Changelog](https://clickhouse.com/docs/whats-new/changelog)
-- Korean resources: [clickhouse.kr](https://clickhouse.kr)
+- Korean notes: [Notes on ClickHouse](https://clickhouse.litkhai.dev) (the author's personal site; a lab README links the notes that use it)
 
 ---
 
@@ -421,4 +421,4 @@ pip으로 설치합니다. 위 한 줄을 빼면 서드파티 코드를 이 저�
 
 - [ClickHouse 공식 문서](https://clickhouse.com/docs)
 - [ClickHouse Changelog](https://clickhouse.com/docs/whats-new/changelog)
-- 한국어 자료: [clickhouse.kr](https://clickhouse.kr)
+- 한국어 글: [Notes on ClickHouse](https://clickhouse.litkhai.dev) (작성자의 개인 사이트, 실습 README가 그 실습을 쓰는 글을 링크)

@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>Full-Text Search Lab with ClickHouse — Bilingual (ko/en) Support Ticket Search</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/">ClickHouse의 INDEX 개념</a> · <a href="https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/">Canva: 쿼리는 10배 빠르게, 비용 70% 절감</a></p>
+</blockquote>
 <p>A hands-on laboratory that builds a <strong>bilingual (Korean + English) full-text search</strong> over <strong>1,000,000 customer-support tickets</strong> and rigorously compares the three indexing strategies ClickHouse offers — <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, and the GA <code>text</code> inverted index — side by side.</p>
 <p>The lab is designed to be driven from <strong>Claude Code through the <a href="https://github.com/ClickHouse/mcp-clickhouse">mcp-clickhouse</a> MCP server</strong> against ClickHouse Cloud, so each SQL block can be executed and reasoned about interactively.</p>
 <h3>Why this lab exists</h3>
@@ -214,7 +217,10 @@ done
 <h3>Author</h3>
 <p>Ken (ClickHouse Solution Architect) · 2026-06-07</p>
 <hr /></div>
-  <div class="readme ko"><p>ClickHouse로 <strong>한국어+영어 혼용 풀텍스트 검색</strong>을 100만 건의 고객지원 티켓 위에 구축하고, ClickHouse가 제공하는 세 가지 인덱스 전략 — <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, GA된 <code>text</code> 역인덱스 — 을 동일 데이터에서 정량적으로 비교하는 실습입니다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-index/">ClickHouse의 INDEX 개념</a> · <a href="https://clickhouse.litkhai.dev/articles/customer-story/canva-10-70/">Canva: 쿼리는 10배 빠르게, 비용 70% 절감</a></p>
+</blockquote>
+<p>ClickHouse로 <strong>한국어+영어 혼용 풀텍스트 검색</strong>을 100만 건의 고객지원 티켓 위에 구축하고, ClickHouse가 제공하는 세 가지 인덱스 전략 — <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, GA된 <code>text</code> 역인덱스 — 을 동일 데이터에서 정량적으로 비교하는 실습입니다.</p>
 <p><a href="https://github.com/ClickHouse/mcp-clickhouse">mcp-clickhouse</a> MCP 서버를 통해 <strong>Claude Code에서 ClickHouse Cloud로 직접 붙어</strong> 인터랙티브하게 실행하도록 설계되었습니다.</p>
 <h3>왜 이 실습이 필요한가</h3>
 <p>대부분의 풀텍스트 검색 데모는 영어 전용 데이터 (위키피디아 등)로 진행되어 <code>text</code> 인덱스가 “그냥 잘 됩니다”라고 끝납니다. 하지만 한국어는 다릅니다:</p>

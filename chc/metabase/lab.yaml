@@ -5,3 +5,4 @@ summary_ko: "Metabase Pro에서 ClickHouse Cloud를 데이터베이스로 연결
 title_en: "Metabase Pro Integration with ClickHouse Cloud"
 summary_en: "How to connect ClickHouse Cloud to Metabase Pro as a database and use queries, dashboards and permission management, with screenshots."
 category: third-party
+tags: [cloud-operations]

@@ -5,3 +5,4 @@ summary_ko: "실험 기능인 TimeSeries 테이블 엔진과 PromQL 쿼리 방�
 title_en: "TimeSeries engine and PromQL on self-managed ClickHouse"
 summary_en: "A hands-on lab for the experimental TimeSeries table engine and its PromQL dialect, run against a real ClickHouse 26.8.8 container"
 category: feature
+tags: [timeseries]

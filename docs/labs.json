@@ -1,7 +1,21 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-06T12:17:59Z",
+  "generated": "2026-10-08T13:08:35Z",
   "labs": [
+    {
+      "path": "chc/api/chc-api-test",
+      "title_ko": "ClickHouse Cloud API 테스트 도구",
+      "summary_ko": "Python 스크립트로 ClickHouse Cloud의 Billing, Services, Management API를 호출해 사용 비용, 서비스, 백업, API 키, 멤버 정보를 조회하고 리포트로 남깁니다.",
+      "title_en": "ClickHouse Cloud API tester",
+      "summary_en": "A Python script that calls the ClickHouse Cloud Billing, Services and Management APIs (usage cost, services, backups, API keys, members) and writes a report.",
+      "category": "cloud",
+      "tags": [
+        "cloud-operations"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/api/chc-api-test/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/api/chc-api-test/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/api/chc-api-test/"
+    },
     {
       "path": "chc/clickpipes-kafka",
       "title_ko": "Clickpipes를 통한 Kafka 입수",
@@ -9,8 +23,44 @@
       "title_en": "Ingesting Kafka with ClickPipes",
       "summary_en": "Ingesting a Confluent Kafka topic into ClickHouse Cloud with ClickPipes, plus a comparison of the three ways to ingest Kafka data into ClickHouse.",
       "category": "cloud",
+      "tags": [
+        "clickpipes",
+        "kafka",
+        "ingestion"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-kafka/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-kafka/README.md#english"
+    },
+    {
+      "path": "chc/clickpipes-mysql",
+      "title_ko": "ClickPipes MySQL CDC 데모 환경",
+      "summary_ko": "binlog와 GTID를 켠 MySQL을 Docker로 띄우고 DML 스크립트로 INSERT, UPDATE, DELETE를 일으켜 ClickPipes MySQL CDC 파이프라인으로 복제하는 데모 환경입니다.",
+      "title_en": "ClickPipes MySQL CDC demo environment",
+      "summary_en": "A Docker MySQL with binlog and GTID enabled, plus a DML script that generates inserts, updates and deletes for a ClickPipes MySQL CDC pipeline to replicate.",
+      "category": "cloud",
+      "tags": [
+        "clickpipes",
+        "mysql",
+        "ingestion"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-mysql/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-mysql/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/clickpipes-mysql/"
+    },
+    {
+      "path": "chc/clickpipes-s3",
+      "title_ko": "ClickPipes S3 Pause/Resume 체크포인트 테스트",
+      "summary_ko": "S3 ClickPipe를 일시정지했다가 다시 시작할 때 체크포인트에서 이어 입수하는지, 처음부터 다시 읽어 중복이 생기는지를 스크립트와 Terraform으로 확인하는 테스트 모음입니다.",
+      "title_en": "ClickPipes S3 pause/resume checkpoint test",
+      "summary_en": "Scripts, with an optional Terraform path, that check whether an S3 ClickPipe resumes from its checkpoint after a pause or re-reads from the start and duplicates rows.",
+      "category": "cloud",
+      "tags": [
+        "clickpipes",
+        "ingestion"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-s3/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/clickpipes-s3/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/clickpipes-s3/"
     },
     {
       "path": "chc/elasticity-idling",
@@ -19,6 +69,10 @@
       "title_en": "Elasticity and Idling in ClickHouse Cloud",
       "summary_en": "Trying ClickHouse Cloud autoscaling, manual replica scaling and automatic idle mode under a clickhouse-benchmark workload.",
       "category": "cloud",
+      "tags": [
+        "cloud-architecture",
+        "cloud-operations"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/elasticity-idling/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/elasticity-idling/README.md#english"
     },
@@ -29,6 +83,9 @@
       "title_en": "Getting Started with ClickHouse Cloud",
       "summary_en": "A first walkthrough of ClickHouse Cloud: sign-up, provisioning, creating a table and checking logs.",
       "category": "cloud",
+      "tags": [
+        "cloud-operations"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/getting-started/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/getting-started/README.md#english"
     },
@@ -39,6 +96,10 @@
       "title_en": "ClickHouse MCP with Claude Desktop (feat. Claude)",
       "summary_en": "A walkthrough of setting up an MCP server for ClickHouse Cloud and analysing data in natural language from Claude Desktop.",
       "category": "feature",
+      "tags": [
+        "ai-agents",
+        "llm"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mcp-claude-desktop/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mcp-claude-desktop/README.md#english"
     },
@@ -49,6 +110,9 @@
       "title_en": "Metabase Pro Integration with ClickHouse Cloud",
       "summary_en": "How to connect ClickHouse Cloud to Metabase Pro as a database and use queries, dashboards and permission management, with screenshots.",
       "category": "third-party",
+      "tags": [
+        "cloud-operations"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/metabase/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/metabase/README.md#english"
     },
@@ -59,6 +123,10 @@
       "title_en": "Automated test tool for the ClickHouse Cloud MySQL interface",
       "summary_en": "A tool that runs a test plan automatically to check ClickHouse Cloud MySQL wire-protocol compatibility and produces a result report",
       "category": "feature",
+      "tags": [
+        "mysql",
+        "migration"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/mysql-interface/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/mysql-interface/"
@@ -70,6 +138,12 @@
       "title_en": "Spark Streaming Conversion to ClickHouse Cloud",
       "summary_en": "Moving Spark Structured Streaming transformations to ClickPipes and Materialized Views: two architecture options, a benchmark, a function mapping and a checklist.",
       "category": "case-study",
+      "tags": [
+        "migration",
+        "clickpipes",
+        "kafka",
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/spark-streaming-conversion/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/spark-streaming-conversion/README.md#english"
     },
@@ -80,9 +154,27 @@
       "title_en": "CostKeeper: ClickHouse Cloud cost monitoring and alerting",
       "summary_en": "CostKeeper tracks ClickHouse Cloud cost with refreshable materialized views and alerts external systems; the README covers install, usage and troubleshooting",
       "category": "case-study",
+      "tags": [
+        "cloud-operations",
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/tool/costkeeper/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/chc/tool/costkeeper/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/chc/tool/costkeeper/"
+    },
+    {
+      "path": "local/datalake-minio-catalog",
+      "title_ko": "MinIO와 5개 카탈로그로 만드는 로컬 데이터 레이크",
+      "summary_ko": "MinIO에 Nessie, Hive Metastore, Iceberg REST, Polaris, Unity Catalog 중 하나 이상을 띄우고 Jupyter와 ClickHouse 예제로 Iceberg, Delta Lake를 다룹니다.",
+      "title_en": "Local data lake with MinIO and five catalogs",
+      "summary_en": "MinIO with one or several of Nessie, Hive Metastore, Iceberg REST, Polaris and Unity Catalog, plus Jupyter notebooks and ClickHouse examples for Iceberg and Delta Lake data.",
+      "category": "feature",
+      "tags": [
+        "data-lake"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/datalake-minio-catalog/"
     },
     {
       "path": "local/kafka-mysql-table-engines",
@@ -91,9 +183,62 @@
       "title_en": "Kafka-MySQL integration and MView block-size testing",
       "summary_en": "A Kafka to ClickHouse to MySQL environment for checking whether min_insert_block_size_rows and max_block_size actually apply to a materialized view",
       "category": "case-study",
+      "tags": [
+        "kafka",
+        "mysql",
+        "materialized-view",
+        "ingestion"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/kafka-mysql-table-engines/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/kafka-mysql-table-engines/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/kafka-mysql-table-engines/"
+    },
+    {
+      "path": "local/llm-linux-librechat-sole",
+      "title_ko": "LibreChat 단독 배포 (Linux, Ollama)",
+      "summary_ko": "LibreChat과 MongoDB만 담은 Linux용 경량 Docker 배포로, Ollama의 llama3.1:8b 모델을 쓰고 MCP 서버는 사용자가 따로 연결하도록 구성했습니다.",
+      "title_en": "Standalone LibreChat on Linux with Ollama",
+      "summary_en": "A lightweight Linux Docker deployment of LibreChat and MongoDB that uses Ollama's llama3.1:8b and leaves MCP servers for the user to connect.",
+      "category": "third-party",
+      "tags": [
+        "librechat",
+        "llm",
+        "ai-agents"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/llm-linux-librechat-sole/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/llm-linux-librechat-sole/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/llm-linux-librechat-sole/"
+    },
+    {
+      "path": "local/llm-mac-librechat-with-clickhouse",
+      "title_ko": "LibreChat, 로컬 LLM, ClickHouse MCP 서버 (Mac)",
+      "summary_ko": "Mac에서 Ollama 로컬 모델과 ClickHouse MCP 서버를 LibreChat에 묶어 자연어로 ClickHouse를 조회하는 환경과, tool calling을 지원하는 경량 모델 고르는 법을 담았습니다.",
+      "title_en": "LibreChat with a local LLM and the ClickHouse MCP server (Mac)",
+      "summary_en": "LibreChat on a Mac wired to Ollama local models and a ClickHouse MCP server for natural-language queries, with guidance on light models that support tool calling.",
+      "category": "third-party",
+      "tags": [
+        "librechat",
+        "llm",
+        "ai-agents"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/llm-mac-librechat-with-clickhouse/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/llm-mac-librechat-with-clickhouse/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/llm-mac-librechat-with-clickhouse/"
+    },
+    {
+      "path": "local/mcp-server-clickhouse",
+      "title_ko": "Docker로 띄우는 ClickHouse MCP 서버",
+      "summary_ko": "쿼리 실행, 데이터베이스와 테이블 목록, 스키마 조회 도구를 AI 어시스턴트에 제공하는 Python 기반 ClickHouse MCP 서버를 Docker로 띄우고 LibreChat에 연결합니다.",
+      "title_en": "ClickHouse MCP server on Docker",
+      "summary_en": "A Python MCP server on Docker that gives AI assistants query, list-databases, list-tables and describe-table tools over ClickHouse, wired for LibreChat.",
+      "category": "feature",
+      "tags": [
+        "ai-agents",
+        "librechat"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/mcp-server-clickhouse/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/mcp-server-clickhouse/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/mcp-server-clickhouse/"
     },
     {
       "path": "local/oss-docker",
@@ -113,8 +258,153 @@
       "title_en": "Starting Analytics on a Single-Node ClickHouse OSS",
       "summary_en": "When a single ClickHouse OSS node is enough for small-team analytics, typical use cases, and when to move to a cluster or ClickHouse Cloud.",
       "category": "core-architecture",
+      "tags": [
+        "cloud-architecture"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-single-node-analytics/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/oss-single-node-analytics/README.md#english"
+    },
+    {
+      "path": "local/releases/25.10",
+      "title_ko": "ClickHouse 25.10 새 기능 실습",
+      "summary_ko": "벡터 검색용 QBit 타입, 음수 LIMIT/OFFSET, JOIN 개선, LIMIT BY ALL, 자동 통계 등 ClickHouse 25.10 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 25.10 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 25.10 features: the QBit type for vector search, negative LIMIT/OFFSET, JOIN improvements, LIMIT BY ALL and automatic statistics.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "25.10",
+      "verified_on": "25.10.7.6",
+      "tags": [
+        "roadmap",
+        "vector-search",
+        "join"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.10/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.10/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.10/"
+    },
+    {
+      "path": "local/releases/25.12",
+      "title_ko": "ClickHouse 25.12 새 기능 실습",
+      "summary_ko": "HMAC 함수, 내장 Naive Bayes 분류기, DPsize 기반 JOIN 순서 최적화 등 ClickHouse 25.12 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 25.12 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 25.12 features: the HMAC function, the built-in Naive Bayes classifier and DPsize join-order optimisation.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "25.12",
+      "verified_on": "25.12.11.4",
+      "tags": [
+        "roadmap",
+        "join"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.12/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.12/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.12/"
+    },
+    {
+      "path": "local/releases/25.5",
+      "title_ko": "ClickHouse 25.5 새 기능 실습",
+      "summary_ko": "벡터 유사도 인덱스(베타), Hive Metastore 카탈로그, clickhouse-local의 암묵적 테이블, Parquet 지오 타입 등 ClickHouse 25.5 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 25.5 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 25.5 features: the vector similarity index (beta), the Hive Metastore catalog, implicit tables in clickhouse-local and geo types in Parquet.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "25.5",
+      "verified_on": "25.5.11.15",
+      "tags": [
+        "roadmap",
+        "vector-search",
+        "data-lake",
+        "geo"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.5/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.5/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.5/"
+    },
+    {
+      "path": "local/releases/25.7",
+      "title_ko": "ClickHouse 25.7 새 기능 실습",
+      "summary_ko": "패치 파트 기반 SQL UPDATE와 DELETE, count() 집계 최적화, JOIN 성능 개선, 대량 UPDATE 등 ClickHouse 25.7 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 25.7 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 25.7 features: SQL UPDATE and DELETE on patch parts, the count() aggregation optimisation, faster JOINs and bulk UPDATE.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "25.7",
+      "verified_on": "25.7.8.71",
+      "tags": [
+        "roadmap",
+        "updates-deletes",
+        "join",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.7/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.7/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.7/"
+    },
+    {
+      "path": "local/releases/25.8",
+      "title_ko": "ClickHouse 25.8 새 기능 실습",
+      "summary_ko": "새 Parquet 리더, Hive 방식 파티셔닝, S3 임시 데이터, UNION ALL의 _table 가상 컬럼, MinIO 기반 데이터 레이크 기능 등 ClickHouse 25.8 새 기능을 실습합니다.",
+      "title_en": "ClickHouse 25.8 new-features lab",
+      "summary_en": "Hands-on ClickHouse 25.8 features: the new Parquet reader, Hive-style partitioning, temporary data on S3, the _table column in UNION ALL and data-lake features on MinIO.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T1",
+      "clickhouse": "25.8",
+      "verified_on": "25.8.28.1",
+      "tags": [
+        "roadmap",
+        "data-lake",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.8/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.8/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.8/"
+    },
+    {
+      "path": "local/releases/25.9",
+      "title_ko": "ClickHouse 25.9 새 기능 실습",
+      "summary_ko": "통계 기반 자동 JOIN 순서 재배치, 실험적 텍스트 인덱스, 스트리밍 보조 인덱스, arrayExcept 함수 등 ClickHouse 25.9 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 25.9 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 25.9 features: statistics-based global join reordering, the experimental text index, streaming secondary indices and arrayExcept.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "25.9",
+      "verified_on": "25.9.7.56",
+      "tags": [
+        "roadmap",
+        "join",
+        "full-text-search",
+        "index"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.9/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/25.9/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/25.9/"
+    },
+    {
+      "path": "local/releases/26.1",
+      "title_ko": "ClickHouse 26.1 새 기능 실습",
+      "summary_ko": "reverseBySeparator 함수, 배열 컬럼용 텍스트 인덱스, ClickHouse Keeper HTTP API 등 ClickHouse 26.1 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 26.1 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 26.1 features: the reverseBySeparator function, text indexes on array columns and the ClickHouse Keeper HTTP API.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.1",
+      "verified_on": "26.1.12.23",
+      "tags": [
+        "roadmap",
+        "full-text-search",
+        "replication"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.1/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.1/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.1/"
     },
     {
       "path": "usecase/ads-analytics",
@@ -123,9 +413,28 @@
       "title_en": "Ad performance analytics cube on ClickHouse",
       "summary_en": "A hands-on ad-performance cube over 10 million synthetic events: conditional aggregation, approximate distinct, dictGet and AggregatingMergeTree roll-ups",
       "category": "case-study",
+      "tags": [
+        "materialized-view",
+        "mergetree"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ads-analytics/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/ads-analytics/"
+    },
+    {
+      "path": "usecase/ch-geo-analytics",
+      "title_ko": "H3 인덱싱으로 하는 ClickHouse 지리 공간 분석",
+      "summary_ko": "합성 뉴욕 차량 호출 500만 건으로 H3 기초, 다중 해상도 수요 히트맵, 거리와 경로, pointInPolygon 공간 검색, H3·Geohash·S2 비교, 실시간 집계 MV를 차례로 실습합니다.",
+      "title_en": "Geospatial analytics on ClickHouse with H3 indexing",
+      "summary_en": "Five million synthetic NYC ride-hailing trips: H3 basics, multi-resolution demand heatmaps, distance and routing, pointInPolygon, H3 vs Geohash vs S2 and aggregate MVs.",
+      "category": "case-study",
+      "tags": [
+        "geo",
+        "materialized-view"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/ch-geo-analytics/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/ch-geo-analytics/"
     },
     {
       "path": "usecase/customer360",
@@ -134,6 +443,10 @@
       "title_en": "Customer 360 lab with ClickHouse",
       "summary_en": "A Customer 360 lab on about 815 million records of six months of customer activity: RFM, cohort and CLV analysis, Materialized View tuning, RBAC and masking",
       "category": "case-study",
+      "tags": [
+        "materialized-view",
+        "performance"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/customer360/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/customer360/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/customer360/"
@@ -145,6 +458,10 @@
       "title_en": "Bilingual (ko/en) support-ticket full-text search",
       "summary_en": "Compares the tokenbf_v1, ngrambf_v1 and GA text indexes on 1,000,000 Korean and English support tickets, showing where each helps and where it misses",
       "category": "case-study",
+      "tags": [
+        "full-text-search",
+        "index"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/fulltext-search/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/fulltext-search/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/fulltext-search/"
@@ -156,9 +473,31 @@
       "title_en": "Genome variants analysis lab",
       "summary_en": "Works with 3 billion genome variant records: chromosome-based partitioning, indexing techniques and query performance for genomics workloads",
       "category": "case-study",
+      "tags": [
+        "index",
+        "performance",
+        "projection"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/gnome-variants/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/gnome-variants/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/gnome-variants/"
+    },
+    {
+      "path": "usecase/json-explode-confluent-clickpipes",
+      "title_ko": "Confluent와 ClickPipes로 하는 실시간 JSON 평탄화",
+      "summary_ko": "중첩된 주문 이벤트 JSON을 Confluent Cloud와 ClickPipes로 입수하고, 두 단계 Materialized View로 변환과 ARRAY JOIN 평탄화를 거쳐 분석하는 데모를 한 명령으로 자동화했습니다.",
+      "title_en": "Real-time JSON explode with Confluent and ClickPipes",
+      "summary_en": "One-command automation of a demo where nested order JSON flows through Confluent Cloud and ClickPipes, then two Materialized Views transform and ARRAY JOIN-explode it.",
+      "category": "case-study",
+      "tags": [
+        "clickpipes",
+        "kafka",
+        "materialized-view",
+        "ingestion"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-explode-confluent-clickpipes/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/json-explode-confluent-clickpipes/"
     },
     {
       "path": "usecase/json-survey-consolidation",
@@ -167,6 +506,10 @@
       "title_en": "Consolidating Survey Tables for a JSON Column",
       "summary_en": "Migrating per-survey tables into one unified table with a JSON column on ClickHouse Cloud, with query patterns, MV/View use and migration steps.",
       "category": "case-study",
+      "tags": [
+        "migration",
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-survey-consolidation/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/json-survey-consolidation/README.md#english"
     },
@@ -177,6 +520,9 @@
       "title_en": "Korean administrative-boundary (Sigungu) map lab with ClickHouse and Superset",
       "summary_en": "Reverse geocoding with a Polygon Dictionary and a deck.gl choropleth in Superset on local Docker, including the WGS84 versus UTM-K coordinate trap",
       "category": "case-study",
+      "tags": [
+        "geo"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korea-geo/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korea-geo/"
@@ -192,6 +538,11 @@
       "tier": "T0",
       "clickhouse": "26.9",
       "verified_on": "26.9.11.2",
+      "tags": [
+        "full-text-search",
+        "vector-search",
+        "llm"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/korean-rag-tokenizers/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/"
@@ -207,9 +558,47 @@
       "tier": "T0",
       "clickhouse": "26.8.18.2",
       "verified_on": "26.8.18.2",
+      "tags": [
+        "langfuse",
+        "llm",
+        "observability"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-on-clickhouse/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-on-clickhouse/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-on-clickhouse/"
+    },
+    {
+      "path": "usecase/mysql-prewhere",
+      "title_ko": "MySQL 프로토콜에서 PREWHERE 쓰기",
+      "summary_ko": "MySQL 클라이언트로 ClickHouse에 접속해도 PREWHERE 구문과 자동 PREWHERE 최적화가 동작하는지, WHERE만 쓸 때와 성능이 어떻게 다른지 스크립트와 EXPLAIN으로 확인합니다.",
+      "title_en": "PREWHERE over the MySQL protocol",
+      "summary_en": "Scripts that check with EXPLAIN and timings that PREWHERE syntax and automatic PREWHERE optimisation work when clients reach ClickHouse over the MySQL protocol.",
+      "category": "case-study",
+      "tags": [
+        "mysql",
+        "performance",
+        "migration"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/mysql-prewhere/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/mysql-prewhere/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-prewhere/"
+    },
+    {
+      "path": "usecase/mysql-protocol-benchmark",
+      "title_ko": "MySQL vs ClickHouse Point Query 성능 비교",
+      "summary_ko": "게임 플레이어 200만 명의 마지막 접속 정보를 player_id로 한 행씩 조회하는 Point Query를 MySQL과 ClickHouse(Primary Key 정렬, Bloom Filter 인덱스)에서 동시성 8~32로 비교합니다.",
+      "title_en": "MySQL vs ClickHouse point-query benchmark",
+      "summary_en": "Single-row lookups by player_id over 2 million game players, compared between MySQL and ClickHouse (primary-key ORDER BY plus a bloom filter index) at 8 to 32 clients.",
+      "category": "case-study",
+      "tags": [
+        "mysql",
+        "index",
+        "benchmark",
+        "migration"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/mysql-protocol-benchmark/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/mysql-protocol-benchmark/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-protocol-benchmark/"
     },
     {
       "path": "usecase/security-traffic-analysis",
@@ -218,6 +607,10 @@
       "title_en": "Security traffic analysis platform with ClickHouse",
       "summary_en": "Real-time PII anonymization of HTTP packets, automated attack detection and vulnerability reproduction checks, plus an optional Vector Search lab",
       "category": "case-study",
+      "tags": [
+        "materialized-view",
+        "vector-search"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/security-traffic-analysis/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/security-traffic-analysis/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/security-traffic-analysis/"
@@ -229,6 +622,9 @@
       "title_en": "TimeSeries engine and PromQL on self-managed ClickHouse",
       "summary_en": "A hands-on lab for the experimental TimeSeries table engine and its PromQL dialect, run against a real ClickHouse 26.8.8 container",
       "category": "feature",
+      "tags": [
+        "timeseries"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/timeseries-promql-oss/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/timeseries-promql-oss/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/usecase/timeseries-promql-oss/"
@@ -240,6 +636,9 @@
       "title_en": "Webhook-Based Slack Alerts with the url() Table Function",
       "summary_en": "Send Slack alerts straight from ClickHouse with the url() table function and Refreshable Materialized Views, including limits such as no retry.",
       "category": "feature",
+      "tags": [
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/url-webhook-slack-alert/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/usecase/url-webhook-slack-alert/README.md#english"
     },
@@ -250,6 +649,10 @@
       "title_en": "Async Insert stress test",
       "summary_en": "A stress-test suite that varies async insert parameter combinations, including wait_for_async_insert, to check performance and stability on ClickHouse Cloud",
       "category": "cloud",
+      "tags": [
+        "ingestion",
+        "performance"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/async-insert-stress/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/async-insert-stress/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/async-insert-stress/"
@@ -261,8 +664,28 @@
       "title_en": "Data Lifecycle Management with Cascading Materialized Views and TTL",
       "summary_en": "How to manage hourly and daily aggregation and retention of log data automatically with Cascading Materialized Views and TTL.",
       "category": "case-study",
+      "tags": [
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/cascading-mv-ttl/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/cascading-mv-ttl/README.md#english"
+    },
+    {
+      "path": "workload/dedup-engine",
+      "title_ko": "테이블 엔진과 Insert 패턴별 중복 제거 테스트",
+      "summary_ko": "MergeTree 계열 네 엔진의 중복 제거 동작, row-by-row·배치·async insert 패턴의 차이를 비교하고 Landing, Main, Refreshable MV 구조를 검증하는 Python 테스트 모음입니다.",
+      "title_en": "Deduplication by table engine and insert pattern",
+      "summary_en": "A Python test suite comparing deduplication across four MergeTree engines and row-by-row, batch and async insert patterns, then checking a landing, main and refreshable-MV design.",
+      "category": "core-architecture",
+      "tags": [
+        "updates-deletes",
+        "mergetree",
+        "ingestion",
+        "materialized-view"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/dedup-engine/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/dedup-engine/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/dedup-engine/"
     },
     {
       "path": "workload/delete-benchmark",
@@ -271,9 +694,30 @@
       "title_en": "ClickHouse DELETE mechanism benchmark",
       "summary_en": "A step-by-step benchmark of three deletion approaches: ALTER TABLE DELETE, ReplacingMergeTree with is_deleted, and CollapsingMergeTree with a sign column",
       "category": "core-architecture",
+      "tags": [
+        "updates-deletes",
+        "mergetree",
+        "benchmark"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/delete-benchmark/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/delete-benchmark/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/"
+    },
+    {
+      "path": "workload/index-granularity-point-query",
+      "title_ko": "Index Granularity에 따른 Point Query 성능 비교",
+      "summary_ko": "index_granularity를 256, 1024, 4096, 8192로 둔 테이블에 200만 행을 넣고 메타데이터와 Point Query 성능을 단계별 SQL로 비교합니다.",
+      "title_en": "Index granularity and point-query performance",
+      "summary_en": "Step-by-step SQL that loads 2 million rows into tables with index_granularity 256, 1024, 4096 and 8192, then compares their metadata and point-query performance.",
+      "category": "core-architecture",
+      "tags": [
+        "index",
+        "performance",
+        "mergetree"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-granularity-point-query/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-granularity-point-query/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/index-granularity-point-query/"
     },
     {
       "path": "workload/kafka-partitioning-ingestion",
@@ -282,6 +726,11 @@
       "title_en": "Kafka partitioning and ClickHouse sort-key alignment",
       "summary_en": "Measures with EXPLAIN how Kafka partitioning and the ingestion path (Kafka table engine or Kafka Connect Sink) affect part-level pruning in MergeTree",
       "category": "core-architecture",
+      "tags": [
+        "kafka",
+        "ingestion",
+        "index"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/kafka-partitioning-ingestion/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/kafka-partitioning-ingestion/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/kafka-partitioning-ingestion/"
@@ -293,6 +742,9 @@
       "title_en": "Failure Propagation in a ClickHouse Materialized View Chain",
       "summary_en": "An experiment on where data survives when an error hits the middle of a Materialized View chain: partial success within and across chains.",
       "category": "core-architecture",
+      "tags": [
+        "materialized-view"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#english"
     },
@@ -303,9 +755,45 @@
       "title_en": "MV vs RMV resource efficiency comparison",
       "summary_en": "Compares Materialized Views and Refreshable Materialized Views on part count, disk usage and query performance under high-frequency INSERT",
       "category": "core-architecture",
+      "tags": [
+        "materialized-view",
+        "ingestion"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-vs-rmv/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/mv-vs-rmv/"
+    },
+    {
+      "path": "workload/projection",
+      "title_ko": "Projection으로 쿼리 성능 개선하기",
+      "summary_ko": "Projection을 만들고 materialize한 뒤 같은 질의를 Materialized View와 비교하며 성능, 저장 공간 메타데이터, 모니터링 방법을 단계별 SQL로 실습합니다.",
+      "title_en": "Improving query performance with projections",
+      "summary_en": "Step-by-step SQL that creates and materializes projections, compares them with Materialized Views, and inspects performance, storage metadata and monitoring.",
+      "category": "core-architecture",
+      "tags": [
+        "projection",
+        "materialized-view",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/projection/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/projection/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/projection/"
+    },
+    {
+      "path": "workload/projection-customsettings",
+      "title_ko": "Projection별 index_granularity 설정 (25.12+)",
+      "summary_ko": "ClickHouse 25.12부터 Projection마다 따로 줄 수 있는 index_granularity 등 설정을 값별로 비교하고, granularity가 Point Query 성능에 주는 영향을 측정합니다.",
+      "title_en": "Per-projection index_granularity settings (25.12+)",
+      "summary_en": "Compares projections built with different index_granularity values, a per-projection setting from ClickHouse 25.12, and measures the effect on point-query performance.",
+      "category": "feature",
+      "tags": [
+        "projection",
+        "index",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/projection-customsettings/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/projection-customsettings/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/projection-customsettings/"
     },
     {
       "path": "workload/rbac-workloadmanagement",
@@ -314,6 +802,10 @@
       "title_en": "RBAC and workload management lab",
       "summary_en": "Covers roles and users, row- and column-level security, settings profiles, quotas and workload scheduling in ClickHouse",
       "category": "feature",
+      "tags": [
+        "performance",
+        "cloud-operations"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/rbac-workloadmanagement/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/rbac-workloadmanagement/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/rbac-workloadmanagement/"
@@ -325,6 +817,10 @@
       "title_en": "ReplacingMergeTree consistency lag and FINAL",
       "summary_en": "Shows that ReplacingMergeTree deduplication happens at merge time, with and without FINAL, the cost of OPTIMIZE TABLE FINAL, and an argMax alternative",
       "category": "core-architecture",
+      "tags": [
+        "updates-deletes",
+        "mergetree"
+      ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/replacingmergetree/"

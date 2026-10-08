@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "25.12"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "25.12.11.4"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 25.12 새 기능 실습"
+summary_ko: "HMAC 함수, 내장 Naive Bayes 분류기, DPsize 기반 JOIN 순서 최적화 등 ClickHouse 25.12 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 25.12 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 25.12 features: the HMAC function, the built-in Naive Bayes classifier and DPsize join-order optimisation."
+category: feature
+tags: [roadmap, join]

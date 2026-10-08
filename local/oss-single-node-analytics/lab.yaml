@@ -5,3 +5,4 @@ summary_ko: "소규모 팀이 ClickHouse OSS 싱글 노드로 분석을 시작�
 title_en: "Starting Analytics on a Single-Node ClickHouse OSS"
 summary_en: "When a single ClickHouse OSS node is enough for small-team analytics, typical use cases, and when to move to a cluster or ClickHouse Cloud."
 category: core-architecture
+tags: [cloud-architecture]

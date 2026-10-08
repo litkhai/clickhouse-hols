@@ -8,6 +8,8 @@
 
 > **Migrated, not verified.** Moved on 2026-10-06 from the author's notes site (clickhouse.kr), as written there. The steps and numbers have not been re-run in this repository. The English text is an LLM-assisted translation of the Korean original.
 
+> **Related notes** (Korean): [ClickHouse Cloud의 Shared Everything 구조의 특장점](https://clickhouse.litkhai.dev/articles/cloud/clickhouse-cloud-shared-everything/)
+
 This post covers Elasticity and Idling (automatic idle mode), key features of ClickHouse Cloud.
 
 ---
@@ -161,6 +163,8 @@ Elasticity and Auto Idling in ClickHouse Cloud are powerful tools for managing c
 ## 한국어
 
 > **이관본, 미검증.** 2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 원문 그대로 옮겼습니다. 이 저장소에서 단계와 수치를 다시 실행하지 않았습니다. 영어본은 한국어 원문을 LLM 도움으로 번역한 것입니다.
+
+> **관련 글**: [ClickHouse Cloud의 Shared Everything 구조의 특장점](https://clickhouse.litkhai.dev/articles/cloud/clickhouse-cloud-shared-everything/)
 
 ClickHouse Cloud의 주요 기능인 Elasticity(확장성) & Ideling(자동 유휴 모드)에 대해서 다루고자 합니다.
 

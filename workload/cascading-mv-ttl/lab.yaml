@@ -5,3 +5,4 @@ summary_ko: "Cascading Materialized View와 TTL로 로그 데이터의 시간별
 title_en: "Data Lifecycle Management with Cascading Materialized Views and TTL"
 summary_en: "How to manage hourly and daily aggregation and retention of log data automatically with Cascading Materialized Views and TTL."
 category: case-study
+tags: [materialized-view]

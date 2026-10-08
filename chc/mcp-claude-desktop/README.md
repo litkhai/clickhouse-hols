@@ -8,6 +8,8 @@
 
 > **Migrated, not verified.** Moved on 2026-10-06 from the author's notes site (clickhouse.kr), as written there. The steps and numbers have not been re-run in this repository. The English text is an LLM-assisted translation of the Korean original.
 
+> **Related notes** (Korean): [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [Anthropic: AI 모니터링 스케일링](https://clickhouse.litkhai.dev/articles/customer-story/anthropic-ai/)
+
 This document is a hands-on guide to the whole process of setting up an MCP (Model Context Protocol) server in a ClickHouse Cloud environment, connecting it to the database and running it properly.
 
 ---
@@ -392,6 +394,8 @@ If it runs without errors and waits for input, it succeeded (exit with Ctrl+C).
 ## 한국어
 
 > **이관본, 미검증.** 2026-10-06 작성자의 노트 사이트(clickhouse.kr)에서 원문 그대로 옮겼습니다. 이 저장소에서 단계와 수치를 다시 실행하지 않았습니다. 영어본은 한국어 원문을 LLM 도움으로 번역한 것입니다.
+
+> **관련 글**: [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [Anthropic: AI 모니터링 스케일링](https://clickhouse.litkhai.dev/articles/customer-story/anthropic-ai/)
 
 이 문서는 ClickHouse Cloud 환경에서 MCP(Model Context Protocol) 서버를 설정하고, 데이터베이스와 연동하여 정상적으로 운영하는 전 과정을 실습 형태로 안내합니다. 
 

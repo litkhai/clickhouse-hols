@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Primary Index 와  ORDER BY 설계](https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/) · [Point Query 를 위한 Index Granularity 조정](https://clickhouse.litkhai.dev/articles/core-architecture/point-query-index-granularity/) · [MySQL 마이그레이션시 Point Query 성능 극대화](https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/)
+
 A comprehensive benchmark test suite for comparing ClickHouse index_granularity settings and their impact on point query performance.
 
 ### 🎯 Purpose
@@ -316,6 +318,8 @@ Created: 2025-12-25
 ---
 
 ## 한국어
+
+> **관련 글**: [Primary Index 와  ORDER BY 설계](https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/) · [Point Query 를 위한 Index Granularity 조정](https://clickhouse.litkhai.dev/articles/core-architecture/point-query-index-granularity/) · [MySQL 마이그레이션시 Point Query 성능 극대화](https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/)
 
 ClickHouse의 index_granularity 설정을 비교하고 point query 성능에 미치는 영향을 측정하는 포괄적인 벤치마크 테스트 스위트입니다.
 

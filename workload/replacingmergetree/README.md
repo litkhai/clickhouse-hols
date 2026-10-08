@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse 입수와 데이터 저장 (Ingestion & Merge)](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/) · [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/) · [ClickHouse의 FINAL 키워드](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-final/)
+
 A hands-on lab for the behaviour that surprises most ReplacingMergeTree users: deduplication is a **merge-time** side effect, not a write-time guarantee. Until parts merge, duplicate rows are visible, and every query that omits `FINAL` reads them.
 
 ### 📋 Overview
@@ -114,6 +116,8 @@ replacingmergetree/
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse 입수와 데이터 저장 (Ingestion & Merge)](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/) · [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/) · [ClickHouse의 FINAL 키워드](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-final/)
 
 ReplacingMergeTree에서 가장 많이 오해되는 지점을 직접 확인하는 실습입니다: 중복 제거는 쓰기 시점의 보장이 아니라 **머지 시점**의 부수 효과입니다. 파트가 머지되기 전까지 중복 행은 그대로 보이고, `FINAL`을 생략한 모든 쿼리가 그 중복을 읽습니다.
 

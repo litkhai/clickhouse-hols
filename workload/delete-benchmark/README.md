@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/)
+
 A comprehensive benchmark test suite comparing three main mechanisms for handling data deletion in ClickHouse.
 
 ### 🎯 Purpose
@@ -320,6 +322,8 @@ Created: 2025-12-01
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/)
 
 ClickHouse의 데이터 삭제를 처리하는 세 가지 주요 메커니즘을 비교하는 포괄적인 벤치마크 테스트 스위트입니다.
 

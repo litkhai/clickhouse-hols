@@ -5,3 +5,4 @@ summary_ko: "역할과 사용자, 행·컬럼 수준 보안, Settings Profile, Q
 title_en: "RBAC and workload management lab"
 summary_en: "Covers roles and users, row- and column-level security, settings profiles, quotas and workload scheduling in ClickHouse"
 category: feature
+tags: [performance, cloud-operations]

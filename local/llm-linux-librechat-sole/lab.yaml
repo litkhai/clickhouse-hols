@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "LibreChat 단독 배포 (Linux, Ollama)"
+summary_ko: "LibreChat과 MongoDB만 담은 Linux용 경량 Docker 배포로, Ollama의 llama3.1:8b 모델을 쓰고 MCP 서버는 사용자가 따로 연결하도록 구성했습니다."
+title_en: "Standalone LibreChat on Linux with Ollama"
+summary_en: "A lightweight Linux Docker deployment of LibreChat and MongoDB that uses Ollama's llama3.1:8b and leaves MCP servers for the user to connect."
+category: third-party
+tags: [librechat, llm, ai-agents]

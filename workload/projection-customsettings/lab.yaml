@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "Projection별 index_granularity 설정 (25.12+)"
+summary_ko: "ClickHouse 25.12부터 Projection마다 따로 줄 수 있는 index_granularity 등 설정을 값별로 비교하고, granularity가 Point Query 성능에 주는 영향을 측정합니다."
+title_en: "Per-projection index_granularity settings (25.12+)"
+summary_en: "Compares projections built with different index_granularity values, a per-projection setting from ClickHouse 25.12, and measures the effect on point-query performance."
+category: feature
+tags: [projection, index, performance]

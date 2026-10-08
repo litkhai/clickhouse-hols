@@ -1,5 +1,7 @@
 # MySQL Protocol PREWHERE Testing
 
+> **Related notes · 관련 글**: [MySQL 마이그레이션시 Point Query 성능 극대화](https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/)
+
 이 디렉토리는 ClickHouse의 MySQL 프로토콜을 통해 PREWHERE 기능을 테스트하는 스크립트들을 포함합니다.
 
 ## 개요

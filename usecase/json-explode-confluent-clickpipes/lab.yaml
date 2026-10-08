@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "Confluent와 ClickPipes로 하는 실시간 JSON 평탄화"
+summary_ko: "중첩된 주문 이벤트 JSON을 Confluent Cloud와 ClickPipes로 입수하고, 두 단계 Materialized View로 변환과 ARRAY JOIN 평탄화를 거쳐 분석하는 데모를 한 명령으로 자동화했습니다."
+title_en: "Real-time JSON explode with Confluent and ClickPipes"
+summary_en: "One-command automation of a demo where nested order JSON flows through Confluent Cloud and ClickPipes, then two Materialized Views transform and ARRAY JOIN-explode it."
+category: case-study
+tags: [clickpipes, kafka, materialized-view, ingestion]

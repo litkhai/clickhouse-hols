@@ -1,5 +1,7 @@
 # ClickPipes CDC Demo - MySQL Source
 
+> **Related notes · 관련 글**: [ClickPipes 소개](https://clickhouse.litkhai.dev/articles/cloud/clickpipes/)
+
 MySQL → ClickPipes CDC 파이프라인 데모용 Docker 환경입니다.
 
 ---

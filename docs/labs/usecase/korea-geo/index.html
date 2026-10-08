@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>ClickHouse (OSS) + Superset — Korean Administrative-Boundary (Sigungu) Map Lab / 한국 행정구역(시군구) 지도 랩</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/">ClickHouse의 PostGIS 대체 가능성</a></p>
+</blockquote>
 <p>A hands-on lab that implements <strong>coordinate → district reverse geocoding</strong> (ClickHouse Polygon Dictionary) and a <strong>deck.gl Polygon choropleth</strong> (Superset) entirely on local Docker. It demonstrates the full pipeline where <strong>ClickHouse classifies &amp; aggregates</strong> and <strong>Superset visualizes</strong>, and ends with a weather-station dashboard that overlays 3,000 points on per-district aggregates.</p>
 <blockquote>
 <p><strong>Key trap:</strong> ClickHouse geo functions (<code>pointInPolygon</code>, <code>geoToH3</code>, polygon dictionary) assume <strong>WGS84 longitude/latitude in degrees (EPSG:4326)</strong>. Feeding EPSG:5179 (UTM-K, meters) coordinates produces a <strong>silently wrong result with no error</strong>. So data must be loaded in 4326.</p>
@@ -251,7 +254,10 @@ docker compose down -v         # also drop volumes (ClickHouse data + Superset m
 <li>Data source: <a href="https://github.com/southkorea/southkorea-maps"><code>southkorea/southkorea-maps</code></a> <code>kostat/2013</code> sigungu GeoJSON (WGS84, simplified).</li>
 </ul>
 <hr /></div>
-  <div class="readme ko"><p>좌표 → 시군구 <strong>리버스 지오코딩</strong>(ClickHouse Polygon Dictionary)과 <strong>deck.gl Polygon choropleth</strong>(Superset)를 전부 로컬 Docker에서 구현한 핸즈온 랩. <strong>ClickHouse가 분류·집계</strong>하고 <strong>Superset이 시각화</strong>하는 풀 파이프라인을 보여주며, 마지막엔 관측소 3,000개 포인트를 시군구별 집계 위에 오버레이한 대시보드까지 만든다.</p>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/case-study/clickhouse-postgis/">ClickHouse의 PostGIS 대체 가능성</a></p>
+</blockquote>
+<p>좌표 → 시군구 <strong>리버스 지오코딩</strong>(ClickHouse Polygon Dictionary)과 <strong>deck.gl Polygon choropleth</strong>(Superset)를 전부 로컬 Docker에서 구현한 핸즈온 랩. <strong>ClickHouse가 분류·집계</strong>하고 <strong>Superset이 시각화</strong>하는 풀 파이프라인을 보여주며, 마지막엔 관측소 3,000개 포인트를 시군구별 집계 위에 오버레이한 대시보드까지 만든다.</p>
 <blockquote>
 <p><strong>핵심 함정:</strong> ClickHouse geo 함수(<code>pointInPolygon</code>, <code>geoToH3</code>, polygon dictionary)는 <strong>WGS84 경위도(degree, EPSG:4326)</strong> 를 전제한다. EPSG:5179(UTM-K, 미터) 좌표를 넣으면 <strong>에러 없이 조용히 틀린 결과</strong>를 낸다. 따라서 데이터는 반드시 4326 상태로 적재한다.</p>
 </blockquote>

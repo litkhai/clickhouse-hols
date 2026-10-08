@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/)
+
 A hands-on laboratory for learning and testing ClickHouse 25.7 new features. This directory focuses on verified and working features newly added in ClickHouse 25.7 (released 2025-07-24).
 
 ### 📋 Overview
@@ -485,6 +487,8 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Upsert 메커니즘의 발전 과정](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-upsert/)
 
 ClickHouse 25.7 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 7월 24일 출시된 ClickHouse 25.7에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 

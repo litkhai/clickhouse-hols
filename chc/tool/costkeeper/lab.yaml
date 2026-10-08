@@ -5,3 +5,4 @@ summary_ko: "Refreshable MV 기반으로 ClickHouse Cloud 비용을 추적하고
 title_en: "CostKeeper: ClickHouse Cloud cost monitoring and alerting"
 summary_en: "CostKeeper tracks ClickHouse Cloud cost with refreshable materialized views and alerts external systems; the README covers install, usage and troubleshooting"
 category: case-study
+tags: [cloud-operations, materialized-view]

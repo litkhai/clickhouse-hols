@@ -4,3 +4,12 @@ tier: T0            # SQL only, one ClickHouse server, self-generated data
 clickhouse: "26.1"   # image tag clickhouse/clickhouse-server:<this>
 services: [clickhouse]
 verified_on: "26.1.12.23"   # build the SQL was last run against end to end
+
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice
+web: true
+title_ko: "ClickHouse 26.1 새 기능 실습"
+summary_ko: "reverseBySeparator 함수, 배열 컬럼용 텍스트 인덱스, ClickHouse Keeper HTTP API 등 ClickHouse 26.1 새 기능을 SQL 스크립트로 실습합니다."
+title_en: "ClickHouse 26.1 new-features lab"
+summary_en: "Hands-on SQL for ClickHouse 26.1 features: the reverseBySeparator function, text indexes on array columns and the ClickHouse Keeper HTTP API."
+category: feature
+tags: [roadmap, full-text-search, replication]

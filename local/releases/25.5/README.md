@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/) · [ClickHouse Vector Search (25.8)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/)
+
 A hands-on laboratory for learning and testing ClickHouse 25.5 new features. This directory focuses on verified and working features newly added in ClickHouse 25.5 (released 2025-05-22).
 
 ### 📋 Overview
@@ -399,6 +401,8 @@ For questions or issues, please refer to the main [clickhouse-hols README](../..
 ---
 
 ## 한국어
+
+> **관련 글**: [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/) · [ClickHouse Vector Search (25.8)](https://clickhouse.litkhai.dev/articles/feature/clickhouse-vector-search-25-8/)
 
 ClickHouse 25.5 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 5월 22일 출시된 ClickHouse 25.5에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.
 

@@ -5,3 +5,4 @@ summary_ko: "ClickHouse Cloud에서 async insert 파라미터 조합(wait_for_as
 title_en: "Async Insert stress test"
 summary_en: "A stress-test suite that varies async insert parameter combinations, including wait_for_async_insert, to check performance and stability on ClickHouse Cloud"
 category: cloud
+tags: [ingestion, performance]

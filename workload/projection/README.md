@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [Projection을 통한 쿼리 성능 개선](https://clickhouse.litkhai.dev/articles/core-architecture/projection/)
+
 A hands-on laboratory for learning ClickHouse Projection features and testing performance improvements.
 
 ### 🎯 Purpose
@@ -283,6 +285,8 @@ Ken (ClickHouse Solution Architect)
 ---
 
 ## 한국어
+
+> **관련 글**: [Projection을 통한 쿼리 성능 개선](https://clickhouse.litkhai.dev/articles/core-architecture/projection/)
 
 ClickHouse의 Projection 기능을 학습하고 성능을 테스트하는 실습 환경입니다.
 

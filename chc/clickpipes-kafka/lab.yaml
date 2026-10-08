@@ -5,3 +5,4 @@ summary_ko: "ClickHouse Cloud의 ClickPipes로 Confluent Kafka 토픽을 입수�
 title_en: "Ingesting Kafka with ClickPipes"
 summary_en: "Ingesting a Confluent Kafka topic into ClickHouse Cloud with ClickPipes, plus a comparison of the three ways to ingest Kafka data into ClickHouse."
 category: cloud
+tags: [clickpipes, kafka, ingestion]

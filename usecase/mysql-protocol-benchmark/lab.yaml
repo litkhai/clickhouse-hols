@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "MySQL vs ClickHouse Point Query 성능 비교"
+summary_ko: "게임 플레이어 200만 명의 마지막 접속 정보를 player_id로 한 행씩 조회하는 Point Query를 MySQL과 ClickHouse(Primary Key 정렬, Bloom Filter 인덱스)에서 동시성 8~32로 비교합니다."
+title_en: "MySQL vs ClickHouse point-query benchmark"
+summary_en: "Single-row lookups by player_id over 2 million game players, compared between MySQL and ClickHouse (primary-key ORDER BY plus a bloom filter index) at 8 to 32 clients."
+category: case-study
+tags: [mysql, index, benchmark, migration]

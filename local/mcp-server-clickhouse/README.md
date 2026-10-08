@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/third-party/librechat-llm-portal/)
+
 Python-based MCP (Model Context Protocol) server for ClickHouse database integration.
 
 ## Quick Start
@@ -86,6 +88,8 @@ Wait 10-15 seconds after startup for the server to initialize.
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/third-party/librechat-llm-portal/)
 
 ClickHouse 데이터베이스 통합을 위한 Python 기반 MCP (Model Context Protocol) 서버입니다.
 

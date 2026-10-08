@@ -5,3 +5,4 @@ summary_ko: "8억 건 규모의 6개월 고객 활동 데이터로 RFM, 코호�
 title_en: "Customer 360 lab with ClickHouse"
 summary_en: "A Customer 360 lab on about 815 million records of six months of customer activity: RFM, cohort and CLV analysis, Materialized View tuning, RBAC and masking"
 category: case-study
+tags: [materialized-view, performance]

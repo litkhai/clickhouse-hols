@@ -1,5 +1,7 @@
 # MinIO와 다중 카탈로그를 사용한 데이터 레이크
 
+> **관련 글**: [Data Lake Catalog (25.10+)](https://clickhouse.litkhai.dev/articles/feature/data-lake-catalog-25-10/)
+
 [English](README.md) | **한국어**
 
 MinIO 객체 스토리지와 5가지 데이터 카탈로그(Nessie, Hive Metastore, Iceberg REST, Polaris, Unity Catalog)를 사용한 로컬 데이터 레이크 환경 구축.

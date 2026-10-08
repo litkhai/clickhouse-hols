@@ -1,5 +1,7 @@
 # MySQL vs ClickHouse Point Query 성능 비교
 
+> **Related notes · 관련 글**: [MySQL 마이그레이션시 Point Query 성능 극대화](https://clickhouse.litkhai.dev/articles/case-study/mysql-point-query/)
+
 게임 서버에서 플레이어 마지막 접속 정보 조회 성능 비교 테스트
 
 ## 테스트 목적

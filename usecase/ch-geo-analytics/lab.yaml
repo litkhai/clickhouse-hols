@@ -1,0 +1,8 @@
+# Publishing keys (tools/lab.schema.md) — published 2026-10-08, owner's choice, not verified (no runner keys)
+web: true
+title_ko: "H3 인덱싱으로 하는 ClickHouse 지리 공간 분석"
+summary_ko: "합성 뉴욕 차량 호출 500만 건으로 H3 기초, 다중 해상도 수요 히트맵, 거리와 경로, pointInPolygon 공간 검색, H3·Geohash·S2 비교, 실시간 집계 MV를 차례로 실습합니다."
+title_en: "Geospatial analytics on ClickHouse with H3 indexing"
+summary_en: "Five million synthetic NYC ride-hailing trips: H3 basics, multi-resolution demand heatmaps, distance and routing, pointInPolygon, H3 vs Geohash vs S2 and aggregate MVs."
+category: case-study
+tags: [geo, materialized-view]

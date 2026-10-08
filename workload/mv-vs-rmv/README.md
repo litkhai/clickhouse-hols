@@ -6,6 +6,8 @@
 
 ## English
 
+> **Related notes** (Korean): [ClickHouse Refreshable Materialized View](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-refreshable-materialized-view/)
+
 *English translation of the Korean original, LLM-assisted (2026-10-06).*
 
 ClickHouse's Materialized View (MV) and Refreshable Materialized View (RMV) are compared quantitatively for resource efficiency in this test project.
@@ -354,6 +356,9 @@ SYSTEM REFRESH VIEW mv_vs_rmv.events_rmv_batch;
 ---
 
 ## 한국어
+
+> **관련 글**: [ClickHouse Refreshable Materialized View](https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-refreshable-materialized-view/)
+
 ### MV vs RMV 리소스 효율성 비교 테스트
 
 ClickHouse의 Materialized View (MV)와 Refreshable Materialized View (RMV)의 리소스 효율성을 정량적으로 비교 분석하는 테스트 프로젝트입니다.

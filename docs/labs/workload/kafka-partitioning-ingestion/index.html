@@ -38,6 +38,9 @@
   </nav>
   <div class="readme en"><h1>Kafka Partitioning ↔ ClickHouse Sort-Key Alignment — a hands-on lab</h1>
 <hr />
+<blockquote>
+<p><strong>Related notes</strong> (Korean): <a href="https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/">Primary Index 와  ORDER BY 설계</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/">ClickHouse 입수와 데이터 저장 (Ingestion &amp; Merge)</a></p>
+</blockquote>
 <p>A reproducible, end-to-end lab that proves how a <strong>Kafka partitioning strategy</strong>
 turns into the <strong>part-level pruning</strong> behavior of a ClickHouse <code>MergeTree</code> — and
 how the <strong>ingestion path</strong> (Kafka table engine vs Kafka Connect Sink) changes
@@ -244,7 +247,10 @@ high-throughput streaming steady-state</strong>.</p>
 <p>Ken Lee (ClickHouse Solution Architect) — ken.lee@clickhouse.com
 작성일: 2026-06-28</p>
 <hr /></div>
-  <div class="readme ko"><p><strong>Kafka 파티셔닝 전략</strong>이 어떻게 ClickHouse <code>MergeTree</code>의 <strong>part 레벨 pruning</strong>
+  <div class="readme ko"><blockquote>
+<p><strong>관련 글</strong>: <a href="https://clickhouse.litkhai.dev/articles/core-architecture/primary-index-order-by/">Primary Index 와  ORDER BY 설계</a> · <a href="https://clickhouse.litkhai.dev/articles/core-architecture/clickhouse-ingestion-merge/">ClickHouse 입수와 데이터 저장 (Ingestion &amp; Merge)</a></p>
+</blockquote>
+<p><strong>Kafka 파티셔닝 전략</strong>이 어떻게 ClickHouse <code>MergeTree</code>의 <strong>part 레벨 pruning</strong>
 동작으로 이어지는지, 그리고 <strong>인제스천 경로</strong>(Kafka 테이블 엔진 vs Kafka Connect
 Sink)에 따라 그 지역성이 보존되는지 달라지는지를 <strong>실측으로 증명</strong>하는 재현 가능한
 end-to-end 실습입니다.</p>

@@ -1,5 +1,7 @@
 # ClickHouse Cloud API Tester
 
+> **Related notes · 관련 글**: [ClickHouse Cloud API 기반 메트릭 가이드](https://clickhouse.litkhai.dev/articles/cloud/clickhouse-cloud-api/)
+
 ClickHouse Cloud API를 테스트하고 상세한 리포트를 생성하는 Python 도구입니다.
 
 ## 주요 기능

@@ -11,3 +11,4 @@ summary_ko: "Langfuse v4가 ClickHouse에 쓰는 테이블(events_full, events_c
 title_en: "Langfuse's ClickHouse without Langfuse: traces and scores in SQL"
 summary_en: "A snapshot of the tables Langfuse v4 writes to ClickHouse (events_full, events_core, scores) in a plain ClickHouse, for the exploration, LLM-observability analytics and quality-score SQL with no Langfuse running (ClickHouse 26.8.18.2)"
 category: third-party
+tags: [langfuse, llm, observability]
