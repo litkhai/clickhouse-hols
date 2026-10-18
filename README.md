@@ -71,6 +71,7 @@ and [MOVED.md](MOVED.md).
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | `PREWHERE` behaviour over the MySQL protocol |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse point-query performance |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` table engine + querying it with PromQL (OSS 26.8; Cloud is Private Preview only — no Cloud lab yet) |
+| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | Telco OSS network-quality lake: one measurement through bronze, silver, gold and serving to a NOC map, with a live demo (OSS 26.9; ko/en/ja/zh) |
 
 ### 🔬 Workloads (`workload/`)
 
@@ -284,6 +285,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | MySQL 프로토콜에서의 `PREWHERE` 동작 |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse 포인트 쿼리 성능 |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` 테이블 엔진 + PromQL로 조회하기 (OSS 26.8; Cloud는 Private Preview 전용 — Cloud 실습은 아직 없음) |
+| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | 통신사 OSS 네트워크 품질 레이크: 측정 한 건이 브론즈, 실버, 골드, 서빙을 지나 NOC 지도까지, 라이브 데모 포함 (OSS 26.9; ko/en/ja/zh) |
 
 ### 🔬 워크로드 (`workload/`)
 

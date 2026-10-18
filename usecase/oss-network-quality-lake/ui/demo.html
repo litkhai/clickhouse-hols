@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="[[lang]]">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>{{demo.title}}</title>
+<style>[[css]]</style>
+</head>
+<body class="demo">
+<header class="site-header"><div class="in">
+  <a class="brand" href="[[to_explainer]]">{{brand}}</a>
+  <nav class="nav"><a href="[[to_explainer]]">{{nav.explainer}}</a><a href="index.html" aria-current="page">{{nav.demo}}</a></nav>
+  [[langmenu]]
+</div></header>
+
+<main>
+  <h1 style="font-size:1.4rem;margin:.2em 0">{{demo.title}}</h1>
+  <p class="lead" style="font-size:1rem">{{demo.lead}}</p>
+  <p class="warn" id="offline" hidden>{{demo.offline}}</p>
+
+  <div class="controls">
+    <button class="button" id="tick" type="button">{{demo.tick}}</button>
+    <span class="status" id="status" aria-live="polite"></span>
+  </div>
+
+  <ol class="pipeline" id="pipeline">
+    <li><button class="layer layer-bronze" data-n="1" aria-pressed="true"><span class="nm">{{layer.bronze}}</span> · <span class="meta">{{role.bronze}}</span><br><span class="tb">ue_trace_raw</span><div class="rows">–</div><div class="delta"></div><div class="meta"></div></button></li>
+    <li><button class="layer layer-silver" data-n="2" aria-pressed="false"><span class="nm">{{layer.silver}}</span> · <span class="meta">{{role.silver}}</span><br><span class="tb">ue_trace</span><div class="rows">–</div><div class="delta"></div><div class="meta"></div></button></li>
+    <li><button class="layer layer-gold" data-n="3" aria-pressed="false"><span class="nm">{{layer.gold}}</span> · <span class="meta">{{role.gold}}</span><br><span class="tb">cell_kpi_1m</span><div class="rows">–</div><div class="delta"></div><div class="meta"></div></button></li>
+    <li><button class="layer layer-serving" data-n="4" aria-pressed="false"><span class="nm">{{layer.serving}}</span> · <span class="meta">{{role.serving}}</span><br><span class="tb">cell_rank_now</span><div class="rows">–</div><div class="delta"></div><div class="meta"></div></button></li>
+  </ol>
+
+  <section class="card">
+    <h3 style="margin:0 0 8px;font-size:1rem">{{demo.map}} <span class="status" id="map-at"></span></h3>
+    <div class="maps" id="maps"></div>
+    <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
+  </section>
+
+  <section class="card panel">
+    <h3 id="p-title"></h3>
+    <div class="cols">
+      <div>
+        <p class="note" id="p-hint">{{demo.sample}}</p>
+        <div id="p-sample"></div>
+      </div>
+      <div>
+        <p class="note">{{demo.query}} · <span id="p-time"></span></p>
+        <div id="p-result"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">{{footer}}</footer>
+<script type="application/json" id="i18n">[[catalogue]]</script>
+<script>[[js]]</script>
+<script>
+(function () {
+  var T = LAB.T, fmt = LAB.fmt;
+  var KEYS = ["bronze", "silver", "gold", "serving"];
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".layer"));
+  var shown = [0, 0, 0, 0], selected = 1, last = null;
+
+  function api(path, opts) {
+    return fetch(path, opts).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; });
+    });
+  }
+  function size(b) {
+    var u = ["B", "KiB", "MiB", "GiB"], i = 0;
+    while (b >= 1024 && i < 3) { b /= 1024; i++; }
+    return (i < 2 ? Math.round(b) : b.toFixed(1)) + " " + u[i];
+  }
+  function esc(v) {
+    return String(v === null ? "NULL" : v).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+  function kv(row) {
+    return "<table class=\"kv\">" + Object.keys(row).map(function (k) {
+      return "<tr><th scope=\"row\"><code>" + esc(k) + "</code></th><td><code>" + esc(row[k]) + "</code></td></tr>";
+    }).join("") + "</table>";
+  }
+
+  /* count up from what is on screen to the new value; instant under reduced motion */
+  function animate(i, to) {
+    var node = buttons[i].querySelector(".rows"), from = shown[i];
+    shown[i] = to;
+    if (LAB.reducedMotion() || from === 0) { node.textContent = fmt(to); return; }
+    var t0 = performance.now();
+    (function step(now) {
+      var p = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - p, 3);
+      node.textContent = fmt(Math.round(from + (to - from) * e));
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  function showLayers(d, deltas) {
+    d.layers.forEach(function (l, i) {
+      var b = buttons[i];
+      b.querySelector(".meta:last-child").textContent = size(l.bytes);
+      var delta = deltas ? l.rows - shown[i] : 0;
+      setTimeout(function () {
+        animate(i, l.rows);
+        b.querySelector(".delta").textContent = i === 3 ? T("demo.refreshed", { t: d.anchor_ts.slice(11, 16) })
+          : delta ? (delta > 0 ? "+" : "") + fmt(delta) : "";
+        if (deltas && !LAB.reducedMotion()) { b.classList.remove("pulse"); void b.offsetWidth; b.classList.add("pulse"); }
+      }, deltas && !LAB.reducedMotion() ? i * 220 : 0);
+    });
+  }
+
+  function samplesFor(d, n) {
+    if (n === 1) return d.story.raw;
+    if (n === 2) return d.story.silver;
+    if (n === 3) { var g = Object.assign({}, d.story.gold); g.users_st = "uniqState(…) → " + g.users_st; return g; }
+    return null;
+  }
+
+  function select(n) {
+    selected = n;
+    buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(+b.dataset.n === n)); });
+    document.getElementById("p-title").textContent = T("layer." + KEYS[n - 1]) + " · " + T("role." + KEYS[n - 1]);
+    var s = last && samplesFor(last, n);
+    document.getElementById("p-hint").textContent = n === 4 ? T("demo.sample.serving") : T("demo.sample");
+    document.getElementById("p-sample").innerHTML = s ? kv(s) : "";
+    document.getElementById("p-time").textContent = "…";
+    api("/api/q/" + n).then(function (q) {
+      document.getElementById("p-time").textContent = T("demo.timing", { rows: q.read_rows, ms: q.elapsed_ms });
+      var rows = q.rows.map(function (r) {
+        return "<tr class=\"" + (r.list === "users" ? "" : "weak") + "\"><td>" + esc(T("list.short." + r.list)) + " " + r.rnk +
+          "</td><td><code>" + esc(r.cell) + "</code></td><td class=\"num\">" + fmt(r.users) + "</td><td class=\"num\">" + fmt(r.avg_rsrp) + "</td></tr>";
+      }).join("");
+      document.getElementById("p-result").innerHTML = "<div class=\"scroll\"><table class=\"rank\"><thead><tr><th scope=\"col\">#</th>" +
+        "<th scope=\"col\">cell</th><th scope=\"col\" class=\"num\">users</th><th scope=\"col\" class=\"num\">avg_rsrp</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
+    }).catch(offline);
+  }
+
+  function offline(e) {
+    document.getElementById("offline").hidden = false;
+    document.getElementById("tick").disabled = true;
+    if (window.console) console.warn(e);
+  }
+
+  function refresh(deltas) {
+    return api("/api/layers").then(function (d) {
+      last = d;
+      showLayers(d, deltas);
+      document.getElementById("status").textContent = T("demo.anchor", { t: d.anchor_ts });
+      return api("/api/map");
+    }).then(function (m) {
+      var box = document.getElementById("maps");
+      LAB.drawMaps(box, m);
+      document.getElementById("map-at").textContent = T("demo.map.at", { t: last.anchor_ts.slice(11, 16) });
+      if (deltas && !LAB.reducedMotion()) { box.classList.remove("pulse"); void box.offsetWidth; box.classList.add("pulse"); }
+      select(selected);
+    });
+  }
+
+  buttons.forEach(function (b) { b.addEventListener("click", function () { select(+b.dataset.n); }); });
+
+  document.getElementById("tick").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    document.getElementById("status").textContent = T("demo.sending");
+    api("/api/tick", { method: "POST" }).then(function (r) {
+      return refresh(true).then(function () {
+        document.getElementById("status").textContent =
+          T("demo.sent", { n: r.inserted, s: r.total_s, t: r.anchor_ts });
+      });
+    }).catch(offline).then(function () { btn.disabled = document.getElementById("offline").hidden === false; });
+  });
+
+  refresh(false).catch(offline);
+})();
+</script>
+</body>
+</html>

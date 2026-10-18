@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="[[lang]]">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>{{meta.title}}</title>
+<style>[[css]]</style>
+</head>
+<body>
+<header class="site-header"><div class="in">
+  <a class="brand" href="index.html">{{brand}}</a>
+  <nav class="nav"><a href="index.html" aria-current="page">{{nav.explainer}}</a><a href="[[to_demo]]">{{nav.demo}}</a></nav>
+  [[langmenu]]
+</div></header>
+
+<main>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" style="fill:var(--ink-2)"/></marker></defs></svg>
+<section class="hero">
+  <p class="kicker">{{hero.kicker}}</p>
+  <h1>{{hero.title}}</h1>
+  <p class="lead">{{hero.lead}}</p>
+  <p class="note">{{hero.note}}</p>
+</section>
+
+<section class="card">
+  <h2>{{where.title}}</h2>
+  <p>{{where.body}}</p>
+  <figure>
+  <svg class="icon" viewBox="0 0 420 190" role="img" aria-label="{{where.aria}}" style="max-width:560px">
+    <rect class="fl" x="8" y="10" width="190" height="170" rx="12"/>
+    <text x="103" y="34" text-anchor="middle" style="font-weight:700">{{where.bss}}</text>
+    <text x="103" y="54" text-anchor="middle" class="lbl">{{where.bss_sub}}</text>
+    <text x="103" y="110" text-anchor="middle" class="lbl">{{where.bss_q}}</text>
+    <rect x="222" y="10" width="190" height="170" rx="12" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+    <text x="317" y="34" text-anchor="middle" style="font-weight:700">{{where.oss}}</text>
+    <text x="317" y="54" text-anchor="middle" class="lbl">{{where.oss_sub}}</text>
+    <rect x="240" y="66" width="154" height="26" rx="6" style="fill:var(--surface);stroke:var(--line)"/>
+    <text x="317" y="84" text-anchor="middle" class="lbl">{{where.probe}}</text>
+    <path class="ln" d="M317 92 V104"/>
+    <rect x="240" y="104" width="154" height="30" rx="6" style="fill:var(--accent)"/>
+    <text x="317" y="124" text-anchor="middle" style="fill:var(--surface);font-weight:700;font-size:13px">{{where.lake}}</text>
+    <path class="ln" d="M317 134 V146"/>
+    <rect x="240" y="146" width="154" height="26" rx="6" style="fill:var(--surface);stroke:var(--line)"/>
+    <text x="317" y="164" text-anchor="middle" class="lbl">{{where.noc}}</text>
+  </svg>
+  </figure>
+</section>
+
+<section class="card">
+  <h2>{{funnel.title}}</h2>
+  <p class="count-line">{{funnel.body}}</p>
+  [[funnel]]
+</section>
+
+<ol class="steps" id="steps">
+
+<li class="step step-phone">
+  <span class="badge" aria-hidden="true">1</span>
+  <h2>{{s1.title}}</h2>
+  <p>{{s1.body}}</p>
+  <svg class="icon" viewBox="0 0 420 90" aria-hidden="true">
+    <rect class="fl" x="10" y="8" width="44" height="74" rx="8"/><rect class="ln" x="18" y="18" width="28" height="48" rx="2"/>
+    <path class="ln" d="M70 45 q10 -12 0 -24 M82 50 q16 -20 0 -40" transform="translate(0 12)"/>
+    <rect class="fl" x="118" y="28" width="110" height="34" rx="6"/><text x="173" y="50" text-anchor="middle" class="lbl">{{s1.probe}}</text>
+    <path class="ln" d="M228 45 H290" marker-end="url(#arrowhead)"/>
+    <rect x="300" y="28" width="110" height="34" rx="6" style="fill:var(--surface);stroke:var(--c-bronze);stroke-width:2"/>
+    <text x="355" y="50" text-anchor="middle" class="lbl">{{layer.bronze}}</text>
+  </svg>
+  <p class="count-line">{{s1.count|n=story.per_minute}}</p>
+  <details><summary>{{sql.phone}}</summary>[[sql:phone]]</details>
+</li>
+
+<li class="step step-bronze">
+  <span class="badge" aria-hidden="true">2</span>
+  <h2>{{s2.title}}<small><code>oss_lake.ue_trace_raw</code></small></h2>
+  <p>{{s2.body}}</p>
+  [[raw]]
+  <p class="count-line">{{s2.count|n=layers.0.rows}}</p>
+  <details><summary>{{sql.show}}</summary>[[sql:bronze]]</details>
+</li>
+
+<li class="step step-silver">
+  <span class="badge" aria-hidden="true">3</span>
+  <h2>{{s3.title}}<small><code>oss_lake.ue_trace</code></small></h2>
+  <p>{{s3.body}}</p>
+  [[compare]]
+  <p class="count-line">{{s3.count|n=layers.1.rows,d=story.dropped,z=story.no_rsrp}}</p>
+  <details><summary>{{sql.show}}</summary>[[sql:silver]]</details>
+</li>
+
+<li class="step step-gold">
+  <span class="badge" aria-hidden="true">4</span>
+  <h2>{{s4.title}}<small><code>oss_lake.cell_kpi_1m</code></small></h2>
+  <p>{{s4.body|n=story.folded_rows}}</p>
+  [[fold]]
+  [[gold]]
+  <p class="count-line">{{s4.count|n=layers.2.rows,w=story.gold_window_rows}}</p>
+  <p class="pitfall"><strong>{{pitfall.title}}</strong> {{pitfall.body}}</p>
+  <details><summary>{{sql.show}}</summary>[[sql:gold_table]]
+[[sql:gold]]</details>
+</li>
+
+<li class="step step-serving">
+  <span class="badge" aria-hidden="true">5</span>
+  <h2>{{s5.title}}<small><code>oss_lake.cell_rank_now</code></small></h2>
+  <p>{{s5.body}}</p>
+  [[serving]]
+  <p class="count-line">{{s5.count}}</p>
+  <details><summary>{{sql.show}}</summary>[[sql:serving]]</details>
+</li>
+
+<li class="step step-map">
+  <span class="badge" aria-hidden="true">6</span>
+  <h2>{{s6.title}}</h2>
+  <p>{{s6.body}}</p>
+  <div class="maps" id="maps"><p class="muted">{{map.nojs}}</p></div>
+  <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
+</li>
+
+</ol>
+
+<section class="card">
+  <h2>{{same.title}}</h2>
+  <p>{{same.body}}</p>
+  [[timings]]
+  <p class="measured">[[measured]]</p>
+  <details><summary>{{sql.noc}}</summary>[[sql:noc_bronze]]
+[[sql:noc_gold]]</details>
+</section>
+
+<section class="cta">
+  <h2>{{cta.title}}</h2>
+  <p>{{cta.body}}</p>
+  <pre><code>cd usecase/oss-network-quality-lake
+ui/up.sh</code></pre>
+  <p><a class="button" href="[[to_demo]]">{{cta.button}}</a></p>
+  <p class="note">{{cta.note}}</p>
+</section>
+</main>
+
+<footer class="site-footer">{{footer}}</footer>
+<script type="application/json" id="i18n">[[catalogue]]</script>
+<script type="application/json" id="snapshot">[[snapshot]]</script>
+<script>[[js]]</script>
+<script>
+  LAB.reveal(document.getElementById("steps"));
+  LAB.drawMaps(document.getElementById("maps"), JSON.parse(document.getElementById("snapshot").textContent).map);
+</script>
+</body>
+</html>
