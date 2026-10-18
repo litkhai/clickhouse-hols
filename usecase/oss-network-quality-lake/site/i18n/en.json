@@ -4,12 +4,10 @@
   "nav.explainer": "Explainer",
   "nav.demo": "Live demo",
   "lang.aria": "Choose language, current: English",
-
   "hero.kicker": "ClickHouse lab · telco OSS",
   "hero.title": "From a phone to the NOC map: one measurement through the lake",
   "hero.lead": "A fictional mobile operator's network operations centre (NOC) shows, for the last hour, the 10 cells with the most users and the 10 with the weakest signal. Follow one measurement from a phone and see what each layer changes and how far the row count shrinks.",
   "hero.note": "All data is generated in SQL. The operator and the cities are fictional; only the city-centre coordinates are real places in Korea.",
-
   "where.title": "Where this lake sits",
   "where.body": "A telco runs two families of systems. BSS handles customers and money (subscriptions, rating, billing); OSS handles the network itself (equipment, faults, quality). This lab is on the OSS side: network-quality data.",
   "where.aria": "BSS covers subscriptions, rating and billing; OSS covers equipment, faults and quality. The quality lake sits inside OSS, between the collection of device measurements and the NOC screen.",
@@ -21,10 +19,8 @@
   "where.probe": "device measurements",
   "where.lake": "quality lake (this lab)",
   "where.noc": "NOC screen",
-
   "funnel.title": "Fewer rows at every layer",
   "funnel.body": "All four layers are ClickHouse tables. The bars are each table's actual row count.",
-
   "layer.bronze": "Bronze",
   "layer.silver": "Silver",
   "layer.gold": "Gold",
@@ -33,16 +29,13 @@
   "role.silver": "cleaned",
   "role.gold": "minute × cell",
   "role.serving": "20 rows to show",
-
   "s1.title": "A phone sends a measurement",
   "s1.body": "The device reports the serving cell's signal strength (RSRP), signal quality (RSRQ, SINR) and channel quality (CQI). The probe tags the location as an H3 res-9 cell (about 170 m a side) and passes the subscriber number (IMSI) on encrypted.",
   "s1.probe": "probe",
   "s1.count": "<span class=\"count\">{n}</span> measurements a minute across three cities.",
-
   "s2.title": "Bronze keeps it as received",
   "s2.body": "Stored without reshaping: H3 as a string, the IMSI as 44 characters of ciphertext, every measurement Nullable. If the cleaning rules change later, everything downstream can be rebuilt from here. A TTL removes it after 3 days.",
   "s2.count": "Bronze: <span class=\"count\">{n}</span> rows (2 hours).",
-
   "s3.title": "Silver cleans the same row",
   "s3.body": "The moment a row lands in bronze, a materialized view rewrites it into silver. Here is the measurement above, before and after.",
   "s3.count": "Silver: <span class=\"count\">{n}</span> rows. {d} rows without a cell or a subscriber are dropped; {z} rows without RSRP keep NULL (it is not 0 dBm).",
@@ -54,7 +47,6 @@
   "cmp.float": "Float32",
   "cmp.cqi": "string → number",
   "cmp.dropped": "not used by the NOC, dropped",
-
   "s4.title": "Gold folds many rows into one",
   "s4.body": "The <span class=\"count\">{n}</span> rows that arrived for one cell in one minute become a single gold row. Users are kept as a uniq state and the rest as sums, so any time range can be merged again.",
   "fold.one": "1 gold row",
@@ -63,7 +55,6 @@
   "s4.count": "Gold: <span class=\"count\">{n}</span> rows (2 hours). The last hour, which the NOC query reads, is {w} rows.",
   "pitfall.title": "One pitfall.",
   "pitfall.body": "An aggregate state type has to match whether its source column is Nullable. A mismatched MV is refused at CREATE, but if the source column is made Nullable later with ALTER, the ALTER passes and every INSERT after it fails with CANNOT_CONVERT_TYPE. The source rows still land, so only gold stops (reproduction in the README).",
-
   "s5.title": "Serving keeps only the 20 rows the screen needs",
   "s5.body": "A refreshable materialized view recomputes the last hour from gold every minute and replaces the 20 rows in one swap. The NOC screen reads only these. The highlighted row is the cell our measurement belongs to.",
   "s5.count": "Serving: <span class=\"count\">20</span> rows, refreshed every minute.",
@@ -71,7 +62,6 @@
   "list.signal": "10 cells with weakest signal",
   "list.short.users": "users",
   "list.short.signal": "signal",
-
   "s6.title": "The NOC map draws them",
   "s6.body": "The 20 serving cells become hexagon outlines with ClickHouse's h3ToGeoBoundary. The shaded hexagons behind them are the last hour's measurement counts (res-7). Busy cells gather downtown; weak ones gather in the coverage holes.",
   "map.nojs": "The map is drawn with JavaScript.",
@@ -84,7 +74,6 @@
   "city.0": "City A (near Seoul)",
   "city.1": "City B (near Busan)",
   "city.2": "City C (near Daegu)",
-
   "same.title": "Every layer gives the same 20 rows",
   "same.body": "Ask the same NOC question of each of the four layers and the same 20 rows come back (03-queries.sql checks it). What changes is how many rows are read.",
   "timing.line": "{rows} rows read",
@@ -92,14 +81,11 @@
   "sql.phone": "SQL: the view that makes the measurements",
   "sql.show": "Show SQL",
   "sql.noc": "SQL: the NOC query on bronze and on gold",
-
   "cta.title": "Send data through it yourself",
   "cta.body": "In the live demo, “Send next minute” puts one minute of measurements into bronze; silver and gold counts grow through the MVs, and the 20 serving rows and the map refresh.",
   "cta.button": "Open the live demo",
   "cta.note": "Needs only Docker and Python 3. Local only, no Cloud cost.",
-
-  "footer": "clickhouse-hols · usecase/oss-network-quality-lake · fictional operator and cities, data generated in SQL.",
-
+  "footer": "clickhouse-hols · usecase/oss-network-quality-lake · fictional operator and cities, data generated in SQL. No cookies, analytics or tracking.",
   "demo.title": "Live demo: one minute at a time",
   "demo.lead": "Each press puts one minute of measurements into bronze. The MVs carry it into silver and gold, and serving refreshes on the spot. Click a layer to see a sample row and the NOC query asked of that layer.",
   "demo.offline": "The demo server or ClickHouse is not reachable. Run ui/up.sh in the lab directory, then open http://localhost:8765/demo .",
@@ -113,5 +99,7 @@
   "demo.sending": "Sending one minute…",
   "demo.sent": "Put {n} rows into bronze and refreshed serving ({s} s). Anchor {t}.",
   "demo.refreshed": "↻ refreshed for {t}",
-  "demo.map.at": "· last hour to {t}"
+  "demo.map.at": "· last hour to {t}",
+  "demo.replay": "Replaying a recording: this site has no ClickHouse, so each press plays one of {n} minutes recorded from the local lab on {date} (ClickHouse {version}). To send data yourself, run ui/up.sh from the repository.",
+  "demo.restart": "Start over"
 }

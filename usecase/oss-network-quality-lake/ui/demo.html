@@ -19,6 +19,7 @@
   <h1 style="font-size:1.4rem;margin:.2em 0">{{demo.title}}</h1>
   <p class="lead" style="font-size:1rem">{{demo.lead}}</p>
   <p class="warn" id="offline" hidden>{{demo.offline}}</p>
+  <p class="warn" id="replay-note" hidden></p>
 
   <div class="controls">
     <button class="button" id="tick" type="button">{{demo.tick}}</button>
@@ -55,6 +56,7 @@
 
 <footer class="site-footer">{{footer}}</footer>
 <script type="application/json" id="i18n">[[catalogue]]</script>
+<script type="application/json" id="replay">[[replay]]</script>
 <script>[[js]]</script>
 <script>
 (function () {
@@ -63,11 +65,38 @@
   var buttons = Array.prototype.slice.call(document.querySelectorAll(".layer"));
   var shown = [0, 0, 0, 0], selected = 1, last = null;
 
-  function api(path, opts) {
+  /* live: ui/server.py and ClickHouse. replay: a static host (no /api) plays the presses
+     recorded with `ui/server.py --record`, so the page still shows the flow. */
+  var REPLAY = JSON.parse(document.getElementById("replay").textContent);
+  var mode = null, frame = 0;
+
+  function live(path, opts) {
     return fetch(path, opts).then(function (r) {
       return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; });
     });
   }
+  function fromReplay(path) {
+    var last = REPLAY.frames.length - 1;
+    if (path === "/api/tick") frame = Math.min(frame + 1, last);
+    var f = REPLAY.frames[frame], out;
+    if (path === "/api/tick") out = { inserted: f.inserted, total_s: f.total_s, anchor_ts: f.anchor_ts, layers: f.layers };
+    else if (path === "/api/layers") out = { anchor_ts: f.anchor_ts, layers: f.layers, story: f.story };
+    else if (path === "/api/map") out = { cells: f.cells, density: REPLAY.density };
+    else out = f.q[+path.slice(7) - 1];
+    return new Promise(function (ok) { setTimeout(function () { ok(out); }, path === "/api/tick" ? 350 : 0); });
+  }
+  function api(path, opts) {
+    if (mode === "replay") return fromReplay(path);
+    return live(path, opts).then(function (j) { mode = "live"; return j; }, function (e) {
+      if (mode !== null || !REPLAY) throw e;
+      mode = "replay";
+      var note = document.getElementById("replay-note");
+      note.textContent = T("demo.replay", { n: REPLAY.frames.length - 1, date: REPLAY.recorded, version: REPLAY.clickhouse });
+      note.hidden = false;
+      return fromReplay(path);
+    });
+  }
+  function atEnd() { return mode === "replay" && frame === REPLAY.frames.length - 1; }
   function size(b) {
     var u = ["B", "KiB", "MiB", "GiB"], i = 0;
     while (b >= 1024 && i < 3) { b /= 1024; i++; }
@@ -160,12 +189,19 @@
 
   document.getElementById("tick").addEventListener("click", function () {
     var btn = this;
+    if (atEnd()) {            /* replay finished: start over from the first recorded minute */
+      frame = 0; shown = [0, 0, 0, 0];
+      btn.textContent = T("demo.tick");
+      refresh(false);
+      return;
+    }
     btn.disabled = true;
     document.getElementById("status").textContent = T("demo.sending");
     api("/api/tick", { method: "POST" }).then(function (r) {
       return refresh(true).then(function () {
         document.getElementById("status").textContent =
           T("demo.sent", { n: r.inserted, s: r.total_s, t: r.anchor_ts });
+        if (atEnd()) btn.textContent = T("demo.restart");
       });
     }).catch(offline).then(function () { btn.disabled = document.getElementById("offline").hidden === false; });
   });

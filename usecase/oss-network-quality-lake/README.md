@@ -127,6 +127,8 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `ui/server.py` | stdlib-only server: explainer at `/`, demo at `/demo`, fixed endpoints `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | the live demo page (no build step, no CDN) |
 | `ui/up.sh` | container + 01–03 + server, in one command |
+| `site/data/replay.json` | six live-feed presses recorded with `ui/server.py --record 6`, replayed by the demo where there is no ClickHouse |
+| `vercel.json` | static deployment: `python3 site/build.py` → `site/dist`, `noindex` header |
 
 ### Run it
 
@@ -157,6 +159,22 @@ page. Stop with Ctrl-C and remove the container with `docker rm -f oss-lake-demo
 
 After changing the SQL, refresh the snapshot against a loaded container:
 `CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh`.
+
+### Deployed copy
+
+A static copy runs on Vercel (project `oss-lake`, team `litkhai`, deployed from this directory with
+the CLI, not git-connected): <https://oss-lake.vercel.app/>, with `oss-lake.clickhouse.kr` attached
+and waiting for its DNS records (2026-10-18). There is no ClickHouse behind it: the explainer reads
+the snapshot, and the demo replays six presses recorded on 2026-10-18 with a notice saying so. No
+cookies, analytics or tracking; every response carries `X-Robots-Tag: noindex`.
+
+```bash
+cd usecase/oss-network-quality-lake
+vercel deploy --prod --scope litkhai
+```
+
+To refresh what it shows: load a fresh container (`ui/up.sh`), then `./snapshot.sh`, then
+`python3 ui/server.py --record 6`, then deploy.
 
 ### Languages
 
@@ -297,6 +315,8 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `ui/server.py` | 표준 라이브러리만 쓰는 서버: `/`에 설명, `/demo`에 데모, 고정 엔드포인트 `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | 라이브 데모 페이지(빌드 단계 없음, CDN 없음) |
 | `ui/up.sh` | 컨테이너 + 01–03 + 서버를 명령 하나로 |
+| `site/data/replay.json` | `ui/server.py --record 6`으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생 |
+| `vercel.json` | 정적 배포: `python3 site/build.py` → `site/dist`, `noindex` 헤더 |
 
 ### 실행
 
@@ -327,6 +347,22 @@ usecase/oss-network-quality-lake/ui/up.sh
 
 SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다시 만듭니다:
 `CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh`.
+
+### 배포본
+
+정적 사본이 Vercel에서 돕니다(프로젝트 `oss-lake`, 팀 `litkhai`, 이 디렉터리에서 CLI로 배포, git 연결
+없음): <https://oss-lake.vercel.app/>. `oss-lake.clickhouse.kr`은 프로젝트에 붙였고 DNS 레코드를
+기다리는 중입니다(2026-10-18). 뒤에 ClickHouse는 없습니다. 설명 페이지는 스냅숏을 읽고, 데모는
+2026-10-18에 녹화한 버튼 6번을 재생하며 그렇다고 알립니다. 쿠키, 분석, 추적은 없고 모든 응답에
+`X-Robots-Tag: noindex`가 붙습니다.
+
+```bash
+cd usecase/oss-network-quality-lake
+vercel deploy --prod --scope litkhai
+```
+
+보여 주는 내용을 새로 하려면: 새 컨테이너를 적재하고(`ui/up.sh`) `./snapshot.sh`, 이어서
+`python3 ui/server.py --record 6`을 실행한 뒤 배포합니다.
 
 ### 언어
 

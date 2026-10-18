@@ -49,6 +49,12 @@ def snapshot():
     return json.loads((SITE / "data" / "snapshot.json").read_text())
 
 
+def replay():
+    """Recorded live-feed presses for hosts without ClickHouse (ui/server.py --record)."""
+    p = SITE / "data" / "replay.json"
+    return p.read_text().strip() if p.exists() else "null"
+
+
 def get(obj, path):
     for part in path.split("."):
         obj = obj[int(part)] if isinstance(obj, list) else obj[part]
@@ -272,6 +278,7 @@ def render(page, loc, cats=None, snap=None):
             "lang": loc, "langmenu": lang_menu(loc, page, t), "css": css, "js": js,
             "catalogue": json.dumps(t, ensure_ascii=False).replace("</", "<\\/"),
             "snapshot": json.dumps(snap, ensure_ascii=False).replace("</", "<\\/"),
+            "replay": replay().replace("</", "<\\/"),
             "to_demo": "demo/index.html", "to_explainer": "../index.html",
         }
         if name in fixed:

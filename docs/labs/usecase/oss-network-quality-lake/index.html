@@ -242,6 +242,14 @@ and feeding <code>uniqState</code> a non-Nullable hash. Another fix is a state t
 <td><code>ui/up.sh</code></td>
 <td>container + 01–03 + server, in one command</td>
 </tr>
+<tr>
+<td><code>site/data/replay.json</code></td>
+<td>six live-feed presses recorded with <code>ui/server.py --record 6</code>, replayed by the demo where there is no ClickHouse</td>
+</tr>
+<tr>
+<td><code>vercel.json</code></td>
+<td>static deployment: <code>python3 site/build.py</code> → <code>site/dist</code>, <code>noindex</code> header</td>
+</tr>
 </tbody>
 </table>
 <h3>Run it</h3>
@@ -262,6 +270,17 @@ writes, and it runs one fixed statement (the next minute from <code>synth_traces
 page. Stop with Ctrl-C and remove the container with <code>docker rm -f oss-lake-demo</code>.</p>
 <p>After changing the SQL, refresh the snapshot against a loaded container:
 <code>CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh</code>.</p>
+<h3>Deployed copy</h3>
+<p>A static copy runs on Vercel (project <code>oss-lake</code>, team <code>litkhai</code>, deployed from this directory with
+the CLI, not git-connected): <a href="https://oss-lake.vercel.app/">https://oss-lake.vercel.app/</a>, with <code>oss-lake.clickhouse.kr</code> attached
+and waiting for its DNS records (2026-10-18). There is no ClickHouse behind it: the explainer reads
+the snapshot, and the demo replays six presses recorded on 2026-10-18 with a notice saying so. No
+cookies, analytics or tracking; every response carries <code>X-Robots-Tag: noindex</code>.</p>
+<pre><code class="language-bash">cd usecase/oss-network-quality-lake
+vercel deploy --prod --scope litkhai
+</code></pre>
+<p>To refresh what it shows: load a fresh container (<code>ui/up.sh</code>), then <code>./snapshot.sh</code>, then
+<code>python3 ui/server.py --record 6</code>, then deploy.</p>
 <h3>Languages</h3>
 <p>Korean is the source. <code>site/i18n/{ko,en,ja,zh}.json</code> is one catalogue per language, shared by the
 explainer and the demo; <code>build.py</code> writes <code>/</code> (ko), <code>/en/</code>, <code>/ja/</code>, <code>/zh/</code> and fails when the key
@@ -477,6 +496,14 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 <td><code>ui/up.sh</code></td>
 <td>컨테이너 + 01–03 + 서버를 명령 하나로</td>
 </tr>
+<tr>
+<td><code>site/data/replay.json</code></td>
+<td><code>ui/server.py --record 6</code>으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생</td>
+</tr>
+<tr>
+<td><code>vercel.json</code></td>
+<td>정적 배포: <code>python3 site/build.py</code> → <code>site/dist</code>, <code>noindex</code> 헤더</td>
+</tr>
 </tbody>
 </table>
 <h3>실행</h3>
@@ -497,6 +524,17 @@ open usecase/oss-network-quality-lake/site/dist/index.html
 <code>docker rm -f oss-lake-demo</code>로 컨테이너를 지웁니다.</p>
 <p>SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다시 만듭니다:
 <code>CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh</code>.</p>
+<h3>배포본</h3>
+<p>정적 사본이 Vercel에서 돕니다(프로젝트 <code>oss-lake</code>, 팀 <code>litkhai</code>, 이 디렉터리에서 CLI로 배포, git 연결
+없음): <a href="https://oss-lake.vercel.app/">https://oss-lake.vercel.app/</a>. <code>oss-lake.clickhouse.kr</code>은 프로젝트에 붙였고 DNS 레코드를
+기다리는 중입니다(2026-10-18). 뒤에 ClickHouse는 없습니다. 설명 페이지는 스냅숏을 읽고, 데모는
+2026-10-18에 녹화한 버튼 6번을 재생하며 그렇다고 알립니다. 쿠키, 분석, 추적은 없고 모든 응답에
+<code>X-Robots-Tag: noindex</code>가 붙습니다.</p>
+<pre><code class="language-bash">cd usecase/oss-network-quality-lake
+vercel deploy --prod --scope litkhai
+</code></pre>
+<p>보여 주는 내용을 새로 하려면: 새 컨테이너를 적재하고(<code>ui/up.sh</code>) <code>./snapshot.sh</code>, 이어서
+<code>python3 ui/server.py --record 6</code>을 실행한 뒤 배포합니다.</p>
 <h3>언어</h3>
 <p>한국어가 원본입니다. <code>site/i18n/{ko,en,ja,zh}.json</code>은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
 함께 씁니다. <code>build.py</code>는 <code>/</code>(ko), <code>/en/</code>, <code>/ja/</code>, <code>/zh/</code>를 쓰고, 키 집합이 다르면 실패합니다

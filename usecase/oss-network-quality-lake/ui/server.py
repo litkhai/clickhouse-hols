@@ -3,6 +3,7 @@
 
     python3 ui/server.py                 serve the explainer at / and the demo at /demo
     python3 ui/server.py --snapshot      write site/data/snapshot.json from ClickHouse
+    python3 ui/server.py --record 6      press the live feed 6 times, write site/data/replay.json
 
 Fixed endpoints only, no free SQL:
     GET  /api/layers      row count, size and a sample row per layer
@@ -209,6 +210,28 @@ def snapshot(path):
     print("wrote %s" % path.relative_to(LAB))
 
 
+def record(path, n):
+    """Press the live feed n times and keep what the demo would have fetched each time, so a
+    static host (no ClickHouse) can replay it. Changes the loaded data: run on a fresh load,
+    after --snapshot."""
+    def frame(extra=None):
+        f = {**counts(), "story": story(), "cells": map_data()["cells"],
+             "q": [noc(k) for k in range(1, 5)]}
+        f.update(extra or {})
+        return f
+    write("SYSTEM REFRESH VIEW oss_lake.cell_rank_rmv")
+    write("SYSTEM WAIT VIEW oss_lake.cell_rank_rmv")
+    frames = [frame()]
+    for _ in range(n):
+        t = tick()
+        frames.append(frame({"inserted": t["inserted"], "total_s": t["total_s"]}))
+    rec = {"recorded": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+           "clickhouse": rows("SELECT version() AS v")[0]["v"],
+           "density": map_data()["density"], "frames": frames}
+    path.write_text(json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n")
+    print("wrote %s (%d frames)" % (path.relative_to(LAB), len(frames)))
+
+
 # ---------------------------------------------------------------- HTTP
 
 class Handler(BaseHTTPRequestHandler):
@@ -253,9 +276,13 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--snapshot", action="store_true", help="write site/data/snapshot.json and exit")
+    ap.add_argument("--record", type=int, metavar="N",
+                    help="press the live feed N times, write site/data/replay.json and exit")
     a = ap.parse_args()
     if a.snapshot:
         return snapshot(LAB / "site" / "data" / "snapshot.json")
+    if a.record:
+        return record(LAB / "site" / "data" / "replay.json", a.record)
     port = int(os.environ.get("PORT", "8765"))
     print("explainer http://localhost:%d/   demo http://localhost:%d/demo   (ClickHouse %s)"
           % (port, port, CH_URL))
