@@ -1,6 +1,6 @@
 -- The NOC question, asked of every layer:
---   for the last hour, the 10 cells with most users and the 10 with the weakest signal
---   (average rsrp, cells with at least 30 rsrp samples).
+--   for the last hour, the 10 grid cells with most users and the 10 with the weakest signal
+--   (average rsrp, at least 30 rsrp samples, known coverage gaps left out).
 -- Each layer answers it with less work; all four must return the same 20 rows.
 -- 'The last hour' ends at max(params.anchor_ts); production would use now().
 --
@@ -22,7 +22,7 @@ FROM
         count()                                        AS samples,
         round(avg(rsrp), 1)                            AS avg_rsrp,
         round(100 * countIf(rsrp < -100) / count(rsrp), 1) AS poor_pct,
-        count(rsrp) >= 30                              AS eligible,
+        count(rsrp) >= 30 AND dictGet('oss_lake.cell_dict', 'known_weak', cell) = 0 AS eligible,
         row_number() OVER (ORDER BY users DESC, cell)  AS r_users,
         row_number() OVER (PARTITION BY eligible ORDER BY avg(rsrp), cell) AS r_signal
     FROM oss_lake.ue_trace_raw
@@ -45,7 +45,7 @@ FROM
         count()                                        AS samples,
         round(avg(rsrp), 1)                            AS avg_rsrp,
         round(100 * countIf(rsrp < -100) / count(rsrp), 1) AS poor_pct,
-        count(rsrp) >= 30                              AS eligible,
+        count(rsrp) >= 30 AND dictGet('oss_lake.cell_dict', 'known_weak', cell) = 0 AS eligible,
         row_number() OVER (ORDER BY users DESC, cell)  AS r_users,
         row_number() OVER (PARTITION BY eligible ORDER BY avg(rsrp), cell) AS r_signal
     FROM oss_lake.ue_trace
@@ -67,7 +67,7 @@ FROM
         sum(samples_n)                                 AS samples,
         round(sum(rsrp_sum) / sum(rsrp_n), 1)          AS avg_rsrp,
         round(100 * sum(poor_n) / sum(rsrp_n), 1)      AS poor_pct,
-        sum(rsrp_n) >= 30                              AS eligible,
+        sum(rsrp_n) >= 30 AND dictGet('oss_lake.cell_dict', 'known_weak', cell) = 0 AS eligible,
         row_number() OVER (ORDER BY users DESC, cell)  AS r_users,
         row_number() OVER (PARTITION BY eligible ORDER BY sum(rsrp_sum) / sum(rsrp_n), cell) AS r_signal
     FROM oss_lake.cell_kpi_1m

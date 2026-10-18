@@ -37,7 +37,11 @@ GROUP BY minute, city
 ORDER BY minute, city;
 
 -- ---------------------------------------------------------------- 3 · alerts
--- Cells whose signal in the latest minute is at least 12 dB below their own last hour.
+-- Grid cells whose signal in the latest minute is at least 12 dB below their own previous
+-- 59 minutes (the minute being judged is not part of its own baseline). In this lab the
+-- generator injects one such drop per minute so the pipeline has something to carry; real
+-- rules also watch measurement counts collapsing, persistence over several minutes and
+-- recent configuration changes.
 -- Subscribers (an on-call app, a chat bot) pick these up every minute; see 4 and
 -- subscribe-kafka.sql for how they are delivered.
 CREATE OR REPLACE VIEW oss_lake.uc_alert_cells AS
@@ -54,7 +58,7 @@ FROM
         h3ToParent(k.cell, 7)                                AS area,
         t - INTERVAL 1 MINUTE                                AS minute,
         sumIf(k.rsrp_sum, k.bucket = minute) / sumIf(k.rsrp_n, k.bucket = minute) AS rsrp_now,
-        sum(k.rsrp_sum) / sum(k.rsrp_n)                      AS rsrp_hour,
+        sumIf(k.rsrp_sum, k.bucket < minute) / sumIf(k.rsrp_n, k.bucket < minute) AS rsrp_hour,
         sumIf(k.rsrp_n, k.bucket = minute)                   AS samples_now
     FROM oss_lake.cell_kpi_1m AS k
     INNER JOIN oss_lake.grid AS g ON g.h3 = k.cell

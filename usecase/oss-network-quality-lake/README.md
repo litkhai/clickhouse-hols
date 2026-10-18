@@ -16,14 +16,19 @@ and a small ClickHouse lake that actually runs five of them.
 
 It is made to be shown to colleagues as a case study: situation → the industry trend (virtualizing
 the OSS data layer, from public sources) → architecture → use cases → features verified in the PoC →
-lessons from the field → try it. A static page in English (default, at `/`), Korean, Japanese and
+lessons → try it, with next steps. A static page in English (default, at `/`), Korean, Japanese and
 Chinese works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
 the colours of clickhouse.com (computed styles, read 2026-10-18).
 
-A composite scenario: a fictional operator, built from common telco OSS practice (3GPP PM/CM/trace,
-medallion layering); names are invented and figures are measured in this lab. Only the city-centre
-coordinates (Seoul, Busan, Daegu) are real places. All data is generated in SQL. IMSIs use the test
-network code 001-01.
+A composite scenario: a fictional operator and fictional cities, built from common telco OSS practice
+(medallion layering over 3GPP-style data). The lab runs device (UE) traces only; performance counters
+(PM), alarms (FM) and complaints (VoC) appear as sources in the figure, not as tables. Names are
+invented and figures are measured in this lab on generated data at reduced scale (180,000 rows a
+minute, three cities, about 20,000 grid cells, far below a real operator's trace intake). The cities
+sit in open ocean, so no coordinate points to a real place. IMSIs use the test network code 001-01.
+Measurements use LTE terms (RSRP/RSRQ/SINR, TS 36.214); each one's location is assumed to come from
+MDT (TS 37.320) location reports or positioning, mapped to an H3 res-9 **grid cell** (about 0.1 km²).
+A grid cell is a location bucket, not a radio cell or sector.
 
 **Verified on ClickHouse 26.9.13.15** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
 `tools/hol run usecase/oss-network-quality-lake` passes (01–05 and 99, about 30 s; two runs in a row after the last change), and the live demo was run
@@ -44,7 +49,7 @@ generated, and a **control-plane API** that declares, deploys and observes every
 
 | Group | Use case | In this lab |
 |---|---|---|
-| Seeing | NOC map: busiest cells, weakest cells, an area whose signal just dropped | run (`cell_rank_now`, `uc_alert_cells`) |
+| Seeing | NOC map: busiest grid cells, weakest grid cells (known gaps left out), an area whose signal just dropped | run (`cell_rank_now`, `uc_alert_cells`) |
 | Seeing | Dashboard: KPI per minute and city | run (`uc_dashboard`) |
 | Seeing | Ad hoc analysis: weak signal downtown vs edge | run (`uc_analysis`) |
 | Serving | Request/response over HTTP, streamed row by row | run (ClickHouse HTTP interface) |
@@ -57,8 +62,16 @@ generated, and a **control-plane API** that declares, deploys and observes every
 | Running | Lake history (Iceberg) joined with gold | described |
 | AI | Agents turn questions into SQL over MCP/HTTP; agent observability (Langfuse) | described |
 
-Every minute the generator degrades one res-7 area (about 49 cells) by 22 dB, so the alert use case
-and the live feed have something new to catch each minute.
+Every minute the generator injects a 22 dB drop into one res-7 area (about 49 grid cells), so the
+alert use case and the live feed have something new to carry each minute. That shows pipeline
+latency, not detection quality: the rule (12 dB below the previous 59 minutes, folded per res-7
+area) is built to find exactly what is injected. Real rules also watch measurement counts
+collapsing, persistence over several minutes and recent configuration changes.
+
+Coverage comes from distance to the serving site (one per res-8 area downtown, one per res-7 area
+further out), a fixed offset per site and per city, and a little extra loss with distance from the
+centre, so the three cities differ. Known coverage gaps (`known_weak` in the inventory) are left out
+of the "weakest 10" so that newly weak places show. PCI is fixed per serving site.
 
 ### Features verified in the PoC
 
@@ -69,7 +82,7 @@ cell × 1 min, equal to raw) · a geography axis (district × 1 min) · an answe
 read-only user · H3 geo functions. Each has a check in 03–05, except "20 rows readable during
 refreshes" and "the read-only user cannot write", which were checked by hand on 2026-10-18.
 
-### Lessons from the field (measured 2026-10-18 on this lab, 26.9.13.15)
+### Lessons (a–c measured 2026-10-18 on this lab, 26.9.13.15; d–f are practice, not measured)
 
 - Nullable costs mostly in query complexity: the NOC query on bronze needs `assumeNotNull`,
   `IS NOT NULL`, `stringToH3`, `cityHash64`; on silver it does not.
@@ -78,11 +91,23 @@ refreshes" and "the read-only user cannot write", which were checked by hand on 
   where `uniq` is 4,003 B. In the lab the 1-minute rollup holds 2.43 M states of 34 B on average,
   the 10-minute one 264 K of 193 B: choose the grain where user counts live.
 - Build coarse rollups from fine ones (cascading MV on the 1-minute table, `uniqMergeState` + sums);
-  not a refreshable MV with `APPEND`, which double-inserts when the window is wider than the interval.
-- A time column named `_kst` but typed UTC shifts buckets and TTL by nine hours; store instants with an
-  explicit time zone.
+  not a refreshable MV with `APPEND`, which by design double-inserts when its window is wider than its
+  interval (reasoned, not reproduced here).
+- A time column named for local time but typed UTC shifts buckets and TTL by the UTC offset; store
+  instants with an explicit time zone.
 - Many consumers (dashboards, an AI agent over MCP, a catalogue, Kafka Connect batches) need their own
   users and limits: read-only users with result and time limits, larger batches or async inserts.
+- A pseudonymous trace is still personal data (see "Subscriber data" below).
+
+### Subscriber data
+
+Bronze holds a vendor-supplied hash of the IMSI. Here it is an unkeyed SHA-256 of a test PLMN plus a
+10-digit MSIN, which can be reversed by trying every number in that range: a real deployment must not
+rely on an unkeyed hash. Silver replaces it with `cityHash64`, a stable 64-bit pseudonym, not
+anonymous data: a grid cell, a millisecond timestamp and a fixed hash per row are enough to rebuild one
+subscriber's movements, and a cell-minute's `users` can be 1. Pseudonymised data stays personal data
+(GDPR Recital 26, Art. 4(5)). In production: hash with a key held outside the lake (HMAC) and rotate it,
+keep the row-level stages narrow and short-lived, and hide counts below a minimum in served results.
 
 ### The layers this lab runs
 
@@ -93,7 +118,7 @@ with materialized views. All four are tables in database `oss_lake` (Atomic).
 | Step | Layer | Table | What happens | Rows (2 h) |
 |---|---|---|---|---:|
 | 1 | devices | `synth_traces` (parameterized view) | 180,000 measurements a minute across three cities | — |
-| 2 | bronze | `ue_trace_raw` | kept as received: H3 as a string, IMSI as 44-char base64 ciphertext, everything Nullable, daily partition, TTL 3 days | 21,600,000 |
+| 2 | bronze | `ue_trace_raw` | kept as received: H3 as a string, the IMSI as a vendor-supplied hash (44-char base64), everything Nullable, daily partition, TTL 3 days | 21,600,000 |
 | 3 | silver | `ue_trace` ← MV | `stringToH3`, `cityHash64(imsi)`, Float32, only `rsrp` stays Nullable; rows without a cell or a subscriber are dropped | 21,470,291 |
 | 4 | gold | `cell_kpi_1m` ← MV | AggregatingMergeTree, one row per (minute, cell): `uniqState(imsi_hash)` + SimpleAggregateFunction sums | 2,431,595 |
 | 5 | serving | `cell_rank_now` ← refreshable MV | `REFRESH EVERY 1 MINUTE TO`, no `APPEND`: the 20 rows, replaced in one swap | 20 |
@@ -140,9 +165,12 @@ granule that starts inside the last second (here at `08:43:59.003`, 3,033 rows) 
 rows vanish from `WHERE` while `countIf` with the same condition still counts them. It depends on
 where granule boundaries fall, which is why it came and went between runs.
 
-A minimal reproduction (one `DateTime64(3)` column, `index_granularity = 1000`, 5,000 rows 2 ms apart,
-`WHERE ts < toDateTime('… 00:00:09')`) returns 4,000 rows instead of 4,500 on 26.6.8.7, 26.8.22.13
-and 26.9.13.15, and the correct 4,500 on 25.8.33.6. Whether it is already reported upstream was not
+A minimal reproduction: one `DateTime64(3)` column, `index_granularity = 1000`, 5,000 rows 2 ms apart
+**starting 3 ms after a whole second**, so that a granule begins inside the last second before the
+bound; then `WHERE ts < toDateTime('… 00:00:09')`. It returns 4,000 rows instead of 4,499 on
+26.6.8.7, 26.8.22.13 and 26.9.13.15, and the correct count on 25.8.33.6. With rows starting exactly on
+the second the granules start on the second and the result is correct, which is why a careless repro
+passes (rechecked 2026-10-18 on 26.9.13.15 in review). Whether it is already reported upstream was not
 checked.
 
 The lab compares `event_ts` with a `DateTime64(3)` bound (`toDateTime64(…, 3)`, the key condition is
@@ -231,21 +259,28 @@ After changing the SQL, refresh the snapshot against a loaded container:
 
 <https://oss-lake.clickhouse.kr/> is live data, not a recording:
 
-- **Lake**: database `oss_lake` on a ClickHouse Cloud service in AWS Seoul (ap-northeast-2), loaded
+- **Lake**: database `oss_lake` on a ClickHouse Cloud service on AWS, loaded
   2026-10-18 on 26.6.1 by `cloud/load.py`. That is the same 01–05 files plus the Cloud differences
   listed in its docstring. All checks in 03–05 passed there.
 - **Feed**: `cloud/feed.sql` adds two refreshable MVs. `feed_rmv` generates the next minute every
   minute (up to five to catch up after a pause, never a minute twice). `anchor_rmv` then moves the
-  lake's "now"; the serving refresh depends on it. It also adds TTLs: silver 3 days, gold 7 days.
-- **Site**: Vercel project `oss-lake`, region icn1. The pages are static. `api/index.py` serves the
-  demo's GET endpoints as the read-only user `oss_reader`: `readonly = 1`, 20 s and 200,000-row
-  limits, a 20 s edge cache. It has no write endpoint (POST returns 405). When the function cannot
-  reach ClickHouse, the demo falls back to the recorded minutes.
+  lake's "now"; the serving refresh depends on it. It also adds TTLs: silver 3 days, gold 7 days;
+  not on `params` (one row a minute), so a long pause cannot empty the lake's clock. `feed start`
+  restarts the clock one minute ago when it is more than five minutes behind, so the gap is skipped,
+  not replayed. The live demo says "stopped" when no new minute has arrived for three minutes.
+- **Site**: Vercel project `oss-lake`. The pages are static. `api/index.py` serves the demo's GET
+  endpoints as the read-only user `oss_reader`: `readonly = 1`, 20 s, 30 M rows read and 200,000-row
+  result limits, an hourly quota (3,000 queries, 5 G rows read), a 20 s edge cache. The edge cache key
+  is the full URL, so the function refuses any query string (400) and redirects a trailing slash
+  (308) without querying ClickHouse. Errors return a fixed body; the detail goes to the function log.
+  It has no write endpoint (POST returns 405). When the function cannot reach ClickHouse or the quota
+  is spent, the demo falls back to the recorded minutes.
 
 ```bash
 cd usecase/oss-network-quality-lake
-set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
-python3 cloud/load.py                 # load (generated passwords go to ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+set -a; . /path/to/your-service.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD (an admin of your service)
+python3 cloud/load.py                 # load (generated passwords go to .env.cloud here, or $OSS_LAKE_SECRETS)
+python3 cloud/load.py harden          # on a lake loaded before 2026-10-18: reader limits + quota, no params TTL
 python3 cloud/load.py feed stop       # the stop switch; `feed start` resumes, `feed status` shows it
 python3 cloud/load.py drop            # remove the database and both users
 vercel deploy --prod --scope litkhai  # site + function (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
@@ -270,7 +305,7 @@ Cost, estimated 2026-10-18:
 - The service already runs around the clock (idle scaling off), so its base compute is not caused
   by the lab.
 - Added: about 0.11 TB of storage including one daily backup, at $27.50 per TB-month (the
-  published Seoul rate, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a
+  published rate for the service's region, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a
   second of CPU a minute.
 - If idle scaling is turned on later, the feed keeps the service awake. Stop it first.
 
@@ -304,13 +339,18 @@ IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를
 ClickHouse 레이크입니다.
 
 동료들과 나누는 사례 연구입니다. 상황 → 업계 흐름(OSS 데이터 레이어의 가상화, 공개 자료) → 아키텍처 →
-유즈케이스 → PoC에서 검증한 기능 → 현장에서 배운 것 → 직접 해 보기 순서입니다. 정적 페이지는 영어(기본,
+유즈케이스 → PoC에서 검증한 기능 → 배운 것 → 직접 해 보기와 다음 단계 순서입니다. 정적 페이지는 영어(기본,
 `/`), 한국어, 일본어, 중국어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
 있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.
 
-합성 시나리오입니다. 가상의 통신사를 두고 흔한 통신 OSS 관행(3GPP PM/CM/트레이스, 메달리온 계층)으로
-구성했으며, 이름은 지어낸 것이고 수치는 이 실습에서 측정한 값입니다. 도시 중심 좌표(서울, 부산, 대구)만
-실제 장소입니다. 데이터는 모두 SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.
+합성 시나리오입니다. 가상의 통신사와 가상의 도시를 두고, 흔한 통신 OSS 관행(3GPP 형태의 데이터 위에
+메달리온 계층)으로 구성했습니다. 실습이 돌리는 것은 단말(UE) 트레이스뿐이고, 성능 카운터(PM)·경보(FM)·
+고객 불만(VoC)은 그림 속 원천일 뿐 테이블은 없습니다. 이름은 지어낸 것이고, 수치는 축소한 규모의 생성
+데이터(분당 180,000행, 도시 3개, 격자 약 20,000개 — 실제 통신사의 트레이스 유입보다 훨씬 작음)로 이
+실습에서 잰 값입니다. 도시는 먼 바다 위에 두어 어떤 좌표도 실제 장소를 가리키지 않습니다. IMSI는 시험망
+코드 001-01을 씁니다. 측정은 LTE 용어(RSRP/RSRQ/SINR, TS 36.214)를 쓰고, 측정 위치는 MDT(TS 37.320)
+위치 보고나 측위 결과를 H3 res-9 **격자**(약 0.1 km²)로 바꾼 것으로 가정합니다. 격자는 위치 단위이지
+무선 셀이나 섹터가 아닙니다.
 
 **ClickHouse 26.9.13.15에서 검증** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
 `tools/hol run usecase/oss-network-quality-lake` 통과(01–05와 99, 약 30초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 `ui/up.sh`로
@@ -330,7 +370,7 @@ CPU 12개와 7.75 GiB를 봅니다.
 
 | 묶음 | 유즈케이스 | 이 실습에서 |
 |---|---|---|
-| 보기 | NOC 지도: 가장 붐비는 셀, 가장 약한 셀, 방금 신호가 떨어진 지역 | 실행 (`cell_rank_now`, `uc_alert_cells`) |
+| 보기 | NOC 지도: 가장 붐비는 격자, 가장 약한 격자(이미 아는 음영 지역 제외), 방금 신호가 떨어진 지역 | 실행 (`cell_rank_now`, `uc_alert_cells`) |
 | 보기 | 대시보드: 분·도시별 KPI | 실행 (`uc_dashboard`) |
 | 보기 | 즉석 분석: 도심과 외곽의 약한 신호 | 실행 (`uc_analysis`) |
 | 서빙 | HTTP 즉시 조회, 한 행씩 흘려 받기 | 실행 (ClickHouse HTTP 인터페이스) |
@@ -343,8 +383,15 @@ CPU 12개와 7.75 GiB를 봅니다.
 | 운영 | 레이크 이력(Iceberg)과 골드 조인 | 설명 |
 | AI | 에이전트가 MCP/HTTP로 질문을 SQL로 바꿔 조회, 에이전트 관측(Langfuse) | 설명 |
 
-생성기는 1분마다 res-7 지역 하나(셀 약 49개)의 신호를 22 dB 떨어뜨립니다. 그래서 알림 유즈케이스와
-라이브 데모가 매분 새로 잡을 것이 생깁니다.
+생성기는 1분마다 res-7 지역 하나(격자 약 49개)에 22 dB 하락을 넣습니다. 그래서 알림 유즈케이스와
+라이브 데모가 매분 새로 실어 나를 것이 생깁니다. 이것은 검출 품질이 아니라 파이프라인 지연을 보여
+줍니다. 규칙(직전 59분보다 12 dB 아래, res-7 지역으로 묶음)이 넣은 것을 그대로 찾도록 만들어져 있기
+때문입니다. 실제 규칙은 측정 수 급감, 몇 분 이상 지속, 최근 설정 변경도 함께 봅니다.
+
+커버리지는 서빙 사이트(도심은 res-8 지역마다, 바깥은 res-7 지역마다 하나)까지의 거리, 사이트와 도시마다
+고정된 오프셋, 도심에서 멀어질수록 조금 더해지는 손실로 정합니다. 그래서 세 도시가 서로 다릅니다.
+이미 아는 음영 지역(인벤토리의 `known_weak`)은 "신호 약한 10"에서 빼서 새로 약해진 곳이 보이게 합니다.
+PCI는 서빙 사이트마다 고정입니다.
 
 ### PoC에서 검증한 기능
 
@@ -354,7 +401,7 @@ CPU 12개와 7.75 GiB를 봅니다.
 전용 사용자의 HTTP 서빙 · H3 지리 함수. 각각 03–05에 검사가 있고, '새로 고침 중에도 20행'과 '읽기
 전용 사용자는 쓰지 못함'은 2026-10-18 손으로 확인했습니다.
 
-### 현장에서 배운 것 (2026-10-18, 이 실습, 26.9.13.15에서 측정)
+### 배운 것 (a–c는 2026-10-18 이 실습에서 26.9.13.15로 측정, d–f는 실무 지침이며 측정하지 않음)
 
 - Nullable의 비용은 주로 질의의 복잡도입니다. 브론즈의 NOC 질의에는 `assumeNotNull`, `IS NOT NULL`,
   `stringToH3`, `cityHash64`가 필요하고 실버에서는 필요 없습니다.
@@ -363,11 +410,22 @@ CPU 12개와 7.75 GiB를 봅니다.
   이 실습의 1분 요약은 평균 34 B 상태 243만 개, 10분 요약은 193 B 상태 26.4만 개입니다. 사용자 수를
   둘 단위를 고르세요.
 - 거친 요약은 고운 요약에서 만듭니다(1분 테이블에 연쇄 MV, `uniqMergeState` + 합계). `APPEND`를 쓴
-  Refreshable MV는 창이 주기보다 넓으면 두 번 넣습니다.
-- 이름은 `_kst`인데 타입은 UTC인 시간 컬럼은 버킷과 TTL을 9시간 밀어 놓습니다. 시각은 시간대를 명시해
-  저장하세요.
+  Refreshable MV는 창이 주기보다 넓으면 설계상 두 번 넣습니다(추론이며 여기서 재현하지 않음).
+- 이름은 현지 시각인데 타입은 UTC인 시간 컬럼은 버킷과 TTL을 UTC와의 시차만큼 밀어 놓습니다. 시각은
+  시간대를 명시해 저장하세요.
 - 소비자(대시보드, MCP의 AI 에이전트, 카탈로그, Kafka Connect 배치)가 많아지면 각자의 사용자와 한도가
   필요합니다. 읽기 전용 사용자에 결과·시간 한도, 적재 쪽은 큰 배치나 async insert.
+- 가명 트레이스도 개인정보입니다(아래 "가입자 데이터").
+
+### 가입자 데이터
+
+브론즈에는 벤더가 준 IMSI 해시가 들어 있습니다. 여기서는 시험망 PLMN에 10자리 MSIN을 붙인 값의 키 없는
+SHA-256이라, 그 범위의 번호를 모두 대입해 보면 되돌릴 수 있습니다. 실제 환경에서는 키 없는 해시에 기대면
+안 됩니다. 실버는 이를 `cityHash64`로 바꾸는데, 이것은 고정된 64비트 가명이지 익명 데이터가 아닙니다.
+행마다 격자, 밀리초 시각, 고정 해시가 있으면 가입자 한 명의 이동 경로를 다시 그릴 수 있고, 격자·분 단위
+`users`가 1일 수도 있습니다. 가명처리한 데이터도 개인정보입니다(GDPR 전문 26항, 제4조(5)). 운영에서는
+레이크 밖에 둔 키로 해시(HMAC)하고 키를 교체하며, 행 단위 단계는 접근을 좁히고 보존 기간을 짧게 두고,
+서빙 결과에서는 최소 인원 미만을 가립니다.
 
 ### 이 실습이 돌리는 레이어
 
@@ -380,7 +438,7 @@ CPU 12개와 7.75 GiB를 봅니다.
 | 단계 | 레이어 | 테이블 | 하는 일 | 행 (2시간) |
 |---|---|---|---|---:|
 | 1 | 단말 | `synth_traces` (매개변수 뷰) | 세 도시에서 1분에 180,000건 | — |
-| 2 | 브론즈 | `ue_trace_raw` | 받은 그대로: H3는 문자열, IMSI는 44자 base64 암호문, 모두 Nullable, 일 단위 파티션, TTL 3일 | 21,600,000 |
+| 2 | 브론즈 | `ue_trace_raw` | 받은 그대로: H3는 문자열, IMSI는 벤더가 준 해시(44자 base64), 모두 Nullable, 일 단위 파티션, TTL 3일 | 21,600,000 |
 | 3 | 실버 | `ue_trace` ← MV | `stringToH3`, `cityHash64(imsi)`, Float32, `rsrp`만 Nullable. 셀이나 가입자가 없는 행은 버림 | 21,470,291 |
 | 4 | 골드 | `cell_kpi_1m` ← MV | AggregatingMergeTree, (분, 셀)마다 한 행: `uniqState(imsi_hash)` + SimpleAggregateFunction 합계 | 2,431,595 |
 | 5 | 서빙 | `cell_rank_now` ← Refreshable MV | `REFRESH EVERY 1 MINUTE TO`, `APPEND` 없음: 20행을 한 번에 교체 | 20 |
@@ -425,9 +483,11 @@ CPU 12개와 7.75 GiB를 봅니다.
 `countIf`는 세는 행이 `WHERE`에서는 사라집니다. 그래뉼 경계가 어디에 떨어지느냐에 달려 있어 실행마다
 나타났다 사라졌습니다.
 
-최소 재현(`DateTime64(3)` 컬럼 하나, `index_granularity = 1000`, 2 ms 간격 5,000행,
-`WHERE ts < toDateTime('… 00:00:09')`)은 26.6.8.7, 26.8.22.13, 26.9.13.15에서 4,500행이 아닌 4,000행을,
-25.8.33.6에서는 맞는 4,500행을 돌려줍니다. 이미 보고된 문제인지는 확인하지 않았습니다.
+최소 재현: `DateTime64(3)` 컬럼 하나, `index_granularity = 1000`, 2 ms 간격 5,000행을 **정각에서 3 ms
+뒤부터** 넣어 경계 직전 1초 안에서 그래뉼이 시작되게 한 뒤 `WHERE ts < toDateTime('… 00:00:09')`.
+26.6.8.7, 26.8.22.13, 26.9.13.15에서 4,499행이 아닌 4,000행을, 25.8.33.6에서는 맞는 값을 돌려줍니다.
+행이 정각에서 시작하면 그래뉼도 정각에서 시작해 결과가 맞습니다. 그래서 대충 만든 재현은 통과합니다
+(2026-10-18 리뷰에서 26.9.13.15로 다시 확인). 이미 보고된 문제인지는 확인하지 않았습니다.
 
 이 실습은 `event_ts`를 `DateTime64(3)` 경계(`toDateTime64(…, 3)`)와 비교합니다. 그러면 키 조건이
 `(-Inf, '1792313040')`이 되고, 버그가 나타났던 실행도 이 변경으로 통과했습니다. 골드의 `bucket`은
@@ -514,22 +574,27 @@ SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다�
 
 <https://oss-lake.clickhouse.kr/>는 녹화가 아니라 실제 데이터입니다.
 
-- **레이크**: AWS 서울(ap-northeast-2)의 ClickHouse Cloud 서비스에 있는 `oss_lake` 데이터베이스.
+- **레이크**: AWS의 ClickHouse Cloud 서비스에 있는 `oss_lake` 데이터베이스.
   2026-10-18 26.6.1에 `cloud/load.py`로 적재했습니다. 같은 01–05 파일에 docstring에 적은 Cloud
   차이만 더한 것이고, 03–05의 검사는 거기서도 모두 통과했습니다.
 - **흐름**: `cloud/feed.sql`이 Refreshable MV 두 개를 더합니다. `feed_rmv`가 1분마다 다음 1분을
   만들고(멈췄다 다시 켜면 한 번에 최대 5분씩 따라잡고, 같은 1분을 두 번 넣지 않음), 이어서
   `anchor_rmv`가 레이크의 '지금'을 옮깁니다. 서빙 새로 고침은 그 뒤에 돕니다. TTL도 더합니다:
-  실버 3일, 골드 7일.
-- **사이트**: Vercel 프로젝트 `oss-lake`, 리전 icn1. 페이지는 정적입니다. `api/index.py`가 데모의
-  GET 엔드포인트를 읽기 전용 사용자 `oss_reader`로 내줍니다: `readonly = 1`, 20초·20만 행 한도,
-  엣지 캐시 20초. 쓰기 엔드포인트는 없습니다(POST는 405). 함수가 ClickHouse에 닿지 못하면
-  데모는 녹화한 몇 분으로 돌아갑니다.
+  실버 3일, 골드 7일. `params`(1분에 1행)에는 걸지 않아, 오래 멈춰도 레이크의 시계가 비지 않습니다.
+  `feed start`는 시계가 5분 넘게 뒤처져 있으면 1분 전으로 다시 맞춰, 빈 구간을 다시 만들지 않고
+  건너뜁니다. 라이브 데모는 3분 동안 새 1분이 없으면 "멈춤"으로 표시합니다.
+- **사이트**: Vercel 프로젝트 `oss-lake`. 페이지는 정적입니다. `api/index.py`가 데모의 GET
+  엔드포인트를 읽기 전용 사용자 `oss_reader`로 내줍니다: `readonly = 1`, 20초·읽기 3천만 행·결과 20만 행
+  한도, 시간당 쿼터(질의 3,000개, 읽기 50억 행), 엣지 캐시 20초. 엣지 캐시 키가 URL 전체라서, 함수는
+  쿼리 문자열을 거부하고(400) 끝의 `/`는 돌려보냅니다(308). 둘 다 ClickHouse를 부르지 않습니다. 오류
+  응답은 고정 문구이고 자세한 내용은 함수 로그에만 남습니다. 쓰기 엔드포인트는 없습니다(POST는 405).
+  함수가 ClickHouse에 닿지 못하거나 쿼터를 다 쓰면 데모는 녹화한 몇 분으로 돌아갑니다.
 
 ```bash
 cd usecase/oss-network-quality-lake
-set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
-python3 cloud/load.py                 # 적재 (만든 비밀번호는 ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+set -a; . /path/to/your-service.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD (서비스 관리자)
+python3 cloud/load.py                 # 적재 (만든 비밀번호는 여기 .env.cloud, 또는 $OSS_LAKE_SECRETS)
+python3 cloud/load.py harden          # 2026-10-18 전에 적재한 레이크: 읽기 한도 + 쿼터, params TTL 제거
 python3 cloud/load.py feed stop       # 멈춤 스위치. `feed start`로 다시, `feed status`로 확인
 python3 cloud/load.py drop            # 데이터베이스와 두 사용자 삭제
 vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
@@ -551,7 +616,7 @@ vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ
 비용 (2026-10-18 추정):
 
 - 이 서비스는 이미 상시 실행 중이라(유휴 축소 꺼짐) 기본 컴퓨트는 이 실습 때문에 생긴 비용이 아닙니다.
-- 더해지는 것은 일일 백업 하나를 포함한 저장 약 0.11 TB입니다. 서울 공시 요금 TB·월 $27.50(2026-10-18
+- 더해지는 것은 일일 백업 하나를 포함한 저장 약 0.11 TB입니다. 서비스 리전의 공시 요금 TB·월 $27.50(2026-10-18
   확인)으로 월 약 $3이고, 여기에 1분에 약 1초인 흐름의 CPU가 붙습니다.
 - 나중에 유휴 축소를 켜면 흐름이 서비스를 계속 깨워 둡니다. 그 전에 흐름을 멈추세요.
 

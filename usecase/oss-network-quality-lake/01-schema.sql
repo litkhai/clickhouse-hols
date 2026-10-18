@@ -18,21 +18,26 @@ CREATE TABLE oss_lake.params
 )
 ENGINE = MergeTree ORDER BY anchor_ts;
 
--- The map grid the generator draws from: three fictional cities, every H3 res-9 cell
--- within 47 rings of each centre (6,769 per city), ordered from the centre outwards.
--- A few cells around one point per city are a coverage hole (weak signal on purpose).
+-- The map grid the generator draws from: three fictional cities, every H3 res-9 grid cell
+-- (about 0.1 km^2; a location grid, not a radio cell or sector) within 47 rings of each
+-- centre (6,769 per city), ordered from the centre outwards. Each grid cell is served by a
+-- site: dense downtown (one per res-8 area), sparser outside (one per res-7 area). A few grid
+-- cells around one point per city are a known coverage gap (weak signal on purpose).
 CREATE TABLE oss_lake.grid
 (
-    city     UInt8,
-    idx      UInt32,       -- 0 = centre, grows outwards
-    ring     UInt8,        -- H3 grid distance from the centre
-    h3       UInt64,
-    is_hole  UInt8
+    city       UInt8,
+    idx        UInt32,       -- 0 = centre, grows outwards
+    ring       UInt8,        -- H3 grid distance from the centre
+    h3         UInt64,
+    is_hole    UInt8,
+    site       UInt64,       -- the serving site's area (H3 res-8 or res-7)
+    site_dist  UInt8         -- H3 grid distance to that site's centre
 )
 ENGINE = MergeTree ORDER BY (city, idx);
 
--- Configuration / inventory (CM): which site and region each cell belongs to. A second
--- source next to the traces; silver looks it up through the dictionary below.
+-- Inventory: which site and district each grid cell belongs to. A second source next to the
+-- traces; silver looks it up through the dictionary below. (3GPP CM proper, the configured
+-- parameters of each managed object and their change history, is not modelled here.)
 CREATE TABLE oss_lake.cell_inventory
 (
     cell        UInt64,
@@ -53,8 +58,10 @@ LAYOUT(HASHED())
 LIFETIME(0);
 
 -- ---------------------------------------------------------------- bronze
--- Exactly what the probes send: H3 as a string, the IMSI as the vendor's
--- ciphertext (44-char base64), every measurement Nullable, CQI as text.
+-- Exactly what the probes send: H3 as a string, the subscriber as a vendor-supplied hash of
+-- the IMSI (44-char base64; unkeyed SHA-256 here, which a real deployment must not rely on:
+-- see README, subscriber data), every measurement Nullable, CQI as text. LTE measurement terms
+-- (RSRP/RSRQ/SINR, TS 36.214); NR would report SS-RSRP/SS-RSRQ/SS-SINR (TS 38.215).
 CREATE TABLE oss_lake.ue_trace_raw
 (
     event_ts   DateTime64(3),
@@ -74,8 +81,10 @@ ORDER BY event_ts
 TTL toDateTime(event_ts) + INTERVAL 3 DAY;
 
 -- ---------------------------------------------------------------- silver
--- Typed and de-identified: H3 as a number, a hash instead of the ciphertext,
+-- Typed and pseudonymised: H3 as a number, a 64-bit hash instead of the vendor value,
 -- Float32 metrics. Only rsrp stays Nullable: a missing radio report is not 0 dBm.
+-- A pseudonym is still personal data: a grid cell, a timestamp and a stable hash per row
+-- trace one subscriber's movements, so silver is for the pipeline, not for browsing.
 CREATE TABLE oss_lake.ue_trace
 (
     event_ts   DateTime64(3),
@@ -194,8 +203,9 @@ FROM oss_lake.cell_kpi_1m AS k
 GROUP BY bucket, cell;
 
 -- ---------------------------------------------------------------- serving
--- The 20 rows the NOC map reads: top 10 cells by users and the 10 with the weakest
--- average signal (cells with at least 30 rsrp samples), over the last hour.
+-- The 20 rows the NOC map reads: top 10 grid cells by users and the 10 with the weakest
+-- average signal (at least 30 rsrp samples, known coverage gaps left out so newly weak
+-- places show), over the last hour.
 CREATE TABLE oss_lake.cell_rank_now
 (
     list         LowCardinality(String),   -- 'users' or 'signal'
@@ -223,7 +233,7 @@ FROM
         sum(samples_n)                                   AS samples,
         round(sum(rsrp_sum) / sum(rsrp_n), 1)            AS avg_rsrp,
         round(100 * sum(poor_n) / sum(rsrp_n), 1)        AS poor_pct,
-        sum(rsrp_n) >= 30                                AS eligible,
+        sum(rsrp_n) >= 30 AND dictGet('oss_lake.cell_dict', 'known_weak', cell) = 0 AS eligible,
         row_number() OVER (ORDER BY users DESC, cell)    AS r_users,
         row_number() OVER (PARTITION BY eligible ORDER BY sum(rsrp_sum) / sum(rsrp_n), cell) AS r_signal
     FROM oss_lake.cell_kpi_1m
