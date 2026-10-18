@@ -1,0 +1,7 @@
+site/dist/
+.vercel/
+.env*
+*.pyc
+__pycache__/
+cloud/
+pitfall.sql

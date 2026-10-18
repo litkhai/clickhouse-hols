@@ -99,7 +99,8 @@ The `hygiene` job enforces the shared Secrets rules below.
 
 A lab opts in to the runner with a flat `lab.yaml` next to its README
 (`target`, `tier`, `clickhouse`, `services`, `verified_on`). The 21 release
-labs, `usecase/korean-rag-tokenizers` and `usecase/langfuse-on-clickhouse` have one. 22 are tier **T0** — SQL
+labs, `usecase/korean-rag-tokenizers`, `usecase/langfuse-on-clickhouse` and
+`usecase/oss-network-quality-lake` have one. 23 are tier **T0** — SQL
 only, one ClickHouse server, self-generated data — and run in `smoke`. `local/releases/25.8` is
 **T1**: its `06-minio-integration.sql` needs a MinIO next to ClickHouse
 (reached as `host.docker.internal`, which only Docker Desktop provides), so

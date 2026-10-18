@@ -1,0 +1,6 @@
+# Runner keys (tools/lab.schema.md). Not published to the notes site (owner, 2026-10-18).
+target: oss
+tier: T0
+clickhouse: 26.9.13.15
+services: [clickhouse]
+verified_on: 26.9.13.15

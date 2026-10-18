@@ -1,0 +1,32 @@
+/* Palette: clickhouse-dark — dark only, no theme switch (owner, 2026-10-18).
+   Surfaces, text, borders and accent are the computed styles of https://clickhouse.com/ (home page,
+   read 2026-10-18): page #131312, sections #151515, cards #1f1f1c, raised #282828, borders #414141 and
+   #4f5101 (yellow-tinted), text #dfdfdf / #ffffff / #a0a0a0, accent #faff69 with #151515 on it, 4px radii,
+   Inter. Data colours (blue cells, red cells, green) are ours, chosen to stand apart from the yellow.
+   Variable names are the contract (common/tokens §2). */
+:root {
+  color-scheme: dark;
+  --ground: #131312;
+  --surface: #1f1f1c;
+  --sunken: #282828;
+  --line: #414141;
+  --grid: #2e2e2b;
+  --ink: #ffffff;
+  --ink-2: #dfdfdf;
+  --ink-3: #a0a0a0;
+  --accent: #faff69;
+  --accent-line: #4f5101;
+  --accent-soft: #2a2b14;
+  --on-accent: #151515;
+  --bar: #faff69;
+  --bar-soft: #9fa200;
+  --muted: #6b6b6b;
+  --ref: #ffffff;
+  --ref-avg7: #a0a0a0; --ref-forecast: #ff7575; --ref-peer: #2ac656; --ref-clear: #dfdfdf;
+  --good: #2ac656;
+  --warning: #faff69;
+  --serious: #ffb066;
+  --critical: #ff7575;
+  --info: #5b9bff;
+  --h0: #1f1f1c; --h1: #2e2e2b; --h2: #3c3c39; --h3: #4f4f4c; --h4: #666663; --h5: #82827f; --h6: #a0a0a0;
+}

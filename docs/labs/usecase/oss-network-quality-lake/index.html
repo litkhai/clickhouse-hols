@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case study: a telco OSS data lake — architecture, use cases, what a PoC verified · ClickHouse HOLs</title>
+<meta name="description" content="Case study: a telco OSS data lake — architecture, use cases, what a PoC verified — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/oss-network-quality-lake</code>
+    
+  </nav>
+  <div class="readme en"><h1>Case study: a telco OSS data lake — architecture, use cases, what a PoC verified</h1>
+<hr />
+<p>A telco <strong>OSS</strong> (operations: equipment, faults, quality; not BSS, which is billing) collects logs,
+metrics and events from every device on the network (UE: phones, IoT modules, vehicles, routers)
+and from the network equipment itself. This lab shows <strong>who uses that data, and how</strong>: a reference
+architecture for a typical telco OSS lake, the use cases built on it (NOC map,
+dashboards, ad hoc analysis, request/response serving, subscriptions, bulk export, schema contracts,
+data quality, pipeline observability, lake history, AI agents, Managed Postgres as an expansion),
+and a small ClickHouse lake that actually runs five of them.</p>
+<p>It is made to be shown to colleagues as a case study: situation → the industry trend (virtualizing
+the OSS data layer, from public sources) → architecture → use cases → features verified in the PoC →
+lessons from the field → try it. A static page in English (default, at <code>/</code>), Korean, Japanese and
+Chinese works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
+the colours of clickhouse.com (computed styles, read 2026-10-18).</p>
+<p>A composite scenario: a fictional operator, built from common telco OSS practice (3GPP PM/CM/trace,
+medallion layering); names are invented and figures are measured in this lab. Only the city-centre
+coordinates (Seoul, Busan, Daegu) are real places. All data is generated in SQL. IMSIs use the test
+network code 001-01.</p>
+<p><strong>Verified on ClickHouse 26.9.13.15</strong> (<code>clickhouse/clickhouse-server:26.9.13.15</code>), 2026-10-18:
+<code>tools/hol run usecase/oss-network-quality-lake</code> passes (01–05 and 99, about 30 s; two runs in a row after the last change), and the live demo was run
+with <code>ui/up.sh</code> and its button pressed several times. Machine: Apple M4 Pro, macOS, Docker Desktop;
+the container sees 12 CPUs and 7.75 GiB.</p>
+<h3>Reference architecture</h3>
+<p>Sources (devices, base stations, servers, applications) → collection (an agent per node, an
+aggregator) → raw messages on a message bus (Kafka) → stream processing that maps to an industry
+information model and enriches → curated messages → sink → storage: history in an open-table-format
+lake, ready-to-use summaries (gold) in <strong>ClickHouse</strong> → serving in three ways (request/response over
+HTTP, bulk export, subscription) → NOC screens, dashboards, analysts, business apps, AI agents.
+Two rails run along it: a <strong>schema contract in Git</strong> from which every stage's schema and DDL is
+generated, and a <strong>control-plane API</strong> that declares, deploys and observes every component.</p>
+<h3>Use cases</h3>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Use case</th>
+<th>In this lab</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Seeing</td>
+<td>NOC map: busiest cells, weakest cells, an area whose signal just dropped</td>
+<td>run (<code>cell_rank_now</code>, <code>uc_alert_cells</code>)</td>
+</tr>
+<tr>
+<td>Seeing</td>
+<td>Dashboard: KPI per minute and city</td>
+<td>run (<code>uc_dashboard</code>)</td>
+</tr>
+<tr>
+<td>Seeing</td>
+<td>Ad hoc analysis: weak signal downtown vs edge</td>
+<td>run (<code>uc_analysis</code>)</td>
+</tr>
+<tr>
+<td>Serving</td>
+<td>Request/response over HTTP, streamed row by row</td>
+<td>run (ClickHouse HTTP interface)</td>
+</tr>
+<tr>
+<td>Serving</td>
+<td>Subscription: alerts every minute; push to a Kafka topic</td>
+<td>alerts run (<code>uc_alert_areas</code>); Kafka publish is an example (<code>examples/subscribe-kafka.sql</code>)</td>
+</tr>
+<tr>
+<td>Serving</td>
+<td>Bulk export</td>
+<td>described</td>
+</tr>
+<tr>
+<td>Serving</td>
+<td>Managed Postgres for subscriptions, keys, watermarks; <code>pg_clickhouse</code> joins the lake from Postgres</td>
+<td>expansion example (<code>examples/postgres-pg-clickhouse.sql</code>, pattern verified in clickhouse-managed-postgres-hols)</td>
+</tr>
+<tr>
+<td>Running</td>
+<td>Schema contract in Git → generated DDL</td>
+<td>described</td>
+</tr>
+<tr>
+<td>Running</td>
+<td>Data quality at every stage</td>
+<td>run (silver drops rows without a cell or subscriber, keeps missing RSRP as NULL)</td>
+</tr>
+<tr>
+<td>Running</td>
+<td>Pipeline observability (ClickStack)</td>
+<td>described</td>
+</tr>
+<tr>
+<td>Running</td>
+<td>Lake history (Iceberg) joined with gold</td>
+<td>described</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>Agents turn questions into SQL over MCP/HTTP; agent observability (Langfuse)</td>
+<td>described</td>
+</tr>
+</tbody>
+</table>
+<p>Every minute the generator degrades one res-7 area (about 49 cells) by 22 dB, so the alert use case
+and the live feed have something new to catch each minute.</p>
+<h3>Features verified in the PoC</h3>
+<p>Ingest as received · cleaning at insert time (MV) · enrichment from an inventory dictionary (<code>dictGet</code>,
+district names) · pre-aggregation at insert (cell × 1 min) · gold on gold (cell × 10 min cascading from
+cell × 1 min, equal to raw) · a geography axis (district × 1 min) · an answer refreshed every minute
+(refreshable MV) · the same 20 rows from every stage · sudden-drop alerts · HTTP serving with a
+read-only user · H3 geo functions. Each has a check in 03–05, except "20 rows readable during
+refreshes" and "the read-only user cannot write", which were checked by hand on 2026-10-18.</p>
+<h3>Lessons from the field (measured 2026-10-18 on this lab, 26.9.13.15)</h3>
+<ul>
+<li>Nullable costs mostly in query complexity: the NOC query on bronze needs <code>assumeNotNull</code>,
+  <code>IS NOT NULL</code>, <code>stringToH3</code>, <code>cityHash64</code>; on silver it does not.</li>
+<li>A uniq state is sized by distinct values per group, not by input type: 300 distinct values give
+  1,203 B for <code>String</code> and for <code>UInt64</code> alike; <code>uniqCombined(12)</code> is 2,651 B at 300 and at 1,000,
+  where <code>uniq</code> is 4,003 B. In the lab the 1-minute rollup holds 2.43 M states of 34 B on average,
+  the 10-minute one 264 K of 193 B: choose the grain where user counts live.</li>
+<li>Build coarse rollups from fine ones (cascading MV on the 1-minute table, <code>uniqMergeState</code> + sums);
+  not a refreshable MV with <code>APPEND</code>, which double-inserts when the window is wider than the interval.</li>
+<li>A time column named <code>_kst</code> but typed UTC shifts buckets and TTL by nine hours; store instants with an
+  explicit time zone.</li>
+<li>Many consumers (dashboards, an AI agent over MCP, a catalogue, Kafka Connect batches) need their own
+  users and limits: read-only users with result and time limits, larger batches or async inserts.</li>
+</ul>
+<h3>The layers this lab runs</h3>
+<p>In the reference architecture raw messages and standardization live in Kafka and stream processing.
+To keep the flow visible in one place, this lab keeps all four stages inside ClickHouse and links them
+with materialized views. All four are tables in database <code>oss_lake</code> (Atomic).</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Layer</th>
+<th>Table</th>
+<th>What happens</th>
+<th style="text-align: right;">Rows (2 h)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>devices</td>
+<td><code>synth_traces</code> (parameterized view)</td>
+<td>180,000 measurements a minute across three cities</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>bronze</td>
+<td><code>ue_trace_raw</code></td>
+<td>kept as received: H3 as a string, IMSI as 44-char base64 ciphertext, everything Nullable, daily partition, TTL 3 days</td>
+<td style="text-align: right;">21,600,000</td>
+</tr>
+<tr>
+<td>3</td>
+<td>silver</td>
+<td><code>ue_trace</code> ← MV</td>
+<td><code>stringToH3</code>, <code>cityHash64(imsi)</code>, Float32, only <code>rsrp</code> stays Nullable; rows without a cell or a subscriber are dropped</td>
+<td style="text-align: right;">21,470,291</td>
+</tr>
+<tr>
+<td>4</td>
+<td>gold</td>
+<td><code>cell_kpi_1m</code> ← MV</td>
+<td>AggregatingMergeTree, one row per (minute, cell): <code>uniqState(imsi_hash)</code> + SimpleAggregateFunction sums</td>
+<td style="text-align: right;">2,431,595</td>
+</tr>
+<tr>
+<td>5</td>
+<td>serving</td>
+<td><code>cell_rank_now</code> ← refreshable MV</td>
+<td><code>REFRESH EVERY 1 MINUTE TO</code>, no <code>APPEND</code>: the 20 rows, replaced in one swap</td>
+<td style="text-align: right;">20</td>
+</tr>
+<tr>
+<td>6</td>
+<td>NOC map</td>
+<td>—</td>
+<td>the 20 cells drawn from <code>h3ToGeoBoundary</code>, on a res-7 density background</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p>Row counts measured 2026-10-18 on a fresh run (they move slightly between runs because the data is
+seeded from the start minute).</p>
+<p>"The last hour" ends at <code>max(params.anchor_ts)</code>, not <code>now()</code>, so the lab still answers the question
+whenever it is opened; the live feed moves the anchor one minute per press. <strong>In production the
+queries and the refreshable MV would use <code>now()</code>.</strong> Bronze's TTL is real: data older than 3 days
+(wall clock) is removed, so reload the lab rather than reopening an old container.</p>
+<h3>Same answer from every layer</h3>
+<p><code>03-queries.sql</code> asks the NOC question of each layer through four views (<code>noc_from_bronze</code>,
+<code>_silver</code>, <code>_gold</code>, <code>_serving</code>), refreshes serving, and fails unless all four return the same 20
+rows (serving is frozen into a Memory table first, because the scheduled refresh may swap it during
+the checks). The check was seen to fire: changing one serving row by hand made it stop with
+<code>bronze differs from serving</code>, and it caught the wrong-result bug described below
+(<code>silver differs from serving</code>).</p>
+<p>Query time per layer (2026-10-18, machine above, median of 5 runs after one warm-up, server-side
+<code>elapsed_ns</code>, query cache off) — for reference, not a benchmark:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th style="text-align: right;">Rows read</th>
+<th style="text-align: right;">Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bronze</td>
+<td style="text-align: right;">10,807,707</td>
+<td style="text-align: right;">729 ms</td>
+</tr>
+<tr>
+<td>silver</td>
+<td style="text-align: right;">10,742,720</td>
+<td style="text-align: right;">229 ms</td>
+</tr>
+<tr>
+<td>gold</td>
+<td style="text-align: right;">1,219,180</td>
+<td style="text-align: right;">205 ms</td>
+</tr>
+<tr>
+<td>serving</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">1.5 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Generating the two hours (<code>02-generate.sql</code>) took 16.5 s. One live-feed press: 180,000 rows into
+bronze in 0.17–0.23 s, 0.42–0.48 s including the serving refresh (three presses); after them the
+four <code>/api/q/&lt;n&gt;</code> answers were still identical.</p>
+<h3>A wrong result met on the way (26.6–26.9)</h3>
+<p>Two early <code>tools/hol run</code>s failed the same-20-rows check: silver returned a few rows fewer than bronze
+for the same hour. Cause, measured 2026-10-18: for a <code>DateTime64(3)</code> primary-key column, the
+condition <code>event_ts &lt; &lt;a DateTime value&gt;</code> becomes the key condition <code>event_ts &lt;= &lt;that value&gt; - 1 s</code>
+(<code>EXPLAIN indexes = 1</code> shows <code>event_ts in (-Inf, 1792313039]</code> for <code>&lt; '2026-10-18 08:44:00'</code>). A
+granule that starts inside the last second (here at <code>08:43:59.003</code>, 3,033 rows) is skipped, so its
+rows vanish from <code>WHERE</code> while <code>countIf</code> with the same condition still counts them. It depends on
+where granule boundaries fall, which is why it came and went between runs.</p>
+<p>A minimal reproduction (one <code>DateTime64(3)</code> column, <code>index_granularity = 1000</code>, 5,000 rows 2 ms apart,
+<code>WHERE ts &lt; toDateTime('… 00:00:09')</code>) returns 4,000 rows instead of 4,500 on 26.6.8.7, 26.8.22.13
+and 26.9.13.15, and the correct 4,500 on 25.8.33.6. Whether it is already reported upstream was not
+checked.</p>
+<p>The lab compares <code>event_ts</code> with a <code>DateTime64(3)</code> bound (<code>toDateTime64(…, 3)</code>, the key condition is
+then <code>(-Inf, '1792313040')</code>), and the run that had shown the bug passed with that change. Gold's
+<code>bucket</code> is a <code>DateTime</code> compared with a <code>DateTime</code>, so it is not affected.</p>
+<h3>The one pitfall: an aggregate state that no longer matches its source</h3>
+<p>An <code>AggregateFunction</code> column's argument type must match the source column, Nullable included.
+<code>pitfall.sql</code> reproduces it in a scratch database (<code>tools/hol</code> does not run it; it fails on purpose).
+Measured 2026-10-18:</p>
+<ul>
+<li>A mismatch the server can see is refused <strong>at CREATE</strong>: <code>avgState(rsrp)</code> over a <code>Nullable(Float32)</code>
+  into <code>AggregateFunction(avg, Float32)</code> fails with <code>CANNOT_CONVERT_TYPE</code> on 25.8.33.6, 26.6.8.7,
+  26.8.22.13 and 26.9.13.15.</li>
+<li>A mismatch that arrives later is not: the source column was <code>Float32</code>, the MV was created, then
+  <code>ALTER TABLE … MODIFY COLUMN rsrp Nullable(Float32)</code> <strong>succeeded</strong>, and every INSERT after it failed
+  (26.9.13.15):</li>
+</ul>
+<p><code>Code: 70. DB::Exception: Conversion from AggregateFunction(avg, Nullable(Float32)) to
+  AggregateFunction(avg, Float32) is not supported: while converting source column avg_rsrp_st to
+  destination column avg_rsrp_st: while pushing to view oss_pitfall.kpi_mv … (CANNOT_CONVERT_TYPE)</code></p>
+<p>The source row was written anyway (<code>trace</code> 2 rows, <code>kpi</code> 1 row), so the source keeps growing while
+  the aggregate silently stops.</p>
+<p>The lab's gold layer avoids it by keeping rsrp as plain sums (<code>count(rsrp)</code>, <code>sum(ifNull(rsrp, 0))</code>)
+and feeding <code>uniqState</code> a non-Nullable hash. Another fix is a state type that follows the source
+(<code>AggregateFunction(avg, Nullable(Float32))</code>).</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>database, <code>params</code>, <code>grid</code>, the four layer tables, both MVs, the refreshable MV, read-only user <code>oss_reader</code></td>
+</tr>
+<tr>
+<td><code>02-generate.sql</code></td>
+<td>the cell grid (3 cities × 6,769 res-9 cells, a weak-coverage spot per city), the <code>synth_traces</code> view, two hours of traces</td>
+</tr>
+<tr>
+<td><code>03-queries.sql</code></td>
+<td>the NOC query on each layer, <code>SYSTEM REFRESH VIEW</code>, the same-20-rows check</td>
+</tr>
+<tr>
+<td><code>04-usecases.sql</code></td>
+<td>use-case views (analysis, dashboard, alerts per cell and per area) and their checks</td>
+</tr>
+<tr>
+<td><code>05-lessons.sql</code></td>
+<td>lesson checks: the 10-minute rollup built on the 1-minute one equals raw (with a control), the region rollup adds up, bronze keeps every row; uniq state sizes by type, distinct values and grain</td>
+</tr>
+<tr>
+<td><code>examples/</code></td>
+<td>patterns not run here: publishing alerts to Kafka, reading the lake from Postgres with <code>pg_clickhouse</code></td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td>drops <code>oss_lake</code>, <code>oss_pitfall</code> and the user</td>
+</tr>
+<tr>
+<td><code>pitfall.sql</code></td>
+<td>the pitfall above, by hand</td>
+</tr>
+<tr>
+<td><code>snapshot.sh</code></td>
+<td>writes <code>site/data/snapshot.json</code> (counts, sample rows, the 20 cells with boundaries, query times) and rebuilds the pages</td>
+</tr>
+<tr>
+<td><code>site/</code></td>
+<td>explainer (<code>explainer.html</code>), shared CSS/JS, catalogues <code>i18n/{ko,en,ja,zh}.json</code>, <code>build.py</code></td>
+</tr>
+<tr>
+<td><code>ui/server.py</code></td>
+<td>stdlib-only server: explainer at <code>/</code>, demo at <code>/demo</code>, fixed endpoints <code>/api/layers</code>, <code>/api/q/&lt;1-4&gt;</code>, <code>/api/map</code>, <code>POST /api/tick</code></td>
+</tr>
+<tr>
+<td><code>ui/demo.html</code></td>
+<td>the live demo page (no build step, no CDN)</td>
+</tr>
+<tr>
+<td><code>ui/up.sh</code></td>
+<td>container + 01–05 + server, in one command</td>
+</tr>
+<tr>
+<td><code>site/data/replay.json</code></td>
+<td>six live-feed presses recorded with <code>ui/server.py --record 6</code>, replayed by the demo where there is no ClickHouse</td>
+</tr>
+<tr>
+<td><code>vercel.json</code></td>
+<td>deployment: <code>python3 site/build.py</code> → <code>site/dist</code>, the <code>api/index.py</code> function, <code>noindex</code> header, <code>/en/</code> redirects</td>
+</tr>
+<tr>
+<td><code>api/index.py</code></td>
+<td>Vercel function: the demo's read-only GET endpoints against the lake on Cloud</td>
+</tr>
+<tr>
+<td><code>cloud/load.py</code>, <code>cloud/feed.sql</code></td>
+<td>load the lab into a Cloud service (with the Cloud differences), self-running feed, stop switch, drop</td>
+</tr>
+</tbody>
+</table>
+<h3>Run it</h3>
+<p>SQL only, in a throwaway container:</p>
+<pre><code class="language-bash">tools/hol run usecase/oss-network-quality-lake
+</code></pre>
+<p>The explainer without ClickHouse (pages are built from the committed snapshot):</p>
+<pre><code class="language-bash">python3 usecase/oss-network-quality-lake/site/build.py
+open usecase/oss-network-quality-lake/site/dist/index.html
+</code></pre>
+<p>The live demo (Docker and Python 3; local only, no Cloud cost):</p>
+<pre><code class="language-bash">usecase/oss-network-quality-lake/ui/up.sh
+</code></pre>
+<p>Then open <a href="http://localhost:8765/">http://localhost:8765/</a> (explainer) or <a href="http://localhost:8765/demo">http://localhost:8765/demo</a> (demo; <code>/ko/demo</code>,
+<code>/ja/demo</code>, <code>/zh/demo</code> for the other languages). ClickHouse listens on <code>127.0.0.1:18123</code>
+(<code>CH_PORT</code> to change). Reads go through the read-only user <code>oss_reader</code>; only <code>POST /api/tick</code>
+writes, and it runs one fixed statement (the next minute from <code>synth_traces</code>), never SQL from the
+page. Stop with Ctrl-C and remove the container with <code>docker rm -f oss-lake-demo</code>.</p>
+<p>After changing the SQL, refresh the snapshot against a loaded container:
+<code>CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh</code>.</p>
+<h3>On ClickHouse Cloud (live site)</h3>
+<p><a href="https://oss-lake.clickhouse.kr/">https://oss-lake.clickhouse.kr/</a> is live data, not a recording:</p>
+<ul>
+<li><strong>Lake</strong>: database <code>oss_lake</code> on a ClickHouse Cloud service in AWS Seoul (ap-northeast-2), loaded
+  2026-10-18 on 26.6.1 by <code>cloud/load.py</code>. That is the same 01–05 files plus the Cloud differences
+  listed in its docstring. All checks in 03–05 passed there.</li>
+<li><strong>Feed</strong>: <code>cloud/feed.sql</code> adds two refreshable MVs. <code>feed_rmv</code> generates the next minute every
+  minute (up to five to catch up after a pause, never a minute twice). <code>anchor_rmv</code> then moves the
+  lake's "now"; the serving refresh depends on it. It also adds TTLs: silver 3 days, gold 7 days.</li>
+<li><strong>Site</strong>: Vercel project <code>oss-lake</code>, region icn1. The pages are static. <code>api/index.py</code> serves the
+  demo's GET endpoints as the read-only user <code>oss_reader</code>: <code>readonly = 1</code>, 20 s and 200,000-row
+  limits, a 20 s edge cache. It has no write endpoint (POST returns 405). When the function cannot
+  reach ClickHouse, the demo falls back to the recorded minutes.</li>
+</ul>
+<pre><code class="language-bash">cd usecase/oss-network-quality-lake
+set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
+python3 cloud/load.py                 # load (generated passwords go to ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+python3 cloud/load.py feed stop       # the stop switch; `feed start` resumes, `feed status` shows it
+python3 cloud/load.py drop            # remove the database and both users
+vercel deploy --prod --scope litkhai  # site + function (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
+</code></pre>
+<p>Measured 2026-10-18 on that service (2 replicas, 8 GiB minimum each, 2 vCPUs):</p>
+<ul>
+<li>Load times: 01 in 9 s, 02 in 66 s, 03 in 15 s, 04 in 2 s, 05 in 12 s.</li>
+<li>The feed ran with no failed refresh, writing 180,000 rows a minute, and the lake's "now" stayed
+  within the current wall-clock minute.</li>
+<li>Through the function, network included: <code>/api/q/1</code> (bronze) took 3.9 s, <code>/api/q/4</code> (serving)
+  0.35 s.</li>
+<li>A write as <code>oss_reader</code> was refused with <code>ACCESS_DENIED</code>.</li>
+</ul>
+<p>Found on the way: the inventory dictionary has a copy on each replica. <code>SYSTEM RELOAD DICTIONARY</code>
+reloaded one replica, the other kept a copy loaded while the inventory was still empty, and every
+silver row of the history load got an empty district. The 05 check caught it. The loader now
+reloads <code>ON CLUSTER 'default'</code> and waits until every replica holds the whole inventory.</p>
+<p>Cost, estimated 2026-10-18:</p>
+<ul>
+<li>The service already runs around the clock (idle scaling off), so its base compute is not caused
+  by the lab.</li>
+<li>Added: about 0.11 TB of storage including one daily backup, at $27.50 per TB-month (the
+  published Seoul rate, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a
+  second of CPU a minute.</li>
+<li>If idle scaling is turned on later, the feed keeps the service awake. Stop it first.</li>
+</ul>
+<h3>Languages</h3>
+<p>Korean is the source. <code>site/i18n/{ko,en,ja,zh}.json</code> is one catalogue per language, shared by the
+explainer and the demo; <code>build.py</code> writes <code>/</code> (en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code> and fails when the key
+sets differ (seen: removing <code>cta.note</code> from <code>ja.json</code> stopped the build with
+<code>ja.json: missing ['cta.note']</code>). SQL, table and column names are not translated. Checked in the
+browser on 2026-10-18 at 320 px and desktop width, light and dark, in all four languages.</p>
+<h3>Not covered</h3>
+<ul>
+<li>Scale: two hours, about 20k cells. The point is the flow, not the size.</li>
+<li>Real probe formats, real IMSI encryption, Kafka or object-storage ingestion: bronze is filled by SQL.</li>
+<li>Publishing to the notes site (<code>web</code> is not set).</li>
+</ul>
+<h3>Author</h3>
+<p>Ken Lee (ClickHouse SA) · License: MIT</p>
+<hr /></div>
+  <div class="readme ko"><p>통신사 <strong>OSS</strong>(운영: 장비, 장애, 품질. 요금·청구를 다루는 BSS가 아님)는 망에 붙은 모든 단말(UE: 휴대폰,
+IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를 모읍니다. 이 실습은 <strong>그 데이터를 누가
+어떻게 쓰는지</strong>를 보여 줍니다. 전형적인 통신사 OSS 레이크의 참조 구조, 그 위의 유즈케이스(NOC
+지도, 대시보드, 즉석 분석, 즉시 조회 서빙, 구독, 대량 추출, 스키마 계약, 데이터 품질, 파이프라인 관측,
+레이크 이력, AI 에이전트, 확장안으로 Managed Postgres), 그리고 그중 다섯 가지를 실제로 돌리는 작은
+ClickHouse 레이크입니다.</p>
+<p>동료들과 나누는 사례 연구입니다. 상황 → 업계 흐름(OSS 데이터 레이어의 가상화, 공개 자료) → 아키텍처 →
+유즈케이스 → PoC에서 검증한 기능 → 현장에서 배운 것 → 직접 해 보기 순서입니다. 정적 페이지는 영어(기본,
+<code>/</code>), 한국어, 일본어, 중국어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
+있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.</p>
+<p>합성 시나리오입니다. 가상의 통신사를 두고 흔한 통신 OSS 관행(3GPP PM/CM/트레이스, 메달리온 계층)으로
+구성했으며, 이름은 지어낸 것이고 수치는 이 실습에서 측정한 값입니다. 도시 중심 좌표(서울, 부산, 대구)만
+실제 장소입니다. 데이터는 모두 SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.</p>
+<p><strong>ClickHouse 26.9.13.15에서 검증</strong> (<code>clickhouse/clickhouse-server:26.9.13.15</code>), 2026-10-18:
+<code>tools/hol run usecase/oss-network-quality-lake</code> 통과(01–05와 99, 약 30초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 <code>ui/up.sh</code>로
+띄워 버튼을 여러 번 눌러 확인했습니다. 기기: Apple M4 Pro, macOS, Docker Desktop, 컨테이너는
+CPU 12개와 7.75 GiB를 봅니다.</p>
+<h3>참조 구조</h3>
+<p>원천(단말, 기지국, 서버, 애플리케이션) → 수집(노드마다 에이전트, 집계기) → 메시지 버스(Kafka)의 원천
+메시지 → 업계 표준 정보 모델에 맞추고 부가 정보를 붙이는 스트림 처리 → 정제된 메시지 → 싱크 → 저장:
+이력은 오픈 테이블 포맷 레이크, 바로 쓰는 요약(골드)은 <strong>ClickHouse</strong> → 세 가지 서빙(HTTP 즉시 조회,
+대량 추출, 구독) → NOC 화면, 대시보드, 분석가, 업무 앱, AI 에이전트. 옆으로 두 줄이 함께 갑니다.
+모든 단계의 스키마와 DDL을 만드는 <strong>Git의 스키마 계약</strong>, 모든 구성 요소를 선언하고 배포하고 관측하는
+<strong>컨트롤 플레인 API</strong>입니다.</p>
+<h3>유즈케이스</h3>
+<table>
+<thead>
+<tr>
+<th>묶음</th>
+<th>유즈케이스</th>
+<th>이 실습에서</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>보기</td>
+<td>NOC 지도: 가장 붐비는 셀, 가장 약한 셀, 방금 신호가 떨어진 지역</td>
+<td>실행 (<code>cell_rank_now</code>, <code>uc_alert_cells</code>)</td>
+</tr>
+<tr>
+<td>보기</td>
+<td>대시보드: 분·도시별 KPI</td>
+<td>실행 (<code>uc_dashboard</code>)</td>
+</tr>
+<tr>
+<td>보기</td>
+<td>즉석 분석: 도심과 외곽의 약한 신호</td>
+<td>실행 (<code>uc_analysis</code>)</td>
+</tr>
+<tr>
+<td>서빙</td>
+<td>HTTP 즉시 조회, 한 행씩 흘려 받기</td>
+<td>실행 (ClickHouse HTTP 인터페이스)</td>
+</tr>
+<tr>
+<td>서빙</td>
+<td>구독: 1분마다 알림, Kafka 토픽으로 발행</td>
+<td>알림 실행 (<code>uc_alert_areas</code>), Kafka 발행은 예시 (<code>examples/subscribe-kafka.sql</code>)</td>
+</tr>
+<tr>
+<td>서빙</td>
+<td>대량 추출</td>
+<td>설명</td>
+</tr>
+<tr>
+<td>서빙</td>
+<td>구독·키·워터마크는 Managed Postgres에, <code>pg_clickhouse</code>로 Postgres에서 레이크 조인</td>
+<td>확장 예시 (<code>examples/postgres-pg-clickhouse.sql</code>, 방식은 clickhouse-managed-postgres-hols에서 검증)</td>
+</tr>
+<tr>
+<td>운영</td>
+<td>Git 스키마 계약 → DDL 생성</td>
+<td>설명</td>
+</tr>
+<tr>
+<td>운영</td>
+<td>단계마다 데이터 품질 확인</td>
+<td>실행 (실버가 셀·가입자 없는 행을 버리고, 없는 RSRP는 NULL로 유지)</td>
+</tr>
+<tr>
+<td>운영</td>
+<td>파이프라인 관측 (ClickStack)</td>
+<td>설명</td>
+</tr>
+<tr>
+<td>운영</td>
+<td>레이크 이력(Iceberg)과 골드 조인</td>
+<td>설명</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>에이전트가 MCP/HTTP로 질문을 SQL로 바꿔 조회, 에이전트 관측(Langfuse)</td>
+<td>설명</td>
+</tr>
+</tbody>
+</table>
+<p>생성기는 1분마다 res-7 지역 하나(셀 약 49개)의 신호를 22 dB 떨어뜨립니다. 그래서 알림 유즈케이스와
+라이브 데모가 매분 새로 잡을 것이 생깁니다.</p>
+<h3>PoC에서 검증한 기능</h3>
+<p>받은 그대로 적재 · 적재 순간의 정제(MV) · 인벤토리 Dictionary로 보강(<code>dictGet</code>, 지역 이름) · 적재 시
+사전 집계(셀 × 1분) · 골드 위의 골드(셀 × 1분에서 이어받는 셀 × 10분, 원본과 일치) · 지리 축(지역 ×
+1분) · 1분마다 새로 고치는 답(Refreshable MV) · 모든 단계에서 같은 20행 · 급격한 하락 알림 · 읽기
+전용 사용자의 HTTP 서빙 · H3 지리 함수. 각각 03–05에 검사가 있고, '새로 고침 중에도 20행'과 '읽기
+전용 사용자는 쓰지 못함'은 2026-10-18 손으로 확인했습니다.</p>
+<h3>현장에서 배운 것 (2026-10-18, 이 실습, 26.9.13.15에서 측정)</h3>
+<ul>
+<li>Nullable의 비용은 주로 질의의 복잡도입니다. 브론즈의 NOC 질의에는 <code>assumeNotNull</code>, <code>IS NOT NULL</code>,
+  <code>stringToH3</code>, <code>cityHash64</code>가 필요하고 실버에서는 필요 없습니다.</li>
+<li>uniq 상태의 크기는 입력 타입이 아니라 그룹당 서로 다른 값의 수가 정합니다. 300개면 <code>String</code>과
+  <code>UInt64</code> 모두 1,203 B, <code>uniqCombined(12)</code>는 300개와 1,000개 모두 2,651 B(그때 <code>uniq</code>는 4,003 B).
+  이 실습의 1분 요약은 평균 34 B 상태 243만 개, 10분 요약은 193 B 상태 26.4만 개입니다. 사용자 수를
+  둘 단위를 고르세요.</li>
+<li>거친 요약은 고운 요약에서 만듭니다(1분 테이블에 연쇄 MV, <code>uniqMergeState</code> + 합계). <code>APPEND</code>를 쓴
+  Refreshable MV는 창이 주기보다 넓으면 두 번 넣습니다.</li>
+<li>이름은 <code>_kst</code>인데 타입은 UTC인 시간 컬럼은 버킷과 TTL을 9시간 밀어 놓습니다. 시각은 시간대를 명시해
+  저장하세요.</li>
+<li>소비자(대시보드, MCP의 AI 에이전트, 카탈로그, Kafka Connect 배치)가 많아지면 각자의 사용자와 한도가
+  필요합니다. 읽기 전용 사용자에 결과·시간 한도, 적재 쪽은 큰 배치나 async insert.</li>
+</ul>
+<h3>이 실습이 돌리는 레이어</h3>
+<p>참조 구조에서 원천 메시지와 표준화는 Kafka와 스트림 처리에 있습니다. 흐름을 한곳에서 보이도록 이
+실습은 네 단계를 모두 ClickHouse 안에 두고 Materialized View로 잇습니다.</p>
+<p>네 개 모두 <code>oss_lake</code> 데이터베이스(Atomic)의 테이블입니다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>레이어</th>
+<th>테이블</th>
+<th>하는 일</th>
+<th style="text-align: right;">행 (2시간)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>단말</td>
+<td><code>synth_traces</code> (매개변수 뷰)</td>
+<td>세 도시에서 1분에 180,000건</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>브론즈</td>
+<td><code>ue_trace_raw</code></td>
+<td>받은 그대로: H3는 문자열, IMSI는 44자 base64 암호문, 모두 Nullable, 일 단위 파티션, TTL 3일</td>
+<td style="text-align: right;">21,600,000</td>
+</tr>
+<tr>
+<td>3</td>
+<td>실버</td>
+<td><code>ue_trace</code> ← MV</td>
+<td><code>stringToH3</code>, <code>cityHash64(imsi)</code>, Float32, <code>rsrp</code>만 Nullable. 셀이나 가입자가 없는 행은 버림</td>
+<td style="text-align: right;">21,470,291</td>
+</tr>
+<tr>
+<td>4</td>
+<td>골드</td>
+<td><code>cell_kpi_1m</code> ← MV</td>
+<td>AggregatingMergeTree, (분, 셀)마다 한 행: <code>uniqState(imsi_hash)</code> + SimpleAggregateFunction 합계</td>
+<td style="text-align: right;">2,431,595</td>
+</tr>
+<tr>
+<td>5</td>
+<td>서빙</td>
+<td><code>cell_rank_now</code> ← Refreshable MV</td>
+<td><code>REFRESH EVERY 1 MINUTE TO</code>, <code>APPEND</code> 없음: 20행을 한 번에 교체</td>
+<td style="text-align: right;">20</td>
+</tr>
+<tr>
+<td>6</td>
+<td>NOC 지도</td>
+<td>—</td>
+<td>20개 셀을 <code>h3ToGeoBoundary</code>로 그림, 바탕은 res-7 측정 밀도</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p>행 수는 2026-10-18 새로 돌린 결과입니다(데이터가 시작 시각으로 시드되므로 실행마다 조금씩 다릅니다).</p>
+<p>"지난 1시간"은 <code>now()</code>가 아니라 <code>max(params.anchor_ts)</code>에서 끝납니다. 그래서 언제 열어도 같은
+질문에 답하고, 라이브 데모는 버튼을 누를 때마다 기준 시각을 1분 옮깁니다. <strong>운영 환경에서는
+질의와 Refreshable MV가 <code>now()</code>를 씁니다.</strong> 브론즈의 TTL은 실제로 동작합니다. 3일(벽시계 기준)이
+지난 데이터는 지워지므로, 오래된 컨테이너를 다시 열지 말고 실습을 다시 적재하세요.</p>
+<h3>어느 레이어에서도 같은 답</h3>
+<p><code>03-queries.sql</code>은 뷰 네 개(<code>noc_from_bronze</code>, <code>_silver</code>, <code>_gold</code>, <code>_serving</code>)로 각 레이어에 NOC
+질문을 던지고, 서빙을 새로 고친 뒤, 네 레이어가 같은 20행을 돌려주지 않으면 실패합니다(검사 중에 예약된 새로 고침이
+서빙을 바꿀 수 있어 먼저 Memory 테이블에 고정해 둡니다). 검사가 실제로 걸리는 것도 확인했습니다. 서빙
+한 행을 손으로 바꾸자 <code>bronze differs from serving</code>으로 멈췄고, 아래의 잘못된 결과 버그도 이 검사가
+잡았습니다(<code>silver differs from serving</code>).</p>
+<p>레이어별 질의 시간(2026-10-18, 위 기기, 워밍업 1회 뒤 5회 실행 중앙값, 서버 측 <code>elapsed_ns</code>, 쿼리
+캐시 끔). 참고용이며 벤치마크가 아닙니다.</p>
+<table>
+<thead>
+<tr>
+<th>레이어</th>
+<th style="text-align: right;">읽은 행</th>
+<th style="text-align: right;">시간</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>브론즈</td>
+<td style="text-align: right;">10,807,707</td>
+<td style="text-align: right;">729 ms</td>
+</tr>
+<tr>
+<td>실버</td>
+<td style="text-align: right;">10,742,720</td>
+<td style="text-align: right;">229 ms</td>
+</tr>
+<tr>
+<td>골드</td>
+<td style="text-align: right;">1,219,180</td>
+<td style="text-align: right;">205 ms</td>
+</tr>
+<tr>
+<td>서빙</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">1.5 ms</td>
+</tr>
+</tbody>
+</table>
+<p>2시간치 생성(<code>02-generate.sql</code>)은 16.5초 걸렸습니다. 라이브 데모 버튼 한 번: 브론즈에 180,000행을
+넣는 데 0.17–0.23초, 서빙 새로 고침까지 0.42–0.48초(세 번 누름). 그 뒤에도 <code>/api/q/&lt;n&gt;</code> 네 개의
+답은 같았습니다.</p>
+<h3>만드는 중에 만난 잘못된 결과 (26.6–26.9)</h3>
+<p>초기의 <code>tools/hol run</code> 두 번이 같은 20행 검사에서 실패했습니다. 같은 1시간에 대해 실버가 브론즈보다
+몇 행 적게 돌려준 것입니다. 원인(2026-10-18 측정): <code>DateTime64(3)</code> 기본 키 컬럼에서
+<code>event_ts &lt; &lt;DateTime 값&gt;</code> 조건이 키 조건 <code>event_ts &lt;= &lt;그 값&gt; - 1초</code>로 바뀝니다
+(<code>&lt; '2026-10-18 08:44:00'</code>에 대해 <code>EXPLAIN indexes = 1</code>이 <code>event_ts in (-Inf, 1792313039]</code>를 보여 줌).
+마지막 1초 안에서 시작하는 그래뉼(여기서는 <code>08:43:59.003</code>, 3,033행)은 건너뛰어져서, 같은 조건의
+<code>countIf</code>는 세는 행이 <code>WHERE</code>에서는 사라집니다. 그래뉼 경계가 어디에 떨어지느냐에 달려 있어 실행마다
+나타났다 사라졌습니다.</p>
+<p>최소 재현(<code>DateTime64(3)</code> 컬럼 하나, <code>index_granularity = 1000</code>, 2 ms 간격 5,000행,
+<code>WHERE ts &lt; toDateTime('… 00:00:09')</code>)은 26.6.8.7, 26.8.22.13, 26.9.13.15에서 4,500행이 아닌 4,000행을,
+25.8.33.6에서는 맞는 4,500행을 돌려줍니다. 이미 보고된 문제인지는 확인하지 않았습니다.</p>
+<p>이 실습은 <code>event_ts</code>를 <code>DateTime64(3)</code> 경계(<code>toDateTime64(…, 3)</code>)와 비교합니다. 그러면 키 조건이
+<code>(-Inf, '1792313040')</code>이 되고, 버그가 나타났던 실행도 이 변경으로 통과했습니다. 골드의 <code>bucket</code>은
+<code>DateTime</code>을 <code>DateTime</code>과 비교하므로 영향이 없습니다.</p>
+<h3>함정 하나: 원본과 더는 맞지 않는 집계 상태</h3>
+<p><code>AggregateFunction</code> 컬럼의 인자 타입은 Nullable 여부까지 원본 컬럼과 맞아야 합니다.
+<code>pitfall.sql</code>이 임시 데이터베이스에서 재현합니다(<code>tools/hol</code>은 실행하지 않습니다. 일부러 실패합니다).
+2026-10-18 측정:</p>
+<ul>
+<li>서버가 볼 수 있는 불일치는 <strong>CREATE에서</strong> 거부됩니다. <code>Nullable(Float32)</code>에 대한 <code>avgState(rsrp)</code>를
+  <code>AggregateFunction(avg, Float32)</code>에 넣는 MV는 25.8.33.6, 26.6.8.7, 26.8.22.13, 26.9.13.15에서 모두
+  <code>CANNOT_CONVERT_TYPE</code>으로 실패합니다.</li>
+<li>나중에 생긴 불일치는 거부되지 않습니다. 원본 컬럼이 <code>Float32</code>일 때 MV를 만들고,
+  <code>ALTER TABLE … MODIFY COLUMN rsrp Nullable(Float32)</code>을 실행하면 <strong>성공</strong>하고, 그 뒤 INSERT가 모두
+  실패했습니다(26.9.13.15).</li>
+</ul>
+<p><code>Code: 70. DB::Exception: Conversion from AggregateFunction(avg, Nullable(Float32)) to
+  AggregateFunction(avg, Float32) is not supported: while converting source column avg_rsrp_st to
+  destination column avg_rsrp_st: while pushing to view oss_pitfall.kpi_mv … (CANNOT_CONVERT_TYPE)</code></p>
+<p>원본 행은 그래도 기록됐습니다(<code>trace</code> 2행, <code>kpi</code> 1행). 원본은 계속 늘고 집계만 조용히 멈춥니다.</p>
+<p>이 실습의 골드 레이어는 rsrp를 단순 합계(<code>count(rsrp)</code>, <code>sum(ifNull(rsrp, 0))</code>)로 두고 <code>uniqState</code>에는
+Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을 원본에 맞추는 방법
+(<code>AggregateFunction(avg, Nullable(Float32))</code>)도 있습니다.</p>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-schema.sql</code></td>
+<td>데이터베이스, <code>params</code>, <code>grid</code>, 레이어 테이블 네 개, MV 두 개, Refreshable MV, 읽기 전용 사용자 <code>oss_reader</code></td>
+</tr>
+<tr>
+<td><code>02-generate.sql</code></td>
+<td>셀 격자(3개 도시 × res-9 셀 6,769개, 도시마다 음영 지역 한 곳), <code>synth_traces</code> 뷰, 2시간치 측정</td>
+</tr>
+<tr>
+<td><code>03-queries.sql</code></td>
+<td>레이어별 NOC 질의, <code>SYSTEM REFRESH VIEW</code>, 같은 20행 검사</td>
+</tr>
+<tr>
+<td><code>04-usecases.sql</code></td>
+<td>유즈케이스 뷰(분석, 대시보드, 셀별·지역별 알림)와 검사</td>
+</tr>
+<tr>
+<td><code>05-lessons.sql</code></td>
+<td>교훈 검사: 1분 요약에서 이어받은 10분 요약 = 원본(대조군 포함), 지역 요약 합계, 브론즈 행 보존. 타입·서로 다른 값 수·단위별 uniq 상태 크기</td>
+</tr>
+<tr>
+<td><code>examples/</code></td>
+<td>여기서 돌리지 않는 방식: Kafka로 알림 발행, <code>pg_clickhouse</code>로 Postgres에서 레이크 읽기</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td><code>oss_lake</code>, <code>oss_pitfall</code>, 사용자 삭제</td>
+</tr>
+<tr>
+<td><code>pitfall.sql</code></td>
+<td>위 함정을 손으로 재현</td>
+</tr>
+<tr>
+<td><code>snapshot.sh</code></td>
+<td><code>site/data/snapshot.json</code>(행 수, 견본 행, 경계가 붙은 20개 셀, 질의 시간)을 쓰고 페이지를 다시 만듦</td>
+</tr>
+<tr>
+<td><code>site/</code></td>
+<td>설명 페이지(<code>explainer.html</code>), 공용 CSS/JS, 카탈로그 <code>i18n/{ko,en,ja,zh}.json</code>, <code>build.py</code></td>
+</tr>
+<tr>
+<td><code>ui/server.py</code></td>
+<td>표준 라이브러리만 쓰는 서버: <code>/</code>에 설명, <code>/demo</code>에 데모, 고정 엔드포인트 <code>/api/layers</code>, <code>/api/q/&lt;1-4&gt;</code>, <code>/api/map</code>, <code>POST /api/tick</code></td>
+</tr>
+<tr>
+<td><code>ui/demo.html</code></td>
+<td>라이브 데모 페이지(빌드 단계 없음, CDN 없음)</td>
+</tr>
+<tr>
+<td><code>ui/up.sh</code></td>
+<td>컨테이너 + 01–05 + 서버를 명령 하나로</td>
+</tr>
+<tr>
+<td><code>site/data/replay.json</code></td>
+<td><code>ui/server.py --record 6</code>으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생</td>
+</tr>
+<tr>
+<td><code>vercel.json</code></td>
+<td>배포: <code>python3 site/build.py</code> → <code>site/dist</code>, <code>api/index.py</code> 함수, <code>noindex</code> 헤더, <code>/en/</code> 넘겨주기</td>
+</tr>
+<tr>
+<td><code>api/index.py</code></td>
+<td>Vercel 함수: Cloud의 레이크에 대한 데모의 읽기 전용 GET 엔드포인트</td>
+</tr>
+<tr>
+<td><code>cloud/load.py</code>, <code>cloud/feed.sql</code></td>
+<td>Cloud 서비스에 실습 적재(Cloud 차이 포함), 스스로 도는 흐름, 멈춤 스위치, 삭제</td>
+</tr>
+</tbody>
+</table>
+<h3>실행</h3>
+<p>SQL만, 일회용 컨테이너에서:</p>
+<pre><code class="language-bash">tools/hol run usecase/oss-network-quality-lake
+</code></pre>
+<p>ClickHouse 없이 설명 페이지만(커밋된 스냅숏으로 페이지를 만듭니다):</p>
+<pre><code class="language-bash">python3 usecase/oss-network-quality-lake/site/build.py
+open usecase/oss-network-quality-lake/site/dist/index.html
+</code></pre>
+<p>라이브 데모(Docker와 Python 3. 로컬 전용, Cloud 비용 없음):</p>
+<pre><code class="language-bash">usecase/oss-network-quality-lake/ui/up.sh
+</code></pre>
+<p>그다음 <a href="http://localhost:8765/">http://localhost:8765/</a>(설명) 또는 <a href="http://localhost:8765/demo">http://localhost:8765/demo</a>(데모. 다른 언어는 <code>/ko/demo</code>,
+<code>/ja/demo</code>, <code>/zh/demo</code>)를 엽니다. ClickHouse는 <code>127.0.0.1:18123</code>에서 듣습니다(<code>CH_PORT</code>로 변경).
+읽기는 읽기 전용 사용자 <code>oss_reader</code>로 하고, 쓰기는 <code>POST /api/tick</code> 하나뿐이며 고정된 문장 하나
+(<code>synth_traces</code>의 다음 1분)만 실행합니다. 페이지에서 보낸 SQL은 실행하지 않습니다. Ctrl-C로 멈추고
+<code>docker rm -f oss-lake-demo</code>로 컨테이너를 지웁니다.</p>
+<p>SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다시 만듭니다:
+<code>CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh</code>.</p>
+<h3>ClickHouse Cloud에서 (라이브 사이트)</h3>
+<p><a href="https://oss-lake.clickhouse.kr/">https://oss-lake.clickhouse.kr/</a>는 녹화가 아니라 실제 데이터입니다.</p>
+<ul>
+<li><strong>레이크</strong>: AWS 서울(ap-northeast-2)의 ClickHouse Cloud 서비스에 있는 <code>oss_lake</code> 데이터베이스.
+  2026-10-18 26.6.1에 <code>cloud/load.py</code>로 적재했습니다. 같은 01–05 파일에 docstring에 적은 Cloud
+  차이만 더한 것이고, 03–05의 검사는 거기서도 모두 통과했습니다.</li>
+<li><strong>흐름</strong>: <code>cloud/feed.sql</code>이 Refreshable MV 두 개를 더합니다. <code>feed_rmv</code>가 1분마다 다음 1분을
+  만들고(멈췄다 다시 켜면 한 번에 최대 5분씩 따라잡고, 같은 1분을 두 번 넣지 않음), 이어서
+  <code>anchor_rmv</code>가 레이크의 '지금'을 옮깁니다. 서빙 새로 고침은 그 뒤에 돕니다. TTL도 더합니다:
+  실버 3일, 골드 7일.</li>
+<li><strong>사이트</strong>: Vercel 프로젝트 <code>oss-lake</code>, 리전 icn1. 페이지는 정적입니다. <code>api/index.py</code>가 데모의
+  GET 엔드포인트를 읽기 전용 사용자 <code>oss_reader</code>로 내줍니다: <code>readonly = 1</code>, 20초·20만 행 한도,
+  엣지 캐시 20초. 쓰기 엔드포인트는 없습니다(POST는 405). 함수가 ClickHouse에 닿지 못하면
+  데모는 녹화한 몇 분으로 돌아갑니다.</li>
+</ul>
+<pre><code class="language-bash">cd usecase/oss-network-quality-lake
+set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
+python3 cloud/load.py                 # 적재 (만든 비밀번호는 ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+python3 cloud/load.py feed stop       # 멈춤 스위치. `feed start`로 다시, `feed status`로 확인
+python3 cloud/load.py drop            # 데이터베이스와 두 사용자 삭제
+vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
+</code></pre>
+<p>2026-10-18 그 서비스(복제본 2개, 각 최소 8 GiB, vCPU 2개)에서 측정했습니다.</p>
+<ul>
+<li>적재 시간: 01은 9초, 02는 66초, 03은 15초, 04는 2초, 05는 12초.</li>
+<li>흐름은 실패한 새로 고침 없이 1분에 180,000행씩 들어갔고, 레이크의 '지금'은 현재 벽시계 1분
+  안에 있었습니다.</li>
+<li>함수를 거쳐(네트워크 포함) <code>/api/q/1</code>(브론즈)은 3.9초, <code>/api/q/4</code>(서빙)는 0.35초.</li>
+<li><code>oss_reader</code>로 쓰기를 시도하면 <code>ACCESS_DENIED</code>로 거부됐습니다.</li>
+</ul>
+<p>만나며 고친 것: 인벤토리 Dictionary는 복제본마다 사본이 따로 있습니다. <code>SYSTEM RELOAD DICTIONARY</code>는
+한 복제본만 다시 읽었고, 다른 복제본은 인벤토리가 비어 있을 때 읽은 사본을 그대로 들고 있어서 이력
+적재의 실버 행이 모두 지역 없이 들어갔습니다. 05의 검사가 이를 잡았습니다. 이제 적재기는
+<code>ON CLUSTER 'default'</code>로 다시 읽고, 모든 복제본이 인벤토리 전체를 가질 때까지 기다립니다.</p>
+<p>비용 (2026-10-18 추정):</p>
+<ul>
+<li>이 서비스는 이미 상시 실행 중이라(유휴 축소 꺼짐) 기본 컴퓨트는 이 실습 때문에 생긴 비용이 아닙니다.</li>
+<li>더해지는 것은 일일 백업 하나를 포함한 저장 약 0.11 TB입니다. 서울 공시 요금 TB·월 $27.50(2026-10-18
+  확인)으로 월 약 $3이고, 여기에 1분에 약 1초인 흐름의 CPU가 붙습니다.</li>
+<li>나중에 유휴 축소를 켜면 흐름이 서비스를 계속 깨워 둡니다. 그 전에 흐름을 멈추세요.</li>
+</ul>
+<h3>언어</h3>
+<p>한국어가 원본입니다. <code>site/i18n/{ko,en,ja,zh}.json</code>은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
+함께 씁니다. <code>build.py</code>는 <code>/</code>(en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code>를 쓰고, 키 집합이 다르면 실패합니다
+(확인: <code>ja.json</code>에서 <code>cta.note</code>를 빼자 <code>ja.json: missing ['cta.note']</code>로 멈춤). SQL, 테이블과 컬럼
+이름은 번역하지 않습니다. 2026-10-18 브라우저에서 320px과 데스크톱 너비, 라이트와 다크, 네 언어
+모두 확인했습니다.</p>
+<h3>다루지 않는 것</h3>
+<ul>
+<li>규모: 2시간, 셀 약 2만 개. 크기가 아니라 흐름이 목적입니다.</li>
+<li>실제 probe 형식, 실제 IMSI 암호화, Kafka나 오브젝트 스토리지 적재: 브론즈는 SQL로 채웁니다.</li>
+<li>노트 사이트 게시(<code>web</code>을 설정하지 않음).</li>
+</ul>
+<h3>작성자</h3>
+<p>Ken Lee (ClickHouse SA) · License: MIT</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/oss-network-quality-lake"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/usecase/timeseries-promql-oss/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">TimeSeries Engine + PromQL — Self-managed ClickHouse</span></a><a class="step next" href="../../../labs/workload/replacingmergetree/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ReplacingMergeTree Lab</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

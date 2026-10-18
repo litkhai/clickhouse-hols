@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="[[lang]]">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23131312%27/%3E%3Crect x=%277%27 y=%2716%27 width=%274%27 height=%279%27 fill=%27%23faff69%27/%3E%3Crect x=%2714%27 y=%2711%27 width=%274%27 height=%2714%27 fill=%27%23faff69%27/%3E%3Crect x=%2721%27 y=%277%27 width=%274%27 height=%2718%27 fill=%27%23faff69%27/%3E%3C/svg%3E">
+<title>{{meta.title}}</title>
+<style>[[css]]</style>
+</head>
+<body>
+<header class="site-header"><div class="in">
+  <a class="brand" href="index.html">{{brand}}</a>
+  <nav class="nav"><a href="index.html" aria-current="page">{{nav.explainer}}</a><a href="[[to_demo]]">{{nav.demo}}</a></nav>
+  [[langmenu]]
+</div></header>
+
+<div class="layout">
+<aside class="side-nav" aria-label="{{nav.sections}}">
+  <ol class="toc">
+    <li><a href="#situation">{{sit.title}}</a></li><li><a href="#trend">{{trend.title}}</a></li>
+    <li><a href="#arch">{{arch.title}}</a></li><li><a href="#uses">{{uc.title}}</a></li>
+    <li><a href="#built">{{flow.title}}</a></li><li><a href="#lessons">{{lesson.title}}</a></li>
+    <li><a href="#try">{{cta.title}}</a></li>
+  </ol>
+</aside>
+<main class="wide">
+<section class="hero">
+  <p class="kicker">{{hero.kicker}}</p>
+  <h1>{{hero.title}}</h1>
+  <p class="lead">{{hero.lead}}</p>
+  <p class="note">{{hero.note}}</p>
+</section>
+
+<!-- 1 · situation -->
+<section id="situation" class="sec">
+  <h2><span class="n">1</span>{{sit.title}}</h2>
+  <div class="sit">
+    <figure class="screen" aria-label="{{sit.scr.aria}}">
+      <div class="scr-bar"><span></span><span></span><span></span><b>{{sit.scr}}</b></div>
+      <div class="scr-body">
+        <div class="scr-col"><p>{{list.users}}</p><i></i><i></i><i></i><i></i></div>
+        <div class="scr-col weak"><p>{{list.signal}}</p><i></i><i></i><i></i><i></i></div>
+        <div class="scr-wait" aria-hidden="true"><span class="spin"></span>{{sit.wait}}</div>
+      </div>
+    </figure>
+    <div>
+      <p>{{sit.body}}</p>
+      <ul class="pains">
+        <li>{{sit.p1}}</li><li>{{sit.p2}}</li><li>{{sit.p3}}</li><li>{{sit.p4}}</li>
+      </ul>
+      <p class="note">{{where.body}}</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · trend -->
+<section id="trend" class="sec">
+  <h2><span class="n">2</span>{{trend.title}}</h2>
+  <p>{{trend.body}}</p>
+  <div class="stack-wrap">
+    <ol class="stack">
+      <li class="pg"><b>{{trend.l1}}</b><span>{{trend.l1.d}}</span><em>Managed Postgres</em></li>
+      <li class="pg"><b>{{trend.l2}}</b><span>{{trend.l2.d}}</span><em>Managed Postgres</em></li>
+      <li><b>{{trend.l3}}</b><span>{{trend.l3.d}}</span></li>
+      <li class="ch"><b>{{trend.l4}}</b><span>{{trend.l4.d}}</span><em>ClickHouse</em></li>
+      <li class="ch"><b>{{trend.l5}}</b><span>{{trend.l5.d}}</span><em>ClickHouse + Iceberg</em></li>
+      <li><b>{{trend.l6}}</b><span>{{trend.l6.d}}</span></li>
+      <li><b>{{trend.l7}}</b><span>{{trend.l7.d}}</span></li>
+    </ol>
+    <div class="fabric" aria-hidden="true"><span>{{trend.fabric}}</span></div>
+  </div>
+  <p class="pg-note"><b>Managed Postgres</b> {{trend.pg}}</p>
+</section>
+
+<!-- 3 · architecture -->
+<section id="arch" class="sec">
+  <h2><span class="n">3</span>{{arch.title}}</h2>
+  <p>{{arch.body}}</p>
+  <div class="ov" role="img" aria-label="{{arch.aria}}">
+    <div class="ov-col"><h3>{{arch.c.src}}</h3>
+      <p class="bx on">{{arch.s.trace}}</p><p class="bx on">{{arch.s.cm}}</p>
+      <p class="bx on">{{arch.s.pm}}</p><p class="bx on">{{arch.s.voc}}</p></div>
+    <div class="ov-col"><h3>{{arch.c.ing}}</h3>
+      <p class="bx on">Kafka</p></div>
+    <div class="ov-col c-bronze"><h3>{{arch.c.bronze}}</h3>
+      <p class="bx on">{{arch.b.raw}}<small>{{arch.b.note}}</small></p></div>
+    <div class="ov-col c-silver"><h3>{{arch.c.silver}}</h3>
+      <p class="bx on">{{arch.v.clean}}</p><p class="bx on">{{arch.v.enrich}}</p></div>
+    <div class="ov-col c-gold"><h3>{{arch.c.gold}}</h3>
+      <p class="bx on">{{arch.g.c1}}</p><p class="bx on">{{arch.g.c10}}</p><p class="bx on">{{arch.g.r1}}</p>
+      <p class="ax">{{arch.g.axes}}</p></div>
+    <div class="ov-col c-serving"><h3>{{arch.c.serve}}</h3>
+      <p class="bx on">{{arch.r.now}}</p><p class="bx on">REST · HTTP</p><p class="bx on">{{arch.r.sub}}</p><p class="bx on">{{arch.r.bulk}}</p></div>
+    <div class="ov-col"><h3>{{arch.c.out}}</h3>
+      <p class="bx on">{{arch.o.noc}}</p><p class="bx on">{{arch.o.alert}}</p><p class="bx on">{{arch.o.dash}}</p>
+      <p class="bx on">{{arch.o.agent}}</p><p class="bx on">{{arch.o.catalog}}</p>
+      <p class="ax">{{arch.o.limits}}</p></div>
+  </div>
+  <div class="rails">
+    <p class="rail"><b>{{arch.contract}}</b> {{arch.contract.d}}</p>
+    <p class="rail"><b>{{arch.control}}</b> {{arch.control.d}}</p>
+  </div>
+</section>
+
+<!-- 4 · use cases -->
+<section id="uses" class="sec">
+  <h2><span class="n">4</span>{{uc.title}}</h2>
+  <p>{{uc.body}}</p>
+  <div class="ucs">
+  <article class="uc uc-wide">
+    <p class="uc-who">{{uc.noc.who}}</p>
+    <h4>{{uc.noc.title}}</h4>
+    <div class="maps" id="maps"><p class="muted">{{map.nojs}}</p></div>
+    <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-alert"></i>{{map.legend.alert}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
+    <details><summary>{{more}}</summary><p>{{uc.noc.body}}</p><p class="uc-how">{{uc.noc.how}}</p></details>
+  </article>
+  <article class="uc">
+    <p class="uc-who">{{uc.dash.who}}</p>
+    <h4>{{uc.dash.title}}</h4>
+    <div class="chart" id="chart"><p class="muted">{{map.nojs}}</p></div>
+    <details><summary>{{more}}</summary><p>{{uc.dash.body}}</p><p class="uc-how">{{uc.dash.how}}</p>[[sql:uc_dashboard]]</details>
+  </article>
+  <article class="uc">
+    <p class="uc-who">{{uc.analysis.who}}</p>
+    <h4>{{uc.analysis.title}}</h4>
+    [[uc_analysis]]
+    <details><summary>{{more}}</summary><p>{{uc.analysis.body}}</p><p class="uc-how">{{uc.analysis.how}}</p>[[sql:uc_analysis]]</details>
+  </article>
+  <article class="uc">
+    <p class="uc-who">{{uc.alert.who}}</p>
+    <h4>{{uc.alert.title}}</h4>
+    [[uc_alerts]]
+    <details><summary>{{more}}</summary><p>{{uc.alert.body}}</p><p class="uc-how">{{uc.alert.how}}</p><p class="note">{{uc.alert.webhook}}</p>[[sql:kafka]]</details>
+  </article>
+  <article class="uc">
+    <p class="uc-who">{{uc.rest.who}}</p>
+    <h4>{{uc.rest.title}}</h4>
+    [[uc_http]]
+    <details><summary>{{more}}</summary><p>{{uc.rest.body}}</p><p class="uc-how">{{uc.rest.how}}</p></details>
+  </article>
+  </div>
+  <div class="tiles">
+    <article class="tile"><span class="ic" aria-hidden="true">PG</span><p class="uc-who">{{uc.pg.who}}</p><h4>{{uc.pg.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.pg.body}}</p><p class="uc-how">{{uc.pg.how}}</p>[[sql:postgres]]</details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">AI</span><p class="uc-who">{{uc.agent.who}}</p><h4>{{uc.agent.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.agent.body}}</p><p class="uc-how">{{uc.agent.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">{ }</span><p class="uc-who">{{uc.contract.who}}</p><h4>{{uc.contract.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.contract.body}}</p><p class="uc-how">{{uc.contract.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">✓</span><p class="uc-who">{{uc.quality.who}}</p><h4>{{uc.quality.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.quality.body}}</p><p class="uc-how">{{uc.quality.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">◎</span><p class="uc-who">{{uc.obs.who}}</p><h4>{{uc.obs.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.obs.body}}</p><p class="uc-how">{{uc.obs.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">⧉</span><p class="uc-who">{{uc.history.who}}</p><h4>{{uc.history.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.history.body}}</p><p class="uc-how">{{uc.history.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">⇩</span><p class="uc-who">{{uc.bulk.who}}</p><h4>{{uc.bulk.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.bulk.body}}</p><p class="uc-how">{{uc.bulk.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">◇</span><p class="uc-who">{{uc.llmobs.who}}</p><h4>{{uc.llmobs.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.llmobs.body}}</p><p class="uc-how">{{uc.llmobs.how}}</p></details></article>
+  </div>
+</section>
+
+<!-- 5 · what we built -->
+<section id="built" class="sec flow-sec">
+  <h2><span class="n">5</span>{{flow.title}}</h2>
+  <p>{{flow.body}}</p>
+  [[poc]]
+  <h3 class="sub">{{poc.flow}}</h3>
+  [[flow]]
+  <div class="fan">
+    <div class="fan-src">{{flow.silver.name}}</div>
+    <div class="fan-arrows" aria-hidden="true"></div>
+    <div class="fan-out">
+      <p class="bx on">{{arch.g.c1}}</p>
+      <p class="bx on">{{arch.g.r1}}</p>
+    </div>
+    <div class="fan-arrows" aria-hidden="true"></div>
+    <div class="fan-out"><p class="bx on">{{arch.g.c10}}<small>{{built.c10}}</small></p></div>
+  </div>
+  <h3 class="sub">{{built.region}}</h3>
+  [[regions]]
+  <details class="eng">
+    <summary>{{eng.summary}}</summary>
+    <div class="eng-body">
+      <p>{{eng.body}}</p>
+      <h3>{{eng.h.compare}}</h3>
+      [[compare]]
+      <h3>{{eng.h.fold|n=story.folded_rows}}</h3>
+      [[gold]]
+      <h3>{{eng.h.serving}}</h3>
+      [[serving]]
+      <h3>{{eng.h.sql}}</h3>
+      [[sql:inventory]]
+      [[sql:silver]]
+      [[sql:gold]]
+      [[sql:region]]
+      [[sql:gold10]]
+      [[sql:serving]]
+      [[sql:uc_alert_cells]]
+      <h3>{{same.title}}</h3>
+      <p>{{same.body}}</p>
+      [[funnel]]
+      [[timings]]
+      <p class="measured">[[measured]]</p>
+      <p class="pitfall"><strong>{{pitfall.title}}</strong> {{pitfall.body}}</p>
+    </div>
+  </details>
+</section>
+
+<!-- 6 · lessons -->
+<section id="lessons" class="sec">
+  <h2><span class="n">6</span>{{lesson.title}}</h2>
+  <div class="lessons">
+    <article class="lesson">
+      <h3><span class="ln-n">a</span>{{lesson.a.title}}</h3>
+      <p>{{lesson.a.body}}</p>
+      [[lesson_nullable]]
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">b</span>{{lesson.b.title}}</h3>
+      <p>{{lesson.b.body}}</p>
+      [[lesson_state]]
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">c</span>{{lesson.c.title}}</h3>
+      <p>{{lesson.c.body}}</p>
+      <div class="cascade"><span class="bx on">{{arch.v.clean}}</span><span class="ar">→</span><span class="bx on">{{arch.g.c1}}</span><span class="ar">→</span><span class="bx on">{{arch.g.c10}}</span><span class="ok">✓ {{lesson.c.ok}}</span></div>
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">d</span>{{lesson.d.title}}</h3>
+      <p>{{lesson.d.body}}</p>
+      <div class="tz"><span class="bx">event_kst <code>09:00</code></span><span class="ar">≠</span><span class="bx">UTC <code>00:00</code></span><span class="note">{{lesson.d.fig}}</span></div>
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">e</span>{{lesson.e.title}}</h3>
+      <p>{{lesson.e.body}}</p>
+      <ul class="limits"><li>{{lesson.e.l1}}</li><li>{{lesson.e.l2}}</li><li>{{lesson.e.l3}}</li></ul>
+    </article>
+  </div>
+  <p class="measured">{{lesson.measured}}</p>
+</section>
+
+<!-- 7 · try it -->
+<section id="try" class="cta">
+  <h2>{{cta.title}}</h2>
+  <p>{{cta.body}}</p>
+  <pre><code>cd usecase/oss-network-quality-lake
+ui/up.sh</code></pre>
+  <p><a class="button" href="[[to_demo]]">{{cta.button}}</a></p>
+</section>
+</main>
+</div>
+
+<footer class="site-footer">{{footer}}</footer>
+<script type="application/json" id="i18n">[[catalogue]]</script>
+<script type="application/json" id="snapshot">[[snapshot]]</script>
+<script>[[js]]</script>
+<script>
+  /* left menu: mark the section in view */
+  (function () {
+    var links = [].slice.call(document.querySelectorAll(".side-nav a"));
+    if (!("IntersectionObserver" in window)) return;
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        links.forEach(function (a) { a.toggleAttribute("aria-current", a.getAttribute("href") === "#" + e.target.id); });
+      });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    links.forEach(function (a) { var t = document.querySelector(a.getAttribute("href")); if (t) io.observe(t); });
+  })();
+  var SNAP = JSON.parse(document.getElementById("snapshot").textContent);
+  LAB.drawMaps(document.getElementById("maps"), SNAP.map, SNAP.usecases.alert_cells);
+  LAB.drawChart(document.getElementById("chart"), SNAP.usecases.dashboard);
+</script>
+</body>
+</html>
