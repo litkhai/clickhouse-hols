@@ -31,6 +31,27 @@ CREATE TABLE oss_lake.grid
 )
 ENGINE = MergeTree ORDER BY (city, idx);
 
+-- Configuration / inventory (CM): which site and region each cell belongs to. A second
+-- source next to the traces; silver looks it up through the dictionary below.
+CREATE TABLE oss_lake.cell_inventory
+(
+    cell        UInt64,
+    site_id     String,
+    region1     LowCardinality(String),   -- city
+    region2     LowCardinality(String),   -- district
+    known_weak  UInt8                     -- a known coverage gap, not an incident
+)
+ENGINE = MergeTree ORDER BY cell;
+
+CREATE DICTIONARY oss_lake.cell_dict
+(
+    cell UInt64, site_id String, region1 String, region2 String, known_weak UInt8
+)
+PRIMARY KEY cell
+SOURCE(CLICKHOUSE(DB 'oss_lake' TABLE 'cell_inventory'))
+LAYOUT(HASHED())
+LIFETIME(0);
+
 -- ---------------------------------------------------------------- bronze
 -- Exactly what the probes send: H3 as a string, the IMSI as the vendor's
 -- ciphertext (44-char base64), every measurement Nullable, CQI as text.
@@ -63,7 +84,9 @@ CREATE TABLE oss_lake.ue_trace
     rsrp       Nullable(Float32),
     rsrq       Float32,
     sinr       Float32,
-    cqi        UInt8
+    cqi        UInt8,
+    region1    LowCardinality(String),
+    region2    LowCardinality(String)
 )
 ENGINE = MergeTree
 PARTITION BY toDate(event_ts)
@@ -78,7 +101,10 @@ SELECT
     CAST(rsrp AS Nullable(Float32))           AS rsrp,
     toFloat32(ifNull(rsrq, 0))                AS rsrq,
     toFloat32(ifNull(sinr, 0))                AS sinr,
-    toUInt8OrZero(ifNull(cqi, ''))            AS cqi
+    toUInt8OrZero(ifNull(cqi, ''))            AS cqi,
+    -- a measurement gets a place name from the inventory
+    dictGet('oss_lake.cell_dict', 'region1', h3) AS region1,
+    dictGet('oss_lake.cell_dict', 'region2', h3) AS region2
 FROM oss_lake.ue_trace_raw
 WHERE h3_res09 IS NOT NULL AND imsi IS NOT NULL;
 
@@ -110,6 +136,61 @@ SELECT
     sum(ifNull(rsrp, 0))       AS rsrp_sum,
     countIf(rsrp < -100)       AS poor_n
 FROM oss_lake.ue_trace
+GROUP BY bucket, cell;
+
+-- Gold along a second axis: geography. Minute x district, from the same silver rows.
+CREATE TABLE oss_lake.region_kpi_1m
+(
+    bucket     DateTime,
+    region1    LowCardinality(String),
+    region2    LowCardinality(String),
+    users_st   AggregateFunction(uniq, UInt64),
+    samples_n  SimpleAggregateFunction(sum, UInt64),
+    rsrp_n     SimpleAggregateFunction(sum, UInt64),
+    rsrp_sum   SimpleAggregateFunction(sum, Float64),
+    poor_n     SimpleAggregateFunction(sum, UInt64)
+)
+ENGINE = AggregatingMergeTree
+ORDER BY (bucket, region1, region2);
+
+CREATE MATERIALIZED VIEW oss_lake.region_kpi_1m_mv TO oss_lake.region_kpi_1m AS
+SELECT
+    toStartOfMinute(event_ts)  AS bucket,
+    region1, region2,
+    uniqState(imsi_hash)       AS users_st,
+    count()                    AS samples_n,
+    count(rsrp)                AS rsrp_n,
+    sum(ifNull(rsrp, 0))       AS rsrp_sum,
+    countIf(rsrp < -100)       AS poor_n
+FROM oss_lake.ue_trace
+GROUP BY bucket, region1, region2;
+
+-- Gold builds on gold: a 10-minute cell rollup fed by the 1-minute one (each insert into
+-- cell_kpi_1m cascades here), so raw rows are aggregated once. Not a refreshable MV with
+-- APPEND: a window wider than the refresh interval would be inserted twice.
+CREATE TABLE oss_lake.cell_kpi_10m
+(
+    bucket     DateTime,
+    cell       UInt64,
+    users_st   AggregateFunction(uniq, UInt64),
+    samples_n  SimpleAggregateFunction(sum, UInt64),
+    rsrp_n     SimpleAggregateFunction(sum, UInt64),
+    rsrp_sum   SimpleAggregateFunction(sum, Float64),
+    poor_n     SimpleAggregateFunction(sum, UInt64)
+)
+ENGINE = AggregatingMergeTree
+ORDER BY (bucket, cell);
+
+CREATE MATERIALIZED VIEW oss_lake.cell_kpi_10m_mv TO oss_lake.cell_kpi_10m AS
+SELECT
+    toStartOfTenMinutes(k.bucket)  AS bucket,
+    k.cell                         AS cell,
+    uniqMergeState(k.users_st)     AS users_st,
+    sum(k.samples_n)               AS samples_n,
+    sum(k.rsrp_n)                  AS rsrp_n,
+    sum(k.rsrp_sum)                AS rsrp_sum,
+    sum(k.poor_n)                  AS poor_n
+FROM oss_lake.cell_kpi_1m AS k
 GROUP BY bucket, cell;
 
 -- ---------------------------------------------------------------- serving
@@ -156,5 +237,6 @@ WHERE lr.2 <= 10;
 DROP USER IF EXISTS oss_reader;
 CREATE USER oss_reader IDENTIFIED WITH no_password SETTINGS readonly = 1;
 GRANT SELECT ON oss_lake.* TO oss_reader;
+GRANT dictGet ON oss_lake.* TO oss_reader;
 GRANT SELECT ON system.parts TO oss_reader;               -- layer sizes
 GRANT SELECT ON system.asynchronous_metrics TO oss_reader; -- machine line in the snapshot

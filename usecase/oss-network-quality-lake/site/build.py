@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Render the explainer and the demo page in every locale.
 
-    python3 site/build.py        write site/dist/ (ko at /, then /en/, /ja/, /zh/)
+    python3 site/build.py        write site/dist/ (en at /, then /ko/, /ja/, /zh/)
 
-Text comes from site/i18n/<locale>.json (ko is the source); the build fails when the
-key sets differ or a template names a key that is missing. The explainer's numbers and
+Text comes from site/i18n/<locale>.json (ko is the authoring source, en the default page);
+the build fails when the key sets differ or a template names a key that is missing. The explainer's numbers and
 sample rows come from site/data/snapshot.json, so the pages work without ClickHouse.
 ui/server.py imports this module and renders the same pages on request.
 
@@ -13,26 +13,28 @@ Template syntax:
     {{key|n=a.b,m=c}}       ... with {n} / {m} filled from the snapshot, numbers grouped
     [[name]]                a block rendered here (see BLOCKS)
 """
-import html, json, pathlib, re, sys
+import html, json, pathlib, re, sys, textwrap
 
 SITE = pathlib.Path(__file__).resolve().parent
 LAB = SITE.parent
-LOCALES = ["ko", "en", "ja", "zh"]
+LOCALES = ["en", "ko", "ja", "zh"]
+DEFAULT = "en"      # served at /; the others under a path prefix
+SOURCE = "ko"       # the catalogue the others are checked against
 NAMES = {"ko": "한국어", "en": "English", "ja": "日本語", "zh": "中文"}
 PAGES = {"explainer": SITE / "explainer.html", "demo": LAB / "ui" / "demo.html"}
 
 
 def load_catalogues():
     cats = {loc: json.loads((SITE / "i18n" / ("%s.json" % loc)).read_text()) for loc in LOCALES}
-    base = set(cats["ko"])
+    base = set(cats[SOURCE])
     bad = []
-    for loc in LOCALES[1:]:
+    for loc in [l for l in LOCALES if l != SOURCE]:
         keys = set(cats[loc])
         if keys != base:
             bad.append("%s.json: missing %s; extra %s" % (
                 loc, sorted(base - keys) or "-", sorted(keys - base) or "-"))
     if bad:
-        sys.exit("i18n key sets differ from ko.json:\n  " + "\n  ".join(bad))
+        sys.exit("i18n key sets differ from %s.json:\n  " % SOURCE + "\n  ".join(bad))
     for loc in ("ja", "zh"):
         cats[loc] = {k: cjk_spaces(v) for k, v in cats[loc].items()}
     return cats
@@ -108,6 +110,10 @@ SQL = {
     "serving": ("01-schema.sql", "CREATE MATERIALIZED VIEW oss_lake.cell_rank_rmv"),
     "noc_bronze": ("03-queries.sql", "CREATE OR REPLACE VIEW oss_lake.noc_from_bronze"),
     "noc_gold": ("03-queries.sql", "CREATE OR REPLACE VIEW oss_lake.noc_from_gold"),
+    "inventory": ("02-generate.sql", "INSERT INTO oss_lake.cell_inventory"),
+    "region": ("01-schema.sql", "CREATE MATERIALIZED VIEW oss_lake.region_kpi_1m_mv"),
+    "gold10": ("01-schema.sql", "CREATE MATERIALIZED VIEW oss_lake.cell_kpi_10m_mv"),
+    "noc_silver": ("03-queries.sql", "CREATE OR REPLACE VIEW oss_lake.noc_from_silver"),
     "uc_analysis": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_analysis"),
     "uc_dashboard": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_dashboard"),
     "uc_alert_cells": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_alert_cells"),
@@ -137,7 +143,8 @@ def block_compare(s, t):
     pairs = [("event_ts", "event_ts", "cmp.same"), ("h3_res09", "h3", "cmp.h3"),
              ("imsi", "imsi_hash", "cmp.imsi"), ("rsrp", "rsrp", "cmp.rsrp"),
              ("rsrq", "rsrq", "cmp.float"), ("sinr", "sinr", "cmp.float"),
-             ("cqi", "cqi", "cmp.cqi"), ("pci", None, "cmp.dropped"), ("probe", None, "cmp.dropped")]
+             ("cqi", "cqi", "cmp.cqi"), ("pci", None, "cmp.dropped"), ("probe", None, "cmp.dropped"),
+             (None, "region1", "cmp.region"), (None, "region2", "cmp.region")]
     body = []
     for b, sv, note in pairs:
         changed = note in ("cmp.h3", "cmp.imsi", "cmp.cqi", "cmp.dropped")
@@ -146,7 +153,7 @@ def block_compare(s, t):
             "<td class=\"arrow\" aria-hidden=\"true\">→</td>"
             "<td>%s</td><td class=\"note\">%s</td></tr>" % (
                 " class=\"changed\"" if changed else "",
-                esc(b), esc(raw[b]),
+                esc(b) if b else "—", esc(raw[b]) if b else "",
                 ("<code>%s</code><br><code class=\"v\">%s</code>" % (esc(sv), esc(sil[sv]))) if sv else "—",
                 t[note] if note in t else ""))
     return ("<div class=\"scroll\"><table class=\"compare\"><thead><tr><th scope=\"col\">%s</th><th></th>"
@@ -277,10 +284,70 @@ def block_uc_http(s, t):
         html.escape(cmd), html.escape("\n".join(h["lines"])))
 
 
+def block_regions(s, t):
+    rows = s["lessons"]["regions"]
+    top = max(r["poor_pct"] for r in rows) or 1
+    out = "".join(
+        "<tr><td>%s</td><td class=\"num\">%s%%</td><td class=\"barcell\"><span style=\"width:%.1f%%\"></span></td></tr>"
+        % (esc(r["region2"]), num(r["poor_pct"]), max(1.5, 100.0 * r["poor_pct"] / top)) for r in rows)
+    return ("<div class=\"scroll\"><table class=\"rank analysis\"><thead><tr><th scope=\"col\">%s</th>"
+            "<th scope=\"col\" class=\"num\">%s</th><th></th></tr></thead><tbody>%s</tbody></table></div>"
+            % (t["col.region"], t["col.poor"], out))
+
+
+NOISE = r"(assumeNotNull\([^)]*\)|IS NOT NULL|stringToH3|cityHash64)"
+
+
+def block_lesson_nullable(s, t):
+    """The same NOC query on bronze and on silver, side by side, with the Nullable/parsing
+    noise that silver removes marked."""
+    def inner(name):
+        text = statement(*SQL[name])
+        a = text.index("    SELECT")
+        b = text.index("    GROUP BY cell") + len("    GROUP BY cell")
+        body = html.escape(textwrap.dedent(text[a:b]))
+        return re.sub(NOISE, r"<mark>\1</mark>", body)
+    return ("<div class=\"side\"><figure><figcaption>%s</figcaption><pre class=\"sql\"><code>%s</code></pre></figure>"
+            "<figure><figcaption>%s</figcaption><pre class=\"sql\"><code>%s</code></pre></figure></div>" % (
+                t["layer.bronze"], inner("noc_bronze"), t["layer.silver"], inner("noc_silver")))
+
+
+def block_lesson_state(s, t):
+    L = s["lessons"]
+    top = max(r["bytes"] for r in L["state_size"])
+    bars = "".join(
+        "<li><span class=\"lb\"><code>%s</code> · %s · %s</span><span class=\"bar\"><span style=\"width:%.1f%%\"></span></span>"
+        "<span class=\"num\">%s B</span></li>" % (
+            esc(r["fn"]), esc(r["input"]), t["lesson.b.distinct"].replace("{n}", num(r["distinct_values"])),
+            100.0 * r["bytes"] / top, num(r["bytes"]))
+        for r in sorted(L["state_size"], key=lambda r: (r["distinct_values"], r["fn"], r["input"])))
+    gtop = max(r["total_state_bytes"] for r in L["grain"])
+    grain = "".join(
+        "<li><span class=\"lb\">%s</span><span class=\"bar g\"><span style=\"width:%.1f%%\"></span></span>"
+        "<span class=\"num\">%s</span></li>" % (
+            html.escape(t["lesson.b.grain.row"].replace("{grain}", t["grain." + r["grain"].replace(" ", "")]).replace(
+                "{rows}", num(r["rows"])).replace("{avg}", num(r["avg_state_bytes"]))),
+            100.0 * r["total_state_bytes"] / gtop, size(r["total_state_bytes"]))
+        for r in L["grain"])
+    return ("<p class=\"sub\">%s</p><ul class=\"bars\">%s</ul><p class=\"sub\">%s</p><ul class=\"bars\">%s</ul>"
+            % (t["lesson.b.types"], bars, t["lesson.b.grain"], grain))
+
+
+def block_poc(s, t):
+    """The features the PoC verified, each with how it was checked."""
+    items = "".join(
+        "<li><span class=\"ck\" aria-label=\"%s\">✓</span><div><b>%s</b><span class=\"d\">%s</span>"
+        "<span class=\"v\">%s</span></div></li>" % (
+            t["poc.verified"], t["poc.f%d" % i], t["poc.f%d.d" % i], t["poc.f%d.v" % i])
+        for i in range(1, 12))
+    return "<ul class=\"poc\">%s</ul>" % items
+
+
 BLOCKS = {"raw": block_raw, "compare": block_compare, "gold": block_gold, "fold": block_fold,
           "funnel": block_funnel, "serving": block_serving, "timings": block_timings,
           "measured": block_measured, "flow": block_flow, "uc_analysis": block_uc_analysis,
-          "uc_alerts": block_uc_alerts, "uc_http": block_uc_http}
+          "uc_alerts": block_uc_alerts, "uc_http": block_uc_http, "regions": block_regions,
+          "lesson_nullable": block_lesson_nullable, "lesson_state": block_lesson_state, "poc": block_poc}
 
 
 # ---------------------------------------------------------------- page
@@ -302,12 +369,12 @@ def lang_menu(loc, page, t):
 
 
 def prefix(loc):
-    return "" if loc == "ko" else loc + "/"
+    return "" if loc == DEFAULT else loc + "/"
 
 
 def href(from_loc, to_loc, page):
     """Relative link to <page> in <to_loc>, from <page> in <from_loc>; works from file:// too."""
-    depth = (0 if from_loc == "ko" else 1) + (1 if page == "demo" else 0)
+    depth = (0 if from_loc == DEFAULT else 1) + (1 if page == "demo" else 0)
     tail = prefix(to_loc) + ("demo/" if page == "demo" else "") + "index.html"
     return "../" * depth + tail
 
@@ -354,8 +421,8 @@ def render(page, loc, cats=None, snap=None):
 def page_for(path):
     """URL path -> rendered page, for ui/server.py. None when there is no such page."""
     parts = [p for p in path.split("/") if p and p != "index.html"]
-    loc = "ko"
-    if parts and parts[0] in LOCALES[1:]:
+    loc = DEFAULT
+    if parts and parts[0] in LOCALES and parts[0] != DEFAULT:
         loc = parts.pop(0)
     if parts == []:
         return render("explainer", loc)
@@ -372,7 +439,7 @@ def main():
             out = dist / prefix(loc) / ("demo/" if page == "demo" else "") / "index.html"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(render(page, loc, cats, snap))
-    print("wrote %s/{,en/,ja/,zh/}{index.html,demo/index.html}" % dist.relative_to(LAB))
+    print("wrote %s/{,ko/,ja/,zh/}{index.html,demo/index.html}" % dist.relative_to(LAB))
 
 
 if __name__ == "__main__":

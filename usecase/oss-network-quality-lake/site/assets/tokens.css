@@ -1,62 +1,32 @@
-/* Palette: blue-slate, copied from khai-harness standards/frontend/shared/tokens/palettes/blue-slate.css (2026-10-18).
-   Variable names are the contract (common/tokens §2); components use these variables only. */
+/* Palette: clickhouse-dark — dark only, no theme switch (owner, 2026-10-18).
+   Surfaces, text, borders and accent are the computed styles of https://clickhouse.com/ (home page,
+   read 2026-10-18): page #131312, sections #151515, cards #1f1f1c, raised #282828, borders #414141 and
+   #4f5101 (yellow-tinted), text #dfdfdf / #ffffff / #a0a0a0, accent #faff69 with #151515 on it, 4px radii,
+   Inter. Data colours (blue cells, red cells, green) are ours, chosen to stand apart from the yellow.
+   Variable names are the contract (common/tokens §2). */
 :root {
-  --ground: #f0f0f3;
-  --surface: #fcfcfd;
-  --sunken: #e8e8ec;
-  --line: #d9d9e0;
-  --grid: #e0e1e6;
-  --ink: #1c2024;
-  --ink-2: #60646c;
-  --ink-3: #80838d;
-  --accent: #0d74ce;
-  --accent-soft: #f4faff;
-  --bar: #0090ff;
-  --bar-soft: #8ec8f6;
-  --muted: #8b8d98;
-  --ref: #1c2024;
-  --ref-avg7: #7a4fd0; --ref-forecast: #c2306f; --ref-peer: #0f8a5f; --ref-clear: #5a6470;
-  --good: #0ca30c;
-  --warning: #fab219;
-  --serious: #ec835a;
-  --critical: #d03b3b;
-  --h0: #e6f4fe; --h1: #c2e5ff; --h2: #8ec8f6; --h3: #5eb1ef; --h4: #0090ff; --h5: #0d74ce; --h6: #113264;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ground: #111113;
-    --surface: #18191b;
-    --sunken: #212225;
-    --line: #363a3f;
-    --grid: #2e3135;
-    --ink: #edeef0;
-    --ink-2: #b0b4ba;
-    --ink-3: #777b84;
-    --accent: #70b8ff;
-    --accent-soft: #0d2847;
-    --bar: #0090ff;
-    --bar-soft: #205d9e;
-    --muted: #5a6169;
-    --ref: #edeef0;
-    --ref-avg7: #b39cf0; --ref-forecast: #f07cb4; --ref-peer: #4cc79a; --ref-clear: #aab4bd;
-    --h0: #111927; --h1: #003362; --h2: #104d87; --h3: #2870bd; --h4: #0090ff; --h5: #70b8ff; --h6: #c2e6ff;
-  }
-}
-:root[data-theme="dark"] {
-  --ground: #111113;
-  --surface: #18191b;
-  --sunken: #212225;
-  --line: #363a3f;
-  --grid: #2e3135;
-  --ink: #edeef0;
-  --ink-2: #b0b4ba;
-  --ink-3: #777b84;
-  --accent: #70b8ff;
-  --accent-soft: #0d2847;
-  --bar: #0090ff;
-  --bar-soft: #205d9e;
-  --muted: #5a6169;
-  --ref: #edeef0;
-  --ref-avg7: #b39cf0; --ref-forecast: #f07cb4; --ref-peer: #4cc79a; --ref-clear: #aab4bd;
-  --h0: #111927; --h1: #003362; --h2: #104d87; --h3: #2870bd; --h4: #0090ff; --h5: #70b8ff; --h6: #c2e6ff;
+  color-scheme: dark;
+  --ground: #131312;
+  --surface: #1f1f1c;
+  --sunken: #282828;
+  --line: #414141;
+  --grid: #2e2e2b;
+  --ink: #ffffff;
+  --ink-2: #dfdfdf;
+  --ink-3: #a0a0a0;
+  --accent: #faff69;
+  --accent-line: #4f5101;
+  --accent-soft: #2a2b14;
+  --on-accent: #151515;
+  --bar: #faff69;
+  --bar-soft: #9fa200;
+  --muted: #6b6b6b;
+  --ref: #ffffff;
+  --ref-avg7: #a0a0a0; --ref-forecast: #ff7575; --ref-peer: #2ac656; --ref-clear: #dfdfdf;
+  --good: #2ac656;
+  --warning: #faff69;
+  --serious: #ffb066;
+  --critical: #ff7575;
+  --info: #5b9bff;
+  --h0: #1f1f1c; --h1: #2e2e2b; --h2: #3c3c39; --h3: #4f4f4c; --h4: #666663; --h5: #82827f; --h6: #a0a0a0;
 }

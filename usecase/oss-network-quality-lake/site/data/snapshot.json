@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 09:19 UTC",
+ "generated": "2026-10-18 10:22 UTC",
  "clickhouse": "26.9.13.15",
  "machine": {
   "host": "Apple M4 Pro (macOS arm64)",
@@ -7,68 +7,70 @@
   "mem": "7.75 GiB"
  },
  "timing_note": "median of 5 runs after one warm-up, server-side elapsed, query cache off",
- "anchor_ts": "2026-10-18 09:18:00",
+ "anchor_ts": "2026-10-18 10:21:00",
  "layers": [
   {
    "key": "bronze",
    "table": "ue_trace_raw",
    "rows": 21600000,
-   "bytes": 958215914
+   "bytes": 958211759
   },
   {
    "key": "silver",
    "table": "ue_trace",
-   "rows": 21470089,
-   "bytes": 331077986
+   "rows": 21470680,
+   "bytes": 349693834
   },
   {
    "key": "gold",
    "table": "cell_kpi_1m",
-   "rows": 2431516,
-   "bytes": 94024860
+   "rows": 2431524,
+   "bytes": 94007391
   },
   {
    "key": "serving",
    "table": "cell_rank_now",
    "rows": 20,
-   "bytes": 3200
+   "bytes": 3225
   }
  ],
  "story": {
   "raw": {
-   "event_ts": "2026-10-18 09:17:00.026",
+   "event_ts": "2026-10-18 10:20:00.011",
    "h3_res09": "8930e1d8c0bffff",
-   "imsi": "DmddyT9JovjFyxFw5+dsYiRd/DStC6O32IBmYSif74U=",
-   "rsrp": -71,
-   "rsrq": -5,
-   "sinr": 18.5,
-   "cqi": "12",
-   "pci": 365,
+   "imsi": "/ZM4BSO2N5g8Ovcpun3PtidkglHPB22vffMxteYPT5w=",
+   "rsrp": -69,
+   "rsrq": -4.5,
+   "sinr": 20,
+   "cqi": "13",
+   "pci": 290,
    "probe": "probe-a"
   },
   "silver": {
-   "event_ts": "2026-10-18 09:17:00.026",
+   "event_ts": "2026-10-18 10:20:00.011",
    "h3": 617853093946327039,
-   "imsi_hash": 346910008698083475,
-   "rsrp": -71,
-   "rsrq": -5,
-   "sinr": 18.5,
-   "cqi": 12
+   "imsi_hash": 6247503676043346188,
+   "rsrp": -69,
+   "rsrq": -4.5,
+   "sinr": 20,
+   "cqi": 13,
+   "region1": "City A",
+   "region2": "A Central"
   },
   "gold": {
-   "bucket": "2026-10-18 09:17:00",
+   "bucket": "2026-10-18 10:20:00",
    "cell": 617853093946327039,
-   "users_st": 146,
-   "samples_n": 412,
-   "rsrp_n": 364,
-   "rsrp_sum": -28464,
+   "users_st": 133,
+   "samples_n": 441,
+   "rsrp_n": 399,
+   "rsrp_sum": -31229,
    "poor_n": 0
   },
-  "folded_rows": 412,
-  "dropped": 129911,
-  "no_rsrp": 2149961,
+  "folded_rows": 441,
+  "dropped": 129320,
+  "no_rsrp": 2144150,
   "per_minute": 180000,
-  "gold_window_rows": 1215772,
+  "gold_window_rows": 1215823,
   "rank1_cell": "8930e1d8c0bffff"
  },
  "queries": [
@@ -80,71 +82,71 @@
      "list": "users",
      "rnk": 1,
      "cell": "8930e1d8c0bffff",
-     "users": 5372,
-     "samples": 26582,
+     "users": 5475,
+     "samples": 26917,
      "avg_rsrp": -78,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 2,
-     "cell": "8930c1619d7ffff",
-     "users": 5340,
-     "samples": 26575,
-     "avg_rsrp": -78,
-     "poor_pct": 0
-    },
-    {
-     "list": "users",
-     "rnk": 3,
      "cell": "8930c1903cbffff",
-     "users": 5304,
-     "samples": 26634,
+     "users": 5449,
+     "samples": 26637,
      "avg_rsrp": -78.1,
      "poor_pct": 0
     },
     {
      "list": "users",
+     "rnk": 3,
+     "cell": "8930c1619d7ffff",
+     "users": 5385,
+     "samples": 26793,
+     "avg_rsrp": -78,
+     "poor_pct": 0
+    },
+    {
+     "list": "users",
      "rnk": 4,
-     "cell": "8930c16198bffff",
-     "users": 2577,
-     "samples": 12541,
+     "cell": "8930e1d8c03ffff",
+     "users": 2596,
+     "samples": 12429,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 5,
-     "cell": "8930e1d8c03ffff",
-     "users": 2498,
-     "samples": 12405,
-     "avg_rsrp": -78.4,
+     "cell": "8930c190227ffff",
+     "users": 2565,
+     "samples": 12740,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 6,
-     "cell": "8930c190227ffff",
-     "users": 2497,
-     "samples": 12327,
-     "avg_rsrp": -78.4,
+     "cell": "8930c16198bffff",
+     "users": 2545,
+     "samples": 12660,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 7,
-     "cell": "8930c16199bffff",
-     "users": 2050,
-     "samples": 9648,
+     "cell": "8930e1d8c0fffff",
+     "users": 2016,
+     "samples": 9767,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 8,
-     "cell": "8930e1d8c0fffff",
-     "users": 1975,
-     "samples": 9740,
+     "cell": "8930c16199bffff",
+     "users": 1969,
+     "samples": 9711,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
@@ -152,80 +154,80 @@
      "list": "users",
      "rnk": 9,
      "cell": "8930c190237ffff",
-     "users": 1916,
-     "samples": 9707,
-     "avg_rsrp": -78.4,
+     "users": 1910,
+     "samples": 9737,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 10,
-     "cell": "8930c1619c3ffff",
-     "users": 1784,
-     "samples": 8638,
+     "cell": "8930c190353ffff",
+     "users": 1777,
+     "samples": 8700,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "signal",
      "rnk": 1,
-     "cell": "8930c192257ffff",
-     "users": 157,
-     "samples": 628,
-     "avg_rsrp": -117.8,
-     "poor_pct": 100
+     "cell": "8930c16ad73ffff",
+     "users": 180,
+     "samples": 644,
+     "avg_rsrp": -117.9,
+     "poor_pct": 99.8
     },
     {
      "list": "signal",
      "rnk": 2,
-     "cell": "8930c192243ffff",
-     "users": 160,
-     "samples": 631,
-     "avg_rsrp": -117.7,
+     "cell": "8930e1c302fffff",
+     "users": 153,
+     "samples": 577,
+     "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 3,
-     "cell": "8930c192247ffff",
-     "users": 185,
-     "samples": 635,
+     "cell": "8930c16ad3bffff",
+     "users": 171,
+     "samples": 668,
      "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 4,
-     "cell": "8930e1c339bffff",
-     "users": 170,
-     "samples": 617,
-     "avg_rsrp": -117.5,
+     "cell": "8930c19221bffff",
+     "users": 165,
+     "samples": 571,
+     "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 5,
      "cell": "8930c16ad03ffff",
-     "users": 199,
-     "samples": 646,
+     "users": 181,
+     "samples": 631,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 6,
-     "cell": "8930c19220bffff",
-     "users": 170,
-     "samples": 621,
+     "cell": "8930c16ad07ffff",
+     "users": 190,
+     "samples": 674,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 7,
-     "cell": "8930e1c3393ffff",
-     "users": 170,
-     "samples": 587,
+     "cell": "8930e1c3397ffff",
+     "users": 143,
+     "samples": 559,
      "avg_rsrp": -117.3,
      "poor_pct": 100
     },
@@ -233,31 +235,31 @@
      "list": "signal",
      "rnk": 8,
      "cell": "8930c1922cfffff",
-     "users": 153,
-     "samples": 586,
-     "avg_rsrp": -117.3,
+     "users": 184,
+     "samples": 621,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 9,
-     "cell": "8930e1c3397ffff",
-     "users": 157,
-     "samples": 559,
-     "avg_rsrp": -117.3,
+     "cell": "8930e1c339bffff",
+     "users": 167,
+     "samples": 619,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 10,
-     "cell": "8930e1c3067ffff",
-     "users": 164,
-     "samples": 583,
-     "avg_rsrp": -117,
+     "cell": "8930c16ad0fffff",
+     "users": 191,
+     "samples": 604,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     }
    ],
-   "elapsed_ms": 1004.6,
+   "elapsed_ms": 710.6,
    "read_rows": 10807707,
    "runs": 5
   },
@@ -269,71 +271,71 @@
      "list": "users",
      "rnk": 1,
      "cell": "8930e1d8c0bffff",
-     "users": 5372,
-     "samples": 26582,
+     "users": 5475,
+     "samples": 26917,
      "avg_rsrp": -78,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 2,
-     "cell": "8930c1619d7ffff",
-     "users": 5340,
-     "samples": 26575,
-     "avg_rsrp": -78,
-     "poor_pct": 0
-    },
-    {
-     "list": "users",
-     "rnk": 3,
      "cell": "8930c1903cbffff",
-     "users": 5304,
-     "samples": 26634,
+     "users": 5449,
+     "samples": 26637,
      "avg_rsrp": -78.1,
      "poor_pct": 0
     },
     {
      "list": "users",
+     "rnk": 3,
+     "cell": "8930c1619d7ffff",
+     "users": 5385,
+     "samples": 26793,
+     "avg_rsrp": -78,
+     "poor_pct": 0
+    },
+    {
+     "list": "users",
      "rnk": 4,
-     "cell": "8930c16198bffff",
-     "users": 2577,
-     "samples": 12541,
+     "cell": "8930e1d8c03ffff",
+     "users": 2596,
+     "samples": 12429,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 5,
-     "cell": "8930e1d8c03ffff",
-     "users": 2498,
-     "samples": 12405,
-     "avg_rsrp": -78.4,
+     "cell": "8930c190227ffff",
+     "users": 2565,
+     "samples": 12740,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 6,
-     "cell": "8930c190227ffff",
-     "users": 2497,
-     "samples": 12327,
-     "avg_rsrp": -78.4,
+     "cell": "8930c16198bffff",
+     "users": 2545,
+     "samples": 12660,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 7,
-     "cell": "8930c16199bffff",
-     "users": 2050,
-     "samples": 9648,
+     "cell": "8930e1d8c0fffff",
+     "users": 2016,
+     "samples": 9767,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 8,
-     "cell": "8930e1d8c0fffff",
-     "users": 1975,
-     "samples": 9740,
+     "cell": "8930c16199bffff",
+     "users": 1969,
+     "samples": 9711,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
@@ -341,80 +343,80 @@
      "list": "users",
      "rnk": 9,
      "cell": "8930c190237ffff",
-     "users": 1916,
-     "samples": 9707,
-     "avg_rsrp": -78.4,
+     "users": 1910,
+     "samples": 9737,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 10,
-     "cell": "8930c1619c3ffff",
-     "users": 1784,
-     "samples": 8638,
+     "cell": "8930c190353ffff",
+     "users": 1777,
+     "samples": 8700,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "signal",
      "rnk": 1,
-     "cell": "8930c192257ffff",
-     "users": 157,
-     "samples": 628,
-     "avg_rsrp": -117.8,
-     "poor_pct": 100
+     "cell": "8930c16ad73ffff",
+     "users": 180,
+     "samples": 644,
+     "avg_rsrp": -117.9,
+     "poor_pct": 99.8
     },
     {
      "list": "signal",
      "rnk": 2,
-     "cell": "8930c192243ffff",
-     "users": 160,
-     "samples": 631,
-     "avg_rsrp": -117.7,
+     "cell": "8930e1c302fffff",
+     "users": 153,
+     "samples": 577,
+     "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 3,
-     "cell": "8930c192247ffff",
-     "users": 185,
-     "samples": 635,
+     "cell": "8930c16ad3bffff",
+     "users": 171,
+     "samples": 668,
      "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 4,
-     "cell": "8930e1c339bffff",
-     "users": 170,
-     "samples": 617,
-     "avg_rsrp": -117.5,
+     "cell": "8930c19221bffff",
+     "users": 165,
+     "samples": 571,
+     "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 5,
      "cell": "8930c16ad03ffff",
-     "users": 199,
-     "samples": 646,
+     "users": 181,
+     "samples": 631,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 6,
-     "cell": "8930c19220bffff",
-     "users": 170,
-     "samples": 621,
+     "cell": "8930c16ad07ffff",
+     "users": 190,
+     "samples": 674,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 7,
-     "cell": "8930e1c3393ffff",
-     "users": 170,
-     "samples": 587,
+     "cell": "8930e1c3397ffff",
+     "users": 143,
+     "samples": 559,
      "avg_rsrp": -117.3,
      "poor_pct": 100
     },
@@ -422,32 +424,32 @@
      "list": "signal",
      "rnk": 8,
      "cell": "8930c1922cfffff",
-     "users": 153,
-     "samples": 586,
-     "avg_rsrp": -117.3,
+     "users": 184,
+     "samples": 621,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 9,
-     "cell": "8930e1c3397ffff",
-     "users": 157,
-     "samples": 559,
-     "avg_rsrp": -117.3,
+     "cell": "8930e1c339bffff",
+     "users": 167,
+     "samples": 619,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 10,
-     "cell": "8930e1c3067ffff",
-     "users": 164,
-     "samples": 583,
-     "avg_rsrp": -117,
+     "cell": "8930c16ad0fffff",
+     "users": 191,
+     "samples": 604,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     }
    ],
-   "elapsed_ms": 289.9,
-   "read_rows": 10742429,
+   "elapsed_ms": 229.7,
+   "read_rows": 10742997,
    "runs": 5
   },
   {
@@ -458,71 +460,71 @@
      "list": "users",
      "rnk": 1,
      "cell": "8930e1d8c0bffff",
-     "users": 5372,
-     "samples": 26582,
+     "users": 5475,
+     "samples": 26917,
      "avg_rsrp": -78,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 2,
-     "cell": "8930c1619d7ffff",
-     "users": 5340,
-     "samples": 26575,
-     "avg_rsrp": -78,
-     "poor_pct": 0
-    },
-    {
-     "list": "users",
-     "rnk": 3,
      "cell": "8930c1903cbffff",
-     "users": 5304,
-     "samples": 26634,
+     "users": 5449,
+     "samples": 26637,
      "avg_rsrp": -78.1,
      "poor_pct": 0
     },
     {
      "list": "users",
+     "rnk": 3,
+     "cell": "8930c1619d7ffff",
+     "users": 5385,
+     "samples": 26793,
+     "avg_rsrp": -78,
+     "poor_pct": 0
+    },
+    {
+     "list": "users",
      "rnk": 4,
-     "cell": "8930c16198bffff",
-     "users": 2577,
-     "samples": 12541,
+     "cell": "8930e1d8c03ffff",
+     "users": 2596,
+     "samples": 12429,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 5,
-     "cell": "8930e1d8c03ffff",
-     "users": 2498,
-     "samples": 12405,
-     "avg_rsrp": -78.4,
+     "cell": "8930c190227ffff",
+     "users": 2565,
+     "samples": 12740,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 6,
-     "cell": "8930c190227ffff",
-     "users": 2497,
-     "samples": 12327,
-     "avg_rsrp": -78.4,
+     "cell": "8930c16198bffff",
+     "users": 2545,
+     "samples": 12660,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 7,
-     "cell": "8930c16199bffff",
-     "users": 2050,
-     "samples": 9648,
+     "cell": "8930e1d8c0fffff",
+     "users": 2016,
+     "samples": 9767,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 8,
-     "cell": "8930e1d8c0fffff",
-     "users": 1975,
-     "samples": 9740,
+     "cell": "8930c16199bffff",
+     "users": 1969,
+     "samples": 9711,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
@@ -530,80 +532,80 @@
      "list": "users",
      "rnk": 9,
      "cell": "8930c190237ffff",
-     "users": 1916,
-     "samples": 9707,
-     "avg_rsrp": -78.4,
+     "users": 1910,
+     "samples": 9737,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 10,
-     "cell": "8930c1619c3ffff",
-     "users": 1784,
-     "samples": 8638,
+     "cell": "8930c190353ffff",
+     "users": 1777,
+     "samples": 8700,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "signal",
      "rnk": 1,
-     "cell": "8930c192257ffff",
-     "users": 157,
-     "samples": 628,
-     "avg_rsrp": -117.8,
-     "poor_pct": 100
+     "cell": "8930c16ad73ffff",
+     "users": 180,
+     "samples": 644,
+     "avg_rsrp": -117.9,
+     "poor_pct": 99.8
     },
     {
      "list": "signal",
      "rnk": 2,
-     "cell": "8930c192243ffff",
-     "users": 160,
-     "samples": 631,
-     "avg_rsrp": -117.7,
+     "cell": "8930e1c302fffff",
+     "users": 153,
+     "samples": 577,
+     "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 3,
-     "cell": "8930c192247ffff",
-     "users": 185,
-     "samples": 635,
+     "cell": "8930c16ad3bffff",
+     "users": 171,
+     "samples": 668,
      "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 4,
-     "cell": "8930e1c339bffff",
-     "users": 170,
-     "samples": 617,
-     "avg_rsrp": -117.5,
+     "cell": "8930c19221bffff",
+     "users": 165,
+     "samples": 571,
+     "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 5,
      "cell": "8930c16ad03ffff",
-     "users": 199,
-     "samples": 646,
+     "users": 181,
+     "samples": 631,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 6,
-     "cell": "8930c19220bffff",
-     "users": 170,
-     "samples": 621,
+     "cell": "8930c16ad07ffff",
+     "users": 190,
+     "samples": 674,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 7,
-     "cell": "8930e1c3393ffff",
-     "users": 170,
-     "samples": 587,
+     "cell": "8930e1c3397ffff",
+     "users": 143,
+     "samples": 559,
      "avg_rsrp": -117.3,
      "poor_pct": 100
     },
@@ -611,32 +613,32 @@
      "list": "signal",
      "rnk": 8,
      "cell": "8930c1922cfffff",
-     "users": 153,
-     "samples": 586,
-     "avg_rsrp": -117.3,
+     "users": 184,
+     "samples": 621,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 9,
-     "cell": "8930e1c3397ffff",
-     "users": 157,
-     "samples": 559,
-     "avg_rsrp": -117.3,
+     "cell": "8930e1c339bffff",
+     "users": 167,
+     "samples": 619,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 10,
-     "cell": "8930e1c3067ffff",
-     "users": 164,
-     "samples": 583,
-     "avg_rsrp": -117,
+     "cell": "8930c16ad0fffff",
+     "users": 191,
+     "samples": 604,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     }
    ],
-   "elapsed_ms": 249.8,
-   "read_rows": 1219101,
+   "elapsed_ms": 185.0,
+   "read_rows": 1219109,
    "runs": 5
   },
   {
@@ -647,71 +649,71 @@
      "list": "users",
      "rnk": 1,
      "cell": "8930e1d8c0bffff",
-     "users": 5372,
-     "samples": 26582,
+     "users": 5475,
+     "samples": 26917,
      "avg_rsrp": -78,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 2,
-     "cell": "8930c1619d7ffff",
-     "users": 5340,
-     "samples": 26575,
-     "avg_rsrp": -78,
-     "poor_pct": 0
-    },
-    {
-     "list": "users",
-     "rnk": 3,
      "cell": "8930c1903cbffff",
-     "users": 5304,
-     "samples": 26634,
+     "users": 5449,
+     "samples": 26637,
      "avg_rsrp": -78.1,
      "poor_pct": 0
     },
     {
      "list": "users",
+     "rnk": 3,
+     "cell": "8930c1619d7ffff",
+     "users": 5385,
+     "samples": 26793,
+     "avg_rsrp": -78,
+     "poor_pct": 0
+    },
+    {
+     "list": "users",
      "rnk": 4,
-     "cell": "8930c16198bffff",
-     "users": 2577,
-     "samples": 12541,
+     "cell": "8930e1d8c03ffff",
+     "users": 2596,
+     "samples": 12429,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 5,
-     "cell": "8930e1d8c03ffff",
-     "users": 2498,
-     "samples": 12405,
-     "avg_rsrp": -78.4,
+     "cell": "8930c190227ffff",
+     "users": 2565,
+     "samples": 12740,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 6,
-     "cell": "8930c190227ffff",
-     "users": 2497,
-     "samples": 12327,
-     "avg_rsrp": -78.4,
+     "cell": "8930c16198bffff",
+     "users": 2545,
+     "samples": 12660,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 7,
-     "cell": "8930c16199bffff",
-     "users": 2050,
-     "samples": 9648,
+     "cell": "8930e1d8c0fffff",
+     "users": 2016,
+     "samples": 9767,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 8,
-     "cell": "8930e1d8c0fffff",
-     "users": 1975,
-     "samples": 9740,
+     "cell": "8930c16199bffff",
+     "users": 1969,
+     "samples": 9711,
      "avg_rsrp": -78.5,
      "poor_pct": 0
     },
@@ -719,80 +721,80 @@
      "list": "users",
      "rnk": 9,
      "cell": "8930c190237ffff",
-     "users": 1916,
-     "samples": 9707,
-     "avg_rsrp": -78.4,
+     "users": 1910,
+     "samples": 9737,
+     "avg_rsrp": -78.5,
      "poor_pct": 0
     },
     {
      "list": "users",
      "rnk": 10,
-     "cell": "8930c1619c3ffff",
-     "users": 1784,
-     "samples": 8638,
+     "cell": "8930c190353ffff",
+     "users": 1777,
+     "samples": 8700,
      "avg_rsrp": -78.4,
      "poor_pct": 0
     },
     {
      "list": "signal",
      "rnk": 1,
-     "cell": "8930c192257ffff",
-     "users": 157,
-     "samples": 628,
-     "avg_rsrp": -117.8,
-     "poor_pct": 100
+     "cell": "8930c16ad73ffff",
+     "users": 180,
+     "samples": 644,
+     "avg_rsrp": -117.9,
+     "poor_pct": 99.8
     },
     {
      "list": "signal",
      "rnk": 2,
-     "cell": "8930c192243ffff",
-     "users": 160,
-     "samples": 631,
-     "avg_rsrp": -117.7,
+     "cell": "8930e1c302fffff",
+     "users": 153,
+     "samples": 577,
+     "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 3,
-     "cell": "8930c192247ffff",
-     "users": 185,
-     "samples": 635,
+     "cell": "8930c16ad3bffff",
+     "users": 171,
+     "samples": 668,
      "avg_rsrp": -117.5,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 4,
-     "cell": "8930e1c339bffff",
-     "users": 170,
-     "samples": 617,
-     "avg_rsrp": -117.5,
+     "cell": "8930c19221bffff",
+     "users": 165,
+     "samples": 571,
+     "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 5,
      "cell": "8930c16ad03ffff",
-     "users": 199,
-     "samples": 646,
+     "users": 181,
+     "samples": 631,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 6,
-     "cell": "8930c19220bffff",
-     "users": 170,
-     "samples": 621,
+     "cell": "8930c16ad07ffff",
+     "users": 190,
+     "samples": 674,
      "avg_rsrp": -117.4,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 7,
-     "cell": "8930e1c3393ffff",
-     "users": 170,
-     "samples": 587,
+     "cell": "8930e1c3397ffff",
+     "users": 143,
+     "samples": 559,
      "avg_rsrp": -117.3,
      "poor_pct": 100
     },
@@ -800,31 +802,31 @@
      "list": "signal",
      "rnk": 8,
      "cell": "8930c1922cfffff",
-     "users": 153,
-     "samples": 586,
-     "avg_rsrp": -117.3,
+     "users": 184,
+     "samples": 621,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 9,
-     "cell": "8930e1c3397ffff",
-     "users": 157,
-     "samples": 559,
-     "avg_rsrp": -117.3,
+     "cell": "8930e1c339bffff",
+     "users": 167,
+     "samples": 619,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     },
     {
      "list": "signal",
      "rnk": 10,
-     "cell": "8930e1c3067ffff",
-     "users": 164,
-     "samples": 583,
-     "avg_rsrp": -117,
+     "cell": "8930c16ad0fffff",
+     "users": 191,
+     "samples": 604,
+     "avg_rsrp": -117.2,
      "poor_pct": 100
     }
    ],
-   "elapsed_ms": 1.4,
+   "elapsed_ms": 1.2,
    "read_rows": 20,
    "runs": 5
   }
@@ -835,7 +837,7 @@
     "list": "users",
     "rnk": 1,
     "cell": "8930e1d8c0bffff",
-    "users": 5372,
+    "users": 5475,
     "avg_rsrp": -78,
     "city": 0,
     "boundary": [
@@ -868,42 +870,8 @@
    {
     "list": "users",
     "rnk": 2,
-    "cell": "8930c1619d7ffff",
-    "users": 5340,
-    "avg_rsrp": -78,
-    "city": 1,
-    "boundary": [
-     [
-      35.18093,
-      129.07366
-     ],
-     [
-      35.17952,
-      129.07402
-     ],
-     [
-      35.17914,
-      129.07594
-     ],
-     [
-      35.18018,
-      129.0775
-     ],
-     [
-      35.18159,
-      129.07715
-     ],
-     [
-      35.18197,
-      129.07523
-     ]
-    ]
-   },
-   {
-    "list": "users",
-    "rnk": 3,
     "cell": "8930c1903cbffff",
-    "users": 5304,
+    "users": 5449,
     "avg_rsrp": -78.1,
     "city": 2,
     "boundary": [
@@ -935,9 +903,111 @@
    },
    {
     "list": "users",
+    "rnk": 3,
+    "cell": "8930c1619d7ffff",
+    "users": 5385,
+    "avg_rsrp": -78,
+    "city": 1,
+    "boundary": [
+     [
+      35.18093,
+      129.07366
+     ],
+     [
+      35.17952,
+      129.07402
+     ],
+     [
+      35.17914,
+      129.07594
+     ],
+     [
+      35.18018,
+      129.0775
+     ],
+     [
+      35.18159,
+      129.07715
+     ],
+     [
+      35.18197,
+      129.07523
+     ]
+    ]
+   },
+   {
+    "list": "users",
     "rnk": 4,
+    "cell": "8930e1d8c03ffff",
+    "users": 2596,
+    "avg_rsrp": -78.5,
+    "city": 0,
+    "boundary": [
+     [
+      37.56898,
+      126.9809
+     ],
+     [
+      37.5705,
+      126.98016
+     ],
+     [
+      37.57071,
+      126.97843
+     ],
+     [
+      37.56941,
+      126.97745
+     ],
+     [
+      37.56789,
+      126.97819
+     ],
+     [
+      37.56767,
+      126.97992
+     ]
+    ]
+   },
+   {
+    "list": "users",
+    "rnk": 5,
+    "cell": "8930c190227ffff",
+    "users": 2565,
+    "avg_rsrp": -78.5,
+    "city": 2,
+    "boundary": [
+     [
+      35.86871,
+      128.59859
+     ],
+     [
+      35.86733,
+      128.59895
+     ],
+     [
+      35.86697,
+      128.60087
+     ],
+     [
+      35.868,
+      128.60243
+     ],
+     [
+      35.86939,
+      128.60207
+     ],
+     [
+      35.86975,
+      128.60015
+     ]
+    ]
+   },
+   {
+    "list": "users",
+    "rnk": 6,
     "cell": "8930c16198bffff",
-    "users": 2577,
+    "users": 2545,
     "avg_rsrp": -78.5,
     "city": 1,
     "boundary": [
@@ -969,112 +1039,10 @@
    },
    {
     "list": "users",
-    "rnk": 5,
-    "cell": "8930e1d8c03ffff",
-    "users": 2498,
-    "avg_rsrp": -78.4,
-    "city": 0,
-    "boundary": [
-     [
-      37.56898,
-      126.9809
-     ],
-     [
-      37.5705,
-      126.98016
-     ],
-     [
-      37.57071,
-      126.97843
-     ],
-     [
-      37.56941,
-      126.97745
-     ],
-     [
-      37.56789,
-      126.97819
-     ],
-     [
-      37.56767,
-      126.97992
-     ]
-    ]
-   },
-   {
-    "list": "users",
-    "rnk": 6,
-    "cell": "8930c190227ffff",
-    "users": 2497,
-    "avg_rsrp": -78.4,
-    "city": 2,
-    "boundary": [
-     [
-      35.86871,
-      128.59859
-     ],
-     [
-      35.86733,
-      128.59895
-     ],
-     [
-      35.86697,
-      128.60087
-     ],
-     [
-      35.868,
-      128.60243
-     ],
-     [
-      35.86939,
-      128.60207
-     ],
-     [
-      35.86975,
-      128.60015
-     ]
-    ]
-   },
-   {
-    "list": "users",
     "rnk": 7,
-    "cell": "8930c16199bffff",
-    "users": 2050,
-    "avg_rsrp": -78.4,
-    "city": 1,
-    "boundary": [
-     [
-      35.18338,
-      129.07487
-     ],
-     [
-      35.18197,
-      129.07523
-     ],
-     [
-      35.18159,
-      129.07715
-     ],
-     [
-      35.18263,
-      129.07871
-     ],
-     [
-      35.18404,
-      129.07836
-     ],
-     [
-      35.18442,
-      129.07644
-     ]
-    ]
-   },
-   {
-    "list": "users",
-    "rnk": 8,
     "cell": "8930e1d8c0fffff",
-    "users": 1975,
-    "avg_rsrp": -78.5,
+    "users": 2016,
+    "avg_rsrp": -78.4,
     "city": 0,
     "boundary": [
      [
@@ -1105,10 +1073,44 @@
    },
    {
     "list": "users",
+    "rnk": 8,
+    "cell": "8930c16199bffff",
+    "users": 1969,
+    "avg_rsrp": -78.5,
+    "city": 1,
+    "boundary": [
+     [
+      35.18338,
+      129.07487
+     ],
+     [
+      35.18197,
+      129.07523
+     ],
+     [
+      35.18159,
+      129.07715
+     ],
+     [
+      35.18263,
+      129.07871
+     ],
+     [
+      35.18404,
+      129.07836
+     ],
+     [
+      35.18442,
+      129.07644
+     ]
+    ]
+   },
+   {
+    "list": "users",
     "rnk": 9,
     "cell": "8930c190237ffff",
-    "users": 1916,
-    "avg_rsrp": -78.4,
+    "users": 1910,
+    "avg_rsrp": -78.5,
     "city": 2,
     "boundary": [
      [
@@ -1140,170 +1142,170 @@
    {
     "list": "users",
     "rnk": 10,
-    "cell": "8930c1619c3ffff",
-    "users": 1784,
+    "cell": "8930c190353ffff",
+    "users": 1777,
     "avg_rsrp": -78.4,
-    "city": 1,
+    "city": 2,
     "boundary": [
      [
-      35.17848,
-      129.07245
+      35.86939,
+      128.60207
      ],
      [
-      35.17707,
-      129.07281
+      35.868,
+      128.60243
      ],
      [
-      35.1767,
-      129.07473
+      35.86765,
+      128.60435
      ],
      [
-      35.17773,
-      129.07629
+      35.86868,
+      128.60591
      ],
      [
-      35.17914,
-      129.07594
+      35.87006,
+      128.60555
      ],
      [
-      35.17952,
-      129.07402
+      35.87042,
+      128.60363
      ]
     ]
    },
    {
     "list": "signal",
     "rnk": 1,
-    "cell": "8930c192257ffff",
-    "users": 157,
-    "avg_rsrp": -117.8,
-    "city": 2,
+    "cell": "8930c16ad73ffff",
+    "users": 180,
+    "avg_rsrp": -117.9,
+    "city": 1,
     "boundary": [
      [
-      35.90663,
-      128.55774
+      35.14732,
+      129.02548
      ],
      [
-      35.90525,
-      128.5581
+      35.14591,
+      129.02584
      ],
      [
-      35.90489,
-      128.56002
+      35.14553,
+      129.02776
      ],
      [
-      35.90592,
-      128.56158
+      35.14657,
+      129.02932
      ],
      [
-      35.90731,
-      128.56122
+      35.14798,
+      129.02897
      ],
      [
-      35.90766,
-      128.5593
+      35.14836,
+      129.02705
      ]
     ]
    },
    {
     "list": "signal",
     "rnk": 2,
-    "cell": "8930c192243ffff",
-    "users": 160,
-    "avg_rsrp": -117.7,
-    "city": 2,
+    "cell": "8930e1c302fffff",
+    "users": 153,
+    "avg_rsrp": -117.5,
+    "city": 0,
     "boundary": [
      [
-      35.90422,
-      128.55654
+      37.60271,
+      127.03089
      ],
      [
-      35.90283,
-      128.55689
+      37.60423,
+      127.03014
      ],
      [
-      35.90248,
-      128.55881
+      37.60445,
+      127.02841
      ],
      [
-      35.90351,
-      128.56038
+      37.60314,
+      127.02743
      ],
      [
-      35.90489,
-      128.56002
+      37.60162,
+      127.02818
      ],
      [
-      35.90525,
-      128.5581
+      37.60141,
+      127.02991
      ]
     ]
    },
    {
     "list": "signal",
     "rnk": 3,
-    "cell": "8930c192247ffff",
-    "users": 185,
+    "cell": "8930c16ad3bffff",
+    "users": 171,
     "avg_rsrp": -117.5,
-    "city": 2,
+    "city": 1,
     "boundary": [
      [
-      35.90489,
-      128.56002
+      35.15043,
+      129.03018
      ],
      [
-      35.90351,
-      128.56038
+      35.14902,
+      129.03053
      ],
      [
-      35.90315,
-      128.56229
+      35.14865,
+      129.03245
      ],
      [
-      35.90418,
-      128.56386
+      35.14969,
+      129.03402
      ],
      [
-      35.90557,
-      128.5635
+      35.1511,
+      129.03366
      ],
      [
-      35.90592,
-      128.56158
+      35.15147,
+      129.03174
      ]
     ]
    },
    {
     "list": "signal",
     "rnk": 4,
-    "cell": "8930e1c339bffff",
-    "users": 170,
-    "avg_rsrp": -117.5,
-    "city": 0,
+    "cell": "8930c19221bffff",
+    "users": 165,
+    "avg_rsrp": -117.4,
+    "city": 2,
     "boundary": [
      [
-      37.59706,
-      127.03042
+      35.90905,
+      128.55895
      ],
      [
-      37.59858,
-      127.02967
+      35.90766,
+      128.5593
      ],
      [
-      37.5988,
-      127.02794
+      35.90731,
+      128.56122
      ],
      [
-      37.59749,
-      127.02696
+      35.90834,
+      128.56279
      ],
      [
-      37.59597,
-      127.02771
+      35.90973,
+      128.56243
      ],
      [
-      37.59576,
-      127.02944
+      35.91008,
+      128.56051
      ]
     ]
    },
@@ -1311,7 +1313,7 @@
     "list": "signal",
     "rnk": 5,
     "cell": "8930c16ad03ffff",
-    "users": 199,
+    "users": 181,
     "avg_rsrp": -117.4,
     "city": 1,
     "boundary": [
@@ -1344,110 +1346,42 @@
    {
     "list": "signal",
     "rnk": 6,
-    "cell": "8930c19220bffff",
-    "users": 170,
+    "cell": "8930c16ad07ffff",
+    "users": 190,
     "avg_rsrp": -117.4,
-    "city": 2,
+    "city": 1,
     "boundary": [
      [
-      35.90731,
-      128.56122
+      35.15222,
+      129.0279
      ],
      [
-      35.90592,
-      128.56158
+      35.15081,
+      129.02826
      ],
      [
-      35.90557,
-      128.5635
+      35.15043,
+      129.03018
      ],
      [
-      35.9066,
-      128.56506
+      35.15147,
+      129.03174
      ],
      [
-      35.90799,
-      128.56471
+      35.15288,
+      129.03139
      ],
      [
-      35.90834,
-      128.56279
+      35.15326,
+      129.02946
      ]
     ]
    },
    {
     "list": "signal",
     "rnk": 7,
-    "cell": "8930e1c3393ffff",
-    "users": 170,
-    "avg_rsrp": -117.3,
-    "city": 0,
-    "boundary": [
-     [
-      37.59989,
-      127.03066
-     ],
-     [
-      37.60141,
-      127.02991
-     ],
-     [
-      37.60162,
-      127.02818
-     ],
-     [
-      37.60032,
-      127.02719
-     ],
-     [
-      37.5988,
-      127.02794
-     ],
-     [
-      37.59858,
-      127.02967
-     ]
-    ]
-   },
-   {
-    "list": "signal",
-    "rnk": 8,
-    "cell": "8930c1922cfffff",
-    "users": 153,
-    "avg_rsrp": -117.3,
-    "city": 2,
-    "boundary": [
-     [
-      35.90837,
-      128.55546
-     ],
-     [
-      35.90699,
-      128.55582
-     ],
-     [
-      35.90663,
-      128.55774
-     ],
-     [
-      35.90766,
-      128.5593
-     ],
-     [
-      35.90905,
-      128.55895
-     ],
-     [
-      35.9094,
-      128.55703
-     ]
-    ]
-   },
-   {
-    "list": "signal",
-    "rnk": 9,
     "cell": "8930e1c3397ffff",
-    "users": 157,
+    "users": 143,
     "avg_rsrp": -117.3,
     "city": 0,
     "boundary": [
@@ -1479,35 +1413,103 @@
    },
    {
     "list": "signal",
-    "rnk": 10,
-    "cell": "8930e1c3067ffff",
-    "users": 164,
-    "avg_rsrp": -117,
+    "rnk": 8,
+    "cell": "8930c1922cfffff",
+    "users": 184,
+    "avg_rsrp": -117.2,
+    "city": 2,
+    "boundary": [
+     [
+      35.90837,
+      128.55546
+     ],
+     [
+      35.90699,
+      128.55582
+     ],
+     [
+      35.90663,
+      128.55774
+     ],
+     [
+      35.90766,
+      128.5593
+     ],
+     [
+      35.90905,
+      128.55895
+     ],
+     [
+      35.9094,
+      128.55703
+     ]
+    ]
+   },
+   {
+    "list": "signal",
+    "rnk": 9,
+    "cell": "8930e1c339bffff",
+    "users": 167,
+    "avg_rsrp": -117.2,
     "city": 0,
     "boundary": [
+     [
+      37.59706,
+      127.03042
+     ],
+     [
+      37.59858,
+      127.02967
+     ],
      [
       37.5988,
       127.02794
      ],
      [
-      37.60032,
-      127.02719
-     ],
-     [
-      37.60053,
-      127.02546
-     ],
-     [
-      37.59923,
-      127.02448
-     ],
-     [
-      37.59771,
-      127.02523
-     ],
-     [
       37.59749,
       127.02696
+     ],
+     [
+      37.59597,
+      127.02771
+     ],
+     [
+      37.59576,
+      127.02944
+     ]
+    ]
+   },
+   {
+    "list": "signal",
+    "rnk": 10,
+    "cell": "8930c16ad0fffff",
+    "users": 191,
+    "avg_rsrp": -117.2,
+    "city": 1,
+    "boundary": [
+     [
+      35.14977,
+      129.02669
+     ],
+     [
+      35.14836,
+      129.02705
+     ],
+     [
+      35.14798,
+      129.02897
+     ],
+     [
+      35.14902,
+      129.03053
+     ],
+     [
+      35.15043,
+      129.03018
+     ],
+     [
+      35.15081,
+      129.02826
      ]
     ]
    }
@@ -1515,7 +1517,7 @@
   "density": [
    {
     "city": 0,
-    "samples": 3924,
+    "samples": 3966,
     "boundary": [
      [
       37.42936,
@@ -1545,7 +1547,7 @@
    },
    {
     "city": 0,
-    "samples": 6458,
+    "samples": 6300,
     "boundary": [
      [
       37.43696,
@@ -1575,7 +1577,7 @@
    },
    {
     "city": 0,
-    "samples": 6342,
+    "samples": 6387,
     "boundary": [
      [
       37.4658,
@@ -1605,7 +1607,7 @@
    },
    {
     "city": 0,
-    "samples": 6437,
+    "samples": 6241,
     "boundary": [
      [
       37.47794,
@@ -1635,7 +1637,7 @@
    },
    {
     "city": 0,
-    "samples": 16637,
+    "samples": 16665,
     "boundary": [
      [
       37.46127,
@@ -1665,7 +1667,7 @@
    },
    {
     "city": 0,
-    "samples": 19087,
+    "samples": 19123,
     "boundary": [
      [
       37.46888,
@@ -1695,7 +1697,7 @@
    },
    {
     "city": 0,
-    "samples": 6456,
+    "samples": 6491,
     "boundary": [
      [
       37.44152,
@@ -1725,7 +1727,7 @@
    },
    {
     "city": 0,
-    "samples": 16351,
+    "samples": 16135,
     "boundary": [
      [
       37.44912,
@@ -1755,7 +1757,7 @@
    },
    {
     "city": 0,
-    "samples": 16592,
+    "samples": 16434,
     "boundary": [
      [
       37.47341,
@@ -1785,7 +1787,7 @@
    },
    {
     "city": 0,
-    "samples": 19752,
+    "samples": 19798,
     "boundary": [
      [
       37.48102,
@@ -1815,7 +1817,7 @@
    },
    {
     "city": 0,
-    "samples": 6300,
+    "samples": 6366,
     "boundary": [
      [
       37.45366,
@@ -1845,7 +1847,7 @@
    },
    {
     "city": 0,
-    "samples": 15559,
+    "samples": 15919,
     "boundary": [
      [
       37.64043,
@@ -1875,7 +1877,7 @@
    },
    {
     "city": 0,
-    "samples": 15950,
+    "samples": 15766,
     "boundary": [
      [
       37.64808,
@@ -1905,7 +1907,7 @@
    },
    {
     "city": 0,
-    "samples": 16063,
+    "samples": 16072,
     "boundary": [
      [
       37.62068,
@@ -1935,7 +1937,7 @@
    },
    {
     "city": 0,
-    "samples": 18403,
+    "samples": 18567,
     "boundary": [
      [
       37.62832,
@@ -1965,7 +1967,7 @@
    },
    {
     "city": 0,
-    "samples": 1274,
+    "samples": 1137,
     "boundary": [
      [
       37.65254,
@@ -1995,7 +1997,7 @@
    },
    {
     "city": 0,
-    "samples": 2121,
+    "samples": 2241,
     "boundary": [
      [
       37.66019,
@@ -2025,7 +2027,7 @@
    },
    {
     "city": 0,
-    "samples": 4229,
+    "samples": 4212,
     "boundary": [
      [
       37.63278,
@@ -2055,7 +2057,7 @@
    },
    {
     "city": 0,
-    "samples": 4222,
+    "samples": 4259,
     "boundary": [
      [
       37.59329,
@@ -2085,7 +2087,7 @@
    },
    {
     "city": 0,
-    "samples": 16271,
+    "samples": 16417,
     "boundary": [
      [
       37.60093,
@@ -2115,7 +2117,7 @@
    },
    {
     "city": 0,
-    "samples": 4161,
+    "samples": 4243,
     "boundary": [
      [
       37.57354,
@@ -2145,7 +2147,7 @@
    },
    {
     "city": 0,
-    "samples": 16243,
+    "samples": 16351,
     "boundary": [
      [
       37.58118,
@@ -2175,7 +2177,7 @@
    },
    {
     "city": 0,
-    "samples": 4218,
+    "samples": 4205,
     "boundary": [
      [
       37.61303,
@@ -2205,7 +2207,7 @@
    },
    {
     "city": 0,
-    "samples": 6372,
+    "samples": 6341,
     "boundary": [
      [
       37.50219,
@@ -2235,7 +2237,7 @@
    },
    {
     "city": 0,
-    "samples": 16611,
+    "samples": 16622,
     "boundary": [
      [
       37.50981,
@@ -2265,7 +2267,7 @@
    },
    {
     "city": 0,
-    "samples": 6480,
+    "samples": 6388,
     "boundary": [
      [
       37.49007,
@@ -2295,7 +2297,7 @@
    },
    {
     "city": 0,
-    "samples": 2763,
+    "samples": 2642,
     "boundary": [
      [
       37.51431,
@@ -2325,7 +2327,7 @@
    },
    {
     "city": 0,
-    "samples": 15947,
+    "samples": 15834,
     "boundary": [
      [
       37.52194,
@@ -2355,7 +2357,7 @@
    },
    {
     "city": 0,
-    "samples": 4306,
+    "samples": 4167,
     "boundary": [
      [
       37.55379,
@@ -2385,7 +2387,7 @@
    },
    {
     "city": 0,
-    "samples": 4269,
+    "samples": 4089,
     "boundary": [
      [
       37.53405,
@@ -2415,7 +2417,7 @@
    },
    {
     "city": 0,
-    "samples": 18087,
+    "samples": 18358,
     "boundary": [
      [
       37.60581,
@@ -2445,7 +2447,7 @@
    },
    {
     "city": 0,
-    "samples": 15439,
+    "samples": 15607,
     "boundary": [
      [
       37.61343,
@@ -2475,7 +2477,7 @@
    },
    {
     "city": 0,
-    "samples": 19131,
+    "samples": 19255,
     "boundary": [
      [
       37.58602,
@@ -2505,7 +2507,7 @@
    },
    {
     "city": 0,
-    "samples": 16185,
+    "samples": 16318,
     "boundary": [
      [
       37.59364,
@@ -2535,7 +2537,7 @@
    },
    {
     "city": 0,
-    "samples": 18676,
+    "samples": 18582,
     "boundary": [
      [
       37.61797,
@@ -2565,7 +2567,7 @@
    },
    {
     "city": 0,
-    "samples": 15940,
+    "samples": 15926,
     "boundary": [
      [
       37.6256,
@@ -2595,7 +2597,7 @@
    },
    {
     "city": 0,
-    "samples": 22434,
+    "samples": 22188,
     "boundary": [
      [
       37.59818,
@@ -2625,7 +2627,7 @@
    },
    {
     "city": 0,
-    "samples": 1201,
+    "samples": 1215,
     "boundary": [
      [
       37.62106,
@@ -2655,7 +2657,7 @@
    },
    {
     "city": 0,
-    "samples": 4128,
+    "samples": 4323,
     "boundary": [
      [
       37.60126,
@@ -2685,7 +2687,7 @@
    },
    {
     "city": 0,
-    "samples": 23660,
+    "samples": 23233,
     "boundary": [
      [
       37.55862,
@@ -2715,7 +2717,7 @@
    },
    {
     "city": 0,
-    "samples": 19064,
+    "samples": 19020,
     "boundary": [
      [
       37.56624,
@@ -2745,7 +2747,7 @@
    },
    {
     "city": 0,
-    "samples": 23508,
+    "samples": 23448,
     "boundary": [
      [
       37.53885,
@@ -2775,7 +2777,7 @@
    },
    {
     "city": 0,
-    "samples": 19325,
+    "samples": 19194,
     "boundary": [
      [
       37.54646,
@@ -2805,7 +2807,7 @@
    },
    {
     "city": 0,
-    "samples": 30518,
+    "samples": 30818,
     "boundary": [
      [
       37.57078,
@@ -2835,7 +2837,7 @@
    },
    {
     "city": 0,
-    "samples": 23444,
+    "samples": 23577,
     "boundary": [
      [
       37.5784,
@@ -2865,7 +2867,7 @@
    },
    {
     "city": 0,
-    "samples": 30525,
+    "samples": 30188,
     "boundary": [
      [
       37.55101,
@@ -2895,7 +2897,7 @@
    },
    {
     "city": 0,
-    "samples": 4187,
+    "samples": 4169,
     "boundary": [
      [
       37.56168,
@@ -2925,7 +2927,7 @@
    },
    {
     "city": 0,
-    "samples": 4235,
+    "samples": 4382,
     "boundary": [
      [
       37.5419,
@@ -2955,7 +2957,7 @@
    },
    {
     "city": 0,
-    "samples": 16147,
+    "samples": 16133,
     "boundary": [
      [
       37.57386,
@@ -2985,7 +2987,7 @@
    },
    {
     "city": 0,
-    "samples": 4235,
+    "samples": 4329,
     "boundary": [
      [
       37.58147,
@@ -3015,7 +3017,7 @@
    },
    {
     "city": 0,
-    "samples": 16203,
+    "samples": 16101,
     "boundary": [
      [
       37.55407,
@@ -3045,7 +3047,7 @@
    },
    {
     "city": 0,
-    "samples": 15772,
+    "samples": 15863,
     "boundary": [
      [
       37.6499,
@@ -3075,7 +3077,7 @@
    },
    {
     "city": 0,
-    "samples": 2104,
+    "samples": 2161,
     "boundary": [
      [
       37.65754,
@@ -3105,7 +3107,7 @@
    },
    {
     "city": 0,
-    "samples": 18355,
+    "samples": 18375,
     "boundary": [
      [
       37.63012,
@@ -3135,7 +3137,7 @@
    },
    {
     "city": 0,
-    "samples": 15751,
+    "samples": 15998,
     "boundary": [
      [
       37.63775,
@@ -3165,7 +3167,7 @@
    },
    {
     "city": 0,
-    "samples": 15767,
+    "samples": 15710,
     "boundary": [
      [
       37.66205,
@@ -3195,7 +3197,7 @@
    },
    {
     "city": 0,
-    "samples": 2034,
+    "samples": 2019,
     "boundary": [
      [
       37.66969,
@@ -3225,7 +3227,7 @@
    },
    {
     "city": 0,
-    "samples": 18514,
+    "samples": 18804,
     "boundary": [
      [
       37.64227,
@@ -3255,7 +3257,7 @@
    },
    {
     "city": 0,
-    "samples": 2093,
+    "samples": 2150,
     "boundary": [
      [
       37.63322,
@@ -3285,7 +3287,7 @@
    },
    {
     "city": 0,
-    "samples": 2012,
+    "samples": 2082,
     "boundary": [
      [
       37.64538,
@@ -3315,7 +3317,7 @@
    },
    {
     "city": 0,
-    "samples": 29146,
+    "samples": 29302,
     "boundary": [
      [
       37.60271,
@@ -3345,7 +3347,7 @@
    },
    {
     "city": 0,
-    "samples": 22690,
+    "samples": 22734,
     "boundary": [
      [
       37.61034,
@@ -3375,7 +3377,7 @@
    },
    {
     "city": 0,
-    "samples": 40391,
+    "samples": 40605,
     "boundary": [
      [
       37.58294,
@@ -3405,7 +3407,7 @@
    },
    {
     "city": 0,
-    "samples": 28572,
+    "samples": 28758,
     "boundary": [
      [
       37.59056,
@@ -3435,7 +3437,7 @@
    },
    {
     "city": 0,
-    "samples": 29088,
+    "samples": 29034,
     "boundary": [
      [
       37.61486,
@@ -3465,7 +3467,7 @@
    },
    {
     "city": 0,
-    "samples": 22992,
+    "samples": 22210,
     "boundary": [
      [
       37.62249,
@@ -3495,7 +3497,7 @@
    },
    {
     "city": 0,
-    "samples": 41630,
+    "samples": 41737,
     "boundary": [
      [
       37.59508,
@@ -3525,7 +3527,7 @@
    },
    {
     "city": 0,
-    "samples": 6307,
+    "samples": 6322,
     "boundary": [
      [
       37.46735,
@@ -3555,7 +3557,7 @@
    },
    {
     "city": 0,
-    "samples": 6338,
+    "samples": 6327,
     "boundary": [
      [
       37.47495,
@@ -3585,7 +3587,7 @@
    },
    {
     "city": 0,
-    "samples": 16473,
+    "samples": 16091,
     "boundary": [
      [
       37.47952,
@@ -3615,7 +3617,7 @@
    },
    {
     "city": 0,
-    "samples": 16578,
+    "samples": 16421,
     "boundary": [
      [
       37.48713,
@@ -3645,7 +3647,7 @@
    },
    {
     "city": 0,
-    "samples": 6377,
+    "samples": 6370,
     "boundary": [
      [
       37.45975,
@@ -3675,7 +3677,7 @@
    },
    {
     "city": 0,
-    "samples": 3027,
+    "samples": 3039,
     "boundary": [
      [
       37.48255,
@@ -3705,7 +3707,7 @@
    },
    {
     "city": 0,
-    "samples": 24152,
+    "samples": 24158,
     "boundary": [
      [
       37.51146,
@@ -3735,7 +3737,7 @@
    },
    {
     "city": 0,
-    "samples": 22914,
+    "samples": 22965,
     "boundary": [
      [
       37.51907,
@@ -3765,7 +3767,7 @@
    },
    {
     "city": 0,
-    "samples": 19574,
+    "samples": 19658,
     "boundary": [
      [
       37.49169,
@@ -3795,7 +3797,7 @@
    },
    {
     "city": 0,
-    "samples": 19491,
+    "samples": 19452,
     "boundary": [
      [
       37.4993,
@@ -3825,7 +3827,7 @@
    },
    {
     "city": 0,
-    "samples": 31777,
+    "samples": 31692,
     "boundary": [
      [
       37.52362,
@@ -3855,7 +3857,7 @@
    },
    {
     "city": 0,
-    "samples": 29433,
+    "samples": 29570,
     "boundary": [
      [
       37.53123,
@@ -3885,7 +3887,7 @@
    },
    {
     "city": 0,
-    "samples": 23936,
+    "samples": 24083,
     "boundary": [
      [
       37.50385,
@@ -3915,7 +3917,7 @@
    },
    {
     "city": 0,
-    "samples": 16306,
+    "samples": 16149,
     "boundary": [
      [
       37.51451,
@@ -3945,7 +3947,7 @@
    },
    {
     "city": 0,
-    "samples": 4090,
+    "samples": 4150,
     "boundary": [
      [
       37.52211,
@@ -3975,7 +3977,7 @@
    },
    {
     "city": 0,
-    "samples": 15718,
+    "samples": 15906,
     "boundary": [
      [
       37.49473,
@@ -4005,7 +4007,7 @@
    },
    {
     "city": 0,
-    "samples": 4217,
+    "samples": 4285,
     "boundary": [
      [
       37.50233,
@@ -4035,7 +4037,7 @@
    },
    {
     "city": 0,
-    "samples": 18849,
+    "samples": 18914,
     "boundary": [
      [
       37.52668,
@@ -4065,7 +4067,7 @@
    },
    {
     "city": 0,
-    "samples": 16053,
+    "samples": 16107,
     "boundary": [
      [
       37.53429,
@@ -4095,7 +4097,7 @@
    },
    {
     "city": 0,
-    "samples": 18801,
+    "samples": 18465,
     "boundary": [
      [
       37.5069,
@@ -4125,7 +4127,7 @@
    },
    {
     "city": 0,
-    "samples": 16325,
+    "samples": 16279,
     "boundary": [
      [
       37.46432,
@@ -4155,7 +4157,7 @@
    },
    {
     "city": 0,
-    "samples": 16361,
+    "samples": 16478,
     "boundary": [
      [
       37.47192,
@@ -4185,7 +4187,7 @@
    },
    {
     "city": 0,
-    "samples": 6345,
+    "samples": 6425,
     "boundary": [
      [
       37.44456,
@@ -4215,7 +4217,7 @@
    },
    {
     "city": 0,
-    "samples": 6287,
+    "samples": 6242,
     "boundary": [
      [
       37.45216,
@@ -4245,7 +4247,7 @@
    },
    {
     "city": 0,
-    "samples": 19488,
+    "samples": 19507,
     "boundary": [
      [
       37.47648,
@@ -4275,7 +4277,7 @@
    },
    {
     "city": 0,
-    "samples": 19321,
+    "samples": 19610,
     "boundary": [
      [
       37.48409,
@@ -4305,7 +4307,7 @@
    },
    {
     "city": 0,
-    "samples": 16410,
+    "samples": 16395,
     "boundary": [
      [
       37.45672,
@@ -4335,7 +4337,7 @@
    },
    {
     "city": 0,
-    "samples": 2078,
+    "samples": 2077,
     "boundary": [
      [
       37.6908,
@@ -4365,7 +4367,7 @@
    },
    {
     "city": 0,
-    "samples": 2126,
+    "samples": 2104,
     "boundary": [
      [
       37.69845,
@@ -4395,7 +4397,7 @@
    },
    {
     "city": 0,
-    "samples": 15551,
+    "samples": 15769,
     "boundary": [
      [
       37.67103,
@@ -4425,7 +4427,7 @@
    },
    {
     "city": 0,
-    "samples": 15645,
+    "samples": 15619,
     "boundary": [
      [
       37.67867,
@@ -4455,7 +4457,7 @@
    },
    {
     "city": 0,
-    "samples": 2097,
+    "samples": 2092,
     "boundary": [
      [
       37.68315,
@@ -4485,7 +4487,7 @@
    },
    {
     "city": 0,
-    "samples": 2077,
+    "samples": 2082,
     "boundary": [
      [
       37.69397,
@@ -4515,7 +4517,7 @@
    },
    {
     "city": 0,
-    "samples": 15582,
+    "samples": 15775,
     "boundary": [
      [
       37.67419,
@@ -4545,7 +4547,7 @@
    },
    {
     "city": 0,
-    "samples": 2065,
+    "samples": 2067,
     "boundary": [
      [
       37.68183,
@@ -4575,7 +4577,7 @@
    },
    {
     "city": 0,
-    "samples": 587,
+    "samples": 609,
     "boundary": [
      [
       37.7061,
@@ -4605,7 +4607,7 @@
    },
    {
     "city": 0,
-    "samples": 15316,
+    "samples": 15463,
     "boundary": [
      [
       37.68632,
@@ -4635,7 +4637,7 @@
    },
    {
     "city": 0,
-    "samples": 18510,
+    "samples": 18399,
     "boundary": [
      [
       37.64361,
@@ -4665,7 +4667,7 @@
    },
    {
     "city": 0,
-    "samples": 18431,
+    "samples": 18400,
     "boundary": [
      [
       37.65126,
@@ -4695,7 +4697,7 @@
    },
    {
     "city": 0,
-    "samples": 22727,
+    "samples": 22636,
     "boundary": [
      [
       37.62385,
@@ -4725,7 +4727,7 @@
    },
    {
     "city": 0,
-    "samples": 22286,
+    "samples": 22102,
     "boundary": [
      [
       37.63149,
@@ -4755,7 +4757,7 @@
    },
    {
     "city": 0,
-    "samples": 15548,
+    "samples": 15594,
     "boundary": [
      [
       37.65573,
@@ -4785,7 +4787,7 @@
    },
    {
     "city": 0,
-    "samples": 15752,
+    "samples": 15764,
     "boundary": [
      [
       37.66338,
@@ -4815,7 +4817,7 @@
    },
    {
     "city": 0,
-    "samples": 18493,
+    "samples": 18746,
     "boundary": [
      [
       37.63597,
@@ -4845,7 +4847,7 @@
    },
    {
     "city": 0,
-    "samples": 21783,
+    "samples": 21874,
     "boundary": [
      [
       37.64677,
@@ -4875,7 +4877,7 @@
    },
    {
     "city": 0,
-    "samples": 18764,
+    "samples": 18310,
     "boundary": [
      [
       37.65441,
@@ -4905,7 +4907,7 @@
    },
    {
     "city": 0,
-    "samples": 27632,
+    "samples": 27856,
     "boundary": [
      [
       37.627,
@@ -4935,7 +4937,7 @@
    },
    {
     "city": 0,
-    "samples": 22571,
+    "samples": 22298,
     "boundary": [
      [
       37.63463,
@@ -4965,7 +4967,7 @@
    },
    {
     "city": 0,
-    "samples": 18380,
+    "samples": 18480,
     "boundary": [
      [
       37.6589,
@@ -4995,7 +4997,7 @@
    },
    {
     "city": 0,
-    "samples": 17914,
+    "samples": 17874,
     "boundary": [
      [
       37.66655,
@@ -5025,7 +5027,7 @@
    },
    {
     "city": 0,
-    "samples": 22432,
+    "samples": 22295,
     "boundary": [
      [
       37.63913,
@@ -5055,7 +5057,7 @@
    },
    {
     "city": 0,
-    "samples": 2113,
+    "samples": 2049,
     "boundary": [
      [
       37.66784,
@@ -5085,7 +5087,7 @@
    },
    {
     "city": 0,
-    "samples": 2029,
+    "samples": 2063,
     "boundary": [
      [
       37.67549,
@@ -5115,7 +5117,7 @@
    },
    {
     "city": 0,
-    "samples": 43737,
+    "samples": 42710,
     "boundary": [
      [
       37.55244,
@@ -5145,7 +5147,7 @@
    },
    {
     "city": 0,
-    "samples": 85340,
+    "samples": 85221,
     "boundary": [
      [
       37.56006,
@@ -5175,7 +5177,7 @@
    },
    {
     "city": 0,
-    "samples": 31435,
+    "samples": 31284,
     "boundary": [
      [
       37.53268,
@@ -5205,7 +5207,7 @@
    },
    {
     "city": 0,
-    "samples": 47381,
+    "samples": 47687,
     "boundary": [
      [
       37.5403,
@@ -5235,7 +5237,7 @@
    },
    {
     "city": 0,
-    "samples": 30240,
+    "samples": 29728,
     "boundary": [
      [
       37.56457,
@@ -5265,7 +5267,7 @@
    },
    {
     "city": 0,
-    "samples": 43968,
+    "samples": 43734,
     "boundary": [
      [
       37.5722,
@@ -5295,7 +5297,7 @@
    },
    {
     "city": 0,
-    "samples": 29532,
+    "samples": 29283,
     "boundary": [
      [
       37.54481,
@@ -5325,7 +5327,7 @@
    },
    {
     "city": 0,
-    "samples": 82013,
+    "samples": 82136,
     "boundary": [
      [
       37.55554,
@@ -5355,7 +5357,7 @@
    },
    {
     "city": 0,
-    "samples": 43670,
+    "samples": 43611,
     "boundary": [
      [
       37.56316,
@@ -5385,7 +5387,7 @@
    },
    {
     "city": 0,
-    "samples": 46231,
+    "samples": 46485,
     "boundary": [
      [
       37.53577,
@@ -5415,7 +5417,7 @@
    },
    {
     "city": 0,
-    "samples": 41767,
+    "samples": 41651,
     "boundary": [
      [
       37.54339,
@@ -5445,7 +5447,7 @@
    },
    {
     "city": 0,
-    "samples": 225110,
+    "samples": 225569,
     "boundary": [
      [
       37.56769,
@@ -5475,7 +5477,7 @@
    },
    {
     "city": 0,
-    "samples": 69977,
+    "samples": 69639,
     "boundary": [
      [
       37.57531,
@@ -5505,7 +5507,7 @@
    },
    {
     "city": 0,
-    "samples": 83356,
+    "samples": 83711,
     "boundary": [
      [
       37.54792,
@@ -5535,7 +5537,7 @@
    },
    {
     "city": 0,
-    "samples": 19340,
+    "samples": 19437,
     "boundary": [
      [
       37.5053,
@@ -5565,7 +5567,7 @@
    },
    {
     "city": 0,
-    "samples": 23788,
+    "samples": 23993,
     "boundary": [
      [
       37.51292,
@@ -5595,7 +5597,7 @@
    },
    {
     "city": 0,
-    "samples": 16505,
+    "samples": 16220,
     "boundary": [
      [
       37.48555,
@@ -5625,7 +5627,7 @@
    },
    {
     "city": 0,
-    "samples": 19312,
+    "samples": 19138,
     "boundary": [
      [
       37.49317,
@@ -5655,7 +5657,7 @@
    },
    {
     "city": 0,
-    "samples": 19176,
+    "samples": 19293,
     "boundary": [
      [
       37.51744,
@@ -5685,7 +5687,7 @@
    },
    {
     "city": 0,
-    "samples": 23860,
+    "samples": 23765,
     "boundary": [
      [
       37.52506,
@@ -5715,7 +5717,7 @@
    },
    {
     "city": 0,
-    "samples": 16107,
+    "samples": 16230,
     "boundary": [
      [
       37.49769,
@@ -5745,7 +5747,7 @@
    },
    {
     "city": 0,
-    "samples": 30007,
+    "samples": 29803,
     "boundary": [
      [
       37.50839,
@@ -5775,7 +5777,7 @@
    },
    {
     "city": 0,
-    "samples": 31056,
+    "samples": 31122,
     "boundary": [
      [
       37.51601,
@@ -5805,7 +5807,7 @@
    },
    {
     "city": 0,
-    "samples": 22925,
+    "samples": 22928,
     "boundary": [
      [
       37.48863,
@@ -5835,7 +5837,7 @@
    },
    {
     "city": 0,
-    "samples": 23960,
+    "samples": 23704,
     "boundary": [
      [
       37.49624,
@@ -5865,7 +5867,7 @@
    },
    {
     "city": 0,
-    "samples": 30722,
+    "samples": 31232,
     "boundary": [
      [
       37.52054,
@@ -5895,7 +5897,7 @@
    },
    {
     "city": 0,
-    "samples": 43165,
+    "samples": 42709,
     "boundary": [
      [
       37.52816,
@@ -5925,7 +5927,7 @@
    },
    {
     "city": 0,
-    "samples": 23619,
+    "samples": 23902,
     "boundary": [
      [
       37.50078,
@@ -5955,7 +5957,7 @@
    },
    {
     "city": 0,
-    "samples": 22856,
+    "samples": 22905,
     "boundary": [
      [
       37.59645,
@@ -5985,7 +5987,7 @@
    },
    {
     "city": 0,
-    "samples": 27756,
+    "samples": 27947,
     "boundary": [
      [
       37.60409,
@@ -6015,7 +6017,7 @@
    },
    {
     "city": 0,
-    "samples": 23021,
+    "samples": 22788,
     "boundary": [
      [
       37.57669,
@@ -6045,7 +6047,7 @@
    },
    {
     "city": 0,
-    "samples": 29342,
+    "samples": 29608,
     "boundary": [
      [
       37.58433,
@@ -6075,7 +6077,7 @@
    },
    {
     "city": 0,
-    "samples": 18555,
+    "samples": 18741,
     "boundary": [
      [
       37.60857,
@@ -6105,7 +6107,7 @@
    },
    {
     "city": 0,
-    "samples": 21757,
+    "samples": 21806,
     "boundary": [
      [
       37.61621,
@@ -6135,7 +6137,7 @@
    },
    {
     "city": 0,
-    "samples": 18615,
+    "samples": 18761,
     "boundary": [
      [
       37.58881,
@@ -6165,7 +6167,7 @@
    },
    {
     "city": 0,
-    "samples": 40106,
+    "samples": 40055,
     "boundary": [
      [
       37.59959,
@@ -6195,7 +6197,7 @@
    },
    {
     "city": 0,
-    "samples": 37635,
+    "samples": 37513,
     "boundary": [
      [
       37.60722,
@@ -6225,7 +6227,7 @@
    },
    {
     "city": 0,
-    "samples": 67856,
+    "samples": 68172,
     "boundary": [
      [
       37.57983,
@@ -6255,7 +6257,7 @@
    },
    {
     "city": 0,
-    "samples": 63725,
+    "samples": 63713,
     "boundary": [
      [
       37.58745,
@@ -6285,7 +6287,7 @@
    },
    {
     "city": 0,
-    "samples": 28135,
+    "samples": 28201,
     "boundary": [
      [
       37.61172,
@@ -6315,7 +6317,7 @@
    },
    {
     "city": 0,
-    "samples": 28197,
+    "samples": 28349,
     "boundary": [
      [
       37.61936,
@@ -6345,7 +6347,7 @@
    },
    {
     "city": 0,
-    "samples": 38196,
+    "samples": 38626,
     "boundary": [
      [
       37.59196,
@@ -6375,7 +6377,7 @@
    },
    {
     "city": 0,
-    "samples": 18704,
+    "samples": 18633,
     "boundary": [
      [
       37.54931,
@@ -6405,7 +6407,7 @@
    },
    {
     "city": 0,
-    "samples": 22761,
+    "samples": 22778,
     "boundary": [
      [
       37.55694,
@@ -6435,7 +6437,7 @@
    },
    {
     "city": 0,
-    "samples": 18493,
+    "samples": 18407,
     "boundary": [
      [
       37.52956,
@@ -6465,7 +6467,7 @@
    },
    {
     "city": 0,
-    "samples": 22506,
+    "samples": 22432,
     "boundary": [
      [
       37.53719,
@@ -6495,7 +6497,7 @@
    },
    {
     "city": 0,
-    "samples": 15922,
+    "samples": 15706,
     "boundary": [
      [
       37.56143,
@@ -6525,7 +6527,7 @@
    },
    {
     "city": 0,
-    "samples": 18532,
+    "samples": 18693,
     "boundary": [
      [
       37.56906,
@@ -6555,7 +6557,7 @@
    },
    {
     "city": 0,
-    "samples": 16049,
+    "samples": 16088,
     "boundary": [
      [
       37.54168,
@@ -6585,7 +6587,7 @@
    },
    {
     "city": 1,
-    "samples": 32962,
+    "samples": 33005,
     "boundary": [
      [
       35.21768,
@@ -6615,7 +6617,7 @@
    },
    {
     "city": 1,
-    "samples": 33619,
+    "samples": 33739,
     "boundary": [
      [
       35.22235,
@@ -6645,7 +6647,7 @@
    },
    {
     "city": 1,
-    "samples": 35168,
+    "samples": 35268,
     "boundary": [
      [
       35.20055,
@@ -6675,7 +6677,7 @@
    },
    {
     "city": 1,
-    "samples": 50198,
+    "samples": 49959,
     "boundary": [
      [
       35.20522,
@@ -6705,7 +6707,7 @@
    },
    {
     "city": 1,
-    "samples": 24508,
+    "samples": 24794,
     "boundary": [
      [
       35.23014,
@@ -6735,7 +6737,7 @@
    },
    {
     "city": 1,
-    "samples": 24815,
+    "samples": 25088,
     "boundary": [
      [
       35.23481,
@@ -6765,7 +6767,7 @@
    },
    {
     "city": 1,
-    "samples": 25766,
+    "samples": 25972,
     "boundary": [
      [
       35.21301,
@@ -6795,7 +6797,7 @@
    },
    {
     "city": 1,
-    "samples": 41510,
+    "samples": 41237,
     "boundary": [
      [
       35.21454,
@@ -6825,7 +6827,7 @@
    },
    {
     "city": 1,
-    "samples": 29008,
+    "samples": 29189,
     "boundary": [
      [
       35.21919,
@@ -6855,7 +6857,7 @@
    },
    {
     "city": 1,
-    "samples": 79000,
+    "samples": 78588,
     "boundary": [
      [
       35.1974,
@@ -6885,7 +6887,7 @@
    },
    {
     "city": 1,
-    "samples": 41337,
+    "samples": 41264,
     "boundary": [
      [
       35.20206,
@@ -6915,7 +6917,7 @@
    },
    {
     "city": 1,
-    "samples": 33085,
+    "samples": 33023,
     "boundary": [
      [
       35.22701,
@@ -6945,7 +6947,7 @@
    },
    {
     "city": 1,
-    "samples": 29072,
+    "samples": 28926,
     "boundary": [
      [
       35.23166,
@@ -6975,7 +6977,7 @@
    },
    {
     "city": 1,
-    "samples": 51253,
+    "samples": 50947,
     "boundary": [
      [
       35.20988,
@@ -7005,7 +7007,7 @@
    },
    {
     "city": 1,
-    "samples": 26176,
+    "samples": 26030,
     "boundary": [
      [
       35.17873,
@@ -7035,7 +7037,7 @@
    },
    {
     "city": 1,
-    "samples": 34554,
+    "samples": 34778,
     "boundary": [
      [
       35.18341,
@@ -7065,7 +7067,7 @@
    },
    {
     "city": 1,
-    "samples": 24044,
+    "samples": 23825,
     "boundary": [
      [
       35.16158,
@@ -7095,7 +7097,7 @@
    },
    {
     "city": 1,
-    "samples": 30867,
+    "samples": 30811,
     "boundary": [
      [
       35.16626,
@@ -7125,7 +7127,7 @@
    },
    {
     "city": 1,
-    "samples": 20837,
+    "samples": 21096,
     "boundary": [
      [
       35.1912,
@@ -7155,7 +7157,7 @@
    },
    {
     "city": 1,
-    "samples": 25696,
+    "samples": 26129,
     "boundary": [
      [
       35.19588,
@@ -7185,7 +7187,7 @@
    },
    {
     "city": 1,
-    "samples": 20757,
+    "samples": 20926,
     "boundary": [
      [
       35.17405,
@@ -7215,7 +7217,7 @@
    },
    {
     "city": 1,
-    "samples": 104650,
+    "samples": 104446,
     "boundary": [
      [
       35.1756,
@@ -7245,7 +7247,7 @@
    },
    {
     "city": 1,
-    "samples": 197657,
+    "samples": 198073,
     "boundary": [
      [
       35.18026,
@@ -7275,7 +7277,7 @@
    },
    {
     "city": 1,
-    "samples": 46648,
+    "samples": 46762,
     "boundary": [
      [
       35.15845,
@@ -7305,7 +7307,7 @@
    },
    {
     "city": 1,
-    "samples": 66034,
+    "samples": 65720,
     "boundary": [
      [
       35.16312,
@@ -7335,7 +7337,7 @@
    },
    {
     "city": 1,
-    "samples": 54047,
+    "samples": 54299,
     "boundary": [
      [
       35.18808,
@@ -7365,7 +7367,7 @@
    },
    {
     "city": 1,
-    "samples": 106819,
+    "samples": 106389,
     "boundary": [
      [
       35.19274,
@@ -7395,7 +7397,7 @@
    },
    {
     "city": 1,
-    "samples": 45394,
+    "samples": 46032,
     "boundary": [
      [
       35.17093,
@@ -7425,7 +7427,7 @@
    },
    {
     "city": 1,
-    "samples": 17057,
+    "samples": 17069,
     "boundary": [
      [
       35.25972,
@@ -7455,7 +7457,7 @@
    },
    {
     "city": 1,
-    "samples": 16856,
+    "samples": 16824,
     "boundary": [
      [
       35.26439,
@@ -7515,7 +7517,7 @@
    },
    {
     "city": 1,
-    "samples": 19849,
+    "samples": 20326,
     "boundary": [
      [
       35.24727,
@@ -7545,7 +7547,7 @@
    },
    {
     "city": 1,
-    "samples": 8588,
+    "samples": 8686,
     "boundary": [
      [
       35.27216,
@@ -7575,7 +7577,7 @@
    },
    {
     "city": 1,
-    "samples": 8801,
+    "samples": 8634,
     "boundary": [
      [
       35.27684,
@@ -7605,7 +7607,7 @@
    },
    {
     "city": 1,
-    "samples": 16760,
+    "samples": 16952,
     "boundary": [
      [
       35.25505,
@@ -7635,7 +7637,7 @@
    },
    {
     "city": 1,
-    "samples": 20065,
+    "samples": 20110,
     "boundary": [
      [
       35.2566,
@@ -7665,7 +7667,7 @@
    },
    {
     "city": 1,
-    "samples": 19989,
+    "samples": 20074,
     "boundary": [
      [
       35.26125,
@@ -7695,7 +7697,7 @@
    },
    {
     "city": 1,
-    "samples": 25056,
+    "samples": 25110,
     "boundary": [
      [
       35.23948,
@@ -7725,7 +7727,7 @@
    },
    {
     "city": 1,
-    "samples": 24646,
+    "samples": 24619,
     "boundary": [
      [
       35.24413,
@@ -7755,7 +7757,7 @@
    },
    {
     "city": 1,
-    "samples": 17210,
+    "samples": 17128,
     "boundary": [
      [
       35.26905,
@@ -7785,7 +7787,7 @@
    },
    {
     "city": 1,
-    "samples": 16910,
+    "samples": 17043,
     "boundary": [
      [
       35.27371,
@@ -7815,7 +7817,7 @@
    },
    {
     "city": 1,
-    "samples": 19809,
+    "samples": 20024,
     "boundary": [
      [
       35.25193,
@@ -7845,7 +7847,7 @@
    },
    {
     "city": 1,
-    "samples": 17289,
+    "samples": 17371,
     "boundary": [
      [
       35.22079,
@@ -7875,7 +7877,7 @@
    },
    {
     "city": 1,
-    "samples": 20594,
+    "samples": 20820,
     "boundary": [
      [
       35.22547,
@@ -7905,7 +7907,7 @@
    },
    {
     "city": 1,
-    "samples": 17272,
+    "samples": 17325,
     "boundary": [
      [
       35.20366,
@@ -7935,7 +7937,7 @@
    },
    {
     "city": 1,
-    "samples": 20541,
+    "samples": 20781,
     "boundary": [
      [
       35.20834,
@@ -7965,7 +7967,7 @@
    },
    {
     "city": 1,
-    "samples": 10903,
+    "samples": 10901,
     "boundary": [
      [
       35.23324,
@@ -7995,7 +7997,7 @@
    },
    {
     "city": 1,
-    "samples": 17293,
+    "samples": 17379,
     "boundary": [
      [
       35.23792,
@@ -8025,7 +8027,7 @@
    },
    {
     "city": 1,
-    "samples": 10840,
+    "samples": 11062,
     "boundary": [
      [
       35.21611,
@@ -8055,7 +8057,7 @@
    },
    {
     "city": 1,
-    "samples": 2141,
+    "samples": 2121,
     "boundary": [
      [
       35.25024,
@@ -8085,7 +8087,7 @@
    },
    {
     "city": 1,
-    "samples": 15844,
+    "samples": 15539,
     "boundary": [
      [
       35.23312,
@@ -8115,7 +8117,7 @@
    },
    {
     "city": 1,
-    "samples": 2121,
+    "samples": 2010,
     "boundary": [
      [
       35.23775,
@@ -8145,7 +8147,7 @@
    },
    {
     "city": 1,
-    "samples": 2105,
+    "samples": 2058,
     "boundary": [
      [
       35.26272,
@@ -8175,7 +8177,7 @@
    },
    {
     "city": 1,
-    "samples": 15990,
+    "samples": 15886,
     "boundary": [
      [
       35.2456,
@@ -8205,7 +8207,7 @@
    },
    {
     "city": 1,
-    "samples": 22455,
+    "samples": 22317,
     "boundary": [
      [
       35.21135,
@@ -8235,7 +8237,7 @@
    },
    {
     "city": 1,
-    "samples": 18252,
+    "samples": 18655,
     "boundary": [
      [
       35.216,
@@ -8265,7 +8267,7 @@
    },
    {
     "city": 1,
-    "samples": 26616,
+    "samples": 26529,
     "boundary": [
      [
       35.19422,
@@ -8295,7 +8297,7 @@
    },
    {
     "city": 1,
-    "samples": 21114,
+    "samples": 21297,
     "boundary": [
      [
       35.19886,
@@ -8325,7 +8327,7 @@
    },
    {
     "city": 1,
-    "samples": 22690,
+    "samples": 22572,
     "boundary": [
      [
       35.22384,
@@ -8355,7 +8357,7 @@
    },
    {
     "city": 1,
-    "samples": 18684,
+    "samples": 18328,
     "boundary": [
      [
       35.22848,
@@ -8385,7 +8387,7 @@
    },
    {
     "city": 1,
-    "samples": 28588,
+    "samples": 28553,
     "boundary": [
      [
       35.20671,
@@ -8415,7 +8417,7 @@
    },
    {
     "city": 1,
-    "samples": 13044,
+    "samples": 12982,
     "boundary": [
      [
       35.20814,
@@ -8445,7 +8447,7 @@
    },
    {
     "city": 1,
-    "samples": 13215,
+    "samples": 12910,
     "boundary": [
      [
       35.191,
@@ -8475,7 +8477,7 @@
    },
    {
     "city": 1,
-    "samples": 15749,
+    "samples": 15670,
     "boundary": [
      [
       35.22063,
@@ -8505,7 +8507,7 @@
    },
    {
     "city": 1,
-    "samples": 2074,
+    "samples": 2092,
     "boundary": [
      [
       35.22526,
@@ -8535,7 +8537,7 @@
    },
    {
     "city": 1,
-    "samples": 17614,
+    "samples": 17544,
     "boundary": [
      [
       35.2035,
@@ -8565,7 +8567,7 @@
    },
    {
     "city": 1,
-    "samples": 2079,
+    "samples": 2166,
     "boundary": [
      [
       35.27519,
@@ -8595,7 +8597,7 @@
    },
    {
     "city": 1,
-    "samples": 2116,
+    "samples": 2109,
     "boundary": [
      [
       35.28766,
@@ -8625,7 +8627,7 @@
    },
    {
     "city": 1,
-    "samples": 18424,
+    "samples": 18483,
     "boundary": [
      [
       35.25344,
@@ -8655,7 +8657,7 @@
    },
    {
     "city": 1,
-    "samples": 15860,
+    "samples": 15842,
     "boundary": [
      [
       35.25808,
@@ -8685,7 +8687,7 @@
    },
    {
     "city": 1,
-    "samples": 22373,
+    "samples": 22409,
     "boundary": [
      [
       35.23632,
@@ -8715,7 +8717,7 @@
    },
    {
     "city": 1,
-    "samples": 18521,
+    "samples": 18354,
     "boundary": [
      [
       35.24096,
@@ -8745,7 +8747,7 @@
    },
    {
     "city": 1,
-    "samples": 18455,
+    "samples": 18432,
     "boundary": [
      [
       35.2659,
@@ -8775,7 +8777,7 @@
    },
    {
     "city": 1,
-    "samples": 15765,
+    "samples": 15784,
     "boundary": [
      [
       35.27055,
@@ -8805,7 +8807,7 @@
    },
    {
     "city": 1,
-    "samples": 22249,
+    "samples": 22525,
     "boundary": [
      [
       35.24879,
@@ -8835,7 +8837,7 @@
    },
    {
     "city": 1,
-    "samples": 6492,
+    "samples": 6357,
     "boundary": [
      [
       35.09762,
@@ -8865,7 +8867,7 @@
    },
    {
     "city": 1,
-    "samples": 16631,
+    "samples": 16619,
     "boundary": [
      [
       35.1023,
@@ -8895,7 +8897,7 @@
    },
    {
     "city": 1,
-    "samples": 6385,
+    "samples": 6289,
     "boundary": [
      [
       35.08512,
@@ -8925,7 +8927,7 @@
    },
    {
     "city": 1,
-    "samples": 6511,
+    "samples": 6380,
     "boundary": [
      [
       35.1101,
@@ -8955,7 +8957,7 @@
    },
    {
     "city": 1,
-    "samples": 16574,
+    "samples": 16436,
     "boundary": [
      [
       35.11479,
@@ -8985,7 +8987,7 @@
    },
    {
     "city": 1,
-    "samples": 18142,
+    "samples": 17897,
     "boundary": [
      [
       35.09447,
@@ -9015,7 +9017,7 @@
    },
    {
     "city": 1,
-    "samples": 17994,
+    "samples": 17926,
     "boundary": [
      [
       35.09914,
@@ -9045,7 +9047,7 @@
    },
    {
     "city": 1,
-    "samples": 14815,
+    "samples": 14829,
     "boundary": [
      [
       35.0773,
@@ -9075,7 +9077,7 @@
    },
    {
     "city": 1,
-    "samples": 15004,
+    "samples": 14856,
     "boundary": [
      [
       35.08197,
@@ -9105,7 +9107,7 @@
    },
    {
     "city": 1,
-    "samples": 19166,
+    "samples": 19205,
     "boundary": [
      [
       35.10697,
@@ -9135,7 +9137,7 @@
    },
    {
     "city": 1,
-    "samples": 21607,
+    "samples": 21564,
     "boundary": [
      [
       35.11164,
@@ -9165,7 +9167,7 @@
    },
    {
     "city": 1,
-    "samples": 16403,
+    "samples": 16346,
     "boundary": [
      [
       35.0898,
@@ -9195,7 +9197,7 @@
    },
    {
     "city": 1,
-    "samples": 594,
+    "samples": 617,
     "boundary": [
      [
       35.06012,
@@ -9225,7 +9227,7 @@
    },
    {
     "city": 1,
-    "samples": 6380,
+    "samples": 6302,
     "boundary": [
      [
       35.07262,
@@ -9255,7 +9257,7 @@
    },
    {
     "city": 1,
-    "samples": 16300,
+    "samples": 16415,
     "boundary": [
      [
       35.13975,
@@ -9285,7 +9287,7 @@
    },
    {
     "city": 1,
-    "samples": 19390,
+    "samples": 19400,
     "boundary": [
      [
       35.14443,
@@ -9315,7 +9317,7 @@
    },
    {
     "city": 1,
-    "samples": 6485,
+    "samples": 6228,
     "boundary": [
      [
       35.12258,
@@ -9345,7 +9347,7 @@
    },
    {
     "city": 1,
-    "samples": 16501,
+    "samples": 16266,
     "boundary": [
      [
       35.12727,
@@ -9375,7 +9377,7 @@
    },
    {
     "city": 1,
-    "samples": 16370,
+    "samples": 16281,
     "boundary": [
      [
       35.15222,
@@ -9405,7 +9407,7 @@
    },
    {
     "city": 1,
-    "samples": 19244,
+    "samples": 19231,
     "boundary": [
      [
       35.1569,
@@ -9435,7 +9437,7 @@
    },
    {
     "city": 1,
-    "samples": 6252,
+    "samples": 6296,
     "boundary": [
      [
       35.13506,
@@ -9465,7 +9467,7 @@
    },
    {
     "city": 1,
-    "samples": 23811,
+    "samples": 23669,
     "boundary": [
      [
       35.13663,
@@ -9495,7 +9497,7 @@
    },
    {
     "city": 1,
-    "samples": 31434,
+    "samples": 31224,
     "boundary": [
      [
       35.1413,
@@ -9525,7 +9527,7 @@
    },
    {
     "city": 1,
-    "samples": 19413,
+    "samples": 19132,
     "boundary": [
      [
       35.11946,
@@ -9555,7 +9557,7 @@
    },
    {
     "city": 1,
-    "samples": 23641,
+    "samples": 23761,
     "boundary": [
      [
       35.12414,
@@ -9585,7 +9587,7 @@
    },
    {
     "city": 1,
-    "samples": 23720,
+    "samples": 23715,
     "boundary": [
      [
       35.14911,
@@ -9615,7 +9617,7 @@
    },
    {
     "city": 1,
-    "samples": 31216,
+    "samples": 31171,
     "boundary": [
      [
       35.15378,
@@ -9645,7 +9647,7 @@
    },
    {
     "city": 1,
-    "samples": 19381,
+    "samples": 19378,
     "boundary": [
      [
       35.13195,
@@ -9675,7 +9677,7 @@
    },
    {
     "city": 1,
-    "samples": 20902,
+    "samples": 20777,
     "boundary": [
      [
       35.13028,
@@ -9705,7 +9707,7 @@
    },
    {
     "city": 1,
-    "samples": 17559,
+    "samples": 17453,
     "boundary": [
      [
       35.13493,
@@ -9735,7 +9737,7 @@
    },
    {
     "city": 1,
-    "samples": 17878,
+    "samples": 17775,
     "boundary": [
      [
       35.11312,
@@ -9765,7 +9767,7 @@
    },
    {
     "city": 1,
-    "samples": 17252,
+    "samples": 17235,
     "boundary": [
      [
       35.11777,
@@ -9795,7 +9797,7 @@
    },
    {
     "city": 1,
-    "samples": 26248,
+    "samples": 25933,
     "boundary": [
      [
       35.14278,
@@ -9825,7 +9827,7 @@
    },
    {
     "city": 1,
-    "samples": 20879,
+    "samples": 20991,
     "boundary": [
      [
       35.14743,
@@ -9855,7 +9857,7 @@
    },
    {
     "city": 1,
-    "samples": 21306,
+    "samples": 21407,
     "boundary": [
      [
       35.12563,
@@ -9885,7 +9887,7 @@
    },
    {
     "city": 1,
-    "samples": 13344,
+    "samples": 12951,
     "boundary": [
      [
       35.13957,
@@ -9915,7 +9917,7 @@
    },
    {
     "city": 1,
-    "samples": 13019,
+    "samples": 13321,
     "boundary": [
      [
       35.12241,
@@ -9945,7 +9947,7 @@
    },
    {
     "city": 1,
-    "samples": 14853,
+    "samples": 14668,
     "boundary": [
      [
       35.0913,
@@ -9975,7 +9977,7 @@
    },
    {
     "city": 1,
-    "samples": 14844,
+    "samples": 14923,
     "boundary": [
      [
       35.09595,
@@ -10005,7 +10007,7 @@
    },
    {
     "city": 1,
-    "samples": 557,
+    "samples": 612,
     "boundary": [
      [
       35.07412,
@@ -10035,7 +10037,7 @@
    },
    {
     "city": 1,
-    "samples": 579,
+    "samples": 624,
     "boundary": [
      [
       35.07878,
@@ -10065,7 +10067,7 @@
    },
    {
     "city": 1,
-    "samples": 17877,
+    "samples": 17978,
     "boundary": [
      [
       35.10381,
@@ -10095,7 +10097,7 @@
    },
    {
     "city": 1,
-    "samples": 17750,
+    "samples": 17825,
     "boundary": [
      [
       35.10846,
@@ -10125,7 +10127,7 @@
    },
    {
     "city": 1,
-    "samples": 14914,
+    "samples": 14855,
     "boundary": [
      [
       35.08663,
@@ -10155,7 +10157,7 @@
    },
    {
     "city": 1,
-    "samples": 592,
+    "samples": 550,
     "boundary": [
      [
       35.08808,
@@ -10185,7 +10187,7 @@
    },
    {
     "city": 1,
-    "samples": 14715,
+    "samples": 14755,
     "boundary": [
      [
       35.1006,
@@ -10215,7 +10217,7 @@
    },
    {
     "city": 1,
-    "samples": 12773,
+    "samples": 12580,
     "boundary": [
      [
       35.10525,
@@ -10245,7 +10247,7 @@
    },
    {
     "city": 1,
-    "samples": 618,
+    "samples": 619,
     "boundary": [
      [
       35.08343,
@@ -10275,7 +10277,7 @@
    },
    {
     "city": 1,
-    "samples": 36148,
+    "samples": 35943,
     "boundary": [
      [
       35.17243,
@@ -10305,7 +10307,7 @@
    },
    {
     "city": 1,
-    "samples": 26188,
+    "samples": 26500,
     "boundary": [
      [
       35.17708,
@@ -10335,7 +10337,7 @@
    },
    {
     "city": 1,
-    "samples": 34714,
+    "samples": 34887,
     "boundary": [
      [
       35.15528,
@@ -10365,7 +10367,7 @@
    },
    {
     "city": 1,
-    "samples": 26228,
+    "samples": 25912,
     "boundary": [
      [
       35.15994,
@@ -10395,7 +10397,7 @@
    },
    {
     "city": 1,
-    "samples": 57477,
+    "samples": 56968,
     "boundary": [
      [
       35.18492,
@@ -10425,7 +10427,7 @@
    },
    {
     "city": 1,
-    "samples": 35144,
+    "samples": 35256,
     "boundary": [
      [
       35.18957,
@@ -10455,7 +10457,7 @@
    },
    {
     "city": 1,
-    "samples": 54630,
+    "samples": 54856,
     "boundary": [
      [
       35.16778,
@@ -10485,7 +10487,7 @@
    },
    {
     "city": 1,
-    "samples": 17645,
+    "samples": 17642,
     "boundary": [
      [
       35.16923,
@@ -10515,7 +10517,7 @@
    },
    {
     "city": 1,
-    "samples": 13067,
+    "samples": 12902,
     "boundary": [
      [
       35.17386,
@@ -10545,7 +10547,7 @@
    },
    {
     "city": 1,
-    "samples": 17427,
+    "samples": 17644,
     "boundary": [
      [
       35.15208,
@@ -10575,7 +10577,7 @@
    },
    {
     "city": 1,
-    "samples": 12900,
+    "samples": 12954,
     "boundary": [
      [
       35.15672,
@@ -10605,7 +10607,7 @@
    },
    {
     "city": 1,
-    "samples": 20668,
+    "samples": 20958,
     "boundary": [
      [
       35.18173,
@@ -10635,7 +10637,7 @@
    },
    {
     "city": 1,
-    "samples": 17272,
+    "samples": 17475,
     "boundary": [
      [
       35.18637,
@@ -10665,7 +10667,7 @@
    },
    {
     "city": 1,
-    "samples": 21034,
+    "samples": 21007,
     "boundary": [
      [
       35.16458,
@@ -10695,7 +10697,7 @@
    },
    {
     "city": 1,
-    "samples": 26982,
+    "samples": 27269,
     "boundary": [
      [
       35.13347,
@@ -10725,7 +10727,7 @@
    },
    {
     "city": 1,
-    "samples": 27152,
+    "samples": 27053,
     "boundary": [
      [
       35.13813,
@@ -10755,7 +10757,7 @@
    },
    {
     "city": 1,
-    "samples": 21563,
+    "samples": 21631,
     "boundary": [
      [
       35.11631,
@@ -10785,7 +10787,7 @@
    },
    {
     "city": 1,
-    "samples": 21619,
+    "samples": 21425,
     "boundary": [
      [
       35.12097,
@@ -10815,7 +10817,7 @@
    },
    {
     "city": 1,
-    "samples": 37135,
+    "samples": 37424,
     "boundary": [
      [
       35.14596,
@@ -10845,7 +10847,7 @@
    },
    {
     "city": 1,
-    "samples": 37359,
+    "samples": 37391,
     "boundary": [
      [
       35.15063,
@@ -10875,7 +10877,7 @@
    },
    {
     "city": 1,
-    "samples": 27100,
+    "samples": 27284,
     "boundary": [
      [
       35.12881,
@@ -10905,7 +10907,7 @@
    },
    {
     "city": 1,
-    "samples": 7278,
+    "samples": 7178,
     "boundary": [
      [
       35.26749,
@@ -10935,7 +10937,7 @@
    },
    {
     "city": 1,
-    "samples": 10901,
+    "samples": 10750,
     "boundary": [
      [
       35.25037,
@@ -10965,7 +10967,7 @@
    },
    {
     "city": 1,
-    "samples": 8589,
+    "samples": 8465,
     "boundary": [
      [
       35.2815,
@@ -10995,7 +10997,7 @@
    },
    {
     "city": 1,
-    "samples": 8730,
+    "samples": 8501,
     "boundary": [
      [
       35.28616,
@@ -11025,7 +11027,7 @@
    },
    {
     "city": 1,
-    "samples": 8375,
+    "samples": 8428,
     "boundary": [
      [
       35.29547,
@@ -11055,7 +11057,7 @@
    },
    {
     "city": 1,
-    "samples": 1841,
+    "samples": 1799,
     "boundary": [
      [
       35.30012,
@@ -11085,7 +11087,7 @@
    },
    {
     "city": 1,
-    "samples": 16414,
+    "samples": 16648,
     "boundary": [
      [
       35.27836,
@@ -11115,7 +11117,7 @@
    },
    {
     "city": 1,
-    "samples": 15437,
+    "samples": 15870,
     "boundary": [
      [
       35.28301,
@@ -11145,7 +11147,7 @@
    },
    {
     "city": 1,
-    "samples": 8358,
+    "samples": 8522,
     "boundary": [
      [
       35.29082,
@@ -11175,7 +11177,7 @@
    },
    {
     "city": 1,
-    "samples": 10963,
+    "samples": 10653,
     "boundary": [
      [
       35.18183,
@@ -11205,7 +11207,7 @@
    },
    {
     "city": 1,
-    "samples": 17172,
+    "samples": 16973,
     "boundary": [
      [
       35.18652,
@@ -11235,7 +11237,7 @@
    },
    {
     "city": 1,
-    "samples": 10547,
+    "samples": 10554,
     "boundary": [
      [
       35.16468,
@@ -11265,7 +11267,7 @@
    },
    {
     "city": 1,
-    "samples": 16910,
+    "samples": 16871,
     "boundary": [
      [
       35.16937,
@@ -11295,7 +11297,7 @@
    },
    {
     "city": 1,
-    "samples": 10746,
+    "samples": 10685,
     "boundary": [
      [
       35.19897,
@@ -11325,7 +11327,7 @@
    },
    {
     "city": 1,
-    "samples": 5363,
+    "samples": 5436,
     "boundary": [
      [
       35.14753,
@@ -11355,7 +11357,7 @@
    },
    {
     "city": 1,
-    "samples": 613,
+    "samples": 609,
     "boundary": [
      [
       35.06479,
@@ -11385,7 +11387,7 @@
    },
    {
     "city": 1,
-    "samples": 599,
+    "samples": 583,
     "boundary": [
      [
       35.06946,
@@ -11415,7 +11417,7 @@
    },
    {
     "city": 2,
-    "samples": 13151,
+    "samples": 13338,
     "boundary": [
      [
       35.802,
@@ -11445,7 +11447,7 @@
    },
    {
     "city": 2,
-    "samples": 4221,
+    "samples": 4345,
     "boundary": [
      [
       35.78505,
@@ -11475,7 +11477,7 @@
    },
    {
     "city": 2,
-    "samples": 17787,
+    "samples": 17859,
     "boundary": [
      [
       35.81423,
@@ -11505,7 +11507,7 @@
    },
    {
     "city": 2,
-    "samples": 13255,
+    "samples": 13133,
     "boundary": [
      [
       35.81894,
@@ -11535,7 +11537,7 @@
    },
    {
     "city": 2,
-    "samples": 16261,
+    "samples": 16239,
     "boundary": [
      [
       35.79729,
@@ -11565,7 +11567,7 @@
    },
    {
     "city": 2,
-    "samples": 4151,
+    "samples": 4157,
     "boundary": [
      [
       35.77562,
@@ -11595,7 +11597,7 @@
    },
    {
     "city": 2,
-    "samples": 4239,
+    "samples": 4286,
     "boundary": [
      [
       35.78034,
@@ -11625,7 +11627,7 @@
    },
    {
     "city": 2,
-    "samples": 21212,
+    "samples": 21486,
     "boundary": [
      [
       35.84339,
@@ -11655,7 +11657,7 @@
    },
    {
     "city": 2,
-    "samples": 17892,
+    "samples": 17899,
     "boundary": [
      [
       35.8481,
@@ -11685,7 +11687,7 @@
    },
    {
     "city": 2,
-    "samples": 21300,
+    "samples": 21240,
     "boundary": [
      [
       35.82645,
@@ -11715,7 +11717,7 @@
    },
    {
     "city": 2,
-    "samples": 17648,
+    "samples": 17754,
     "boundary": [
      [
       35.83117,
@@ -11745,7 +11747,7 @@
    },
    {
     "city": 2,
-    "samples": 27079,
+    "samples": 26898,
     "boundary": [
      [
       35.8556,
@@ -11775,7 +11777,7 @@
    },
    {
     "city": 2,
-    "samples": 21394,
+    "samples": 21389,
     "boundary": [
      [
       35.86032,
@@ -11805,7 +11807,7 @@
    },
    {
     "city": 2,
-    "samples": 27027,
+    "samples": 27434,
     "boundary": [
      [
       35.83867,
@@ -11835,7 +11837,7 @@
    },
    {
     "city": 2,
-    "samples": 13257,
+    "samples": 13237,
     "boundary": [
      [
       35.85281,
@@ -11865,7 +11867,7 @@
    },
    {
     "city": 2,
-    "samples": 13545,
+    "samples": 13220,
     "boundary": [
      [
       35.83588,
@@ -11895,7 +11897,7 @@
    },
    {
     "city": 2,
-    "samples": 19318,
+    "samples": 19261,
     "boundary": [
      [
       35.80479,
@@ -11925,7 +11927,7 @@
    },
    {
     "city": 2,
-    "samples": 18999,
+    "samples": 18918,
     "boundary": [
      [
       35.80951,
@@ -11955,7 +11957,7 @@
    },
    {
     "city": 2,
-    "samples": 16203,
+    "samples": 16197,
     "boundary": [
      [
       35.78785,
@@ -11985,7 +11987,7 @@
    },
    {
     "city": 2,
-    "samples": 16142,
+    "samples": 16318,
     "boundary": [
      [
       35.79257,
@@ -12015,7 +12017,7 @@
    },
    {
     "city": 2,
-    "samples": 23570,
+    "samples": 23519,
     "boundary": [
      [
       35.81701,
@@ -12045,7 +12047,7 @@
    },
    {
     "city": 2,
-    "samples": 23664,
+    "samples": 23256,
     "boundary": [
      [
       35.82174,
@@ -12075,7 +12077,7 @@
    },
    {
     "city": 2,
-    "samples": 19086,
+    "samples": 19018,
     "boundary": [
      [
       35.80007,
@@ -12105,7 +12107,7 @@
    },
    {
     "city": 2,
-    "samples": 90985,
+    "samples": 91783,
     "boundary": [
      [
       35.88749,
@@ -12135,7 +12137,7 @@
    },
    {
     "city": 2,
-    "samples": 61478,
+    "samples": 61323,
     "boundary": [
      [
       35.89221,
@@ -12165,7 +12167,7 @@
    },
    {
     "city": 2,
-    "samples": 143093,
+    "samples": 143972,
     "boundary": [
      [
       35.87056,
@@ -12195,7 +12197,7 @@
    },
    {
     "city": 2,
-    "samples": 172717,
+    "samples": 173144,
     "boundary": [
      [
       35.87529,
@@ -12225,7 +12227,7 @@
    },
    {
     "city": 2,
-    "samples": 44404,
+    "samples": 44449,
     "boundary": [
      [
       35.89967,
@@ -12255,7 +12257,7 @@
    },
    {
     "city": 2,
-    "samples": 44025,
+    "samples": 44542,
     "boundary": [
      [
       35.9044,
@@ -12285,7 +12287,7 @@
    },
    {
     "city": 2,
-    "samples": 55176,
+    "samples": 55234,
     "boundary": [
      [
       35.88275,
@@ -12315,7 +12317,7 @@
    },
    {
     "city": 2,
-    "samples": 34973,
+    "samples": 35020,
     "boundary": [
      [
       35.88473,
@@ -12345,7 +12347,7 @@
    },
    {
     "city": 2,
-    "samples": 26071,
+    "samples": 25756,
     "boundary": [
      [
       35.88945,
@@ -12375,7 +12377,7 @@
    },
    {
     "city": 2,
-    "samples": 37037,
+    "samples": 36480,
     "boundary": [
      [
       35.86781,
@@ -12405,7 +12407,7 @@
    },
    {
     "city": 2,
-    "samples": 26641,
+    "samples": 26893,
     "boundary": [
      [
       35.87253,
@@ -12435,7 +12437,7 @@
    },
    {
     "city": 2,
-    "samples": 36794,
+    "samples": 36690,
     "boundary": [
      [
       35.89693,
@@ -12465,7 +12467,7 @@
    },
    {
     "city": 2,
-    "samples": 26908,
+    "samples": 26806,
     "boundary": [
      [
       35.90165,
@@ -12495,7 +12497,7 @@
    },
    {
     "city": 2,
-    "samples": 54860,
+    "samples": 55157,
     "boundary": [
      [
       35.88002,
@@ -12525,7 +12527,7 @@
    },
    {
     "city": 2,
-    "samples": 34705,
+    "samples": 35096,
     "boundary": [
      [
       35.8489,
@@ -12555,7 +12557,7 @@
    },
    {
     "city": 2,
-    "samples": 54237,
+    "samples": 54712,
     "boundary": [
      [
       35.85364,
@@ -12585,7 +12587,7 @@
    },
    {
     "city": 2,
-    "samples": 25701,
+    "samples": 26037,
     "boundary": [
      [
       35.83197,
@@ -12615,7 +12617,7 @@
    },
    {
     "city": 2,
-    "samples": 34966,
+    "samples": 34685,
     "boundary": [
      [
       35.8367,
@@ -12645,7 +12647,7 @@
    },
    {
     "city": 2,
-    "samples": 33146,
+    "samples": 33057,
     "boundary": [
      [
       35.86109,
@@ -12675,7 +12677,7 @@
    },
    {
     "city": 2,
-    "samples": 49576,
+    "samples": 49788,
     "boundary": [
      [
       35.86583,
@@ -12705,7 +12707,7 @@
    },
    {
     "city": 2,
-    "samples": 25546,
+    "samples": 25591,
     "boundary": [
      [
       35.84416,
@@ -12735,7 +12737,7 @@
    },
    {
     "city": 2,
-    "samples": 42836,
+    "samples": 42794,
     "boundary": [
      [
       35.84616,
@@ -12765,7 +12767,7 @@
    },
    {
     "city": 2,
-    "samples": 36429,
+    "samples": 36018,
     "boundary": [
      [
       35.85089,
@@ -12795,7 +12797,7 @@
    },
    {
     "city": 2,
-    "samples": 30177,
+    "samples": 30179,
     "boundary": [
      [
       35.82923,
@@ -12825,7 +12827,7 @@
    },
    {
     "city": 2,
-    "samples": 30058,
+    "samples": 30137,
     "boundary": [
      [
       35.83395,
@@ -12855,7 +12857,7 @@
    },
    {
     "city": 2,
-    "samples": 81458,
+    "samples": 80956,
     "boundary": [
      [
       35.85837,
@@ -12885,7 +12887,7 @@
    },
    {
     "city": 2,
-    "samples": 57342,
+    "samples": 57033,
     "boundary": [
      [
       35.86309,
@@ -12915,7 +12917,7 @@
    },
    {
     "city": 2,
-    "samples": 42382,
+    "samples": 42362,
     "boundary": [
      [
       35.84144,
@@ -12945,7 +12947,7 @@
    },
    {
     "city": 2,
-    "samples": 23069,
+    "samples": 23321,
     "boundary": [
      [
       35.92876,
@@ -12975,7 +12977,7 @@
    },
    {
     "city": 2,
-    "samples": 23215,
+    "samples": 23356,
     "boundary": [
      [
       35.93349,
@@ -13005,7 +13007,7 @@
    },
    {
     "city": 2,
-    "samples": 29855,
+    "samples": 29562,
     "boundary": [
      [
       35.91185,
@@ -13035,7 +13037,7 @@
    },
    {
     "city": 2,
-    "samples": 30003,
+    "samples": 29606,
     "boundary": [
      [
       35.91658,
@@ -13065,7 +13067,7 @@
    },
    {
     "city": 2,
-    "samples": 19139,
+    "samples": 19254,
     "boundary": [
      [
       35.94093,
@@ -13095,7 +13097,7 @@
    },
    {
     "city": 2,
-    "samples": 19210,
+    "samples": 18984,
     "boundary": [
      [
       35.94566,
@@ -13125,7 +13127,7 @@
    },
    {
     "city": 2,
-    "samples": 23492,
+    "samples": 23125,
     "boundary": [
      [
       35.92403,
@@ -13155,7 +13157,7 @@
    },
    {
     "city": 2,
-    "samples": 26526,
+    "samples": 26448,
     "boundary": [
      [
       35.92603,
@@ -13185,7 +13187,7 @@
    },
    {
     "city": 2,
-    "samples": 21211,
+    "samples": 21283,
     "boundary": [
      [
       35.93075,
@@ -13215,7 +13217,7 @@
    },
    {
     "city": 2,
-    "samples": 35792,
+    "samples": 35609,
     "boundary": [
      [
       35.90913,
@@ -13245,7 +13247,7 @@
    },
    {
     "city": 2,
-    "samples": 26241,
+    "samples": 26054,
     "boundary": [
      [
       35.91384,
@@ -13275,7 +13277,7 @@
    },
    {
     "city": 2,
-    "samples": 23269,
+    "samples": 23194,
     "boundary": [
      [
       35.93822,
@@ -13305,7 +13307,7 @@
    },
    {
     "city": 2,
-    "samples": 21254,
+    "samples": 21046,
     "boundary": [
      [
       35.94293,
@@ -13335,7 +13337,7 @@
    },
    {
     "city": 2,
-    "samples": 29323,
+    "samples": 29705,
     "boundary": [
      [
       35.92131,
@@ -13365,7 +13367,7 @@
    },
    {
     "city": 2,
-    "samples": 25579,
+    "samples": 25442,
     "boundary": [
      [
       35.8902,
@@ -13395,7 +13397,7 @@
    },
    {
     "city": 2,
-    "samples": 33984,
+    "samples": 33863,
     "boundary": [
      [
       35.89494,
@@ -13425,7 +13427,7 @@
    },
    {
     "city": 2,
-    "samples": 25452,
+    "samples": 24920,
     "boundary": [
      [
       35.87328,
@@ -13455,7 +13457,7 @@
    },
    {
     "city": 2,
-    "samples": 33823,
+    "samples": 33634,
     "boundary": [
      [
       35.87802,
@@ -13485,7 +13487,7 @@
    },
    {
     "city": 2,
-    "samples": 20489,
+    "samples": 20551,
     "boundary": [
      [
       35.90238,
@@ -13515,7 +13517,7 @@
    },
    {
     "city": 2,
-    "samples": 25241,
+    "samples": 25305,
     "boundary": [
      [
       35.90712,
@@ -13545,7 +13547,7 @@
    },
    {
     "city": 2,
-    "samples": 20580,
+    "samples": 20495,
     "boundary": [
      [
       35.88546,
@@ -13575,7 +13577,7 @@
    },
    {
     "city": 2,
-    "samples": 11316,
+    "samples": 11338,
     "boundary": [
      [
       35.90356,
@@ -13605,7 +13607,7 @@
    },
    {
     "city": 2,
-    "samples": 13316,
+    "samples": 13267,
     "boundary": [
      [
       35.91577,
@@ -13635,7 +13637,7 @@
    },
    {
     "city": 2,
-    "samples": 17560,
+    "samples": 18125,
     "boundary": [
      [
       35.88195,
@@ -13665,7 +13667,7 @@
    },
    {
     "city": 2,
-    "samples": 13196,
+    "samples": 13126,
     "boundary": [
      [
       35.88665,
@@ -13695,7 +13697,7 @@
    },
    {
     "city": 2,
-    "samples": 17739,
+    "samples": 17641,
     "boundary": [
      [
       35.86503,
@@ -13725,7 +13727,7 @@
    },
    {
     "city": 2,
-    "samples": 13050,
+    "samples": 13267,
     "boundary": [
      [
       35.86973,
@@ -13755,7 +13757,7 @@
    },
    {
     "city": 2,
-    "samples": 20602,
+    "samples": 20511,
     "boundary": [
      [
       35.89416,
@@ -13785,7 +13787,7 @@
    },
    {
     "city": 2,
-    "samples": 17095,
+    "samples": 17273,
     "boundary": [
      [
       35.89886,
@@ -13815,7 +13817,7 @@
    },
    {
     "city": 2,
-    "samples": 20638,
+    "samples": 21144,
     "boundary": [
      [
       35.87724,
@@ -13845,7 +13847,7 @@
    },
    {
     "city": 2,
-    "samples": 17502,
+    "samples": 17641,
     "boundary": [
      [
       35.92327,
@@ -13875,7 +13877,7 @@
    },
    {
     "city": 2,
-    "samples": 13342,
+    "samples": 13218,
     "boundary": [
      [
       35.92797,
@@ -13905,7 +13907,7 @@
    },
    {
     "city": 2,
-    "samples": 21268,
+    "samples": 20915,
     "boundary": [
      [
       35.90636,
@@ -13935,7 +13937,7 @@
    },
    {
     "city": 2,
-    "samples": 17892,
+    "samples": 17625,
     "boundary": [
      [
       35.91107,
@@ -13965,7 +13967,7 @@
    },
    {
     "city": 2,
-    "samples": 17693,
+    "samples": 17720,
     "boundary": [
      [
       35.93546,
@@ -13995,7 +13997,7 @@
    },
    {
     "city": 2,
-    "samples": 13142,
+    "samples": 13004,
     "boundary": [
      [
       35.94017,
@@ -14025,7 +14027,7 @@
    },
    {
     "city": 2,
-    "samples": 20904,
+    "samples": 20995,
     "boundary": [
      [
       35.91856,
@@ -14055,7 +14057,7 @@
    },
    {
     "city": 2,
-    "samples": 10861,
+    "samples": 10814,
     "boundary": [
      [
       35.76891,
@@ -14085,7 +14087,7 @@
    },
    {
     "city": 2,
-    "samples": 15905,
+    "samples": 15976,
     "boundary": [
      [
       35.77365,
@@ -14115,7 +14117,7 @@
    },
    {
     "city": 2,
-    "samples": 3866,
+    "samples": 3854,
     "boundary": [
      [
       35.75669,
@@ -14145,7 +14147,7 @@
    },
    {
     "city": 2,
-    "samples": 10858,
+    "samples": 10978,
     "boundary": [
      [
       35.78112,
@@ -14175,7 +14177,7 @@
    },
    {
     "city": 2,
-    "samples": 17297,
+    "samples": 17207,
     "boundary": [
      [
       35.78587,
@@ -14205,7 +14207,7 @@
    },
    {
     "city": 2,
-    "samples": 4314,
+    "samples": 4128,
     "boundary": [
      [
       35.76616,
@@ -14235,7 +14237,7 @@
    },
    {
     "city": 2,
-    "samples": 4336,
+    "samples": 4340,
     "boundary": [
      [
       35.77089,
@@ -14265,7 +14267,7 @@
    },
    {
     "city": 2,
-    "samples": 16246,
+    "samples": 16229,
     "boundary": [
      [
       35.77839,
@@ -14295,7 +14297,7 @@
    },
    {
     "city": 2,
-    "samples": 16079,
+    "samples": 16041,
     "boundary": [
      [
       35.78312,
@@ -14325,7 +14327,7 @@
    },
    {
     "city": 2,
-    "samples": 4251,
+    "samples": 4151,
     "boundary": [
      [
       35.76143,
@@ -14355,7 +14357,7 @@
    },
    {
     "city": 2,
-    "samples": 17306,
+    "samples": 17162,
     "boundary": [
      [
       35.81028,
@@ -14385,7 +14387,7 @@
    },
    {
     "city": 2,
-    "samples": 20418,
+    "samples": 20568,
     "boundary": [
      [
       35.81502,
@@ -14415,7 +14417,7 @@
    },
    {
     "city": 2,
-    "samples": 10912,
+    "samples": 10868,
     "boundary": [
      [
       35.79333,
@@ -14445,7 +14447,7 @@
    },
    {
     "city": 2,
-    "samples": 17211,
+    "samples": 17169,
     "boundary": [
      [
       35.79808,
@@ -14475,7 +14477,7 @@
    },
    {
     "city": 2,
-    "samples": 17420,
+    "samples": 17088,
     "boundary": [
      [
       35.82248,
@@ -14505,7 +14507,7 @@
    },
    {
     "city": 2,
-    "samples": 20586,
+    "samples": 20493,
     "boundary": [
      [
       35.82722,
@@ -14535,7 +14537,7 @@
    },
    {
     "city": 2,
-    "samples": 10725,
+    "samples": 10747,
     "boundary": [
      [
       35.80553,
@@ -14565,7 +14567,7 @@
    },
    {
     "city": 2,
-    "samples": 22801,
+    "samples": 22978,
     "boundary": [
      [
       35.80756,
@@ -14595,7 +14597,7 @@
    },
    {
     "city": 2,
-    "samples": 23226,
+    "samples": 22874,
     "boundary": [
      [
       35.81229,
@@ -14625,7 +14627,7 @@
    },
    {
     "city": 2,
-    "samples": 19068,
+    "samples": 19088,
     "boundary": [
      [
       35.79061,
@@ -14655,7 +14657,7 @@
    },
    {
     "city": 2,
-    "samples": 18937,
+    "samples": 18843,
     "boundary": [
      [
       35.79534,
@@ -14685,7 +14687,7 @@
    },
    {
     "city": 2,
-    "samples": 25337,
+    "samples": 25295,
     "boundary": [
      [
       35.81976,
@@ -14715,7 +14717,7 @@
    },
    {
     "city": 2,
-    "samples": 29413,
+    "samples": 29340,
     "boundary": [
      [
       35.8245,
@@ -14745,7 +14747,7 @@
    },
    {
     "city": 2,
-    "samples": 20288,
+    "samples": 20544,
     "boundary": [
      [
       35.80282,
@@ -14775,7 +14777,7 @@
    },
    {
     "city": 2,
-    "samples": 3911,
+    "samples": 3947,
     "boundary": [
      [
       35.96051,
@@ -14805,7 +14807,7 @@
    },
    {
     "city": 2,
-    "samples": 4153,
+    "samples": 4156,
     "boundary": [
      [
       35.96999,
@@ -14835,7 +14837,7 @@
    },
    {
     "city": 2,
-    "samples": 4158,
+    "samples": 4166,
     "boundary": [
      [
       35.97472,
@@ -14865,7 +14867,7 @@
    },
    {
     "city": 2,
-    "samples": 16140,
+    "samples": 16299,
     "boundary": [
      [
       35.9531,
@@ -14895,7 +14897,7 @@
    },
    {
     "city": 2,
-    "samples": 15870,
+    "samples": 15992,
     "boundary": [
      [
       35.95783,
@@ -14925,7 +14927,7 @@
    },
    {
     "city": 2,
-    "samples": 4272,
+    "samples": 4185,
     "boundary": [
      [
       35.96526,
@@ -14955,7 +14957,7 @@
    },
    {
     "city": 2,
-    "samples": 17194,
+    "samples": 17201,
     "boundary": [
      [
       35.93146,
@@ -14985,7 +14987,7 @@
    },
    {
     "city": 2,
-    "samples": 18520,
+    "samples": 18883,
     "boundary": [
      [
       35.9362,
@@ -15015,7 +15017,7 @@
    },
    {
     "city": 2,
-    "samples": 17284,
+    "samples": 17157,
     "boundary": [
      [
       35.91455,
@@ -15045,7 +15047,7 @@
    },
    {
     "city": 2,
-    "samples": 20392,
+    "samples": 20524,
     "boundary": [
      [
       35.91929,
@@ -15075,7 +15077,7 @@
    },
    {
     "city": 2,
-    "samples": 10841,
+    "samples": 10715,
     "boundary": [
      [
       35.94361,
@@ -15105,7 +15107,7 @@
    },
    {
     "city": 2,
-    "samples": 16275,
+    "samples": 15933,
     "boundary": [
      [
       35.94836,
@@ -15135,7 +15137,7 @@
    },
    {
     "city": 2,
-    "samples": 10738,
+    "samples": 10917,
     "boundary": [
      [
       35.92671,
@@ -15165,7 +15167,7 @@
    },
    {
     "city": 2,
-    "samples": 4262,
+    "samples": 4135,
     "boundary": [
      [
       35.98889,
@@ -15195,7 +15197,7 @@
    },
    {
     "city": 2,
-    "samples": 15860,
+    "samples": 15829,
     "boundary": [
      [
       35.96729,
@@ -15225,7 +15227,7 @@
    },
    {
     "city": 2,
-    "samples": 15943,
+    "samples": 16036,
     "boundary": [
      [
       35.97201,
@@ -15255,7 +15257,7 @@
    },
    {
     "city": 2,
-    "samples": 18709,
+    "samples": 19048,
     "boundary": [
      [
       35.95039,
@@ -15285,7 +15287,7 @@
    },
    {
     "city": 2,
-    "samples": 18872,
+    "samples": 18802,
     "boundary": [
      [
       35.95511,
@@ -15315,7 +15317,7 @@
    },
    {
     "city": 2,
-    "samples": 4258,
+    "samples": 4133,
     "boundary": [
      [
       35.97945,
@@ -15345,7 +15347,7 @@
    },
    {
     "city": 2,
-    "samples": 4220,
+    "samples": 4276,
     "boundary": [
      [
       35.98417,
@@ -15375,7 +15377,7 @@
    },
    {
     "city": 2,
-    "samples": 15812,
+    "samples": 16093,
     "boundary": [
      [
       35.96256,
@@ -15405,7 +15407,7 @@
    },
    {
     "city": 2,
-    "samples": 13111,
+    "samples": 13003,
     "boundary": [
      [
       35.96454,
@@ -15435,7 +15437,7 @@
    },
    {
     "city": 2,
-    "samples": 17537,
+    "samples": 17445,
     "boundary": [
      [
       35.94765,
@@ -15465,7 +15467,7 @@
    },
    {
     "city": 2,
-    "samples": 12935,
+    "samples": 12960,
     "boundary": [
      [
       35.95236,
@@ -15495,7 +15497,7 @@
    },
    {
     "city": 2,
-    "samples": 13070,
+    "samples": 12951,
     "boundary": [
      [
       35.97672,
@@ -15525,7 +15527,7 @@
    },
    {
     "city": 2,
-    "samples": 17345,
+    "samples": 17384,
     "boundary": [
      [
       35.95983,
@@ -15555,7 +15557,7 @@
    },
    {
     "city": 2,
-    "samples": 10668,
+    "samples": 10723,
     "boundary": [
      [
       35.85903,
@@ -15585,7 +15587,7 @@
    },
    {
     "city": 2,
-    "samples": 8412,
+    "samples": 8558,
     "boundary": [
      [
       35.84209,
@@ -15615,7 +15617,7 @@
    },
    {
     "city": 2,
-    "samples": 19869,
+    "samples": 19763,
     "boundary": [
      [
       35.8516,
@@ -15645,7 +15647,7 @@
    },
    {
     "city": 2,
-    "samples": 24578,
+    "samples": 24446,
     "boundary": [
      [
       35.85635,
@@ -15675,7 +15677,7 @@
    },
    {
     "city": 2,
-    "samples": 17192,
+    "samples": 16976,
     "boundary": [
      [
       35.83467,
@@ -15705,7 +15707,7 @@
    },
    {
     "city": 2,
-    "samples": 20109,
+    "samples": 20332,
     "boundary": [
      [
       35.83942,
@@ -15735,7 +15737,7 @@
    },
    {
     "city": 2,
-    "samples": 16877,
+    "samples": 17164,
     "boundary": [
      [
       35.86378,
@@ -15765,7 +15767,7 @@
    },
    {
     "city": 2,
-    "samples": 20146,
+    "samples": 20264,
     "boundary": [
      [
       35.86853,
@@ -15795,7 +15797,7 @@
    },
    {
     "city": 2,
-    "samples": 16737,
+    "samples": 16773,
     "boundary": [
      [
       35.84685,
@@ -15825,7 +15827,7 @@
    },
    {
     "city": 2,
-    "samples": 10731,
+    "samples": 10677,
     "boundary": [
      [
       35.81773,
@@ -15855,7 +15857,7 @@
    },
    {
     "city": 2,
-    "samples": 10891,
+    "samples": 10761,
     "boundary": [
      [
       35.82991,
@@ -15885,7 +15887,7 @@
    },
    {
     "city": 2,
-    "samples": 10718,
+    "samples": 10570,
     "boundary": [
      [
       35.89288,
@@ -15915,7 +15917,7 @@
    },
    {
     "city": 2,
-    "samples": 16851,
+    "samples": 16735,
     "boundary": [
      [
       35.89763,
@@ -15945,7 +15947,7 @@
    },
    {
     "city": 2,
-    "samples": 10621,
+    "samples": 10729,
     "boundary": [
      [
       35.87596,
@@ -15975,7 +15977,7 @@
    },
    {
     "city": 2,
-    "samples": 16818,
+    "samples": 16785,
     "boundary": [
      [
       35.88071,
@@ -16005,7 +16007,7 @@
    },
    {
     "city": 2,
-    "samples": 10535,
+    "samples": 10736,
     "boundary": [
      [
       35.9098,
@@ -16041,23 +16043,23 @@
     "city": 0,
     "zone": "downtown",
     "cells": 331,
-    "samples": 668285,
-    "avg_rsrp": -80.6,
-    "poor_pct": 0.3
+    "samples": 669212,
+    "avg_rsrp": -80.5,
+    "poor_pct": 0
    },
    {
     "city": 0,
     "zone": "middle",
     "cells": 2460,
-    "samples": 1519008,
+    "samples": 1517451,
     "avg_rsrp": -87.5,
-    "poor_pct": 2.5
+    "poor_pct": 2.6
    },
    {
     "city": 0,
     "zone": "edge",
     "cells": 3978,
-    "samples": 1391143,
+    "samples": 1391925,
     "avg_rsrp": -95.6,
     "poor_pct": 23.1
    },
@@ -16065,2530 +16067,2809 @@
     "city": 1,
     "zone": "downtown",
     "cells": 331,
-    "samples": 669677,
+    "samples": 668913,
     "avg_rsrp": -80.5,
-    "poor_pct": 0.1
+    "poor_pct": 0
    },
    {
     "city": 1,
     "zone": "middle",
     "cells": 2460,
-    "samples": 1517432,
+    "samples": 1519363,
     "avg_rsrp": -87.5,
-    "poor_pct": 2.7
+    "poor_pct": 2.5
    },
    {
     "city": 1,
     "zone": "edge",
     "cells": 3978,
-    "samples": 1391436,
+    "samples": 1389967,
     "avg_rsrp": -95.7,
-    "poor_pct": 23.2
+    "poor_pct": 23.1
    },
    {
     "city": 2,
     "zone": "downtown",
     "cells": 331,
-    "samples": 667208,
+    "samples": 668932,
     "avg_rsrp": -80.5,
-    "poor_pct": 0
+    "poor_pct": 0.1
    },
    {
     "city": 2,
     "zone": "middle",
     "cells": 2460,
-    "samples": 1519167,
+    "samples": 1517785,
     "avg_rsrp": -87.5,
-    "poor_pct": 2.5
+    "poor_pct": 2.6
    },
    {
     "city": 2,
     "zone": "edge",
     "cells": 3978,
-    "samples": 1391845,
+    "samples": 1391882,
     "avg_rsrp": -95.6,
     "poor_pct": 23.1
    }
   ],
   "dashboard": [
    {
-    "minute": "2026-10-18 08:18:00",
+    "minute": "2026-10-18 09:21:00",
     "city": 0,
-    "users": 54290,
-    "samples": 59637,
-    "poor_pct": 10.45
-   },
-   {
-    "minute": "2026-10-18 08:18:00",
-    "city": 1,
-    "users": 54313,
-    "samples": 59624,
-    "poor_pct": 9.86
-   },
-   {
-    "minute": "2026-10-18 08:18:00",
-    "city": 2,
-    "users": 54576,
-    "samples": 59662,
-    "poor_pct": 10.02
-   },
-   {
-    "minute": "2026-10-18 08:19:00",
-    "city": 0,
-    "users": 54342,
-    "samples": 59639,
-    "poor_pct": 10.48
-   },
-   {
-    "minute": "2026-10-18 08:19:00",
-    "city": 1,
-    "users": 54364,
-    "samples": 59649,
-    "poor_pct": 10.08
-   },
-   {
-    "minute": "2026-10-18 08:19:00",
-    "city": 2,
-    "users": 54236,
-    "samples": 59666,
-    "poor_pct": 9.73
-   },
-   {
-    "minute": "2026-10-18 08:20:00",
-    "city": 0,
-    "users": 54383,
-    "samples": 59645,
-    "poor_pct": 10.51
-   },
-   {
-    "minute": "2026-10-18 08:20:00",
-    "city": 1,
-    "users": 54306,
+    "users": 54262,
     "samples": 59634,
-    "poor_pct": 9.94
-   },
-   {
-    "minute": "2026-10-18 08:20:00",
-    "city": 2,
-    "users": 54330,
-    "samples": 59612,
-    "poor_pct": 9.74
-   },
-   {
-    "minute": "2026-10-18 08:21:00",
-    "city": 0,
-    "users": 54430,
-    "samples": 59679,
-    "poor_pct": 10.35
-   },
-   {
-    "minute": "2026-10-18 08:21:00",
-    "city": 1,
-    "users": 54315,
-    "samples": 59654,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 08:21:00",
-    "city": 2,
-    "users": 54338,
-    "samples": 59614,
-    "poor_pct": 10.13
-   },
-   {
-    "minute": "2026-10-18 08:22:00",
-    "city": 0,
-    "users": 54439,
-    "samples": 59646,
-    "poor_pct": 11.55
-   },
-   {
-    "minute": "2026-10-18 08:22:00",
-    "city": 1,
-    "users": 54419,
-    "samples": 59658,
-    "poor_pct": 9.98
-   },
-   {
-    "minute": "2026-10-18 08:22:00",
-    "city": 2,
-    "users": 54338,
-    "samples": 59648,
-    "poor_pct": 9.85
-   },
-   {
-    "minute": "2026-10-18 08:23:00",
-    "city": 0,
-    "users": 54394,
-    "samples": 59690,
-    "poor_pct": 9.92
-   },
-   {
-    "minute": "2026-10-18 08:23:00",
-    "city": 1,
-    "users": 54476,
-    "samples": 59656,
-    "poor_pct": 10.38
-   },
-   {
-    "minute": "2026-10-18 08:23:00",
-    "city": 2,
-    "users": 54247,
-    "samples": 59631,
-    "poor_pct": 9.84
-   },
-   {
-    "minute": "2026-10-18 08:24:00",
-    "city": 0,
-    "users": 54379,
-    "samples": 59628,
-    "poor_pct": 10.23
-   },
-   {
-    "minute": "2026-10-18 08:24:00",
-    "city": 1,
-    "users": 54379,
-    "samples": 59642,
-    "poor_pct": 10.56
-   },
-   {
-    "minute": "2026-10-18 08:24:00",
-    "city": 2,
-    "users": 54357,
-    "samples": 59648,
-    "poor_pct": 10.01
-   },
-   {
-    "minute": "2026-10-18 08:25:00",
-    "city": 0,
-    "users": 54412,
-    "samples": 59633,
-    "poor_pct": 9.93
-   },
-   {
-    "minute": "2026-10-18 08:25:00",
-    "city": 1,
-    "users": 54319,
-    "samples": 59635,
-    "poor_pct": 9.93
-   },
-   {
-    "minute": "2026-10-18 08:25:00",
-    "city": 2,
-    "users": 54315,
-    "samples": 59634,
-    "poor_pct": 10.26
-   },
-   {
-    "minute": "2026-10-18 08:26:00",
-    "city": 0,
-    "users": 54346,
-    "samples": 59657,
-    "poor_pct": 9.81
-   },
-   {
-    "minute": "2026-10-18 08:26:00",
-    "city": 1,
-    "users": 54168,
-    "samples": 59615,
-    "poor_pct": 10.39
-   },
-   {
-    "minute": "2026-10-18 08:26:00",
-    "city": 2,
-    "users": 54449,
-    "samples": 59659,
-    "poor_pct": 9.87
-   },
-   {
-    "minute": "2026-10-18 08:27:00",
-    "city": 0,
-    "users": 54250,
-    "samples": 59622,
-    "poor_pct": 10.52
-   },
-   {
-    "minute": "2026-10-18 08:27:00",
-    "city": 1,
-    "users": 54369,
-    "samples": 59621,
-    "poor_pct": 10
-   },
-   {
-    "minute": "2026-10-18 08:27:00",
-    "city": 2,
-    "users": 54306,
-    "samples": 59614,
-    "poor_pct": 9.86
-   },
-   {
-    "minute": "2026-10-18 08:28:00",
-    "city": 0,
-    "users": 54417,
-    "samples": 59643,
-    "poor_pct": 10.9
-   },
-   {
-    "minute": "2026-10-18 08:28:00",
-    "city": 1,
-    "users": 54303,
-    "samples": 59661,
-    "poor_pct": 9.7
-   },
-   {
-    "minute": "2026-10-18 08:28:00",
-    "city": 2,
-    "users": 54500,
-    "samples": 59644,
-    "poor_pct": 9.88
-   },
-   {
-    "minute": "2026-10-18 08:29:00",
-    "city": 0,
-    "users": 54332,
-    "samples": 59618,
-    "poor_pct": 9.84
-   },
-   {
-    "minute": "2026-10-18 08:29:00",
-    "city": 1,
-    "users": 54355,
-    "samples": 59675,
-    "poor_pct": 10.23
-   },
-   {
-    "minute": "2026-10-18 08:29:00",
-    "city": 2,
-    "users": 54221,
-    "samples": 59659,
-    "poor_pct": 10.02
-   },
-   {
-    "minute": "2026-10-18 08:30:00",
-    "city": 0,
-    "users": 54354,
-    "samples": 59626,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 08:30:00",
-    "city": 1,
-    "users": 54280,
-    "samples": 59617,
-    "poor_pct": 10.42
-   },
-   {
-    "minute": "2026-10-18 08:30:00",
-    "city": 2,
-    "users": 54364,
-    "samples": 59651,
-    "poor_pct": 9.98
-   },
-   {
-    "minute": "2026-10-18 08:31:00",
-    "city": 0,
-    "users": 54341,
-    "samples": 59651,
-    "poor_pct": 9.91
-   },
-   {
-    "minute": "2026-10-18 08:31:00",
-    "city": 1,
-    "users": 54237,
-    "samples": 59630,
-    "poor_pct": 10.41
-   },
-   {
-    "minute": "2026-10-18 08:31:00",
-    "city": 2,
-    "users": 54369,
-    "samples": 59634,
-    "poor_pct": 10.03
-   },
-   {
-    "minute": "2026-10-18 08:32:00",
-    "city": 0,
-    "users": 54317,
-    "samples": 59630,
-    "poor_pct": 10
-   },
-   {
-    "minute": "2026-10-18 08:32:00",
-    "city": 1,
-    "users": 54392,
-    "samples": 59656,
-    "poor_pct": 10.68
-   },
-   {
-    "minute": "2026-10-18 08:32:00",
-    "city": 2,
-    "users": 54402,
-    "samples": 59663,
-    "poor_pct": 9.81
-   },
-   {
-    "minute": "2026-10-18 08:33:00",
-    "city": 0,
-    "users": 54267,
-    "samples": 59607,
-    "poor_pct": 10.35
-   },
-   {
-    "minute": "2026-10-18 08:33:00",
-    "city": 1,
-    "users": 54384,
-    "samples": 59633,
-    "poor_pct": 9.81
-   },
-   {
-    "minute": "2026-10-18 08:33:00",
-    "city": 2,
-    "users": 54534,
-    "samples": 59664,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 08:34:00",
-    "city": 0,
-    "users": 54348,
-    "samples": 59604,
-    "poor_pct": 10.02
-   },
-   {
-    "minute": "2026-10-18 08:34:00",
-    "city": 1,
-    "users": 54334,
-    "samples": 59651,
-    "poor_pct": 10.04
-   },
-   {
-    "minute": "2026-10-18 08:34:00",
-    "city": 2,
-    "users": 54338,
-    "samples": 59614,
-    "poor_pct": 10.18
-   },
-   {
-    "minute": "2026-10-18 08:35:00",
-    "city": 0,
-    "users": 54271,
-    "samples": 59647,
-    "poor_pct": 11.36
-   },
-   {
-    "minute": "2026-10-18 08:35:00",
-    "city": 1,
-    "users": 54223,
-    "samples": 59641,
-    "poor_pct": 9.86
-   },
-   {
-    "minute": "2026-10-18 08:35:00",
-    "city": 2,
-    "users": 54235,
-    "samples": 59607,
-    "poor_pct": 9.74
-   },
-   {
-    "minute": "2026-10-18 08:36:00",
-    "city": 0,
-    "users": 54419,
-    "samples": 59661,
-    "poor_pct": 10.01
-   },
-   {
-    "minute": "2026-10-18 08:36:00",
-    "city": 1,
-    "users": 54456,
-    "samples": 59653,
-    "poor_pct": 10.75
-   },
-   {
-    "minute": "2026-10-18 08:36:00",
-    "city": 2,
-    "users": 54455,
-    "samples": 59656,
-    "poor_pct": 10.04
-   },
-   {
-    "minute": "2026-10-18 08:37:00",
-    "city": 0,
-    "users": 54393,
-    "samples": 59655,
-    "poor_pct": 10.31
-   },
-   {
-    "minute": "2026-10-18 08:37:00",
-    "city": 1,
-    "users": 54269,
-    "samples": 59640,
-    "poor_pct": 10.07
-   },
-   {
-    "minute": "2026-10-18 08:37:00",
-    "city": 2,
-    "users": 54358,
-    "samples": 59608,
-    "poor_pct": 9.93
-   },
-   {
-    "minute": "2026-10-18 08:38:00",
-    "city": 0,
-    "users": 54350,
-    "samples": 59619,
-    "poor_pct": 9.85
-   },
-   {
-    "minute": "2026-10-18 08:38:00",
-    "city": 1,
-    "users": 54307,
-    "samples": 59646,
-    "poor_pct": 9.78
-   },
-   {
-    "minute": "2026-10-18 08:38:00",
-    "city": 2,
-    "users": 54290,
-    "samples": 59644,
-    "poor_pct": 10.49
-   },
-   {
-    "minute": "2026-10-18 08:39:00",
-    "city": 0,
-    "users": 54282,
-    "samples": 59639,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 08:39:00",
-    "city": 1,
-    "users": 54374,
-    "samples": 59605,
-    "poor_pct": 9.91
-   },
-   {
-    "minute": "2026-10-18 08:39:00",
-    "city": 2,
-    "users": 54281,
-    "samples": 59639,
-    "poor_pct": 10.11
-   },
-   {
-    "minute": "2026-10-18 08:40:00",
-    "city": 0,
-    "users": 54370,
-    "samples": 59635,
-    "poor_pct": 10.29
-   },
-   {
-    "minute": "2026-10-18 08:40:00",
-    "city": 1,
-    "users": 54545,
-    "samples": 59682,
-    "poor_pct": 10.12
-   },
-   {
-    "minute": "2026-10-18 08:40:00",
-    "city": 2,
-    "users": 54329,
-    "samples": 59623,
-    "poor_pct": 9.82
-   },
-   {
-    "minute": "2026-10-18 08:41:00",
-    "city": 0,
-    "users": 54286,
-    "samples": 59636,
     "poor_pct": 9.9
    },
    {
-    "minute": "2026-10-18 08:41:00",
+    "minute": "2026-10-18 09:21:00",
     "city": 1,
-    "users": 54368,
-    "samples": 59652,
-    "poor_pct": 10.37
+    "users": 54207,
+    "samples": 59634,
+    "poor_pct": 10.33
    },
    {
-    "minute": "2026-10-18 08:41:00",
+    "minute": "2026-10-18 09:21:00",
     "city": 2,
-    "users": 54230,
-    "samples": 59675,
-    "poor_pct": 9.86
-   },
-   {
-    "minute": "2026-10-18 08:42:00",
-    "city": 0,
-    "users": 54283,
-    "samples": 59631,
-    "poor_pct": 9.94
-   },
-   {
-    "minute": "2026-10-18 08:42:00",
-    "city": 1,
-    "users": 54285,
-    "samples": 59636,
-    "poor_pct": 10.97
-   },
-   {
-    "minute": "2026-10-18 08:42:00",
-    "city": 2,
-    "users": 54361,
-    "samples": 59627,
-    "poor_pct": 10.11
-   },
-   {
-    "minute": "2026-10-18 08:43:00",
-    "city": 0,
-    "users": 54504,
-    "samples": 59671,
-    "poor_pct": 10.46
-   },
-   {
-    "minute": "2026-10-18 08:43:00",
-    "city": 1,
-    "users": 54434,
-    "samples": 59660,
-    "poor_pct": 10.03
-   },
-   {
-    "minute": "2026-10-18 08:43:00",
-    "city": 2,
-    "users": 54342,
-    "samples": 59642,
-    "poor_pct": 10.02
-   },
-   {
-    "minute": "2026-10-18 08:44:00",
-    "city": 0,
-    "users": 54277,
-    "samples": 59635,
-    "poor_pct": 9.91
-   },
-   {
-    "minute": "2026-10-18 08:44:00",
-    "city": 1,
-    "users": 54253,
-    "samples": 59633,
-    "poor_pct": 10.67
-   },
-   {
-    "minute": "2026-10-18 08:44:00",
-    "city": 2,
-    "users": 54518,
-    "samples": 59672,
-    "poor_pct": 9.92
-   },
-   {
-    "minute": "2026-10-18 08:45:00",
-    "city": 0,
-    "users": 54341,
-    "samples": 59656,
-    "poor_pct": 9.79
-   },
-   {
-    "minute": "2026-10-18 08:45:00",
-    "city": 1,
-    "users": 54330,
-    "samples": 59649,
-    "poor_pct": 10.14
-   },
-   {
-    "minute": "2026-10-18 08:45:00",
-    "city": 2,
-    "users": 54443,
-    "samples": 59616,
-    "poor_pct": 10.05
-   },
-   {
-    "minute": "2026-10-18 08:46:00",
-    "city": 0,
-    "users": 54430,
-    "samples": 59645,
-    "poor_pct": 9.74
-   },
-   {
-    "minute": "2026-10-18 08:46:00",
-    "city": 1,
-    "users": 54346,
-    "samples": 59652,
-    "poor_pct": 10.43
-   },
-   {
-    "minute": "2026-10-18 08:46:00",
-    "city": 2,
-    "users": 54302,
-    "samples": 59638,
-    "poor_pct": 10.16
-   },
-   {
-    "minute": "2026-10-18 08:47:00",
-    "city": 0,
-    "users": 54293,
-    "samples": 59622,
+    "users": 54389,
+    "samples": 59643,
     "poor_pct": 10.04
    },
    {
-    "minute": "2026-10-18 08:47:00",
-    "city": 1,
-    "users": 54384,
-    "samples": 59661,
-    "poor_pct": 10.22
+    "minute": "2026-10-18 09:22:00",
+    "city": 0,
+    "users": 54297,
+    "samples": 59639,
+    "poor_pct": 10.31
    },
    {
-    "minute": "2026-10-18 08:47:00",
-    "city": 2,
-    "users": 54281,
+    "minute": "2026-10-18 09:22:00",
+    "city": 1,
+    "users": 54343,
     "samples": 59623,
-    "poor_pct": 9.94
+    "poor_pct": 9.69
    },
    {
-    "minute": "2026-10-18 08:48:00",
-    "city": 0,
-    "users": 54327,
-    "samples": 59647,
-    "poor_pct": 9.89
-   },
-   {
-    "minute": "2026-10-18 08:48:00",
-    "city": 1,
-    "users": 54378,
-    "samples": 59647,
-    "poor_pct": 9.74
-   },
-   {
-    "minute": "2026-10-18 08:48:00",
+    "minute": "2026-10-18 09:22:00",
     "city": 2,
-    "users": 54350,
-    "samples": 59641,
-    "poor_pct": 10.53
-   },
-   {
-    "minute": "2026-10-18 08:49:00",
-    "city": 0,
-    "users": 54429,
-    "samples": 59656,
-    "poor_pct": 10.02
-   },
-   {
-    "minute": "2026-10-18 08:49:00",
-    "city": 1,
-    "users": 54388,
-    "samples": 59639,
-    "poor_pct": 10.46
-   },
-   {
-    "minute": "2026-10-18 08:49:00",
-    "city": 2,
-    "users": 54386,
-    "samples": 59631,
-    "poor_pct": 9.96
-   },
-   {
-    "minute": "2026-10-18 08:50:00",
-    "city": 0,
-    "users": 54448,
-    "samples": 59648,
-    "poor_pct": 9.61
-   },
-   {
-    "minute": "2026-10-18 08:50:00",
-    "city": 1,
-    "users": 54416,
-    "samples": 59639,
-    "poor_pct": 10.52
-   },
-   {
-    "minute": "2026-10-18 08:50:00",
-    "city": 2,
-    "users": 54316,
-    "samples": 59637,
-    "poor_pct": 9.97
-   },
-   {
-    "minute": "2026-10-18 08:51:00",
-    "city": 0,
-    "users": 54363,
-    "samples": 59639,
-    "poor_pct": 9.75
-   },
-   {
-    "minute": "2026-10-18 08:51:00",
-    "city": 1,
-    "users": 54427,
-    "samples": 59633,
-    "poor_pct": 10.81
-   },
-   {
-    "minute": "2026-10-18 08:51:00",
-    "city": 2,
-    "users": 54474,
-    "samples": 59650,
-    "poor_pct": 9.8
-   },
-   {
-    "minute": "2026-10-18 08:52:00",
-    "city": 0,
-    "users": 54313,
-    "samples": 59627,
-    "poor_pct": 9.92
-   },
-   {
-    "minute": "2026-10-18 08:52:00",
-    "city": 1,
-    "users": 54313,
-    "samples": 59617,
-    "poor_pct": 10.57
-   },
-   {
-    "minute": "2026-10-18 08:52:00",
-    "city": 2,
-    "users": 54404,
-    "samples": 59613,
-    "poor_pct": 10.07
-   },
-   {
-    "minute": "2026-10-18 08:53:00",
-    "city": 0,
-    "users": 54408,
-    "samples": 59648,
-    "poor_pct": 9.79
-   },
-   {
-    "minute": "2026-10-18 08:53:00",
-    "city": 1,
-    "users": 54221,
-    "samples": 59633,
-    "poor_pct": 10.64
-   },
-   {
-    "minute": "2026-10-18 08:53:00",
-    "city": 2,
-    "users": 54401,
-    "samples": 59641,
-    "poor_pct": 9.81
-   },
-   {
-    "minute": "2026-10-18 08:54:00",
-    "city": 0,
-    "users": 54320,
-    "samples": 59647,
-    "poor_pct": 9.73
-   },
-   {
-    "minute": "2026-10-18 08:54:00",
-    "city": 1,
-    "users": 54375,
-    "samples": 59636,
-    "poor_pct": 9.79
-   },
-   {
-    "minute": "2026-10-18 08:54:00",
-    "city": 2,
-    "users": 54392,
+    "users": 54385,
     "samples": 59629,
-    "poor_pct": 10.24
+    "poor_pct": 9.93
    },
    {
-    "minute": "2026-10-18 08:55:00",
+    "minute": "2026-10-18 09:23:00",
     "city": 0,
-    "users": 54426,
-    "samples": 59642,
-    "poor_pct": 10.64
-   },
-   {
-    "minute": "2026-10-18 08:55:00",
-    "city": 1,
-    "users": 54284,
-    "samples": 59662,
+    "users": 54257,
+    "samples": 59645,
     "poor_pct": 10.21
    },
    {
-    "minute": "2026-10-18 08:55:00",
-    "city": 2,
-    "users": 54336,
-    "samples": 59626,
-    "poor_pct": 9.99
-   },
-   {
-    "minute": "2026-10-18 08:56:00",
-    "city": 0,
-    "users": 54284,
-    "samples": 59612,
-    "poor_pct": 9.96
-   },
-   {
-    "minute": "2026-10-18 08:56:00",
+    "minute": "2026-10-18 09:23:00",
     "city": 1,
-    "users": 54363,
-    "samples": 59647,
-    "poor_pct": 9.75
-   },
-   {
-    "minute": "2026-10-18 08:56:00",
-    "city": 2,
-    "users": 54459,
-    "samples": 59627,
-    "poor_pct": 10.45
-   },
-   {
-    "minute": "2026-10-18 08:57:00",
-    "city": 0,
-    "users": 54339,
-    "samples": 59622,
-    "poor_pct": 9.98
-   },
-   {
-    "minute": "2026-10-18 08:57:00",
-    "city": 1,
-    "users": 54300,
-    "samples": 59614,
-    "poor_pct": 10.53
-   },
-   {
-    "minute": "2026-10-18 08:57:00",
-    "city": 2,
-    "users": 54345,
-    "samples": 59626,
-    "poor_pct": 9.73
-   },
-   {
-    "minute": "2026-10-18 08:58:00",
-    "city": 0,
-    "users": 54446,
-    "samples": 59674,
-    "poor_pct": 10.2
-   },
-   {
-    "minute": "2026-10-18 08:58:00",
-    "city": 1,
-    "users": 54324,
-    "samples": 59626,
-    "poor_pct": 10.01
-   },
-   {
-    "minute": "2026-10-18 08:58:00",
-    "city": 2,
-    "users": 54362,
-    "samples": 59617,
-    "poor_pct": 9.8
-   },
-   {
-    "minute": "2026-10-18 08:59:00",
-    "city": 0,
-    "users": 54234,
-    "samples": 59639,
-    "poor_pct": 9.94
-   },
-   {
-    "minute": "2026-10-18 08:59:00",
-    "city": 1,
-    "users": 54391,
-    "samples": 59687,
+    "users": 54383,
+    "samples": 59655,
     "poor_pct": 9.89
    },
    {
-    "minute": "2026-10-18 08:59:00",
+    "minute": "2026-10-18 09:23:00",
     "city": 2,
-    "users": 54476,
-    "samples": 59643,
-    "poor_pct": 10.12
+    "users": 54304,
+    "samples": 59630,
+    "poor_pct": 9.99
    },
    {
-    "minute": "2026-10-18 09:00:00",
+    "minute": "2026-10-18 09:24:00",
     "city": 0,
-    "users": 54354,
-    "samples": 59670,
-    "poor_pct": 10.05
-   },
-   {
-    "minute": "2026-10-18 09:00:00",
-    "city": 1,
-    "users": 54337,
-    "samples": 59653,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 09:00:00",
-    "city": 2,
-    "users": 54391,
-    "samples": 59661,
-    "poor_pct": 10.59
-   },
-   {
-    "minute": "2026-10-18 09:01:00",
-    "city": 0,
-    "users": 54298,
-    "samples": 59641,
-    "poor_pct": 9.92
-   },
-   {
-    "minute": "2026-10-18 09:01:00",
-    "city": 1,
-    "users": 54196,
-    "samples": 59638,
-    "poor_pct": 10.41
-   },
-   {
-    "minute": "2026-10-18 09:01:00",
-    "city": 2,
-    "users": 54230,
-    "samples": 59609,
-    "poor_pct": 9.7
-   },
-   {
-    "minute": "2026-10-18 09:02:00",
-    "city": 0,
-    "users": 54334,
-    "samples": 59633,
-    "poor_pct": 10.1
-   },
-   {
-    "minute": "2026-10-18 09:02:00",
-    "city": 1,
-    "users": 54380,
-    "samples": 59633,
-    "poor_pct": 10.54
-   },
-   {
-    "minute": "2026-10-18 09:02:00",
-    "city": 2,
-    "users": 54264,
-    "samples": 59650,
-    "poor_pct": 9.84
-   },
-   {
-    "minute": "2026-10-18 09:03:00",
-    "city": 0,
-    "users": 54403,
-    "samples": 59628,
+    "users": 54485,
+    "samples": 59616,
     "poor_pct": 9.96
    },
    {
-    "minute": "2026-10-18 09:03:00",
+    "minute": "2026-10-18 09:24:00",
     "city": 1,
-    "users": 54302,
-    "samples": 59608,
-    "poor_pct": 10.25
-   },
-   {
-    "minute": "2026-10-18 09:03:00",
-    "city": 2,
-    "users": 54404,
-    "samples": 59647,
-    "poor_pct": 10.01
-   },
-   {
-    "minute": "2026-10-18 09:04:00",
-    "city": 0,
-    "users": 54256,
-    "samples": 59629,
-    "poor_pct": 9.7
-   },
-   {
-    "minute": "2026-10-18 09:04:00",
-    "city": 1,
-    "users": 54298,
-    "samples": 59613,
-    "poor_pct": 9.72
-   },
-   {
-    "minute": "2026-10-18 09:04:00",
-    "city": 2,
-    "users": 54254,
-    "samples": 59633,
-    "poor_pct": 10.18
-   },
-   {
-    "minute": "2026-10-18 09:05:00",
-    "city": 0,
-    "users": 54429,
-    "samples": 59665,
-    "poor_pct": 9.82
-   },
-   {
-    "minute": "2026-10-18 09:05:00",
-    "city": 1,
-    "users": 54379,
-    "samples": 59656,
-    "poor_pct": 10.01
-   },
-   {
-    "minute": "2026-10-18 09:05:00",
-    "city": 2,
-    "users": 54288,
-    "samples": 59643,
-    "poor_pct": 10.39
-   },
-   {
-    "minute": "2026-10-18 09:06:00",
-    "city": 0,
-    "users": 54294,
-    "samples": 59627,
-    "poor_pct": 10.77
-   },
-   {
-    "minute": "2026-10-18 09:06:00",
-    "city": 1,
-    "users": 54384,
-    "samples": 59643,
-    "poor_pct": 10
-   },
-   {
-    "minute": "2026-10-18 09:06:00",
-    "city": 2,
-    "users": 54263,
-    "samples": 59642,
-    "poor_pct": 9.75
-   },
-   {
-    "minute": "2026-10-18 09:07:00",
-    "city": 0,
-    "users": 54228,
-    "samples": 59612,
-    "poor_pct": 9.94
-   },
-   {
-    "minute": "2026-10-18 09:07:00",
-    "city": 1,
-    "users": 54509,
-    "samples": 59626,
-    "poor_pct": 10.7
-   },
-   {
-    "minute": "2026-10-18 09:07:00",
-    "city": 2,
-    "users": 54259,
+    "users": 54434,
     "samples": 59620,
     "poor_pct": 9.79
    },
    {
-    "minute": "2026-10-18 09:08:00",
-    "city": 0,
-    "users": 54333,
-    "samples": 59663,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 09:08:00",
-    "city": 1,
-    "users": 54143,
-    "samples": 59651,
-    "poor_pct": 10.06
-   },
-   {
-    "minute": "2026-10-18 09:08:00",
+    "minute": "2026-10-18 09:24:00",
     "city": 2,
-    "users": 54359,
-    "samples": 59634,
-    "poor_pct": 10.41
+    "users": 54358,
+    "samples": 59620,
+    "poor_pct": 10.91
    },
    {
-    "minute": "2026-10-18 09:09:00",
+    "minute": "2026-10-18 09:25:00",
     "city": 0,
-    "users": 54280,
-    "samples": 59666,
-    "poor_pct": 10.04
+    "users": 54155,
+    "samples": 59670,
+    "poor_pct": 9.88
    },
    {
-    "minute": "2026-10-18 09:09:00",
+    "minute": "2026-10-18 09:25:00",
     "city": 1,
-    "users": 54267,
-    "samples": 59631,
-    "poor_pct": 9.78
+    "users": 54313,
+    "samples": 59628,
+    "poor_pct": 9.92
    },
    {
-    "minute": "2026-10-18 09:09:00",
+    "minute": "2026-10-18 09:25:00",
     "city": 2,
-    "users": 54275,
-    "samples": 59623,
-    "poor_pct": 10.72
+    "users": 54370,
+    "samples": 59661,
+    "poor_pct": 10.39
    },
    {
-    "minute": "2026-10-18 09:10:00",
+    "minute": "2026-10-18 09:26:00",
     "city": 0,
-    "users": 54377,
-    "samples": 59643,
-    "poor_pct": 10.67
+    "users": 54322,
+    "samples": 59624,
+    "poor_pct": 9.92
    },
    {
-    "minute": "2026-10-18 09:10:00",
+    "minute": "2026-10-18 09:26:00",
     "city": 1,
-    "users": 54376,
-    "samples": 59667,
-    "poor_pct": 10
+    "users": 54453,
+    "samples": 59624,
+    "poor_pct": 9.67
    },
    {
-    "minute": "2026-10-18 09:10:00",
+    "minute": "2026-10-18 09:26:00",
     "city": 2,
-    "users": 54315,
-    "samples": 59632,
-    "poor_pct": 9.85
+    "users": 54373,
+    "samples": 59671,
+    "poor_pct": 10.2
    },
    {
-    "minute": "2026-10-18 09:11:00",
+    "minute": "2026-10-18 09:27:00",
     "city": 0,
-    "users": 54225,
-    "samples": 59598,
-    "poor_pct": 10
+    "users": 54344,
+    "samples": 59674,
+    "poor_pct": 10.34
    },
    {
-    "minute": "2026-10-18 09:11:00",
+    "minute": "2026-10-18 09:27:00",
     "city": 1,
-    "users": 54379,
-    "samples": 59639,
-    "poor_pct": 9.93
+    "users": 54321,
+    "samples": 59642,
+    "poor_pct": 9.73
    },
    {
-    "minute": "2026-10-18 09:11:00",
+    "minute": "2026-10-18 09:27:00",
     "city": 2,
-    "users": 54310,
-    "samples": 59639,
-    "poor_pct": 10.7
+    "users": 54214,
+    "samples": 59638,
+    "poor_pct": 10.09
    },
    {
-    "minute": "2026-10-18 09:12:00",
+    "minute": "2026-10-18 09:28:00",
     "city": 0,
-    "users": 54398,
-    "samples": 59673,
-    "poor_pct": 10.45
+    "users": 54318,
+    "samples": 59609,
+    "poor_pct": 9.95
    },
    {
-    "minute": "2026-10-18 09:12:00",
+    "minute": "2026-10-18 09:28:00",
     "city": 1,
-    "users": 54430,
-    "samples": 59669,
-    "poor_pct": 10.05
+    "users": 54224,
+    "samples": 59641,
+    "poor_pct": 10.52
    },
    {
-    "minute": "2026-10-18 09:12:00",
-    "city": 2,
-    "users": 54422,
-    "samples": 59631,
-    "poor_pct": 9.96
-   },
-   {
-    "minute": "2026-10-18 09:13:00",
-    "city": 0,
-    "users": 54311,
-    "samples": 59629,
-    "poor_pct": 9.82
-   },
-   {
-    "minute": "2026-10-18 09:13:00",
-    "city": 1,
-    "users": 54375,
-    "samples": 59645,
-    "poor_pct": 11.07
-   },
-   {
-    "minute": "2026-10-18 09:13:00",
-    "city": 2,
-    "users": 54372,
-    "samples": 59619,
-    "poor_pct": 10.12
-   },
-   {
-    "minute": "2026-10-18 09:14:00",
-    "city": 0,
-    "users": 54338,
-    "samples": 59648,
-    "poor_pct": 10.47
-   },
-   {
-    "minute": "2026-10-18 09:14:00",
-    "city": 1,
-    "users": 54299,
-    "samples": 59667,
-    "poor_pct": 9.83
-   },
-   {
-    "minute": "2026-10-18 09:14:00",
+    "minute": "2026-10-18 09:28:00",
     "city": 2,
     "users": 54374,
-    "samples": 59629,
-    "poor_pct": 9.65
+    "samples": 59619,
+    "poor_pct": 10.15
    },
    {
-    "minute": "2026-10-18 09:15:00",
+    "minute": "2026-10-18 09:29:00",
     "city": 0,
-    "users": 54361,
-    "samples": 59636,
+    "users": 54303,
+    "samples": 59641,
+    "poor_pct": 9.68
+   },
+   {
+    "minute": "2026-10-18 09:29:00",
+    "city": 1,
+    "users": 54451,
+    "samples": 59670,
+    "poor_pct": 10.33
+   },
+   {
+    "minute": "2026-10-18 09:29:00",
+    "city": 2,
+    "users": 54369,
+    "samples": 59679,
+    "poor_pct": 9.81
+   },
+   {
+    "minute": "2026-10-18 09:30:00",
+    "city": 0,
+    "users": 54306,
+    "samples": 59643,
+    "poor_pct": 10.36
+   },
+   {
+    "minute": "2026-10-18 09:30:00",
+    "city": 1,
+    "users": 54296,
+    "samples": 59648,
+    "poor_pct": 10.01
+   },
+   {
+    "minute": "2026-10-18 09:30:00",
+    "city": 2,
+    "users": 54322,
+    "samples": 59641,
     "poor_pct": 9.78
    },
    {
-    "minute": "2026-10-18 09:15:00",
-    "city": 1,
-    "users": 54294,
-    "samples": 59633,
-    "poor_pct": 11.06
+    "minute": "2026-10-18 09:31:00",
+    "city": 0,
+    "users": 54273,
+    "samples": 59608,
+    "poor_pct": 9.73
    },
    {
-    "minute": "2026-10-18 09:15:00",
+    "minute": "2026-10-18 09:31:00",
+    "city": 1,
+    "users": 54218,
+    "samples": 59622,
+    "poor_pct": 10.14
+   },
+   {
+    "minute": "2026-10-18 09:31:00",
     "city": 2,
-    "users": 54522,
-    "samples": 59659,
+    "users": 54414,
+    "samples": 59669,
+    "poor_pct": 10.16
+   },
+   {
+    "minute": "2026-10-18 09:32:00",
+    "city": 0,
+    "users": 54324,
+    "samples": 59606,
+    "poor_pct": 9.72
+   },
+   {
+    "minute": "2026-10-18 09:32:00",
+    "city": 1,
+    "users": 54269,
+    "samples": 59642,
+    "poor_pct": 9.88
+   },
+   {
+    "minute": "2026-10-18 09:32:00",
+    "city": 2,
+    "users": 54235,
+    "samples": 59630,
+    "poor_pct": 10.14
+   },
+   {
+    "minute": "2026-10-18 09:33:00",
+    "city": 0,
+    "users": 54331,
+    "samples": 59647,
+    "poor_pct": 10.38
+   },
+   {
+    "minute": "2026-10-18 09:33:00",
+    "city": 1,
+    "users": 54314,
+    "samples": 59620,
+    "poor_pct": 9.98
+   },
+   {
+    "minute": "2026-10-18 09:33:00",
+    "city": 2,
+    "users": 54284,
+    "samples": 59585,
+    "poor_pct": 9.74
+   },
+   {
+    "minute": "2026-10-18 09:34:00",
+    "city": 0,
+    "users": 54459,
+    "samples": 59657,
+    "poor_pct": 10.75
+   },
+   {
+    "minute": "2026-10-18 09:34:00",
+    "city": 1,
+    "users": 54400,
+    "samples": 59625,
+    "poor_pct": 10.27
+   },
+   {
+    "minute": "2026-10-18 09:34:00",
+    "city": 2,
+    "users": 54407,
+    "samples": 59672,
     "poor_pct": 10.02
    },
    {
-    "minute": "2026-10-18 09:16:00",
+    "minute": "2026-10-18 09:35:00",
     "city": 0,
-    "users": 54289,
-    "samples": 59625,
-    "poor_pct": 10.41
+    "users": 54233,
+    "samples": 59645,
+    "poor_pct": 9.84
    },
    {
-    "minute": "2026-10-18 09:16:00",
+    "minute": "2026-10-18 09:35:00",
     "city": 1,
-    "users": 54296,
+    "users": 54347,
+    "samples": 59654,
+    "poor_pct": 10.92
+   },
+   {
+    "minute": "2026-10-18 09:35:00",
+    "city": 2,
+    "users": 54432,
+    "samples": 59636,
+    "poor_pct": 9.89
+   },
+   {
+    "minute": "2026-10-18 09:36:00",
+    "city": 0,
+    "users": 54248,
+    "samples": 59627,
+    "poor_pct": 9.94
+   },
+   {
+    "minute": "2026-10-18 09:36:00",
+    "city": 1,
+    "users": 54237,
+    "samples": 59644,
+    "poor_pct": 9.96
+   },
+   {
+    "minute": "2026-10-18 09:36:00",
+    "city": 2,
+    "users": 54233,
+    "samples": 59631,
+    "poor_pct": 10.49
+   },
+   {
+    "minute": "2026-10-18 09:37:00",
+    "city": 0,
+    "users": 54245,
+    "samples": 59631,
+    "poor_pct": 9.99
+   },
+   {
+    "minute": "2026-10-18 09:37:00",
+    "city": 1,
+    "users": 54334,
+    "samples": 59657,
+    "poor_pct": 9.82
+   },
+   {
+    "minute": "2026-10-18 09:37:00",
+    "city": 2,
+    "users": 54299,
+    "samples": 59628,
+    "poor_pct": 9.93
+   },
+   {
+    "minute": "2026-10-18 09:38:00",
+    "city": 0,
+    "users": 54313,
     "samples": 59622,
+    "poor_pct": 9.94
+   },
+   {
+    "minute": "2026-10-18 09:38:00",
+    "city": 1,
+    "users": 54357,
+    "samples": 59632,
+    "poor_pct": 10.4
+   },
+   {
+    "minute": "2026-10-18 09:38:00",
+    "city": 2,
+    "users": 54373,
+    "samples": 59664,
+    "poor_pct": 9.57
+   },
+   {
+    "minute": "2026-10-18 09:39:00",
+    "city": 0,
+    "users": 54437,
+    "samples": 59646,
+    "poor_pct": 9.8
+   },
+   {
+    "minute": "2026-10-18 09:39:00",
+    "city": 1,
+    "users": 54355,
+    "samples": 59622,
+    "poor_pct": 9.89
+   },
+   {
+    "minute": "2026-10-18 09:39:00",
+    "city": 2,
+    "users": 54466,
+    "samples": 59641,
+    "poor_pct": 10.64
+   },
+   {
+    "minute": "2026-10-18 09:40:00",
+    "city": 0,
+    "users": 54452,
+    "samples": 59683,
+    "poor_pct": 9.82
+   },
+   {
+    "minute": "2026-10-18 09:40:00",
+    "city": 1,
+    "users": 54421,
+    "samples": 59615,
+    "poor_pct": 10.7
+   },
+   {
+    "minute": "2026-10-18 09:40:00",
+    "city": 2,
+    "users": 54422,
+    "samples": 59664,
+    "poor_pct": 9.88
+   },
+   {
+    "minute": "2026-10-18 09:41:00",
+    "city": 0,
+    "users": 54364,
+    "samples": 59649,
+    "poor_pct": 9.76
+   },
+   {
+    "minute": "2026-10-18 09:41:00",
+    "city": 1,
+    "users": 54312,
+    "samples": 59608,
+    "poor_pct": 10.17
+   },
+   {
+    "minute": "2026-10-18 09:41:00",
+    "city": 2,
+    "users": 54287,
+    "samples": 59640,
+    "poor_pct": 9.83
+   },
+   {
+    "minute": "2026-10-18 09:42:00",
+    "city": 0,
+    "users": 54283,
+    "samples": 59630,
+    "poor_pct": 9.76
+   },
+   {
+    "minute": "2026-10-18 09:42:00",
+    "city": 1,
+    "users": 54278,
+    "samples": 59641,
+    "poor_pct": 9.64
+   },
+   {
+    "minute": "2026-10-18 09:42:00",
+    "city": 2,
+    "users": 54166,
+    "samples": 59659,
+    "poor_pct": 10.39
+   },
+   {
+    "minute": "2026-10-18 09:43:00",
+    "city": 0,
+    "users": 54246,
+    "samples": 59650,
+    "poor_pct": 9.87
+   },
+   {
+    "minute": "2026-10-18 09:43:00",
+    "city": 1,
+    "users": 54439,
+    "samples": 59648,
+    "poor_pct": 10.16
+   },
+   {
+    "minute": "2026-10-18 09:43:00",
+    "city": 2,
+    "users": 54520,
+    "samples": 59676,
+    "poor_pct": 10.43
+   },
+   {
+    "minute": "2026-10-18 09:44:00",
+    "city": 0,
+    "users": 54272,
+    "samples": 59627,
+    "poor_pct": 9.8
+   },
+   {
+    "minute": "2026-10-18 09:44:00",
+    "city": 1,
+    "users": 54276,
+    "samples": 59633,
+    "poor_pct": 10.37
+   },
+   {
+    "minute": "2026-10-18 09:44:00",
+    "city": 2,
+    "users": 54355,
+    "samples": 59616,
+    "poor_pct": 9.81
+   },
+   {
+    "minute": "2026-10-18 09:45:00",
+    "city": 0,
+    "users": 54301,
+    "samples": 59652,
+    "poor_pct": 9.86
+   },
+   {
+    "minute": "2026-10-18 09:45:00",
+    "city": 1,
+    "users": 54369,
+    "samples": 59600,
+    "poor_pct": 10.05
+   },
+   {
+    "minute": "2026-10-18 09:45:00",
+    "city": 2,
+    "users": 54296,
+    "samples": 59649,
+    "poor_pct": 10.61
+   },
+   {
+    "minute": "2026-10-18 09:46:00",
+    "city": 0,
+    "users": 54251,
+    "samples": 59648,
+    "poor_pct": 10.42
+   },
+   {
+    "minute": "2026-10-18 09:46:00",
+    "city": 1,
+    "users": 54364,
+    "samples": 59640,
+    "poor_pct": 10.1
+   },
+   {
+    "minute": "2026-10-18 09:46:00",
+    "city": 2,
+    "users": 54288,
+    "samples": 59638,
+    "poor_pct": 9.85
+   },
+   {
+    "minute": "2026-10-18 09:47:00",
+    "city": 0,
+    "users": 54307,
+    "samples": 59623,
+    "poor_pct": 10.01
+   },
+   {
+    "minute": "2026-10-18 09:47:00",
+    "city": 1,
+    "users": 54335,
+    "samples": 59627,
     "poor_pct": 10
    },
    {
-    "minute": "2026-10-18 09:16:00",
+    "minute": "2026-10-18 09:47:00",
     "city": 2,
-    "users": 54251,
-    "samples": 59632,
-    "poor_pct": 9.97
+    "users": 54368,
+    "samples": 59681,
+    "poor_pct": 10.33
    },
    {
-    "minute": "2026-10-18 09:17:00",
+    "minute": "2026-10-18 09:48:00",
     "city": 0,
-    "users": 54380,
-    "samples": 59642,
+    "users": 54303,
+    "samples": 59639,
+    "poor_pct": 9.92
+   },
+   {
+    "minute": "2026-10-18 09:48:00",
+    "city": 1,
+    "users": 54430,
+    "samples": 59654,
+    "poor_pct": 9.82
+   },
+   {
+    "minute": "2026-10-18 09:48:00",
+    "city": 2,
+    "users": 54410,
+    "samples": 59652,
+    "poor_pct": 10.52
+   },
+   {
+    "minute": "2026-10-18 09:49:00",
+    "city": 0,
+    "users": 54427,
+    "samples": 59669,
+    "poor_pct": 10.08
+   },
+   {
+    "minute": "2026-10-18 09:49:00",
+    "city": 1,
+    "users": 54362,
+    "samples": 59700,
+    "poor_pct": 10.71
+   },
+   {
+    "minute": "2026-10-18 09:49:00",
+    "city": 2,
+    "users": 54331,
+    "samples": 59624,
+    "poor_pct": 9.8
+   },
+   {
+    "minute": "2026-10-18 09:50:00",
+    "city": 0,
+    "users": 54245,
+    "samples": 59639,
+    "poor_pct": 9.7
+   },
+   {
+    "minute": "2026-10-18 09:50:00",
+    "city": 1,
+    "users": 54378,
+    "samples": 59639,
+    "poor_pct": 10.51
+   },
+   {
+    "minute": "2026-10-18 09:50:00",
+    "city": 2,
+    "users": 54217,
+    "samples": 59634,
+    "poor_pct": 9.83
+   },
+   {
+    "minute": "2026-10-18 09:51:00",
+    "city": 0,
+    "users": 54298,
+    "samples": 59656,
+    "poor_pct": 9.98
+   },
+   {
+    "minute": "2026-10-18 09:51:00",
+    "city": 1,
+    "users": 54349,
+    "samples": 59618,
+    "poor_pct": 9.7
+   },
+   {
+    "minute": "2026-10-18 09:51:00",
+    "city": 2,
+    "users": 54243,
+    "samples": 59640,
+    "poor_pct": 10.41
+   },
+   {
+    "minute": "2026-10-18 09:52:00",
+    "city": 0,
+    "users": 54355,
+    "samples": 59664,
+    "poor_pct": 9.92
+   },
+   {
+    "minute": "2026-10-18 09:52:00",
+    "city": 1,
+    "users": 54357,
+    "samples": 59610,
+    "poor_pct": 9.69
+   },
+   {
+    "minute": "2026-10-18 09:52:00",
+    "city": 2,
+    "users": 54308,
+    "samples": 59613,
+    "poor_pct": 10.46
+   },
+   {
+    "minute": "2026-10-18 09:53:00",
+    "city": 0,
+    "users": 54319,
+    "samples": 59636,
+    "poor_pct": 10.8
+   },
+   {
+    "minute": "2026-10-18 09:53:00",
+    "city": 1,
+    "users": 54300,
+    "samples": 59627,
+    "poor_pct": 9.87
+   },
+   {
+    "minute": "2026-10-18 09:53:00",
+    "city": 2,
+    "users": 54325,
+    "samples": 59688,
+    "poor_pct": 9.81
+   },
+   {
+    "minute": "2026-10-18 09:54:00",
+    "city": 0,
+    "users": 54252,
+    "samples": 59654,
+    "poor_pct": 9.89
+   },
+   {
+    "minute": "2026-10-18 09:54:00",
+    "city": 1,
+    "users": 54217,
+    "samples": 59624,
+    "poor_pct": 10.37
+   },
+   {
+    "minute": "2026-10-18 09:54:00",
+    "city": 2,
+    "users": 54382,
+    "samples": 59628,
+    "poor_pct": 10
+   },
+   {
+    "minute": "2026-10-18 09:55:00",
+    "city": 0,
+    "users": 54421,
+    "samples": 59624,
+    "poor_pct": 10.17
+   },
+   {
+    "minute": "2026-10-18 09:55:00",
+    "city": 1,
+    "users": 54266,
+    "samples": 59623,
+    "poor_pct": 9.96
+   },
+   {
+    "minute": "2026-10-18 09:55:00",
+    "city": 2,
+    "users": 54434,
+    "samples": 59638,
+    "poor_pct": 9.79
+   },
+   {
+    "minute": "2026-10-18 09:56:00",
+    "city": 0,
+    "users": 54283,
+    "samples": 59652,
+    "poor_pct": 10.76
+   },
+   {
+    "minute": "2026-10-18 09:56:00",
+    "city": 1,
+    "users": 54298,
+    "samples": 59659,
+    "poor_pct": 9.96
+   },
+   {
+    "minute": "2026-10-18 09:56:00",
+    "city": 2,
+    "users": 54488,
+    "samples": 59646,
+    "poor_pct": 10.15
+   },
+   {
+    "minute": "2026-10-18 09:57:00",
+    "city": 0,
+    "users": 54310,
+    "samples": 59637,
+    "poor_pct": 10.51
+   },
+   {
+    "minute": "2026-10-18 09:57:00",
+    "city": 1,
+    "users": 54216,
+    "samples": 59634,
+    "poor_pct": 9.95
+   },
+   {
+    "minute": "2026-10-18 09:57:00",
+    "city": 2,
+    "users": 54326,
+    "samples": 59637,
+    "poor_pct": 9.78
+   },
+   {
+    "minute": "2026-10-18 09:58:00",
+    "city": 0,
+    "users": 54444,
+    "samples": 59672,
+    "poor_pct": 10.04
+   },
+   {
+    "minute": "2026-10-18 09:58:00",
+    "city": 1,
+    "users": 54244,
+    "samples": 59659,
+    "poor_pct": 9.69
+   },
+   {
+    "minute": "2026-10-18 09:58:00",
+    "city": 2,
+    "users": 54351,
+    "samples": 59657,
+    "poor_pct": 10.37
+   },
+   {
+    "minute": "2026-10-18 09:59:00",
+    "city": 0,
+    "users": 54332,
+    "samples": 59615,
+    "poor_pct": 9.88
+   },
+   {
+    "minute": "2026-10-18 09:59:00",
+    "city": 1,
+    "users": 54338,
+    "samples": 59676,
+    "poor_pct": 9.65
+   },
+   {
+    "minute": "2026-10-18 09:59:00",
+    "city": 2,
+    "users": 54315,
+    "samples": 59617,
+    "poor_pct": 10.88
+   },
+   {
+    "minute": "2026-10-18 10:00:00",
+    "city": 0,
+    "users": 54314,
+    "samples": 59637,
+    "poor_pct": 10.66
+   },
+   {
+    "minute": "2026-10-18 10:00:00",
+    "city": 1,
+    "users": 54234,
+    "samples": 59645,
+    "poor_pct": 9.82
+   },
+   {
+    "minute": "2026-10-18 10:00:00",
+    "city": 2,
+    "users": 54310,
+    "samples": 59656,
+    "poor_pct": 9.84
+   },
+   {
+    "minute": "2026-10-18 10:01:00",
+    "city": 0,
+    "users": 54373,
+    "samples": 59655,
+    "poor_pct": 9.84
+   },
+   {
+    "minute": "2026-10-18 10:01:00",
+    "city": 1,
+    "users": 54442,
+    "samples": 59640,
+    "poor_pct": 10.3
+   },
+   {
+    "minute": "2026-10-18 10:01:00",
+    "city": 2,
+    "users": 54239,
+    "samples": 59659,
     "poor_pct": 9.9
    },
    {
-    "minute": "2026-10-18 09:17:00",
+    "minute": "2026-10-18 10:02:00",
+    "city": 0,
+    "users": 54287,
+    "samples": 59637,
+    "poor_pct": 9.65
+   },
+   {
+    "minute": "2026-10-18 10:02:00",
     "city": 1,
-    "users": 54412,
+    "users": 54196,
+    "samples": 59637,
+    "poor_pct": 10.11
+   },
+   {
+    "minute": "2026-10-18 10:02:00",
+    "city": 2,
+    "users": 54225,
+    "samples": 59649,
+    "poor_pct": 9.97
+   },
+   {
+    "minute": "2026-10-18 10:03:00",
+    "city": 0,
+    "users": 54364,
+    "samples": 59633,
+    "poor_pct": 9.87
+   },
+   {
+    "minute": "2026-10-18 10:03:00",
+    "city": 1,
+    "users": 54366,
+    "samples": 59653,
+    "poor_pct": 10.04
+   },
+   {
+    "minute": "2026-10-18 10:03:00",
+    "city": 2,
+    "users": 54327,
+    "samples": 59642,
+    "poor_pct": 9.75
+   },
+   {
+    "minute": "2026-10-18 10:04:00",
+    "city": 0,
+    "users": 54305,
+    "samples": 59655,
+    "poor_pct": 10.65
+   },
+   {
+    "minute": "2026-10-18 10:04:00",
+    "city": 1,
+    "users": 54334,
+    "samples": 59623,
+    "poor_pct": 9.97
+   },
+   {
+    "minute": "2026-10-18 10:04:00",
+    "city": 2,
+    "users": 54302,
+    "samples": 59634,
+    "poor_pct": 9.76
+   },
+   {
+    "minute": "2026-10-18 10:05:00",
+    "city": 0,
+    "users": 54382,
+    "samples": 59675,
+    "poor_pct": 9.87
+   },
+   {
+    "minute": "2026-10-18 10:05:00",
+    "city": 1,
+    "users": 54304,
+    "samples": 59639,
+    "poor_pct": 9.7
+   },
+   {
+    "minute": "2026-10-18 10:05:00",
+    "city": 2,
+    "users": 54355,
+    "samples": 59665,
+    "poor_pct": 11.17
+   },
+   {
+    "minute": "2026-10-18 10:06:00",
+    "city": 0,
+    "users": 54384,
     "samples": 59650,
+    "poor_pct": 10.32
+   },
+   {
+    "minute": "2026-10-18 10:06:00",
+    "city": 1,
+    "users": 54322,
+    "samples": 59636,
+    "poor_pct": 9.97
+   },
+   {
+    "minute": "2026-10-18 10:06:00",
+    "city": 2,
+    "users": 54270,
+    "samples": 59656,
+    "poor_pct": 9.82
+   },
+   {
+    "minute": "2026-10-18 10:07:00",
+    "city": 0,
+    "users": 54379,
+    "samples": 59649,
+    "poor_pct": 10.12
+   },
+   {
+    "minute": "2026-10-18 10:07:00",
+    "city": 1,
+    "users": 54340,
+    "samples": 59642,
+    "poor_pct": 10.06
+   },
+   {
+    "minute": "2026-10-18 10:07:00",
+    "city": 2,
+    "users": 54368,
+    "samples": 59636,
+    "poor_pct": 10.49
+   },
+   {
+    "minute": "2026-10-18 10:08:00",
+    "city": 0,
+    "users": 54380,
+    "samples": 59645,
+    "poor_pct": 10.02
+   },
+   {
+    "minute": "2026-10-18 10:08:00",
+    "city": 1,
+    "users": 54346,
+    "samples": 59612,
+    "poor_pct": 10.28
+   },
+   {
+    "minute": "2026-10-18 10:08:00",
+    "city": 2,
+    "users": 54231,
+    "samples": 59638,
+    "poor_pct": 9.89
+   },
+   {
+    "minute": "2026-10-18 10:09:00",
+    "city": 0,
+    "users": 54340,
+    "samples": 59650,
+    "poor_pct": 10.83
+   },
+   {
+    "minute": "2026-10-18 10:09:00",
+    "city": 1,
+    "users": 54274,
+    "samples": 59628,
+    "poor_pct": 9.72
+   },
+   {
+    "minute": "2026-10-18 10:09:00",
+    "city": 2,
+    "users": 54354,
+    "samples": 59608,
+    "poor_pct": 9.8
+   },
+   {
+    "minute": "2026-10-18 10:10:00",
+    "city": 0,
+    "users": 54381,
+    "samples": 59619,
     "poor_pct": 10.29
    },
    {
-    "minute": "2026-10-18 09:17:00",
+    "minute": "2026-10-18 10:10:00",
+    "city": 1,
+    "users": 54395,
+    "samples": 59621,
+    "poor_pct": 10.06
+   },
+   {
+    "minute": "2026-10-18 10:10:00",
     "city": 2,
+    "users": 54534,
+    "samples": 59669,
+    "poor_pct": 9.9
+   },
+   {
+    "minute": "2026-10-18 10:11:00",
+    "city": 0,
+    "users": 54144,
+    "samples": 59657,
+    "poor_pct": 10.3
+   },
+   {
+    "minute": "2026-10-18 10:11:00",
+    "city": 1,
+    "users": 54295,
+    "samples": 59653,
+    "poor_pct": 9.89
+   },
+   {
+    "minute": "2026-10-18 10:11:00",
+    "city": 2,
+    "users": 54320,
+    "samples": 59638,
+    "poor_pct": 10.02
+   },
+   {
+    "minute": "2026-10-18 10:12:00",
+    "city": 0,
+    "users": 54271,
+    "samples": 59648,
+    "poor_pct": 9.84
+   },
+   {
+    "minute": "2026-10-18 10:12:00",
+    "city": 1,
+    "users": 54285,
+    "samples": 59625,
+    "poor_pct": 10.54
+   },
+   {
+    "minute": "2026-10-18 10:12:00",
+    "city": 2,
+    "users": 54174,
+    "samples": 59637,
+    "poor_pct": 9.76
+   },
+   {
+    "minute": "2026-10-18 10:13:00",
+    "city": 0,
+    "users": 54224,
+    "samples": 59646,
+    "poor_pct": 9.77
+   },
+   {
+    "minute": "2026-10-18 10:13:00",
+    "city": 1,
+    "users": 54449,
+    "samples": 59637,
+    "poor_pct": 10.47
+   },
+   {
+    "minute": "2026-10-18 10:13:00",
+    "city": 2,
+    "users": 54376,
+    "samples": 59653,
+    "poor_pct": 9.79
+   },
+   {
+    "minute": "2026-10-18 10:14:00",
+    "city": 0,
+    "users": 54315,
+    "samples": 59663,
+    "poor_pct": 10.78
+   },
+   {
+    "minute": "2026-10-18 10:14:00",
+    "city": 1,
+    "users": 54338,
+    "samples": 59654,
+    "poor_pct": 9.68
+   },
+   {
+    "minute": "2026-10-18 10:14:00",
+    "city": 2,
+    "users": 54289,
+    "samples": 59624,
+    "poor_pct": 9.86
+   },
+   {
+    "minute": "2026-10-18 10:15:00",
+    "city": 0,
+    "users": 54337,
+    "samples": 59639,
+    "poor_pct": 10.47
+   },
+   {
+    "minute": "2026-10-18 10:15:00",
+    "city": 1,
+    "users": 54386,
+    "samples": 59627,
+    "poor_pct": 10.02
+   },
+   {
+    "minute": "2026-10-18 10:15:00",
+    "city": 2,
+    "users": 54311,
+    "samples": 59613,
+    "poor_pct": 9.83
+   },
+   {
+    "minute": "2026-10-18 10:16:00",
+    "city": 0,
+    "users": 54382,
+    "samples": 59640,
+    "poor_pct": 10.01
+   },
+   {
+    "minute": "2026-10-18 10:16:00",
+    "city": 1,
+    "users": 54114,
+    "samples": 59651,
+    "poor_pct": 10.27
+   },
+   {
+    "minute": "2026-10-18 10:16:00",
+    "city": 2,
+    "users": 54291,
+    "samples": 59677,
+    "poor_pct": 9.97
+   },
+   {
+    "minute": "2026-10-18 10:17:00",
+    "city": 0,
     "users": 54412,
-    "samples": 59649,
-    "poor_pct": 9.72
+    "samples": 59658,
+    "poor_pct": 9.92
+   },
+   {
+    "minute": "2026-10-18 10:17:00",
+    "city": 1,
+    "users": 54331,
+    "samples": 59647,
+    "poor_pct": 10
+   },
+   {
+    "minute": "2026-10-18 10:17:00",
+    "city": 2,
+    "users": 54332,
+    "samples": 59629,
+    "poor_pct": 10.88
+   },
+   {
+    "minute": "2026-10-18 10:18:00",
+    "city": 0,
+    "users": 54439,
+    "samples": 59652,
+    "poor_pct": 10.59
+   },
+   {
+    "minute": "2026-10-18 10:18:00",
+    "city": 1,
+    "users": 54391,
+    "samples": 59684,
+    "poor_pct": 9.74
+   },
+   {
+    "minute": "2026-10-18 10:18:00",
+    "city": 2,
+    "users": 54324,
+    "samples": 59642,
+    "poor_pct": 10
+   },
+   {
+    "minute": "2026-10-18 10:19:00",
+    "city": 0,
+    "users": 54454,
+    "samples": 59618,
+    "poor_pct": 9.73
+   },
+   {
+    "minute": "2026-10-18 10:19:00",
+    "city": 1,
+    "users": 54250,
+    "samples": 59618,
+    "poor_pct": 10
+   },
+   {
+    "minute": "2026-10-18 10:19:00",
+    "city": 2,
+    "users": 54418,
+    "samples": 59629,
+    "poor_pct": 10.03
+   },
+   {
+    "minute": "2026-10-18 10:20:00",
+    "city": 0,
+    "users": 54377,
+    "samples": 59659,
+    "poor_pct": 9.91
+   },
+   {
+    "minute": "2026-10-18 10:20:00",
+    "city": 1,
+    "users": 54218,
+    "samples": 59633,
+    "poor_pct": 9.62
+   },
+   {
+    "minute": "2026-10-18 10:20:00",
+    "city": 2,
+    "users": 54425,
+    "samples": 59661,
+    "poor_pct": 10.58
    }
   ],
   "alerts": [
    {
-    "area": "8730c1646ffffff",
-    "city": 1,
-    "minute": "2026-10-18 09:17:00",
-    "cells": 39,
-    "drop_db": 21.9,
-    "rsrp_now": -119.7
+    "area": "8730c19a5ffffff",
+    "city": 2,
+    "minute": "2026-10-18 10:20:00",
+    "cells": 48,
+    "drop_db": 21.2,
+    "rsrp_now": -114.1
    }
   ],
   "alert_cells": [
    {
-    "id": "8930c164617ffff",
-    "city": 1,
-    "drop_db": 19.9,
-    "boundary": [
-     [
-      35.24581,
-      129.18161
-     ],
-     [
-      35.2444,
-      129.18197
-     ],
-     [
-      35.24403,
-      129.18389
-     ],
-     [
-      35.24506,
-      129.18546
-     ],
-     [
-      35.24647,
-      129.1851
-     ],
-     [
-      35.24684,
-      129.18318
-     ]
-    ]
-   },
-   {
-    "id": "8930c164657ffff",
-    "city": 1,
-    "drop_db": 26,
-    "boundary": [
-     [
-      35.24025,
-      129.1757
-     ],
-     [
-      35.23884,
-      129.17605
-     ],
-     [
-      35.23847,
-      129.17798
-     ],
-     [
-      35.23951,
-      129.17954
-     ],
-     [
-      35.24092,
-      129.17919
-     ],
-     [
-      35.24129,
-      129.17726
-     ]
-    ]
-   },
-   {
-    "id": "8930c16460bffff",
-    "city": 1,
-    "drop_db": 25.3,
-    "boundary": [
-     [
-      35.24092,
-      129.17919
-     ],
-     [
-      35.23951,
-      129.17954
-     ],
-     [
-      35.23913,
-      129.18147
-     ],
-     [
-      35.24017,
-      129.18303
-     ],
-     [
-      35.24158,
-      129.18268
-     ],
-     [
-      35.24195,
-      129.18075
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646d7ffff",
-    "city": 1,
-    "drop_db": 21.7,
-    "boundary": [
-     [
-      35.24627,
-      129.17235
-     ],
-     [
-      35.24486,
-      129.17271
-     ],
-     [
-      35.24448,
-      129.17463
-     ],
-     [
-      35.24552,
-      129.1762
-     ],
-     [
-      35.24693,
-      129.17584
-     ],
-     [
-      35.2473,
-      129.17392
-     ]
-    ]
-   },
-   {
-    "id": "8930c164697ffff",
-    "city": 1,
-    "drop_db": 23.3,
-    "boundary": [
-     [
-      35.25182,
-      129.17826
-     ],
-     [
-      35.25041,
-      129.17862
-     ],
-     [
-      35.25004,
-      129.18054
-     ],
-     [
-      35.25107,
-      129.18211
-     ],
-     [
-      35.25248,
-      129.18175
-     ],
-     [
-      35.25286,
-      129.17983
-     ]
-    ]
-   },
-   {
-    "id": "8930c16464bffff",
-    "city": 1,
-    "drop_db": 21.8,
-    "boundary": [
-     [
-      35.23536,
-      129.17327
-     ],
-     [
-      35.23395,
-      129.17363
-     ],
-     [
-      35.23358,
-      129.17555
-     ],
-     [
-      35.23462,
-      129.17712
-     ],
-     [
-      35.23603,
-      129.17676
-     ],
-     [
-      35.2364,
-      129.17484
-     ]
-    ]
-   },
-   {
-    "id": "8930c16462fffff",
-    "city": 1,
-    "drop_db": 23.1,
-    "boundary": [
-     [
-      35.24112,
-      129.19194
-     ],
-     [
-      35.23971,
-      129.19229
-     ],
-     [
-      35.23934,
-      129.19422
-     ],
-     [
-      35.24037,
-      129.19578
-     ],
-     [
-      35.24178,
-      129.19543
-     ],
-     [
-      35.24216,
-      129.1935
-     ]
-    ]
-   },
-   {
-    "id": "8930c16466fffff",
-    "city": 1,
-    "drop_db": 21.2,
-    "boundary": [
-     [
-      35.23557,
-      129.18602
-     ],
-     [
-      35.23416,
-      129.18638
-     ],
-     [
-      35.23378,
-      129.1883
-     ],
-     [
-      35.23482,
-      129.18987
-     ],
-     [
-      35.23623,
-      129.18951
-     ],
-     [
-      35.2366,
-      129.18759
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646b3ffff",
-    "city": 1,
-    "drop_db": 20.2,
-    "boundary": [
-     [
-      35.2507,
-      129.18403
-     ],
-     [
-      35.24929,
-      129.18439
-     ],
-     [
-      35.24892,
-      129.18631
-     ],
-     [
-      35.24995,
-      129.18788
-     ],
-     [
-      35.25136,
-      129.18752
-     ],
-     [
-      35.25173,
-      129.1856
-     ]
-    ]
-   },
-   {
-    "id": "8930c164633ffff",
-    "city": 1,
-    "drop_db": 19.6,
-    "boundary": [
-     [
-      35.24469,
-      129.18738
-     ],
-     [
-      35.24328,
-      129.18773
-     ],
-     [
-      35.2429,
-      129.18966
-     ],
-     [
-      35.24394,
-      129.19123
-     ],
-     [
-      35.24535,
-      129.19087
-     ],
-     [
-      35.24572,
-      129.18895
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646afffff",
-    "city": 1,
-    "drop_db": 21.1,
-    "boundary": [
-     [
-      35.24713,
-      129.18859
-     ],
-     [
-      35.24572,
-      129.18895
-     ],
-     [
-      35.24535,
-      129.19087
-     ],
-     [
-      35.24639,
-      129.19244
-     ],
-     [
-      35.24779,
-      129.19208
-     ],
-     [
-      35.24817,
-      129.19016
-     ]
-    ]
-   },
-   {
-    "id": "8930c164673ffff",
-    "city": 1,
-    "drop_db": 24.8,
-    "boundary": [
-     [
-      35.23913,
-      129.18147
-     ],
-     [
-      35.23772,
-      129.18182
-     ],
-     [
-      35.23735,
-      129.18374
-     ],
-     [
-      35.23839,
-      129.18531
-     ],
-     [
-      35.2398,
-      129.18496
-     ],
-     [
-      35.24017,
-      129.18303
-     ]
-    ]
-   },
-   {
-    "id": "8930c164627ffff",
-    "city": 1,
-    "drop_db": 18.1,
-    "boundary": [
-     [
-      35.24357,
-      129.19315
-     ],
-     [
-      35.24216,
-      129.1935
-     ],
-     [
-      35.24178,
-      129.19543
-     ],
-     [
-      35.24282,
-      129.197
-     ],
-     [
-      35.24423,
-      129.19664
-     ],
-     [
-      35.2446,
-      129.19472
-     ]
-    ]
-   },
-   {
-    "id": "8930c164667ffff",
-    "city": 1,
-    "drop_db": 20.6,
-    "boundary": [
-     [
-      35.23801,
-      129.18724
-     ],
-     [
-      35.2366,
-      129.18759
-     ],
-     [
-      35.23623,
-      129.18951
-     ],
-     [
-      35.23727,
-      129.19108
-     ],
-     [
-      35.23867,
-      129.19073
-     ],
-     [
-      35.23905,
-      129.1888
-     ]
-    ]
-   },
-   {
-    "id": "8930c16463bffff",
-    "city": 1,
-    "drop_db": 23.2,
-    "boundary": [
-     [
-      35.24224,
-      129.18617
-     ],
-     [
-      35.24083,
-      129.18652
-     ],
-     [
-      35.24046,
-      129.18845
-     ],
-     [
-      35.24149,
-      129.19001
-     ],
-     [
-      35.2429,
-      129.18966
-     ],
-     [
-      35.24328,
-      129.18773
-     ]
-    ]
-   },
-   {
-    "id": "8930c16467bffff",
-    "city": 1,
-    "drop_db": 23.5,
-    "boundary": [
-     [
-      35.23669,
-      129.18025
-     ],
-     [
-      35.23528,
-      129.18061
-     ],
-     [
-      35.2349,
-      129.18253
-     ],
-     [
-      35.23594,
-      129.1841
-     ],
-     [
-      35.23735,
-      129.18374
-     ],
-     [
-      35.23772,
-      129.18182
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646c3ffff",
-    "city": 1,
-    "drop_db": 21.9,
-    "boundary": [
-     [
-      35.24382,
-      129.17114
-     ],
-     [
-      35.24241,
-      129.17149
-     ],
-     [
-      35.24204,
-      129.17342
-     ],
-     [
-      35.24307,
-      129.17499
-     ],
-     [
-      35.24448,
-      129.17463
-     ],
-     [
-      35.24486,
-      129.17271
-     ]
-    ]
-   },
-   {
-    "id": "8930c164683ffff",
-    "city": 1,
-    "drop_db": 19.6,
-    "boundary": [
-     [
-      35.24937,
-      129.17705
-     ],
-     [
-      35.24796,
-      129.17741
-     ],
-     [
-      35.24759,
-      129.17933
-     ],
-     [
-      35.24863,
-      129.1809
-     ],
-     [
-      35.25004,
-      129.18054
-     ],
-     [
-      35.25041,
-      129.17862
-     ]
-    ]
-   },
-   {
-    "id": "8930c164603ffff",
-    "city": 1,
-    "drop_db": 21.3,
-    "boundary": [
-     [
-      35.24336,
-      129.1804
-     ],
-     [
-      35.24195,
-      129.18075
-     ],
-     [
-      35.24158,
-      129.18268
-     ],
-     [
-      35.24262,
-      129.18424
-     ],
-     [
-      35.24403,
-      129.18389
-     ],
-     [
-      35.2444,
-      129.18197
-     ]
-    ]
-   },
-   {
-    "id": "8930c164643ffff",
-    "city": 1,
-    "drop_db": 21,
-    "boundary": [
-     [
-      35.23781,
-      129.17449
-     ],
-     [
-      35.2364,
-      129.17484
-     ],
-     [
-      35.23603,
-      129.17676
-     ],
-     [
-      35.23706,
-      129.17833
-     ],
-     [
-      35.23847,
-      129.17798
-     ],
-     [
-      35.23884,
-      129.17605
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646abffff",
-    "city": 1,
-    "drop_db": 24.3,
-    "boundary": [
-     [
-      35.24647,
-      129.1851
-     ],
-     [
-      35.24506,
-      129.18546
-     ],
-     [
-      35.24469,
-      129.18738
-     ],
-     [
-      35.24572,
-      129.18895
-     ],
-     [
-      35.24713,
-      129.18859
-     ],
-     [
-      35.24751,
-      129.18667
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646b7ffff",
-    "city": 1,
-    "drop_db": 23.6,
-    "boundary": [
-     [
-      35.25136,
-      129.18752
-     ],
-     [
-      35.24995,
-      129.18788
-     ],
-     [
-      35.24958,
-      129.1898
-     ],
-     [
-      35.25061,
-      129.19137
-     ],
-     [
-      35.25202,
-      129.19101
-     ],
-     [
-      35.2524,
-      129.18909
-     ]
-    ]
-   },
-   {
-    "id": "8930c16466bffff",
-    "city": 1,
-    "drop_db": 26.6,
-    "boundary": [
-     [
-      35.2349,
-      129.18253
-     ],
-     [
-      35.23349,
-      129.18289
-     ],
-     [
-      35.23312,
-      129.18481
-     ],
-     [
-      35.23416,
-      129.18638
-     ],
-     [
-      35.23557,
-      129.18602
-     ],
-     [
-      35.23594,
-      129.1841
-     ]
-    ]
-   },
-   {
-    "id": "8930c16462bffff",
-    "city": 1,
-    "drop_db": 24.3,
-    "boundary": [
-     [
-      35.24046,
-      129.18845
-     ],
-     [
-      35.23905,
-      129.1888
-     ],
-     [
-      35.23867,
-      129.19073
-     ],
-     [
-      35.23971,
-      129.19229
-     ],
-     [
-      35.24112,
-      129.19194
-     ],
-     [
-      35.24149,
-      129.19001
-     ]
-    ]
-   },
-   {
-    "id": "8930c16460fffff",
-    "city": 1,
-    "drop_db": 21.1,
-    "boundary": [
-     [
-      35.24158,
-      129.18268
-     ],
-     [
-      35.24017,
-      129.18303
-     ],
-     [
-      35.2398,
-      129.18496
-     ],
-     [
-      35.24083,
-      129.18652
-     ],
-     [
-      35.24224,
-      129.18617
-     ],
-     [
-      35.24262,
-      129.18424
-     ]
-    ]
-   },
-   {
-    "id": "8930c16464fffff",
-    "city": 1,
-    "drop_db": 21.5,
-    "boundary": [
-     [
-      35.23603,
-      129.17676
-     ],
-     [
-      35.23462,
-      129.17712
-     ],
-     [
-      35.23424,
-      129.17904
-     ],
-     [
-      35.23528,
-      129.18061
-     ],
-     [
-      35.23669,
-      129.18025
-     ],
-     [
-      35.23706,
-      129.17833
-     ]
-    ]
-   },
-   {
-    "id": "8930c164693ffff",
-    "city": 1,
-    "drop_db": 22.4,
-    "boundary": [
-     [
-      35.25116,
-      129.17477
-     ],
-     [
-      35.24975,
-      129.17513
-     ],
-     [
-      35.24937,
-      129.17705
-     ],
-     [
-      35.25041,
-      129.17862
-     ],
-     [
-      35.25182,
-      129.17826
-     ],
-     [
-      35.25219,
-      129.17634
-     ]
-    ]
-   },
-   {
-    "id": "8930c164613ffff",
-    "city": 1,
-    "drop_db": 21.3,
-    "boundary": [
-     [
-      35.24515,
-      129.17812
-     ],
-     [
-      35.24374,
-      129.17848
-     ],
-     [
-      35.24336,
-      129.1804
-     ],
-     [
-      35.2444,
-      129.18197
-     ],
-     [
-      35.24581,
-      129.18161
-     ],
-     [
-      35.24618,
-      129.17969
-     ]
-    ]
-   },
-   {
-    "id": "8930c1646cfffff",
-    "city": 1,
-    "drop_db": 22.7,
-    "boundary": [
-     [
-      35.24204,
-      129.17342
-     ],
-     [
-      35.24063,
-      129.17377
-     ],
-     [
-      35.24025,
-      129.1757
-     ],
-     [
-      35.24129,
-      129.17726
-     ],
-     [
-      35.2427,
-      129.17691
-     ],
-     [
-      35.24307,
-      129.17499
-     ]
-    ]
-   },
-   {
-    "id": "8930c16468fffff",
-    "city": 1,
+    "id": "8930c19a5a3ffff",
+    "city": 2,
     "drop_db": 22.8,
     "boundary": [
      [
-      35.24759,
-      129.17933
+      35.83061,
+      128.52613
      ],
      [
-      35.24618,
-      129.17969
+      35.82922,
+      128.52648
      ],
      [
-      35.24581,
-      129.18161
+      35.82887,
+      128.5284
      ],
      [
-      35.24684,
-      129.18318
+      35.8299,
+      128.52996
      ],
      [
-      35.24825,
-      129.18282
+      35.83129,
+      128.52961
      ],
      [
-      35.24863,
-      129.1809
+      35.83164,
+      128.52769
      ]
     ]
    },
    {
-    "id": "8930c1646dbffff",
-    "city": 1,
-    "drop_db": 18.6,
+    "id": "8930c19a523ffff",
+    "city": 2,
+    "drop_db": 19.6,
     "boundary": [
      [
-      35.24316,
-      129.16765
+      35.82471,
+      128.52947
      ],
      [
-      35.24175,
-      129.168
+      35.82332,
+      128.52983
      ],
      [
-      35.24138,
-      129.16993
+      35.82296,
+      128.53175
      ],
      [
-      35.24241,
-      129.17149
+      35.824,
+      128.53331
      ],
      [
-      35.24382,
-      129.17114
+      35.82538,
+      128.53295
      ],
      [
-      35.24419,
-      129.16922
+      35.82574,
+      128.53103
      ]
     ]
    },
    {
-    "id": "8930c164607ffff",
-    "city": 1,
-    "drop_db": 17.6,
+    "id": "8930c19a563ffff",
+    "city": 2,
+    "drop_db": 25.1,
     "boundary": [
      [
-      35.24403,
-      129.18389
+      35.81919,
+      128.52358
      ],
      [
-      35.24262,
-      129.18424
+      35.8178,
+      128.52394
      ],
      [
-      35.24224,
-      129.18617
+      35.81744,
+      128.52586
      ],
      [
-      35.24328,
-      129.18773
+      35.81848,
+      128.52742
      ],
      [
-      35.24469,
-      129.18738
+      35.81987,
+      128.52706
      ],
      [
-      35.24506,
-      129.18546
+      35.82022,
+      128.52514
      ]
     ]
    },
    {
-    "id": "8930c164647ffff",
-    "city": 1,
-    "drop_db": 23.4,
+    "id": "8930c19a507ffff",
+    "city": 2,
+    "drop_db": 19,
     "boundary": [
      [
-      35.23847,
-      129.17798
+      35.82577,
+      128.52372
      ],
      [
-      35.23706,
-      129.17833
+      35.82438,
+      128.52407
      ],
      [
-      35.23669,
-      129.18025
+      35.82403,
+      128.52599
      ],
      [
-      35.23772,
-      129.18182
+      35.82506,
+      128.52755
      ],
      [
-      35.23913,
-      129.18147
+      35.82645,
+      128.5272
      ],
      [
-      35.23951,
-      129.17954
+      35.8268,
+      128.52528
      ]
     ]
    },
    {
-    "id": "8930c16469bffff",
-    "city": 1,
-    "drop_db": 20.8,
+    "id": "8930c19a5dbffff",
+    "city": 2,
+    "drop_db": 26.4,
     "boundary": [
      [
-      35.24871,
-      129.17356
+      35.8248,
+      128.50751
      ],
      [
-      35.2473,
-      129.17392
+      35.82342,
+      128.50787
      ],
      [
-      35.24693,
-      129.17584
+      35.82306,
+      128.50979
      ],
      [
-      35.24796,
-      129.17741
+      35.82409,
+      128.51135
      ],
      [
-      35.24937,
-      129.17705
+      35.82548,
+      128.511
      ],
      [
-      35.24975,
-      129.17513
+      35.82584,
+      128.50908
      ]
     ]
    },
    {
-    "id": "8930c16461bffff",
-    "city": 1,
-    "drop_db": 21.5,
+    "id": "8930c19a59bffff",
+    "city": 2,
+    "drop_db": 16.4,
     "boundary": [
      [
-      35.2427,
-      129.17691
+      35.83032,
+      128.51341
      ],
      [
-      35.24129,
-      129.17726
+      35.82893,
+      128.51376
      ],
      [
-      35.24092,
-      129.17919
+      35.82858,
+      128.51568
      ],
      [
-      35.24195,
-      129.18075
+      35.82961,
+      128.51724
      ],
      [
-      35.24336,
-      129.1804
+      35.831,
+      128.51689
      ],
      [
-      35.24374,
-      129.17848
+      35.83135,
+      128.51497
      ]
     ]
    },
    {
-    "id": "8930c164687ffff",
-    "city": 1,
-    "drop_db": 20.6,
+    "id": "8930c19a547ffff",
+    "city": 2,
+    "drop_db": 17.4,
     "boundary": [
      [
-      35.25004,
-      129.18054
+      35.82025,
+      128.51782
      ],
      [
-      35.24863,
-      129.1809
+      35.81887,
+      128.51818
      ],
      [
-      35.24825,
-      129.18282
+      35.81851,
+      128.5201
      ],
      [
-      35.24929,
-      129.18439
+      35.81954,
+      128.52166
      ],
      [
-      35.2507,
-      129.18403
+      35.82093,
+      128.5213
      ],
      [
-      35.25107,
-      129.18211
+      35.82129,
+      128.51939
      ]
     ]
    },
    {
-    "id": "8930c16465bffff",
-    "city": 1,
-    "drop_db": 18.6,
+    "id": "8930c19a5c7ffff",
+    "city": 2,
+    "drop_db": 19.4,
     "boundary": [
      [
-      35.23715,
-      129.171
+      35.82616,
+      128.51448
      ],
      [
-      35.23574,
-      129.17135
+      35.82477,
+      128.51483
      ],
      [
-      35.23536,
-      129.17327
+      35.82442,
+      128.51675
      ],
      [
-      35.2364,
-      129.17484
+      35.82545,
+      128.51831
      ],
      [
-      35.23781,
-      129.17449
+      35.82684,
+      128.51796
      ],
      [
-      35.23818,
-      129.17256
+      35.82719,
+      128.51604
      ]
     ]
    },
    {
-    "id": "8930c1646a3ffff",
-    "city": 1,
-    "drop_db": 20.9,
+    "id": "8930c19a51bffff",
+    "city": 2,
+    "drop_db": 24.2,
     "boundary": [
      [
-      35.24892,
-      129.18631
+      35.82442,
+      128.51675
      ],
      [
-      35.24751,
-      129.18667
+      35.82303,
+      128.51711
      ],
      [
-      35.24713,
-      129.18859
+      35.82267,
+      128.51903
      ],
      [
-      35.24817,
-      129.19016
+      35.82371,
+      128.52059
      ],
      [
-      35.24958,
-      129.1898
+      35.82509,
+      128.52023
      ],
      [
-      35.24995,
-      129.18788
+      35.82545,
+      128.51831
      ]
     ]
    },
    {
-    "id": "8930c164623ffff",
-    "city": 1,
-    "drop_db": 23.4,
+    "id": "8930c19a55bffff",
+    "city": 2,
+    "drop_db": 19.3,
     "boundary": [
      [
-      35.2429,
-      129.18966
+      35.8189,
+      128.51086
      ],
      [
-      35.24149,
-      129.19001
+      35.81751,
+      128.51122
      ],
      [
-      35.24112,
-      129.19194
+      35.81716,
+      128.51314
      ],
      [
-      35.24216,
-      129.1935
+      35.81819,
+      128.5147
      ],
      [
-      35.24357,
-      129.19315
+      35.81958,
+      128.51434
      ],
      [
-      35.24394,
-      129.19123
+      35.81993,
+      128.51242
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a587ffff",
+    "city": 2,
+    "drop_db": 22,
+    "boundary": [
+     [
+      35.83168,
+      128.52037
+     ],
+     [
+      35.83029,
+      128.52073
+     ],
+     [
+      35.82993,
+      128.52264
+     ],
+     [
+      35.83097,
+      128.52421
+     ],
+     [
+      35.83235,
+      128.52385
+     ],
+     [
+      35.83271,
+      128.52193
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a50fffff",
+    "city": 2,
+    "drop_db": 22.1,
+    "boundary": [
+     [
+      35.82335,
+      128.52251
+     ],
+     [
+      35.82196,
+      128.52287
+     ],
+     [
+      35.82161,
+      128.52479
+     ],
+     [
+      35.82264,
+      128.52635
+     ],
+     [
+      35.82403,
+      128.52599
+     ],
+     [
+      35.82438,
+      128.52407
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5d3ffff",
+    "city": 2,
+    "drop_db": 23.5,
+    "boundary": [
+     [
+      35.82722,
+      128.50872
+     ],
+     [
+      35.82584,
+      128.50908
+     ],
+     [
+      35.82548,
+      128.511
+     ],
+     [
+      35.82651,
+      128.51256
+     ],
+     [
+      35.8279,
+      128.5122
+     ],
+     [
+      35.82826,
+      128.51028
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a593ffff",
+    "city": 2,
+    "drop_db": 16,
+    "boundary": [
+     [
+      35.83274,
+      128.51461
+     ],
+     [
+      35.83135,
+      128.51497
+     ],
+     [
+      35.831,
+      128.51689
+     ],
+     [
+      35.83203,
+      128.51845
+     ],
+     [
+      35.83342,
+      128.51809
+     ],
+     [
+      35.83377,
+      128.51617
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a54fffff",
+    "city": 2,
+    "drop_db": 19.2,
+    "boundary": [
+     [
+      35.81783,
+      128.51662
+     ],
+     [
+      35.81644,
+      128.51697
+     ],
+     [
+      35.81609,
+      128.51889
+     ],
+     [
+      35.81712,
+      128.52046
+     ],
+     [
+      35.81851,
+      128.5201
+     ],
+     [
+      35.81887,
+      128.51818
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5cfffff",
+    "city": 2,
+    "drop_db": 21.4,
+    "boundary": [
+     [
+      35.82374,
+      128.51327
+     ],
+     [
+      35.82235,
+      128.51363
+     ],
+     [
+      35.822,
+      128.51555
+     ],
+     [
+      35.82303,
+      128.51711
+     ],
+     [
+      35.82442,
+      128.51675
+     ],
+     [
+      35.82477,
+      128.51483
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a553ffff",
+    "city": 2,
+    "drop_db": 18.7,
+    "boundary": [
+     [
+      35.82132,
+      128.51207
+     ],
+     [
+      35.81993,
+      128.51242
+     ],
+     [
+      35.81958,
+      128.51434
+     ],
+     [
+      35.82061,
+      128.5159
+     ],
+     [
+      35.822,
+      128.51555
+     ],
+     [
+      35.82235,
+      128.51363
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a58fffff",
+    "city": 2,
+    "drop_db": 20.2,
+    "boundary": [
+     [
+      35.82926,
+      128.51916
+     ],
+     [
+      35.82787,
+      128.51952
+     ],
+     [
+      35.82751,
+      128.52144
+     ],
+     [
+      35.82855,
+      128.523
+     ],
+     [
+      35.82993,
+      128.52264
+     ],
+     [
+      35.83029,
+      128.52073
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a537ffff",
+    "city": 2,
+    "drop_db": 19.1,
+    "boundary": [
+     [
+      35.82713,
+      128.53068
+     ],
+     [
+      35.82574,
+      128.53103
+     ],
+     [
+      35.82538,
+      128.53295
+     ],
+     [
+      35.82642,
+      128.53452
+     ],
+     [
+      35.8278,
+      128.53416
+     ],
+     [
+      35.82816,
+      128.53224
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5abffff",
+    "city": 2,
+    "drop_db": 22.2,
+    "boundary": [
+     [
+      35.82819,
+      128.52492
+     ],
+     [
+      35.8268,
+      128.52528
+     ],
+     [
+      35.82645,
+      128.5272
+     ],
+     [
+      35.82748,
+      128.52876
+     ],
+     [
+      35.82887,
+      128.5284
+     ],
+     [
+      35.82922,
+      128.52648
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a577ffff",
+    "city": 2,
+    "drop_db": 25.4,
+    "boundary": [
+     [
+      35.82161,
+      128.52479
+     ],
+     [
+      35.82022,
+      128.52514
+     ],
+     [
+      35.81987,
+      128.52706
+     ],
+     [
+      35.8209,
+      128.52862
+     ],
+     [
+      35.82229,
+      128.52827
+     ],
+     [
+      35.82264,
+      128.52635
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a52bffff",
+    "city": 2,
+    "drop_db": 25.5,
+    "boundary": [
+     [
+      35.82229,
+      128.52827
+     ],
+     [
+      35.8209,
+      128.52862
+     ],
+     [
+      35.82054,
+      128.53054
+     ],
+     [
+      35.82157,
+      128.53211
+     ],
+     [
+      35.82296,
+      128.53175
+     ],
+     [
+      35.82332,
+      128.52983
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a56bffff",
+    "city": 2,
+    "drop_db": 18.1,
+    "boundary": [
+     [
+      35.81677,
+      128.52238
+     ],
+     [
+      35.81538,
+      128.52273
+     ],
+     [
+      35.81502,
+      128.52465
+     ],
+     [
+      35.81606,
+      128.52621
+     ],
+     [
+      35.81744,
+      128.52586
+     ],
+     [
+      35.8178,
+      128.52394
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5b7ffff",
+    "city": 2,
+    "drop_db": 23.9,
+    "boundary": [
+     [
+      35.83303,
+      128.52733
+     ],
+     [
+      35.83164,
+      128.52769
+     ],
+     [
+      35.83129,
+      128.52961
+     ],
+     [
+      35.83232,
+      128.53117
+     ],
+     [
+      35.83371,
+      128.53081
+     ],
+     [
+      35.83406,
+      128.52889
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5c3ffff",
+    "city": 2,
+    "drop_db": 17.2,
+    "boundary": [
+     [
+      35.82548,
+      128.511
+     ],
+     [
+      35.82409,
+      128.51135
+     ],
+     [
+      35.82374,
+      128.51327
+     ],
+     [
+      35.82477,
+      128.51483
+     ],
+     [
+      35.82616,
+      128.51448
+     ],
+     [
+      35.82651,
+      128.51256
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a583ffff",
+    "city": 2,
+    "drop_db": 20.4,
+    "boundary": [
+     [
+      35.831,
+      128.51689
+     ],
+     [
+      35.82961,
+      128.51724
+     ],
+     [
+      35.82926,
+      128.51916
+     ],
+     [
+      35.83029,
+      128.52073
+     ],
+     [
+      35.83168,
+      128.52037
+     ],
+     [
+      35.83203,
+      128.51845
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a503ffff",
+    "city": 2,
+    "drop_db": 23.3,
+    "boundary": [
+     [
+      35.82509,
+      128.52023
+     ],
+     [
+      35.82371,
+      128.52059
+     ],
+     [
+      35.82335,
+      128.52251
+     ],
+     [
+      35.82438,
+      128.52407
+     ],
+     [
+      35.82577,
+      128.52372
+     ],
+     [
+      35.82613,
+      128.5218
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a543ffff",
+    "city": 2,
+    "drop_db": 23.5,
+    "boundary": [
+     [
+      35.81958,
+      128.51434
+     ],
+     [
+      35.81819,
+      128.5147
+     ],
+     [
+      35.81783,
+      128.51662
+     ],
+     [
+      35.81887,
+      128.51818
+     ],
+     [
+      35.82025,
+      128.51782
+     ],
+     [
+      35.82061,
+      128.5159
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a527ffff",
+    "city": 2,
+    "drop_db": 25.1,
+    "boundary": [
+     [
+      35.82538,
+      128.53295
+     ],
+     [
+      35.824,
+      128.53331
+     ],
+     [
+      35.82364,
+      128.53523
+     ],
+     [
+      35.82467,
+      128.53679
+     ],
+     [
+      35.82606,
+      128.53644
+     ],
+     [
+      35.82642,
+      128.53452
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5bbffff",
+    "city": 2,
+    "drop_db": 18.1,
+    "boundary": [
+     [
+      35.82993,
+      128.52264
+     ],
+     [
+      35.82855,
+      128.523
+     ],
+     [
+      35.82819,
+      128.52492
+     ],
+     [
+      35.82922,
+      128.52648
+     ],
+     [
+      35.83061,
+      128.52613
+     ],
+     [
+      35.83097,
+      128.52421
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a567ffff",
+    "city": 2,
+    "drop_db": 18.4,
+    "boundary": [
+     [
+      35.81987,
+      128.52706
+     ],
+     [
+      35.81848,
+      128.52742
+     ],
+     [
+      35.81812,
+      128.52934
+     ],
+     [
+      35.81915,
+      128.5309
+     ],
+     [
+      35.82054,
+      128.53054
+     ],
+     [
+      35.8209,
+      128.52862
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a53bffff",
+    "city": 2,
+    "drop_db": 19.8,
+    "boundary": [
+     [
+      35.82403,
+      128.52599
+     ],
+     [
+      35.82264,
+      128.52635
+     ],
+     [
+      35.82229,
+      128.52827
+     ],
+     [
+      35.82332,
+      128.52983
+     ],
+     [
+      35.82471,
+      128.52947
+     ],
+     [
+      35.82506,
+      128.52755
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a57bffff",
+    "city": 2,
+    "drop_db": 20.4,
+    "boundary": [
+     [
+      35.81851,
+      128.5201
+     ],
+     [
+      35.81712,
+      128.52046
+     ],
+     [
+      35.81677,
+      128.52238
+     ],
+     [
+      35.8178,
+      128.52394
+     ],
+     [
+      35.81919,
+      128.52358
+     ],
+     [
+      35.81954,
+      128.52166
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5a7ffff",
+    "city": 2,
+    "drop_db": 21,
+    "boundary": [
+     [
+      35.83129,
+      128.52961
+     ],
+     [
+      35.8299,
+      128.52996
+     ],
+     [
+      35.82955,
+      128.53188
+     ],
+     [
+      35.83058,
+      128.53345
+     ],
+     [
+      35.83197,
+      128.53309
+     ],
+     [
+      35.83232,
+      128.53117
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a52fffff",
+    "city": 2,
+    "drop_db": 20.7,
+    "boundary": [
+     [
+      35.82296,
+      128.53175
+     ],
+     [
+      35.82157,
+      128.53211
+     ],
+     [
+      35.82122,
+      128.53402
+     ],
+     [
+      35.82225,
+      128.53559
+     ],
+     [
+      35.82364,
+      128.53523
+     ],
+     [
+      35.824,
+      128.53331
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5b3ffff",
+    "city": 2,
+    "drop_db": 18.5,
+    "boundary": [
+     [
+      35.83235,
+      128.52385
+     ],
+     [
+      35.83097,
+      128.52421
+     ],
+     [
+      35.83061,
+      128.52613
+     ],
+     [
+      35.83164,
+      128.52769
+     ],
+     [
+      35.83303,
+      128.52733
+     ],
+     [
+      35.83339,
+      128.52541
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a56fffff",
+    "city": 2,
+    "drop_db": 19.7,
+    "boundary": [
+     [
+      35.81744,
+      128.52586
+     ],
+     [
+      35.81606,
+      128.52621
+     ],
+     [
+      35.8157,
+      128.52813
+     ],
+     [
+      35.81673,
+      128.52969
+     ],
+     [
+      35.81812,
+      128.52934
+     ],
+     [
+      35.81848,
+      128.52742
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a533ffff",
+    "city": 2,
+    "drop_db": 22.5,
+    "boundary": [
+     [
+      35.82645,
+      128.5272
+     ],
+     [
+      35.82506,
+      128.52755
+     ],
+     [
+      35.82471,
+      128.52947
+     ],
+     [
+      35.82574,
+      128.53103
+     ],
+     [
+      35.82713,
+      128.53068
+     ],
+     [
+      35.82748,
+      128.52876
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a573ffff",
+    "city": 2,
+    "drop_db": 21.2,
+    "boundary": [
+     [
+      35.82093,
+      128.5213
+     ],
+     [
+      35.81954,
+      128.52166
+     ],
+     [
+      35.81919,
+      128.52358
+     ],
+     [
+      35.82022,
+      128.52514
+     ],
+     [
+      35.82161,
+      128.52479
+     ],
+     [
+      35.82196,
+      128.52287
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5afffff",
+    "city": 2,
+    "drop_db": 23.8,
+    "boundary": [
+     [
+      35.82887,
+      128.5284
+     ],
+     [
+      35.82748,
+      128.52876
+     ],
+     [
+      35.82713,
+      128.53068
+     ],
+     [
+      35.82816,
+      128.53224
+     ],
+     [
+      35.82955,
+      128.53188
+     ],
+     [
+      35.8299,
+      128.52996
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a517ffff",
+    "city": 2,
+    "drop_db": 21.4,
+    "boundary": [
+     [
+      35.82751,
+      128.52144
+     ],
+     [
+      35.82613,
+      128.5218
+     ],
+     [
+      35.82577,
+      128.52372
+     ],
+     [
+      35.8268,
+      128.52528
+     ],
+     [
+      35.82819,
+      128.52492
+     ],
+     [
+      35.82855,
+      128.523
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5cbffff",
+    "city": 2,
+    "drop_db": 20.3,
+    "boundary": [
+     [
+      35.82306,
+      128.50979
+     ],
+     [
+      35.82167,
+      128.51015
+     ],
+     [
+      35.82132,
+      128.51207
+     ],
+     [
+      35.82235,
+      128.51363
+     ],
+     [
+      35.82374,
+      128.51327
+     ],
+     [
+      35.82409,
+      128.51135
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a58bffff",
+    "city": 2,
+    "drop_db": 28.8,
+    "boundary": [
+     [
+      35.82858,
+      128.51568
+     ],
+     [
+      35.82719,
+      128.51604
+     ],
+     [
+      35.82684,
+      128.51796
+     ],
+     [
+      35.82787,
+      128.51952
+     ],
+     [
+      35.82926,
+      128.51916
+     ],
+     [
+      35.82961,
+      128.51724
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a557ffff",
+    "city": 2,
+    "drop_db": 25.7,
+    "boundary": [
+     [
+      35.822,
+      128.51555
+     ],
+     [
+      35.82061,
+      128.5159
+     ],
+     [
+      35.82025,
+      128.51782
+     ],
+     [
+      35.82129,
+      128.51939
+     ],
+     [
+      35.82267,
+      128.51903
+     ],
+     [
+      35.82303,
+      128.51711
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a5d7ffff",
+    "city": 2,
+    "drop_db": 21.9,
+    "boundary": [
+     [
+      35.8279,
+      128.5122
+     ],
+     [
+      35.82651,
+      128.51256
+     ],
+     [
+      35.82616,
+      128.51448
+     ],
+     [
+      35.82719,
+      128.51604
+     ],
+     [
+      35.82858,
+      128.51568
+     ],
+     [
+      35.82893,
+      128.51376
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a50bffff",
+    "city": 2,
+    "drop_db": 18.3,
+    "boundary": [
+     [
+      35.82267,
+      128.51903
+     ],
+     [
+      35.82129,
+      128.51939
+     ],
+     [
+      35.82093,
+      128.5213
+     ],
+     [
+      35.82196,
+      128.52287
+     ],
+     [
+      35.82335,
+      128.52251
+     ],
+     [
+      35.82371,
+      128.52059
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a54bffff",
+    "city": 2,
+    "drop_db": 23.7,
+    "boundary": [
+     [
+      35.81716,
+      128.51314
+     ],
+     [
+      35.81577,
+      128.51349
+     ],
+     [
+      35.81541,
+      128.51541
+     ],
+     [
+      35.81644,
+      128.51697
+     ],
+     [
+      35.81783,
+      128.51662
+     ],
+     [
+      35.81819,
+      128.5147
+     ]
+    ]
+   },
+   {
+    "id": "8930c19a597ffff",
+    "city": 2,
+    "drop_db": 18.1,
+    "boundary": [
+     [
+      35.83342,
+      128.51809
+     ],
+     [
+      35.83203,
+      128.51845
+     ],
+     [
+      35.83168,
+      128.52037
+     ],
+     [
+      35.83271,
+      128.52193
+     ],
+     [
+      35.8341,
+      128.52157
+     ],
+     [
+      35.83445,
+      128.51965
      ]
     ]
    }
@@ -18596,8 +18877,88 @@
   "http": {
    "query": "SELECT area, city, minute, cells, drop_db, rsrp_now FROM oss_lake.uc_alert_areas FORMAT JSONEachRow",
    "lines": [
-    "{\"area\":\"8730c1646ffffff\",\"city\":1,\"minute\":\"2026-10-18 09:17:00\",\"cells\":39,\"drop_db\":21.9,\"rsrp_now\":-119.7}"
+    "{\"area\":\"8730c19a5ffffff\",\"city\":2,\"minute\":\"2026-10-18 10:20:00\",\"cells\":48,\"drop_db\":21.2,\"rsrp_now\":-114.1}"
    ]
   }
+ },
+ "lessons": {
+  "state_size": [
+   {
+    "fn": "uniq",
+    "input": "String",
+    "distinct_values": 300,
+    "bytes": 1203
+   },
+   {
+    "fn": "uniq",
+    "input": "UInt64",
+    "distinct_values": 300,
+    "bytes": 1203
+   },
+   {
+    "fn": "uniq",
+    "input": "UInt64",
+    "distinct_values": 1000,
+    "bytes": 4003
+   },
+   {
+    "fn": "uniqCombined(12)",
+    "input": "UInt64",
+    "distinct_values": 300,
+    "bytes": 2651
+   },
+   {
+    "fn": "uniqCombined(12)",
+    "input": "UInt64",
+    "distinct_values": 1000,
+    "bytes": 2651
+   }
+  ],
+  "grain": [
+   {
+    "grain": "1 minute",
+    "rows": 2431524,
+    "avg_state_bytes": 34,
+    "total_state_bytes": 83123568
+   },
+   {
+    "grain": "10 minutes",
+    "rows": 263946,
+    "avg_state_bytes": 193,
+    "total_state_bytes": 50997252
+   }
+  ],
+  "regions": [
+   {
+    "region1": "City C",
+    "region2": "C North-West",
+    "samples": 423525,
+    "poor_pct": 13.3
+   },
+   {
+    "region1": "City B",
+    "region2": "B South-West",
+    "samples": 476528,
+    "poor_pct": 13.3
+   },
+   {
+    "region1": "City A",
+    "region2": "A North-East",
+    "samples": 506417,
+    "poor_pct": 13.1
+   },
+   {
+    "region1": "City B",
+    "region2": "B South-East",
+    "samples": 420181,
+    "poor_pct": 12.5
+   },
+   {
+    "region1": "City A",
+    "region2": "A West",
+    "samples": 402949,
+    "poor_pct": 12.5
+   }
+  ]
  }
 }

@@ -1,4 +1,4 @@
--- Synthetic probe traces: three fictional cities (centres at real Korean coordinates),
+-- Synthetic device (UE) traces: three fictional cities (centres at real Korean coordinates),
 -- two hours ending at the current minute, about 9 rows per cell per minute on average,
 -- denser near each centre. Everything is generated here; nothing comes from outside.
 
@@ -22,7 +22,28 @@ FROM
     FROM (SELECT arrayJoin([1, 2, 3]) AS c)
 );
 
--- ---------------------------------------------------------------- the phones
+-- ---------------------------------------------------------------- the inventory (CM)
+-- Every cell gets a site and a fictional district: 'Central' within 10 rings, otherwise one
+-- of six 60-degree sectors around the city centre. Coverage holes are known weak spots.
+INSERT INTO oss_lake.cell_inventory
+WITH
+    [(37.5665, 126.9780), (35.1796, 129.0756), (35.8714, 128.6014)] AS centres,
+    ['North-East', 'East', 'South-East', 'South-West', 'West', 'North-West'] AS sectors,
+    centres[city + 1] AS c,
+    h3ToGeo(h3) AS p,
+    (degrees(atan2((p.2 - c.2) * cos(radians(c.1)), p.1 - c.1)) + 360) % 360 AS bearing
+SELECT
+    h3                                                            AS cell,
+    concat(['A', 'B', 'C'][city + 1], '-', leftPad(toString(intDiv(idx, 7)), 4, '0')) AS site_id,
+    ['City A', 'City B', 'City C'][city + 1]                      AS region1,
+    concat(['A', 'B', 'C'][city + 1], ' ',
+           if(ring <= 10, 'Central', sectors[1 + toUInt8(floor(bearing / 60)) % 6])) AS region2,
+    is_hole                                                       AS known_weak
+FROM oss_lake.grid;
+
+SYSTEM RELOAD DICTIONARY oss_lake.cell_dict;
+
+-- ---------------------------------------------------------------- the devices
 -- A parameterized view: `minutes` minutes of traces starting at `start`.
 -- 02 uses it for the two-hour history, the demo's live feed for one more minute.
 CREATE VIEW oss_lake.synth_traces AS
@@ -43,7 +64,7 @@ WITH
     toUInt32(floor(per_city * pow((cityHash64(seed, number, 1) % 1000000) / 1e6, 1.8))) AS k,
     city * per_city + k + 1                         AS gi,
     g[gi].1 AS cell, g[gi].2 AS ring, g[gi].3 AS hole,
-    -- 80% of samples come from the cell's regulars (48 phones), the rest from passers-by
+    -- 80% of samples come from the cell's regulars (48 devices), the rest from passers-by
     if(cityHash64(seed, number, 2) % 100 < 80,
        gi * 64 + cityHash64(seed, number, 3) % 48,
        5000000 + cityHash64(seed, number, 3) % 3000000)                     AS subscriber,

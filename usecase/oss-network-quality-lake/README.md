@@ -1,4 +1,4 @@
-# Telco OSS data lake — who uses it for what, and one measurement through it
+# Case study: a telco OSS data lake — architecture, use cases, what a PoC verified
 
 [English](#english) | [한국어](#한국어)
 
@@ -14,9 +14,11 @@ dashboards, ad hoc analysis, request/response serving, subscriptions, bulk expor
 data quality, pipeline observability, lake history, AI agents, Managed Postgres as an expansion),
 and a small ClickHouse lake that actually runs five of them.
 
-It is made to be shown to colleagues: a static explainer page in Korean, English, Japanese and
-Chinese (works without ClickHouse) and a local live demo with a "send next minute" button. Use cases
-come first; measured numbers are kept in the engineers' section.
+It is made to be shown to colleagues as a case study: situation → the industry trend (virtualizing
+the OSS data layer, from public sources) → architecture → use cases → features verified in the PoC →
+lessons from the field → try it. A static page in English (default, at `/`), Korean, Japanese and
+Chinese works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
+the colours of clickhouse.com (computed styles, read 2026-10-18).
 
 The architecture is generalized from a real case: no customer, product, host, table or topic names
 and none of its figures appear here. The operator and the three cities are fictional; only the
@@ -24,7 +26,7 @@ city-centre coordinates (Seoul, Busan, Daegu) are real. All data is generated in
 test network code 001-01.
 
 **Verified on ClickHouse 26.9.13.15** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
-`tools/hol run usecase/oss-network-quality-lake` passes (01–04 and 99, about 26 s; two runs in a row after the last change), and the live demo was run
+`tools/hol run usecase/oss-network-quality-lake` passes (01–05 and 99, about 30 s; two runs in a row after the last change), and the live demo was run
 with `ui/up.sh` and its button pressed several times. Machine: Apple M4 Pro, macOS, Docker Desktop;
 the container sees 12 CPUs and 7.75 GiB.
 
@@ -57,6 +59,30 @@ generated, and a **control-plane API** that declares, deploys and observes every
 
 Every minute the generator degrades one res-7 area (about 49 cells) by 22 dB, so the alert use case
 and the live feed have something new to catch each minute.
+
+### Features verified in the PoC
+
+Ingest as received · cleaning at insert time (MV) · enrichment from an inventory dictionary (`dictGet`,
+district names) · pre-aggregation at insert (cell × 1 min) · gold on gold (cell × 10 min cascading from
+cell × 1 min, equal to raw) · a geography axis (district × 1 min) · an answer refreshed every minute
+(refreshable MV) · the same 20 rows from every stage · sudden-drop alerts · HTTP serving with a
+read-only user · H3 geo functions. Each has a check in 03–05, except "20 rows readable during
+refreshes" and "the read-only user cannot write", which were checked by hand on 2026-10-18.
+
+### Lessons from the field (measured 2026-10-18 on this lab, 26.9.13.15)
+
+- Nullable costs mostly in query complexity: the NOC query on bronze needs `assumeNotNull`,
+  `IS NOT NULL`, `stringToH3`, `cityHash64`; on silver it does not.
+- A uniq state is sized by distinct values per group, not by input type: 300 distinct values give
+  1,203 B for `String` and for `UInt64` alike; `uniqCombined(12)` is 2,651 B at 300 and at 1,000,
+  where `uniq` is 4,003 B. In the lab the 1-minute rollup holds 2.43 M states of 34 B on average,
+  the 10-minute one 264 K of 193 B: choose the grain where user counts live.
+- Build coarse rollups from fine ones (cascading MV on the 1-minute table, `uniqMergeState` + sums);
+  not a refreshable MV with `APPEND`, which double-inserts when the window is wider than the interval.
+- A time column named `_kst` but typed UTC shifts buckets and TTL by nine hours; store instants with an
+  explicit time zone.
+- Many consumers (dashboards, an AI agent over MCP, a catalogue, Kafka Connect batches) need their own
+  users and limits: read-only users with result and time limits, larger batches or async inserts.
 
 ### The layers this lab runs
 
@@ -157,6 +183,7 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `02-generate.sql` | the cell grid (3 cities × 6,769 res-9 cells, a weak-coverage spot per city), the `synth_traces` view, two hours of traces |
 | `03-queries.sql` | the NOC query on each layer, `SYSTEM REFRESH VIEW`, the same-20-rows check |
 | `04-usecases.sql` | use-case views (analysis, dashboard, alerts per cell and per area) and their checks |
+| `05-lessons.sql` | lesson checks: the 10-minute rollup built on the 1-minute one equals raw (with a control), the region rollup adds up, bronze keeps every row; uniq state sizes by type, distinct values and grain |
 | `examples/` | patterns not run here: publishing alerts to Kafka, reading the lake from Postgres with `pg_clickhouse` |
 | `99-cleanup.sql` | drops `oss_lake`, `oss_pitfall` and the user |
 | `pitfall.sql` | the pitfall above, by hand |
@@ -164,7 +191,7 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `site/` | explainer (`explainer.html`), shared CSS/JS, catalogues `i18n/{ko,en,ja,zh}.json`, `build.py` |
 | `ui/server.py` | stdlib-only server: explainer at `/`, demo at `/demo`, fixed endpoints `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | the live demo page (no build step, no CDN) |
-| `ui/up.sh` | container + 01–04 + server, in one command |
+| `ui/up.sh` | container + 01–05 + server, in one command |
 | `site/data/replay.json` | six live-feed presses recorded with `ui/server.py --record 6`, replayed by the demo where there is no ClickHouse |
 | `vercel.json` | static deployment: `python3 site/build.py` → `site/dist`, `noindex` header |
 
@@ -189,7 +216,7 @@ The live demo (Docker and Python 3; local only, no Cloud cost):
 usecase/oss-network-quality-lake/ui/up.sh
 ```
 
-Then open <http://localhost:8765/> (explainer) or <http://localhost:8765/demo> (demo; `/en/demo`,
+Then open <http://localhost:8765/> (explainer) or <http://localhost:8765/demo> (demo; `/ko/demo`,
 `/ja/demo`, `/zh/demo` for the other languages). ClickHouse listens on `127.0.0.1:18123`
 (`CH_PORT` to change). Reads go through the read-only user `oss_reader`; only `POST /api/tick`
 writes, and it runs one fixed statement (the next minute from `synth_traces`), never SQL from the
@@ -217,7 +244,7 @@ To refresh what it shows: load a fresh container (`ui/up.sh`), then `./snapshot.
 ### Languages
 
 Korean is the source. `site/i18n/{ko,en,ja,zh}.json` is one catalogue per language, shared by the
-explainer and the demo; `build.py` writes `/` (ko), `/en/`, `/ja/`, `/zh/` and fails when the key
+explainer and the demo; `build.py` writes `/` (en), `/ko/`, `/ja/`, `/zh/` and fails when the key
 sets differ (seen: removing `cta.note` from `ja.json` stopped the build with
 `ja.json: missing ['cta.note']`). SQL, table and column names are not translated. Checked in the
 browser on 2026-10-18 at 320 px and desktop width, light and dark, in all four languages.
@@ -244,16 +271,17 @@ IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를
 레이크 이력, AI 에이전트, 확장안으로 Managed Postgres), 그리고 그중 다섯 가지를 실제로 돌리는 작은
 ClickHouse 레이크입니다.
 
-동료들에게 보여 주기 위한 실습입니다. 정적인 설명 페이지(한국어, 영어, 일본어, 중국어. ClickHouse 없이
-열림)와 "다음 1분 보내기" 버튼이 있는 로컬 라이브 데모가 있습니다. 유즈케이스가 먼저이고, 측정한 수치는
-엔지니어용 절에 둡니다.
+동료들과 나누는 사례 연구입니다. 상황 → 업계 흐름(OSS 데이터 레이어의 가상화, 공개 자료) → 아키텍처 →
+유즈케이스 → PoC에서 검증한 기능 → 현장에서 배운 것 → 직접 해 보기 순서입니다. 정적 페이지는 영어(기본,
+`/`), 한국어, 일본어, 중국어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
+있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.
 
 구조는 실제 사례를 일반화했습니다. 고객, 제품, 호스트, 테이블, 토픽 이름과 그 사례의 수치는 여기에
 없습니다. 통신사와 세 도시는 가상이고, 도시 중심 좌표(서울, 부산, 대구)만 실제입니다. 데이터는 모두
 SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.
 
 **ClickHouse 26.9.13.15에서 검증** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
-`tools/hol run usecase/oss-network-quality-lake` 통과(01–04와 99, 약 26초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 `ui/up.sh`로
+`tools/hol run usecase/oss-network-quality-lake` 통과(01–05와 99, 약 30초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 `ui/up.sh`로
 띄워 버튼을 여러 번 눌러 확인했습니다. 기기: Apple M4 Pro, macOS, Docker Desktop, 컨테이너는
 CPU 12개와 7.75 GiB를 봅니다.
 
@@ -285,6 +313,29 @@ CPU 12개와 7.75 GiB를 봅니다.
 
 생성기는 1분마다 res-7 지역 하나(셀 약 49개)의 신호를 22 dB 떨어뜨립니다. 그래서 알림 유즈케이스와
 라이브 데모가 매분 새로 잡을 것이 생깁니다.
+
+### PoC에서 검증한 기능
+
+받은 그대로 적재 · 적재 순간의 정제(MV) · 인벤토리 Dictionary로 보강(`dictGet`, 지역 이름) · 적재 시
+사전 집계(셀 × 1분) · 골드 위의 골드(셀 × 1분에서 이어받는 셀 × 10분, 원본과 일치) · 지리 축(지역 ×
+1분) · 1분마다 새로 고치는 답(Refreshable MV) · 모든 단계에서 같은 20행 · 급격한 하락 알림 · 읽기
+전용 사용자의 HTTP 서빙 · H3 지리 함수. 각각 03–05에 검사가 있고, '새로 고침 중에도 20행'과 '읽기
+전용 사용자는 쓰지 못함'은 2026-10-18 손으로 확인했습니다.
+
+### 현장에서 배운 것 (2026-10-18, 이 실습, 26.9.13.15에서 측정)
+
+- Nullable의 비용은 주로 질의의 복잡도입니다. 브론즈의 NOC 질의에는 `assumeNotNull`, `IS NOT NULL`,
+  `stringToH3`, `cityHash64`가 필요하고 실버에서는 필요 없습니다.
+- uniq 상태의 크기는 입력 타입이 아니라 그룹당 서로 다른 값의 수가 정합니다. 300개면 `String`과
+  `UInt64` 모두 1,203 B, `uniqCombined(12)`는 300개와 1,000개 모두 2,651 B(그때 `uniq`는 4,003 B).
+  이 실습의 1분 요약은 평균 34 B 상태 243만 개, 10분 요약은 193 B 상태 26.4만 개입니다. 사용자 수를
+  둘 단위를 고르세요.
+- 거친 요약은 고운 요약에서 만듭니다(1분 테이블에 연쇄 MV, `uniqMergeState` + 합계). `APPEND`를 쓴
+  Refreshable MV는 창이 주기보다 넓으면 두 번 넣습니다.
+- 이름은 `_kst`인데 타입은 UTC인 시간 컬럼은 버킷과 TTL을 9시간 밀어 놓습니다. 시각은 시간대를 명시해
+  저장하세요.
+- 소비자(대시보드, MCP의 AI 에이전트, 카탈로그, Kafka Connect 배치)가 많아지면 각자의 사용자와 한도가
+  필요합니다. 읽기 전용 사용자에 결과·시간 한도, 적재 쪽은 큰 배치나 async insert.
 
 ### 이 실습이 돌리는 레이어
 
@@ -383,6 +434,7 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `02-generate.sql` | 셀 격자(3개 도시 × res-9 셀 6,769개, 도시마다 음영 지역 한 곳), `synth_traces` 뷰, 2시간치 측정 |
 | `03-queries.sql` | 레이어별 NOC 질의, `SYSTEM REFRESH VIEW`, 같은 20행 검사 |
 | `04-usecases.sql` | 유즈케이스 뷰(분석, 대시보드, 셀별·지역별 알림)와 검사 |
+| `05-lessons.sql` | 교훈 검사: 1분 요약에서 이어받은 10분 요약 = 원본(대조군 포함), 지역 요약 합계, 브론즈 행 보존. 타입·서로 다른 값 수·단위별 uniq 상태 크기 |
 | `examples/` | 여기서 돌리지 않는 방식: Kafka로 알림 발행, `pg_clickhouse`로 Postgres에서 레이크 읽기 |
 | `99-cleanup.sql` | `oss_lake`, `oss_pitfall`, 사용자 삭제 |
 | `pitfall.sql` | 위 함정을 손으로 재현 |
@@ -390,7 +442,7 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `site/` | 설명 페이지(`explainer.html`), 공용 CSS/JS, 카탈로그 `i18n/{ko,en,ja,zh}.json`, `build.py` |
 | `ui/server.py` | 표준 라이브러리만 쓰는 서버: `/`에 설명, `/demo`에 데모, 고정 엔드포인트 `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | 라이브 데모 페이지(빌드 단계 없음, CDN 없음) |
-| `ui/up.sh` | 컨테이너 + 01–04 + 서버를 명령 하나로 |
+| `ui/up.sh` | 컨테이너 + 01–05 + 서버를 명령 하나로 |
 | `site/data/replay.json` | `ui/server.py --record 6`으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생 |
 | `vercel.json` | 정적 배포: `python3 site/build.py` → `site/dist`, `noindex` 헤더 |
 
@@ -415,7 +467,7 @@ open usecase/oss-network-quality-lake/site/dist/index.html
 usecase/oss-network-quality-lake/ui/up.sh
 ```
 
-그다음 <http://localhost:8765/>(설명) 또는 <http://localhost:8765/demo>(데모. 다른 언어는 `/en/demo`,
+그다음 <http://localhost:8765/>(설명) 또는 <http://localhost:8765/demo>(데모. 다른 언어는 `/ko/demo`,
 `/ja/demo`, `/zh/demo`)를 엽니다. ClickHouse는 `127.0.0.1:18123`에서 듣습니다(`CH_PORT`로 변경).
 읽기는 읽기 전용 사용자 `oss_reader`로 하고, 쓰기는 `POST /api/tick` 하나뿐이며 고정된 문장 하나
 (`synth_traces`의 다음 1분)만 실행합니다. 페이지에서 보낸 SQL은 실행하지 않습니다. Ctrl-C로 멈추고
@@ -443,7 +495,7 @@ vercel deploy --prod --scope litkhai
 ### 언어
 
 한국어가 원본입니다. `site/i18n/{ko,en,ja,zh}.json`은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
-함께 씁니다. `build.py`는 `/`(ko), `/en/`, `/ja/`, `/zh/`를 쓰고, 키 집합이 다르면 실패합니다
+함께 씁니다. `build.py`는 `/`(en), `/ko/`, `/ja/`, `/zh/`를 쓰고, 키 집합이 다르면 실패합니다
 (확인: `ja.json`에서 `cta.note`를 빼자 `ja.json: missing ['cta.note']`로 멈춤). SQL, 테이블과 컬럼
 이름은 번역하지 않습니다. 2026-10-18 브라우저에서 320px과 데스크톱 너비, 라이트와 다크, 네 언어
 모두 확인했습니다.

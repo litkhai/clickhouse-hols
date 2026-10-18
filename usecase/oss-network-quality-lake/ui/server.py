@@ -92,7 +92,7 @@ def story():
         "AND event_ts >= %s - INTERVAL 1 MINUTE AND event_ts < %s ORDER BY event_ts LIMIT 1"
         % (top["cell_str"], ANCHOR64, ANCHOR64))[0]
     silver = rows(
-        "SELECT event_ts, h3, imsi_hash, rsrp, rsrq, sinr, cqi "
+        "SELECT event_ts, h3, imsi_hash, rsrp, rsrq, sinr, cqi, region1, region2 "
         "FROM oss_lake.ue_trace WHERE event_ts = toDateTime64('%s', 3) AND h3 = stringToH3('%s') "
         "AND imsi_hash = cityHash64('%s') LIMIT 1" % (raw["event_ts"], raw["h3_res09"], raw["imsi"]))[0]
     gold = rows(
@@ -229,6 +229,15 @@ def snapshot(path):
         "queries": [noc(n, repeat=5) for n in range(1, 5)],
         "map": map_data(),
         "usecases": usecases(),
+        "lessons": {
+            "state_size": rows("SELECT * FROM oss_lake.lesson_state_size"),
+            "grain": rows("SELECT * FROM oss_lake.lesson_grain ORDER BY rows DESC"),
+            "regions": rows("WITH (SELECT max(anchor_ts) FROM oss_lake.params) AS t "
+                            "SELECT region1, region2, sum(samples_n) AS samples, "
+                            "round(100 * sum(poor_n) / sum(rsrp_n), 1) AS poor_pct "
+                            "FROM oss_lake.region_kpi_1m WHERE bucket >= t - INTERVAL 1 HOUR AND bucket < t "
+                            "GROUP BY region1, region2 ORDER BY poor_pct DESC LIMIT 5"),
+        },
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(snap, ensure_ascii=False, indent=1) + "\n")

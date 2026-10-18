@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <meta name="robots" content="noindex">
 <title>{{meta.title}}</title>
 <style>[[css]]</style>
@@ -16,172 +16,180 @@
 </div></header>
 
 <main class="wide">
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" style="fill:var(--ink-2)"/></marker></defs></svg>
-
 <section class="hero">
   <p class="kicker">{{hero.kicker}}</p>
   <h1>{{hero.title}}</h1>
   <p class="lead">{{hero.lead}}</p>
   <p class="note">{{hero.note}}</p>
-</section>
-
-<section class="card">
-  <h2>{{where.title}}</h2>
-  <p>{{where.body}}</p>
-  <figure>
-  <svg class="icon" viewBox="0 0 420 190" role="img" aria-label="{{where.aria}}" style="max-width:560px">
-    <rect class="fl" x="8" y="10" width="190" height="170" rx="12"/>
-    <text x="103" y="34" text-anchor="middle" style="font-weight:700">{{where.bss}}</text>
-    <text x="103" y="54" text-anchor="middle" class="lbl">{{where.bss_sub}}</text>
-    <text x="103" y="110" text-anchor="middle" class="lbl">{{where.bss_q}}</text>
-    <rect x="222" y="10" width="190" height="170" rx="12" style="fill:var(--accent-soft);stroke:var(--accent)"/>
-    <text x="317" y="34" text-anchor="middle" style="font-weight:700">{{where.oss}}</text>
-    <text x="317" y="54" text-anchor="middle" class="lbl">{{where.oss_sub}}</text>
-    <rect x="240" y="66" width="154" height="26" rx="6" style="fill:var(--surface);stroke:var(--line)"/>
-    <text x="317" y="84" text-anchor="middle" class="lbl">{{where.probe}}</text>
-    <path class="ln" d="M317 92 V104"/>
-    <rect x="240" y="104" width="154" height="30" rx="6" style="fill:var(--accent)"/>
-    <text x="317" y="124" text-anchor="middle" style="fill:var(--surface);font-weight:700;font-size:13px">{{where.lake}}</text>
-    <path class="ln" d="M317 134 V146"/>
-    <rect x="240" y="146" width="154" height="26" rx="6" style="fill:var(--surface);stroke:var(--line)"/>
-    <text x="317" y="164" text-anchor="middle" class="lbl">{{where.uses}}</text>
-  </svg>
-  </figure>
-</section>
-
-<section>
-  <h2>{{arch.title}}</h2>
-  <p>{{arch.body}}</p>
-  <ol class="arch" aria-label="{{arch.aria}}">
-    <li class="ab ab-src"><b>{{arch.src}}</b><span>{{arch.src.d}}</span></li>
-    <li class="ab"><b>{{arch.collect}}</b><span>{{arch.collect.d}}</span></li>
-    <li class="ab ab-bronze"><b>{{arch.raw}}</b><span>{{arch.raw.d}}</span></li>
-    <li class="ab ab-silver"><b>{{arch.std}}</b><span>{{arch.std.d}}</span></li>
-    <li class="ab ab-gold"><b>{{arch.store}}</b><span>{{arch.store.d}}</span></li>
-    <li class="ab ab-serving"><b>{{arch.serve}}</b><span>{{arch.serve.d}}</span></li>
-    <li class="ab ab-use"><b>{{arch.use}}</b><span>{{arch.use.d}}</span></li>
+  <ol class="toc">
+    <li><a href="#situation">{{sit.title}}</a></li><li><a href="#trend">{{trend.title}}</a></li>
+    <li><a href="#arch">{{arch.title}}</a></li><li><a href="#uses">{{uc.title}}</a></li>
+    <li><a href="#built">{{flow.title}}</a></li><li><a href="#lessons">{{lesson.title}}</a></li>
+    <li><a href="#try">{{cta.title}}</a></li>
   </ol>
+</section>
+
+<!-- 1 · situation -->
+<section id="situation" class="sec">
+  <h2><span class="n">1</span>{{sit.title}}</h2>
+  <div class="sit">
+    <figure class="screen" aria-label="{{sit.scr.aria}}">
+      <div class="scr-bar"><span></span><span></span><span></span><b>{{sit.scr}}</b></div>
+      <div class="scr-body">
+        <div class="scr-col"><p>{{list.users}}</p><i></i><i></i><i></i><i></i></div>
+        <div class="scr-col weak"><p>{{list.signal}}</p><i></i><i></i><i></i><i></i></div>
+        <div class="scr-wait" aria-hidden="true"><span class="spin"></span>{{sit.wait}}</div>
+      </div>
+    </figure>
+    <div>
+      <p>{{sit.body}}</p>
+      <ul class="pains">
+        <li>{{sit.p1}}</li><li>{{sit.p2}}</li><li>{{sit.p3}}</li><li>{{sit.p4}}</li>
+      </ul>
+      <p class="note">{{where.body}}</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · trend -->
+<section id="trend" class="sec">
+  <h2><span class="n">2</span>{{trend.title}}</h2>
+  <p>{{trend.body}}</p>
+  <div class="stack-wrap">
+    <ol class="stack">
+      <li><b>{{trend.l1}}</b><span>{{trend.l1.d}}</span></li>
+      <li><b>{{trend.l2}}</b><span>{{trend.l2.d}}</span></li>
+      <li><b>{{trend.l3}}</b><span>{{trend.l3.d}}</span></li>
+      <li class="ch"><b>{{trend.l4}}</b><span>{{trend.l4.d}}</span><em>ClickHouse</em></li>
+      <li class="ch"><b>{{trend.l5}}</b><span>{{trend.l5.d}}</span><em>ClickHouse + Iceberg</em></li>
+      <li><b>{{trend.l6}}</b><span>{{trend.l6.d}}</span></li>
+      <li><b>{{trend.l7}}</b><span>{{trend.l7.d}}</span></li>
+    </ol>
+    <div class="fabric" aria-hidden="true"><span>{{trend.fabric}}</span></div>
+  </div>
+  <p class="note">{{trend.note}}</p>
+  <details><summary>{{trend.src}}</summary>
+    <ul class="srcs">
+      <li>TM Forum Inform, “AI agents need a real-time data fabric to enable autonomy at scale”, 2026-07-02 — <a href="https://inform.tmforum.org/features-and-opinion/ai-agents-need-a-real-time-data-fabric-to-enable-autonomy-at-scale">inform.tmforum.org</a></li>
+      <li>TM Forum Inform, “Turning agentic AI into a safe, scalable operational capability” (Catalyst), 2026-07-30 — <a href="https://inform.tmforum.org/research-and-analysis/proofs-of-concept/turning-agentic-ai-into-a-safe-scalable-operational-capability">inform.tmforum.org</a></li>
+      <li>Fierce Network, ODA as a foundation for AI-native telecoms — <a href="https://www.fierce-network.com/sponsored/oda-foundation-ai-native-telecoms-industry">fierce-network.com</a></li>
+      <li>Altice Labs, MCP servers on autonomous operations, 2026-06-18 — <a href="https://www.alticelabs.com/blog/mcp-servers-on-autonomous-operations/">alticelabs.com</a></li>
+      <li>The Mobile Network, topology and ontology, 2025-10-10 — <a href="https://the-mobile-network.com/2025/10/how-topology-and-ontology-can-build-the-future-network-without-apology/">the-mobile-network.com</a> · O-RAN SC TEIV — <a href="https://github.com/o-ran-sc/smo-teiv">github.com/o-ran-sc/smo-teiv</a></li>
+      <li>Databricks, telecom network performance monitoring reference architecture — <a href="https://www.databricks.com/resources/architectures/telecom-network-performance-monitoring-reference-architecture">databricks.com</a></li>
+      <li>IETF liaison (ETSI ZSM, network digital twin) — <a href="https://datatracker.ietf.org/liaison/1914/">datatracker.ietf.org</a> · ITU-T Y.DTN-DataFrame — <a href="https://www.itu.int/ITU-T/workprog/wp_item.aspx?isn=18812">itu.int</a></li>
+    </ul>
+    <p class="note">{{trend.src.note}}</p>
+  </details>
+</section>
+
+<!-- 3 · architecture -->
+<section id="arch" class="sec">
+  <h2><span class="n">3</span>{{arch.title}}</h2>
+  <p>{{arch.body}}</p>
+  <div class="ov" role="img" aria-label="{{arch.aria}}">
+    <div class="ov-col"><h3>{{arch.c.src}}</h3>
+      <p class="bx on">{{arch.s.trace}}</p><p class="bx on">{{arch.s.cm}}</p>
+      <p class="bx off">{{arch.s.pm}}</p><p class="bx off">{{arch.s.voc}}</p></div>
+    <div class="ov-col"><h3>{{arch.c.ing}}</h3>
+      <p class="bx on">Kafka<small>{{arch.i.note}}</small></p></div>
+    <div class="ov-col c-bronze"><h3>{{arch.c.bronze}}</h3>
+      <p class="bx on">{{arch.b.raw}}<small>{{arch.b.note}}</small></p></div>
+    <div class="ov-col c-silver"><h3>{{arch.c.silver}}</h3>
+      <p class="bx on">{{arch.v.clean}}</p><p class="bx on">{{arch.v.enrich}}</p></div>
+    <div class="ov-col c-gold"><h3>{{arch.c.gold}}</h3>
+      <p class="bx on">{{arch.g.c1}}</p><p class="bx on">{{arch.g.c10}}</p><p class="bx on">{{arch.g.r1}}</p>
+      <p class="ax">{{arch.g.axes}}</p></div>
+    <div class="ov-col c-serving"><h3>{{arch.c.serve}}</h3>
+      <p class="bx on">{{arch.r.now}}</p><p class="bx on">REST · HTTP</p><p class="bx on">{{arch.r.sub}}</p><p class="bx off">{{arch.r.bulk}}</p></div>
+    <div class="ov-col"><h3>{{arch.c.out}}</h3>
+      <p class="bx on">{{arch.o.noc}}</p><p class="bx on">{{arch.o.alert}}</p><p class="bx on">{{arch.o.dash}}</p>
+      <p class="bx off">{{arch.o.agent}}</p><p class="bx off">{{arch.o.catalog}}</p>
+      <p class="ax">{{arch.o.limits}}</p></div>
+  </div>
+  <ul class="legend"><li><i class="k-on"></i>{{arch.k.on}}</li><li><i class="k-off"></i>{{arch.k.off}}</li></ul>
   <div class="rails">
     <p class="rail"><b>{{arch.contract}}</b> {{arch.contract.d}}</p>
     <p class="rail"><b>{{arch.control}}</b> {{arch.control.d}}</p>
   </div>
-  <p class="note">{{arch.note}}</p>
 </section>
 
-<section>
-  <h2>{{uc.title}}</h2>
+<!-- 4 · use cases -->
+<section id="uses" class="sec">
+  <h2><span class="n">4</span>{{uc.title}}</h2>
   <p>{{uc.body}}</p>
   <ul class="uc-key"><li><span class="tag run">{{tag.run}}</span> {{tag.run.d}}</li><li><span class="tag ex">{{tag.ex}}</span> {{tag.ex.d}}</li></ul>
-
-  <h3 class="grp">{{grp.see}}</h3>
   <div class="ucs">
   <article class="uc uc-wide">
     <p class="uc-who">{{uc.noc.who}} <span class="tag run">{{tag.run}}</span></p>
     <h4>{{uc.noc.title}}</h4>
-    <p>{{uc.noc.body}}</p>
     <div class="maps" id="maps"><p class="muted">{{map.nojs}}</p></div>
     <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-alert"></i>{{map.legend.alert}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
-    <p class="uc-how">{{uc.noc.how}}</p>
+    <details><summary>{{more}}</summary><p>{{uc.noc.body}}</p><p class="uc-how">{{uc.noc.how}}</p></details>
   </article>
   <article class="uc">
     <p class="uc-who">{{uc.dash.who}} <span class="tag run">{{tag.run}}</span></p>
     <h4>{{uc.dash.title}}</h4>
-    <p>{{uc.dash.body}}</p>
     <div class="chart" id="chart"><p class="muted">{{map.nojs}}</p></div>
-    <p class="uc-how">{{uc.dash.how}}</p>
-    <details><summary>{{sql.show}}</summary>[[sql:uc_dashboard]]</details>
+    <details><summary>{{more}}</summary><p>{{uc.dash.body}}</p><p class="uc-how">{{uc.dash.how}}</p>[[sql:uc_dashboard]]</details>
   </article>
   <article class="uc">
     <p class="uc-who">{{uc.analysis.who}} <span class="tag run">{{tag.run}}</span></p>
     <h4>{{uc.analysis.title}}</h4>
-    <p>{{uc.analysis.body}}</p>
     [[uc_analysis]]
-    <p class="uc-how">{{uc.analysis.how}}</p>
-    <details><summary>{{sql.show}}</summary>[[sql:uc_analysis]]</details>
-  </article>
-  </div>
-
-  <h3 class="grp">{{grp.serve}}</h3>
-  <div class="ucs">
-  <article class="uc">
-    <p class="uc-who">{{uc.rest.who}} <span class="tag run">{{tag.run}}</span></p>
-    <h4>{{uc.rest.title}}</h4>
-    <p>{{uc.rest.body}}</p>
-    [[uc_http]]
-    <p class="uc-how">{{uc.rest.how}}</p>
+    <details><summary>{{more}}</summary><p>{{uc.analysis.body}}</p><p class="uc-how">{{uc.analysis.how}}</p>[[sql:uc_analysis]]</details>
   </article>
   <article class="uc">
     <p class="uc-who">{{uc.alert.who}} <span class="tag run">{{tag.run}}</span></p>
     <h4>{{uc.alert.title}}</h4>
-    <p>{{uc.alert.body}}</p>
     [[uc_alerts]]
-    <p class="uc-how">{{uc.alert.how}}</p>
-    <details><summary>{{uc.alert.kafka}}</summary><p class="note">{{example.note}}</p>[[sql:kafka]]</details>
+    <details><summary>{{more}}</summary><p>{{uc.alert.body}}</p><p class="uc-how">{{uc.alert.how}}</p><p class="note">{{uc.alert.webhook}}</p><p class="note">{{example.note}}</p>[[sql:kafka]]</details>
   </article>
   <article class="uc">
-    <p class="uc-who">{{uc.bulk.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.bulk.title}}</h4>
-    <p>{{uc.bulk.body}}</p>
-    <p class="uc-how">{{uc.bulk.how}}</p>
-  </article>
-  <article class="uc">
-    <p class="uc-who">{{uc.pg.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.pg.title}}</h4>
-    <p>{{uc.pg.body}}</p>
-    <p class="uc-how">{{uc.pg.how}}</p>
-    <details><summary>{{uc.pg.sql}}</summary><p class="note">{{uc.pg.note}}</p>[[sql:postgres]]</details>
+    <p class="uc-who">{{uc.rest.who}} <span class="tag run">{{tag.run}}</span></p>
+    <h4>{{uc.rest.title}}</h4>
+    [[uc_http]]
+    <details><summary>{{more}}</summary><p>{{uc.rest.body}}</p><p class="uc-how">{{uc.rest.how}}</p></details>
   </article>
   </div>
-
-  <h3 class="grp">{{grp.ops}}</h3>
-  <div class="ucs">
-  <article class="uc">
-    <p class="uc-who">{{uc.contract.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.contract.title}}</h4>
-    <p>{{uc.contract.body}}</p>
-    <p class="uc-how">{{uc.contract.how}}</p>
-  </article>
-  <article class="uc">
-    <p class="uc-who">{{uc.quality.who}} <span class="tag run">{{tag.run}}</span></p>
-    <h4>{{uc.quality.title}}</h4>
-    <p>{{uc.quality.body}}</p>
-    <p class="uc-how">{{uc.quality.how}}</p>
-  </article>
-  <article class="uc">
-    <p class="uc-who">{{uc.obs.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.obs.title}}</h4>
-    <p>{{uc.obs.body}}</p>
-    <p class="uc-how">{{uc.obs.how}}</p>
-  </article>
-  <article class="uc">
-    <p class="uc-who">{{uc.history.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.history.title}}</h4>
-    <p>{{uc.history.body}}</p>
-    <p class="uc-how">{{uc.history.how}}</p>
-  </article>
-  </div>
-
-  <h3 class="grp">{{grp.ai}}</h3>
-  <div class="ucs">
-  <article class="uc">
-    <p class="uc-who">{{uc.agent.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.agent.title}}</h4>
-    <p>{{uc.agent.body}}</p>
-    <p class="uc-how">{{uc.agent.how}}</p>
-  </article>
-  <article class="uc">
-    <p class="uc-who">{{uc.llmobs.who}} <span class="tag ex">{{tag.ex}}</span></p>
-    <h4>{{uc.llmobs.title}}</h4>
-    <p>{{uc.llmobs.body}}</p>
-    <p class="uc-how">{{uc.llmobs.how}}</p>
-  </article>
+  <div class="tiles">
+    <article class="tile"><span class="ic" aria-hidden="true">PG</span><p class="uc-who">{{uc.pg.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.pg.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.pg.body}}</p><p class="uc-how">{{uc.pg.how}}</p><p class="note">{{uc.pg.note}}</p>[[sql:postgres]]</details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">AI</span><p class="uc-who">{{uc.agent.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.agent.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.agent.body}}</p><p class="uc-how">{{uc.agent.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">{ }</span><p class="uc-who">{{uc.contract.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.contract.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.contract.body}}</p><p class="uc-how">{{uc.contract.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">✓</span><p class="uc-who">{{uc.quality.who}} <span class="tag run">{{tag.run}}</span></p><h4>{{uc.quality.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.quality.body}}</p><p class="uc-how">{{uc.quality.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">◎</span><p class="uc-who">{{uc.obs.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.obs.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.obs.body}}</p><p class="uc-how">{{uc.obs.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">⧉</span><p class="uc-who">{{uc.history.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.history.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.history.body}}</p><p class="uc-how">{{uc.history.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">⇩</span><p class="uc-who">{{uc.bulk.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.bulk.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.bulk.body}}</p><p class="uc-how">{{uc.bulk.how}}</p></details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">◇</span><p class="uc-who">{{uc.llmobs.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.llmobs.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.llmobs.body}}</p><p class="uc-how">{{uc.llmobs.how}}</p></details></article>
   </div>
 </section>
 
-<section class="flow-sec">
-  <h2>{{flow.title}}</h2>
+<!-- 5 · what we built -->
+<section id="built" class="sec flow-sec">
+  <h2><span class="n">5</span>{{flow.title}}</h2>
   <p>{{flow.body}}</p>
+  [[poc]]
+  <h3 class="sub">{{poc.flow}}</h3>
   [[flow]]
+  <div class="fan">
+    <div class="fan-src">{{flow.silver.name}}</div>
+    <div class="fan-arrows" aria-hidden="true"></div>
+    <div class="fan-out">
+      <p class="bx on">{{arch.g.c1}}</p>
+      <p class="bx on">{{arch.g.r1}}</p>
+    </div>
+    <div class="fan-arrows" aria-hidden="true"></div>
+    <div class="fan-out"><p class="bx on">{{arch.g.c10}}<small>{{built.c10}}</small></p></div>
+  </div>
+  <h3 class="sub">{{built.region}}</h3>
+  [[regions]]
   <details class="eng">
     <summary>{{eng.summary}}</summary>
     <div class="eng-body">
@@ -192,12 +200,12 @@
       [[gold]]
       <h3>{{eng.h.serving}}</h3>
       [[serving]]
-      <p class="pitfall"><strong>{{pitfall.title}}</strong> {{pitfall.body}}</p>
       <h3>{{eng.h.sql}}</h3>
-      [[sql:bronze]]
+      [[sql:inventory]]
       [[sql:silver]]
-      [[sql:gold_table]]
       [[sql:gold]]
+      [[sql:region]]
+      [[sql:gold10]]
       [[sql:serving]]
       [[sql:uc_alert_cells]]
       <h3>{{same.title}}</h3>
@@ -205,11 +213,46 @@
       [[funnel]]
       [[timings]]
       <p class="measured">[[measured]]</p>
+      <p class="pitfall"><strong>{{pitfall.title}}</strong> {{pitfall.body}}</p>
     </div>
   </details>
 </section>
 
-<section class="cta">
+<!-- 6 · lessons -->
+<section id="lessons" class="sec">
+  <h2><span class="n">6</span>{{lesson.title}}</h2>
+  <div class="lessons">
+    <article class="lesson">
+      <h3><span class="ln-n">a</span>{{lesson.a.title}}</h3>
+      <p>{{lesson.a.body}}</p>
+      [[lesson_nullable]]
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">b</span>{{lesson.b.title}}</h3>
+      <p>{{lesson.b.body}}</p>
+      [[lesson_state]]
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">c</span>{{lesson.c.title}}</h3>
+      <p>{{lesson.c.body}}</p>
+      <div class="cascade"><span class="bx on">{{arch.v.clean}}</span><span class="ar">→</span><span class="bx on">{{arch.g.c1}}</span><span class="ar">→</span><span class="bx on">{{arch.g.c10}}</span><span class="ok">✓ {{lesson.c.ok}}</span></div>
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">d</span>{{lesson.d.title}}</h3>
+      <p>{{lesson.d.body}}</p>
+      <div class="tz"><span class="bx">event_kst <code>09:00</code></span><span class="ar">≠</span><span class="bx">UTC <code>00:00</code></span><span class="note">{{lesson.d.fig}}</span></div>
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">e</span>{{lesson.e.title}}</h3>
+      <p>{{lesson.e.body}}</p>
+      <ul class="limits"><li>{{lesson.e.l1}}</li><li>{{lesson.e.l2}}</li><li>{{lesson.e.l3}}</li></ul>
+    </article>
+  </div>
+  <p class="measured">{{lesson.measured}}</p>
+</section>
+
+<!-- 7 · try it -->
+<section id="try" class="cta">
   <h2>{{cta.title}}</h2>
   <p>{{cta.body}}</p>
   <pre><code>cd usecase/oss-network-quality-lake
