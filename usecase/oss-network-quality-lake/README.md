@@ -193,7 +193,9 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `ui/demo.html` | the live demo page (no build step, no CDN) |
 | `ui/up.sh` | container + 01–05 + server, in one command |
 | `site/data/replay.json` | six live-feed presses recorded with `ui/server.py --record 6`, replayed by the demo where there is no ClickHouse |
-| `vercel.json` | static deployment: `python3 site/build.py` → `site/dist`, `noindex` header |
+| `vercel.json` | deployment: `python3 site/build.py` → `site/dist`, the `api/index.py` function, `noindex` header, `/en/` redirects |
+| `api/index.py` | Vercel function: the demo's read-only GET endpoints against the lake on Cloud |
+| `cloud/load.py`, `cloud/feed.sql` | load the lab into a Cloud service (with the Cloud differences), self-running feed, stop switch, drop |
 
 ### Run it
 
@@ -225,21 +227,52 @@ page. Stop with Ctrl-C and remove the container with `docker rm -f oss-lake-demo
 After changing the SQL, refresh the snapshot against a loaded container:
 `CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh`.
 
-### Deployed copy
+### On ClickHouse Cloud (live site)
 
-A static copy runs on Vercel (project `oss-lake`, team `litkhai`, deployed from this directory with
-the CLI, not git-connected): <https://oss-lake.vercel.app/>, with `oss-lake.clickhouse.kr` attached
-and waiting for its DNS records (2026-10-18). There is no ClickHouse behind it: the explainer reads
-the snapshot, and the demo replays six presses recorded on 2026-10-18 with a notice saying so. No
-cookies, analytics or tracking; every response carries `X-Robots-Tag: noindex`.
+<https://oss-lake.clickhouse.kr/> is live data, not a recording:
+
+- **Lake**: database `oss_lake` on a ClickHouse Cloud service in AWS Seoul (ap-northeast-2), loaded
+  2026-10-18 on 26.6.1 by `cloud/load.py`. That is the same 01–05 files plus the Cloud differences
+  listed in its docstring. All checks in 03–05 passed there.
+- **Feed**: `cloud/feed.sql` adds two refreshable MVs. `feed_rmv` generates the next minute every
+  minute (up to five to catch up after a pause, never a minute twice). `anchor_rmv` then moves the
+  lake's "now"; the serving refresh depends on it. It also adds TTLs: silver 3 days, gold 7 days.
+- **Site**: Vercel project `oss-lake`, region icn1. The pages are static. `api/index.py` serves the
+  demo's GET endpoints as the read-only user `oss_reader`: `readonly = 1`, 20 s and 200,000-row
+  limits, a 20 s edge cache. It has no write endpoint (POST returns 405). When the function cannot
+  reach ClickHouse, the demo falls back to the recorded minutes.
 
 ```bash
 cd usecase/oss-network-quality-lake
-vercel deploy --prod --scope litkhai
+set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
+python3 cloud/load.py                 # load (generated passwords go to ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+python3 cloud/load.py feed stop       # the stop switch; `feed start` resumes, `feed status` shows it
+python3 cloud/load.py drop            # remove the database and both users
+vercel deploy --prod --scope litkhai  # site + function (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
 ```
 
-To refresh what it shows: load a fresh container (`ui/up.sh`), then `./snapshot.sh`, then
-`python3 ui/server.py --record 6`, then deploy.
+Measured 2026-10-18 on that service (2 replicas, 8 GiB minimum each, 2 vCPUs):
+
+- Load times: 01 in 9 s, 02 in 66 s, 03 in 15 s, 04 in 2 s, 05 in 12 s.
+- The feed ran with no failed refresh, writing 180,000 rows a minute, and the lake's "now" stayed
+  within the current wall-clock minute.
+- Through the function, network included: `/api/q/1` (bronze) took 3.9 s, `/api/q/4` (serving)
+  0.35 s.
+- A write as `oss_reader` was refused with `ACCESS_DENIED`.
+
+Found on the way: the inventory dictionary has a copy on each replica. `SYSTEM RELOAD DICTIONARY`
+reloaded one replica, the other kept a copy loaded while the inventory was still empty, and every
+silver row of the history load got an empty district. The 05 check caught it. The loader now
+reloads `ON CLUSTER 'default'` and waits until every replica holds the whole inventory.
+
+Cost, estimated 2026-10-18:
+
+- The service already runs around the clock (idle scaling off), so its base compute is not caused
+  by the lab.
+- Added: about 0.11 TB of storage including one daily backup, at $27.50 per TB-month (the
+  published Seoul rate, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a
+  second of CPU a minute.
+- If idle scaling is turned on later, the feed keeps the service awake. Stop it first.
 
 ### Languages
 
@@ -251,7 +284,6 @@ browser on 2026-10-18 at 320 px and desktop width, light and dark, in all four l
 
 ### Not covered
 
-- ClickHouse Cloud (not run; it costs money).
 - Scale: two hours, about 20k cells. The point is the flow, not the size.
 - Real probe formats, real IMSI encryption, Kafka or object-storage ingestion: bronze is filled by SQL.
 - Publishing to the notes site (`web` is not set).
@@ -444,7 +476,9 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `ui/demo.html` | 라이브 데모 페이지(빌드 단계 없음, CDN 없음) |
 | `ui/up.sh` | 컨테이너 + 01–05 + 서버를 명령 하나로 |
 | `site/data/replay.json` | `ui/server.py --record 6`으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생 |
-| `vercel.json` | 정적 배포: `python3 site/build.py` → `site/dist`, `noindex` 헤더 |
+| `vercel.json` | 배포: `python3 site/build.py` → `site/dist`, `api/index.py` 함수, `noindex` 헤더, `/en/` 넘겨주기 |
+| `api/index.py` | Vercel 함수: Cloud의 레이크에 대한 데모의 읽기 전용 GET 엔드포인트 |
+| `cloud/load.py`, `cloud/feed.sql` | Cloud 서비스에 실습 적재(Cloud 차이 포함), 스스로 도는 흐름, 멈춤 스위치, 삭제 |
 
 ### 실행
 
@@ -476,21 +510,50 @@ usecase/oss-network-quality-lake/ui/up.sh
 SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다시 만듭니다:
 `CH_URL=http://localhost:18123 usecase/oss-network-quality-lake/snapshot.sh`.
 
-### 배포본
+### ClickHouse Cloud에서 (라이브 사이트)
 
-정적 사본이 Vercel에서 돕니다(프로젝트 `oss-lake`, 팀 `litkhai`, 이 디렉터리에서 CLI로 배포, git 연결
-없음): <https://oss-lake.vercel.app/>. `oss-lake.clickhouse.kr`은 프로젝트에 붙였고 DNS 레코드를
-기다리는 중입니다(2026-10-18). 뒤에 ClickHouse는 없습니다. 설명 페이지는 스냅숏을 읽고, 데모는
-2026-10-18에 녹화한 버튼 6번을 재생하며 그렇다고 알립니다. 쿠키, 분석, 추적은 없고 모든 응답에
-`X-Robots-Tag: noindex`가 붙습니다.
+<https://oss-lake.clickhouse.kr/>는 녹화가 아니라 실제 데이터입니다.
+
+- **레이크**: AWS 서울(ap-northeast-2)의 ClickHouse Cloud 서비스에 있는 `oss_lake` 데이터베이스.
+  2026-10-18 26.6.1에 `cloud/load.py`로 적재했습니다. 같은 01–05 파일에 docstring에 적은 Cloud
+  차이만 더한 것이고, 03–05의 검사는 거기서도 모두 통과했습니다.
+- **흐름**: `cloud/feed.sql`이 Refreshable MV 두 개를 더합니다. `feed_rmv`가 1분마다 다음 1분을
+  만들고(멈췄다 다시 켜면 한 번에 최대 5분씩 따라잡고, 같은 1분을 두 번 넣지 않음), 이어서
+  `anchor_rmv`가 레이크의 '지금'을 옮깁니다. 서빙 새로 고침은 그 뒤에 돕니다. TTL도 더합니다:
+  실버 3일, 골드 7일.
+- **사이트**: Vercel 프로젝트 `oss-lake`, 리전 icn1. 페이지는 정적입니다. `api/index.py`가 데모의
+  GET 엔드포인트를 읽기 전용 사용자 `oss_reader`로 내줍니다: `readonly = 1`, 20초·20만 행 한도,
+  엣지 캐시 20초. 쓰기 엔드포인트는 없습니다(POST는 405). 함수가 ClickHouse에 닿지 못하면
+  데모는 녹화한 몇 분으로 돌아갑니다.
 
 ```bash
 cd usecase/oss-network-quality-lake
-vercel deploy --prod --scope litkhai
+set -a; . ~/.config/khai-harness/secrets/clickhouse-seoul.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD
+python3 cloud/load.py                 # 적재 (만든 비밀번호는 ~/.config/khai-harness/secrets/oss-lake-cloud.env)
+python3 cloud/load.py feed stop       # 멈춤 스위치. `feed start`로 다시, `feed status`로 확인
+python3 cloud/load.py drop            # 데이터베이스와 두 사용자 삭제
+vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
 ```
 
-보여 주는 내용을 새로 하려면: 새 컨테이너를 적재하고(`ui/up.sh`) `./snapshot.sh`, 이어서
-`python3 ui/server.py --record 6`을 실행한 뒤 배포합니다.
+2026-10-18 그 서비스(복제본 2개, 각 최소 8 GiB, vCPU 2개)에서 측정했습니다.
+
+- 적재 시간: 01은 9초, 02는 66초, 03은 15초, 04는 2초, 05는 12초.
+- 흐름은 실패한 새로 고침 없이 1분에 180,000행씩 들어갔고, 레이크의 '지금'은 현재 벽시계 1분
+  안에 있었습니다.
+- 함수를 거쳐(네트워크 포함) `/api/q/1`(브론즈)은 3.9초, `/api/q/4`(서빙)는 0.35초.
+- `oss_reader`로 쓰기를 시도하면 `ACCESS_DENIED`로 거부됐습니다.
+
+만나며 고친 것: 인벤토리 Dictionary는 복제본마다 사본이 따로 있습니다. `SYSTEM RELOAD DICTIONARY`는
+한 복제본만 다시 읽었고, 다른 복제본은 인벤토리가 비어 있을 때 읽은 사본을 그대로 들고 있어서 이력
+적재의 실버 행이 모두 지역 없이 들어갔습니다. 05의 검사가 이를 잡았습니다. 이제 적재기는
+`ON CLUSTER 'default'`로 다시 읽고, 모든 복제본이 인벤토리 전체를 가질 때까지 기다립니다.
+
+비용 (2026-10-18 추정):
+
+- 이 서비스는 이미 상시 실행 중이라(유휴 축소 꺼짐) 기본 컴퓨트는 이 실습 때문에 생긴 비용이 아닙니다.
+- 더해지는 것은 일일 백업 하나를 포함한 저장 약 0.11 TB입니다. 서울 공시 요금 TB·월 $27.50(2026-10-18
+  확인)으로 월 약 $3이고, 여기에 1분에 약 1초인 흐름의 CPU가 붙습니다.
+- 나중에 유휴 축소를 켜면 흐름이 서비스를 계속 깨워 둡니다. 그 전에 흐름을 멈추세요.
 
 ### 언어
 
@@ -502,7 +565,6 @@ vercel deploy --prod --scope litkhai
 
 ### 다루지 않는 것
 
-- ClickHouse Cloud(비용이 들어 실행하지 않음).
 - 규모: 2시간, 셀 약 2만 개. 크기가 아니라 흐름이 목적입니다.
 - 실제 probe 형식, 실제 IMSI 암호화, Kafka나 오브젝트 스토리지 적재: 브론즈는 SQL로 채웁니다.
 - 노트 사이트 게시(`web`을 설정하지 않음).

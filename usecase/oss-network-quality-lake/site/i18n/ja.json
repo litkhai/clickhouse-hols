@@ -132,7 +132,7 @@
   "timing.line": "{rows} 行を読み取り",
   "measured.line": "測定 {date}、ClickHouse {version}、{host}、コンテナの CPU {cpus} 個 · メモリ {mem}。ウォームアップ 1 回の後 5 回実行の中央値、サーバー側の経過時間、クエリキャッシュ無効。参考値です。",
   "cta.title": "自分で流してみる",
-  "cta.body": "ライブデモで「次の 1 分を送る」を押すたびに 1 分ぶんの測定値が四つの段階を通り、監視マップとアラートが更新されます。",
+  "cta.body": "ライブデモでは、ClickHouse Cloud のレイクに毎分自動で入るデータが四つの段階を通り、監視マップとアラートを変えていく様子を見られます。ローカルで自分で流すには、下のコマンドを使います。",
   "cta.button": "ライブデモを開く",
   "footer": "clickhouse-hols · usecase/oss-network-quality-lake · 架空の事業者と都市による合成シナリオ、SQL で生成したデータ。Cookie、アクセス解析、トラッキングは使いません。",
   "demo.title": "ライブデモ: 1 分ずつ流す",
@@ -278,5 +278,7 @@
   "cmp.float": "Float32",
   "cmp.cqi": "文字列 → 数値",
   "cmp.dropped": "使わないため捨てる",
-  "cmp.region": "インベントリから付けた地域名"
+  "cmp.region": "インベントリから付けた地域名",
+  "demo.auto": "ClickHouse Cloud で 1 分ごとに自動で流れています · 基準時刻 {t}(UTC)",
+  "demo.lead.auto": "ClickHouse Cloud のレイクに毎分新しい測定値が自動で入り、四つの段階を通ります。画面は 30 秒ごとに確認し、変わった分だけ動きます。段階を押すと、その段階の見本の行と同じ監視の質問への答えが見られます。"
 }

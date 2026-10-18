@@ -132,7 +132,7 @@
   "timing.line": "{rows} rows read",
   "measured.line": "Measured {date}, ClickHouse {version}, {host}, container with {cpus} CPUs and {mem}. Median of 5 runs after one warm-up, server-side elapsed, query cache off. For reference.",
   "cta.title": "Send data through it yourself",
-  "cta.body": "In the live demo, every press of \"Send next minute\" sends one minute of measurements through the four stages and refreshes the NOC map and the alerts.",
+  "cta.body": "The live demo shows data arriving by itself every minute in the lake on ClickHouse Cloud, passing through the four stages and changing the NOC map and the alerts. To send data yourself locally, use the command below.",
   "cta.button": "Open the live demo",
   "footer": "clickhouse-hols · usecase/oss-network-quality-lake · a composite scenario with a fictional operator and cities; data generated in SQL. No cookies, analytics or tracking.",
   "demo.title": "Live demo: one minute at a time",
@@ -278,5 +278,7 @@
   "cmp.float": "Float32",
   "cmp.cqi": "string → number",
   "cmp.dropped": "not used, dropped",
-  "cmp.region": "district name from the inventory"
+  "cmp.region": "district name from the inventory",
+  "demo.auto": "Flowing by itself on ClickHouse Cloud, one minute at a time · now {t} (UTC)",
+  "demo.lead.auto": "Every minute new measurements arrive in the lake on ClickHouse Cloud by themselves and pass through the four stages. The page looks again every 30 seconds and moves by what changed. Click a stage to see a sample row and that stage's answer to the same NOC question."
 }

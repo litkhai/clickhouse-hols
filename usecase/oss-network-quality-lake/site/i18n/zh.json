@@ -132,7 +132,7 @@
   "timing.line": "读取 {rows} 行",
   "measured.line": "测量于 {date}，ClickHouse {version}，{host}，容器 {cpus} 个 CPU · 内存 {mem}。预热 1 次后 5 次运行的中位数，服务器端耗时，查询缓存关闭。仅供参考。",
   "cta.title": "亲手把数据送过去",
-  "cta.body": "在实时演示中每点一次“发送下一分钟”，一分钟的测量就会穿过四个阶段，NOC 地图和告警随之刷新。",
+  "cta.body": "实时演示展示每分钟自动进入 ClickHouse Cloud 数据湖的数据如何穿过四个阶段，并改变 NOC 地图和告警。想在本地亲手发送数据，请使用下面的命令。",
   "cta.button": "打开实时演示",
   "footer": "clickhouse-hols · usecase/oss-network-quality-lake · 以虚构运营商与城市构成的合成场景，数据由 SQL 生成。不使用 Cookie、分析或跟踪。",
   "demo.title": "实时演示：一分钟一分钟地送",
@@ -278,5 +278,7 @@
   "cmp.float": "Float32",
   "cmp.cqi": "字符串 → 数字",
   "cmp.dropped": "不使用，丢弃",
-  "cmp.region": "从资源数据补上的区域名称"
+  "cmp.region": "从资源数据补上的区域名称",
+  "demo.auto": "正在 ClickHouse Cloud 上每分钟自动流入 · 基准时刻 {t}（UTC）",
+  "demo.lead.auto": "每分钟都有新的测量自动进入 ClickHouse Cloud 上的数据湖并穿过四个阶段。页面每 30 秒查看一次，按变化更新。点击某个阶段，可以看到样例行以及它对同一个 NOC 问题的回答。"
 }

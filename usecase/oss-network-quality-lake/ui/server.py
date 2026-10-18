@@ -12,8 +12,9 @@ Fixed endpoints only, no free SQL:
     GET  /api/usecases    analysis, dashboard series, alerts, an HTTP-streaming sample
     POST /api/tick        live feed: one more minute of traces into bronze
 
-Reads use the read-only user oss_reader; only /api/tick writes (CH_WRITE_USER).
-ClickHouse: CH_URL (default http://localhost:18123). Listen: PORT (default 8765).
+Reads use the read-only user oss_reader (CH_READ_USER, CH_READ_PASSWORD); only /api/tick writes
+(CH_WRITE_USER). ClickHouse: CH_URL (default http://localhost:18123). Listen: PORT (default 8765).
+api/index.py serves the same GET endpoints from a Vercel function, read-only, with FEED=auto.
 """
 import argparse, json, os, pathlib, platform, statistics, subprocess, sys, threading, time
 import urllib.parse, urllib.request
@@ -22,10 +23,12 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 LAB = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(LAB / "site"))
-import build  # noqa: E402  (site/build.py: renders the pages per locale)
 
 CH_URL = os.environ.get("CH_URL", "http://localhost:18123")
 READ_USER = os.environ.get("CH_READ_USER", "oss_reader")
+READ_PASSWORD = os.environ.get("CH_READ_PASSWORD", "")
+# "button": the local live demo sends each minute; "auto": the lake feeds itself (cloud/feed.sql)
+FEED = os.environ.get("FEED", "button")
 WRITE_USER = os.environ.get("CH_WRITE_USER", "default")
 WRITE_PASSWORD = os.environ.get("CH_WRITE_PASSWORD", "")
 
@@ -42,12 +45,15 @@ ANCHOR = "(SELECT max(anchor_ts) FROM oss_lake.params)"
 ANCHOR64 = "toDateTime64(%s, 3)" % ANCHOR
 
 
-def ch(sql, user=READ_USER, password="", fmt="JSON", settings=None):
-    """Run one statement over HTTP; return (parsed JSON or None, summary dict)."""
-    params = {"user": user, "password": password, "default_format": fmt}
+def ch(sql, user=READ_USER, password=None, fmt="JSON", settings=None):
+    """Run one statement over HTTP; return (parsed JSON or None, summary dict).
+    Credentials travel in headers, never in the URL."""
+    params = {"default_format": fmt}
     params.update(settings or {})
+    password = READ_PASSWORD if password is None else password
     req = urllib.request.Request(CH_URL + "/?" + urllib.parse.urlencode(params),
-                                 data=sql.encode(), method="POST")
+                                 data=sql.encode(), method="POST",
+                                 headers={"X-ClickHouse-User": user, "X-ClickHouse-Key": password})
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             body = r.read()
@@ -78,7 +84,7 @@ def counts():
         out.append({"key": key, "table": table, "rows": int(n),
                     "bytes": int(sizes.get(table, {}).get("bytes", 0))})
     anchor = rows("SELECT toString(max(anchor_ts)) AS t FROM oss_lake.params")[0]["t"]
-    return {"anchor_ts": anchor, "layers": out}
+    return {"anchor_ts": anchor, "layers": out, "feed": FEED}
 
 
 def story():
@@ -156,8 +162,8 @@ def usecases():
     first lines of the same alert query streamed over ClickHouse's HTTP interface."""
     alert_sql = ("SELECT area, city, minute, cells, drop_db, rsrp_now "
                  "FROM oss_lake.uc_alert_areas FORMAT JSONEachRow")
-    params = urllib.parse.urlencode({"user": READ_USER, "password": ""})
-    req = urllib.request.Request(CH_URL + "/?" + params, data=alert_sql.encode(), method="POST")
+    req = urllib.request.Request(CH_URL + "/", data=alert_sql.encode(), method="POST",
+                                 headers={"X-ClickHouse-User": READ_USER, "X-ClickHouse-Key": READ_PASSWORD})
     with urllib.request.urlopen(req, timeout=60) as r:
         lines = [l for l in r.read().decode().splitlines() if l][:3]
     return {
@@ -295,6 +301,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.api(map_data)
         if path == "/api/usecases":
             return self.api(usecases)
+        import build  # site/build.py, only where pages are served (not in the cloud function)
         page = build.page_for(path)
         if page is None:
             return self.send(404, b"not found", "text/plain")

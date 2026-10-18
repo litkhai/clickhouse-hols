@@ -3,3 +3,5 @@ site/dist/
 .env*
 *.pyc
 __pycache__/
+cloud/
+pitfall.sql

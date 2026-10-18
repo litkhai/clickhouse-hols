@@ -42,5 +42,17 @@
       "destination": "/:path",
       "permanent": true
     }
+  ],
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "ui/server.py",
+      "maxDuration": 20
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    }
   ]
 }

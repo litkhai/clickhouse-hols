@@ -132,7 +132,7 @@
   "timing.line": "{rows}행 읽음",
   "measured.line": "측정 {date}, ClickHouse {version}, {host}, 컨테이너 CPU {cpus}개 · 메모리 {mem}. 워밍업 1회 뒤 5회 실행의 중앙값, 서버 측 경과 시간, 쿼리 캐시 끔. 참고용입니다.",
   "cta.title": "직접 흘려 보기",
-  "cta.body": "라이브 데모에서 ‘다음 1분 보내기’를 누를 때마다 1분치 측정값이 네 단계를 지나고, 관제 지도와 알림이 새로 고쳐집니다.",
+  "cta.body": "라이브 데모에서는 ClickHouse Cloud의 레이크에 1분마다 스스로 들어오는 데이터가 네 단계를 지나 관제 지도와 알림을 바꾸는 모습을 봅니다. 로컬에서 직접 흘리려면 아래 명령을 씁니다.",
   "cta.button": "라이브 데모 열기",
   "footer": "clickhouse-hols · usecase/oss-network-quality-lake · 가상의 통신사와 도시로 꾸민 합성 시나리오, SQL로 만든 데이터. 쿠키, 분석, 추적을 쓰지 않습니다.",
   "demo.title": "라이브 데모: 1분씩 흘려 보내기",
@@ -278,5 +278,7 @@
   "cmp.float": "Float32",
   "cmp.cqi": "문자열 → 숫자",
   "cmp.dropped": "쓰지 않아 버림",
-  "cmp.region": "인벤토리에서 붙인 지역 이름"
+  "cmp.region": "인벤토리에서 붙인 지역 이름",
+  "demo.auto": "ClickHouse Cloud에서 1분마다 스스로 흐르는 중 · 기준 시각 {t} (UTC)",
+  "demo.lead.auto": "ClickHouse Cloud의 레이크에 1분마다 새 측정값이 스스로 들어와 네 단계를 지나갑니다. 화면은 30초마다 확인해 바뀐 만큼 움직입니다. 단계를 누르면 그 단계의 견본 행과 같은 관제 질문에 대한 답이 보입니다."
 }

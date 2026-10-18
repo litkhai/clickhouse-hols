@@ -224,7 +224,26 @@
     }).catch(offline).then(function () { btn.disabled = document.getElementById("offline").hidden === false; });
   });
 
-  refresh(false).catch(offline);
+  /* auto: the lake feeds itself (ClickHouse Cloud); no button, look again every 30 s */
+  function auto() {
+    var btn = document.getElementById("tick");
+    btn.hidden = true;
+    document.querySelector(".lead").textContent = T("demo.lead.auto");
+    var status = document.getElementById("status");
+    var seen = last && last.anchor_ts;
+    status.textContent = T("demo.auto", { t: seen });
+    setInterval(function () {
+      api("/api/layers").then(function (d) {
+        if (d.anchor_ts === seen) return;
+        seen = d.anchor_ts;
+        return refresh(true).then(function () { status.textContent = T("demo.auto", { t: seen }); });
+      }).catch(function () {});
+    }, 30000);
+  }
+
+  refresh(false).then(function () {
+    if (mode === "live" && last && last.feed === "auto") auto();
+  }).catch(offline);
 })();
 </script>
 </body>
