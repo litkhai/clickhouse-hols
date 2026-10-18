@@ -193,7 +193,7 @@ For questions, see the main [clickhouse-hols README](../../README.md).
 
 ## 한국어
 
-ClickHouse로 <strong>광고 성과 분석 "큐브"</strong>를 구축하는 종단간 실습 환경입니다. 디지털 광고 플랫폼(애드 네트워크 / 리테일 미디어 / DSP·SSP / 인하우스 광고 서버) 일반을 모델링하며, 입찰 텔레메트리 + ML 랭킹 신호 + 비즈니스 KPI가 모두 **하나의 넓은 append-only 이벤트 row**에 기록되고, 분석가가 **임의 차원으로 거의 실시간에 가깝게 집계**하기를 원하는 상황을 다룹니다.
+ClickHouse로 **광고 성과 분석 "큐브"**를 구축하는 종단간 실습 환경입니다. 디지털 광고 플랫폼(애드 네트워크 / 리테일 미디어 / DSP·SSP / 인하우스 광고 서버) 일반을 모델링하며, 입찰 텔레메트리 + ML 랭킹 신호 + 비즈니스 KPI가 모두 **하나의 넓은 append-only 이벤트 row**에 기록되고, 분석가가 **임의 차원으로 거의 실시간에 가깝게 집계**하기를 원하는 상황을 다룹니다.
 
 합성된 **1,000만 행 `ad_events` 스트림**을 기반으로, 이 워크로드에 ClickHouse가 자연스럽게 들어맞게 만드는 기능 전반 — 조건부 집계(`countIf`/`sumIf`/`avgIf`), 근사 고유값 카운트(`uniq`/`uniqCombined`), 반정형 JSON 파싱, 인메모리 사전 enrichment(`dictGet`), quantile 분포, `AggregatingMergeTree` + Materialized View 실시간 롤업 — 을 모두 다룹니다.
 

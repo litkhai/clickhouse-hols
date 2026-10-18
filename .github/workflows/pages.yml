@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install --quiet markdown==3.11.1
+      - run: pip install --quiet markdown
       - name: Regenerate the site from the repository
         run: python3 .github/scripts/build_site.py
       - uses: actions/configure-pages@v5

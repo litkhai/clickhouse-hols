@@ -427,9 +427,9 @@ INDEX idx body TYPE text(tokenizer = 'icu', locale = 'ko')      -- 거부됨
 
 **`icu`에 대해 튜닝 전에 알아둘 두 가지.**
 
-로케일은 **필수**입니다 — `tokens(s, 'icu')`는 <em>"requires a mandatory locale
-argument"</em>로 실패합니다. 그리고 **상수**여야 합니다. 컬럼을 넘기면
-<em>"Expected: const String, got: String"</em>이 납니다.
+로케일은 **필수**입니다 — `tokens(s, 'icu')`는 *"requires a mandatory locale
+argument"*로 실패합니다. 그리고 **상수**여야 합니다. 컬럼을 넘기면
+*"Expected: const String, got: String"*이 납니다.
 
 그런데 한국어 결과는 로케일에 따라 바뀌지 않습니다. `ko`, `ko_KR`, `en`, `ja`,
 `zh` 전부 동일한 토큰을 냅니다. ICU의 한국어 단어 분리가 로케일 태그가 아니라

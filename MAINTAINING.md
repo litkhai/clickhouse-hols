@@ -31,11 +31,9 @@ lab:
    and both are parsed.
 4. Regenerate and **commit** the site:
    ```bash
-   pip install --quiet markdown==3.11.1
+   pip install --quiet markdown
    python3 .github/scripts/build_site.py
    ```
-   Regenerate with markdown **3.11.1**, the version both workflows pin; another
-   version can render emphasis differently and fail the check.
    The `site` CI job runs `build_site.py --check` and fails if the committed
    `docs/` differs from what the repository would generate. Generated output is
    tracked on purpose — do not gitignore it.

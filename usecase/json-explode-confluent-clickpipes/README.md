@@ -160,7 +160,7 @@ Verified end-to-end on ClickHouse Cloud (v26.4) with Confluent Cloud.
 
 > **관련 글**: [ClickPipes 소개](https://clickhouse.litkhai.dev/articles/cloud/clickpipes/)
 
-웨비나 *"ClickPipes와 Materialized View로 구현하는 실시간 데이터 변환과 평탄화 기반 분석"* 라이브 데모를 **명령 한 줄로 자동화**한 버전입니다. 로컬에서 중첩된 주문 이벤트 JSON을 발행하면 **Confluent Cloud → ClickPipes → ClickHouse Cloud**로 흐르고, 두 개의 Materialized View가 이를 변환하고 주문을 라인 단위로 <strong>explode(평탄화)</strong>합니다 — **스케줄러도, 배치 잡도, Spark 클러스터도 없이.**
+웨비나 *"ClickPipes와 Materialized View로 구현하는 실시간 데이터 변환과 평탄화 기반 분석"* 라이브 데모를 **명령 한 줄로 자동화**한 버전입니다. 로컬에서 중첩된 주문 이벤트 JSON을 발행하면 **Confluent Cloud → ClickPipes → ClickHouse Cloud**로 흐르고, 두 개의 Materialized View가 이를 변환하고 주문을 라인 단위로 **explode(평탄화)**합니다 — **스케줄러도, 배치 잡도, Spark 클러스터도 없이.**
 
 모든 것(스키마·오브젝트 이름·크리덴셜·동작)은 gitignore된 단일 `.env`에서 설정합니다. 이중언어(ko/en) **웹 대시보드**가 `webapp/`에 포함되어 Docker로 실행됩니다.
 
