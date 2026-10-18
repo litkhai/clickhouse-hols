@@ -322,5 +322,8 @@
   "poc.f10.v": "読み取り専用ユーザーで照会、書き込みは拒否",
   "poc.f11": "H3 の地理関数",
   "poc.f11.d": "セルの境界と粗い解像度の集計を SQL で",
-  "poc.f11.v": "h3ToGeoBoundary で描いた監視マップ"
+  "poc.f11.v": "h3ToGeoBoundary で描いた監視マップ",
+  "nav.sections": "このページの節",
+  "trend.pg": "利用者側の利用パターンと作業記録(購読、API キー、ウォーターマーク、チケット、エージェントの作業履歴と承認)はトランザクションデータなので ClickHouse の Managed Postgres に置き、レイクとは pg_clickhouse でつなぎます。",
+  "trend.pg.tag": "デモにはなし"
 }

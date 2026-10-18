@@ -322,5 +322,8 @@
   "poc.f10.v": "用只读用户查询，写入被拒绝",
   "poc.f11": "H3 地理函数",
   "poc.f11.d": "在 SQL 中得到小区边界和更粗分辨率的汇总",
-  "poc.f11.v": "用 h3ToGeoBoundary 绘制的 NOC 地图"
+  "poc.f11.v": "用 h3ToGeoBoundary 绘制的 NOC 地图",
+  "nav.sections": "本页各节",
+  "trend.pg": "使用方的使用模式和工作记录（订阅、API 密钥、水位、工单、智能体的操作记录与审批）属于事务数据，放在 ClickHouse 的 Managed Postgres 中，并通过 pg_clickhouse 与数据湖连接。",
+  "trend.pg.tag": "演示中没有"
 }

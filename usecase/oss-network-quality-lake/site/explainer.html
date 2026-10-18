@@ -15,18 +15,21 @@
   [[langmenu]]
 </div></header>
 
-<main class="wide">
-<section class="hero">
-  <p class="kicker">{{hero.kicker}}</p>
-  <h1>{{hero.title}}</h1>
-  <p class="lead">{{hero.lead}}</p>
-  <p class="note">{{hero.note}}</p>
+<div class="layout">
+<aside class="side-nav" aria-label="{{nav.sections}}">
   <ol class="toc">
     <li><a href="#situation">{{sit.title}}</a></li><li><a href="#trend">{{trend.title}}</a></li>
     <li><a href="#arch">{{arch.title}}</a></li><li><a href="#uses">{{uc.title}}</a></li>
     <li><a href="#built">{{flow.title}}</a></li><li><a href="#lessons">{{lesson.title}}</a></li>
     <li><a href="#try">{{cta.title}}</a></li>
   </ol>
+</aside>
+<main class="wide">
+<section class="hero">
+  <p class="kicker">{{hero.kicker}}</p>
+  <h1>{{hero.title}}</h1>
+  <p class="lead">{{hero.lead}}</p>
+  <p class="note">{{hero.note}}</p>
 </section>
 
 <!-- 1 · situation -->
@@ -57,8 +60,8 @@
   <p>{{trend.body}}</p>
   <div class="stack-wrap">
     <ol class="stack">
-      <li><b>{{trend.l1}}</b><span>{{trend.l1.d}}</span></li>
-      <li><b>{{trend.l2}}</b><span>{{trend.l2.d}}</span></li>
+      <li class="pg"><b>{{trend.l1}}</b><span>{{trend.l1.d}}</span><em>Managed Postgres</em></li>
+      <li class="pg"><b>{{trend.l2}}</b><span>{{trend.l2.d}}</span><em>Managed Postgres</em></li>
       <li><b>{{trend.l3}}</b><span>{{trend.l3.d}}</span></li>
       <li class="ch"><b>{{trend.l4}}</b><span>{{trend.l4.d}}</span><em>ClickHouse</em></li>
       <li class="ch"><b>{{trend.l5}}</b><span>{{trend.l5.d}}</span><em>ClickHouse + Iceberg</em></li>
@@ -67,6 +70,7 @@
     </ol>
     <div class="fabric" aria-hidden="true"><span>{{trend.fabric}}</span></div>
   </div>
+  <p class="pg-note"><b>Managed Postgres</b> {{trend.pg}} <span class="tag ex">{{trend.pg.tag}}</span></p>
   <p class="note">{{trend.note}}</p>
   <details><summary>{{trend.src}}</summary>
     <ul class="srcs">
@@ -261,12 +265,25 @@ ui/up.sh</code></pre>
   <p class="note">{{cta.note}}</p>
 </section>
 </main>
+</div>
 
 <footer class="site-footer">{{footer}}</footer>
 <script type="application/json" id="i18n">[[catalogue]]</script>
 <script type="application/json" id="snapshot">[[snapshot]]</script>
 <script>[[js]]</script>
 <script>
+  /* left menu: mark the section in view */
+  (function () {
+    var links = [].slice.call(document.querySelectorAll(".side-nav a"));
+    if (!("IntersectionObserver" in window)) return;
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        links.forEach(function (a) { a.toggleAttribute("aria-current", a.getAttribute("href") === "#" + e.target.id); });
+      });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    links.forEach(function (a) { var t = document.querySelector(a.getAttribute("href")); if (t) io.observe(t); });
+  })();
   var SNAP = JSON.parse(document.getElementById("snapshot").textContent);
   LAB.drawMaps(document.getElementById("maps"), SNAP.map, SNAP.usecases.alert_cells);
   LAB.drawChart(document.getElementById("chart"), SNAP.usecases.dashboard);

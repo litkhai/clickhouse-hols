@@ -322,5 +322,8 @@
   "poc.f10.v": "읽기 전용 사용자로 조회, 쓰기 시도는 거부",
   "poc.f11": "H3 지리 함수",
   "poc.f11.d": "셀 경계와 상위 해상도 집계를 SQL에서",
-  "poc.f11.v": "h3ToGeoBoundary로 그린 관제 지도"
+  "poc.f11.v": "h3ToGeoBoundary로 그린 관제 지도",
+  "nav.sections": "이 페이지의 절",
+  "trend.pg": "소비자 쪽의 사용 패턴과 작업 기록(구독, API 키, 워터마크, 티켓, 에이전트의 작업 내역과 승인)은 트랜잭션 데이터라 ClickHouse의 Managed Postgres에 두고, 레이크와는 pg_clickhouse로 잇습니다.",
+  "trend.pg.tag": "데모에는 없음"
 }

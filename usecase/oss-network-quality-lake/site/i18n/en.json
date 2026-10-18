@@ -322,5 +322,8 @@
   "poc.f10.v": "queried as a read-only user; a write is refused",
   "poc.f11": "H3 geo functions",
   "poc.f11.d": "cell outlines and coarser-resolution rollups in SQL",
-  "poc.f11.v": "the NOC map drawn from h3ToGeoBoundary"
+  "poc.f11.v": "the NOC map drawn from h3ToGeoBoundary",
+  "nav.sections": "Sections of this page",
+  "trend.pg": "keeps the consumer side's usage patterns and work records (subscriptions, API keys, watermarks, tickets, agent actions and approvals) — transactional data — in ClickHouse's Managed Postgres, linked to the lake with pg_clickhouse.",
+  "trend.pg.tag": "not in the demo"
 }
