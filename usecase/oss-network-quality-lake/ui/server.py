@@ -170,7 +170,7 @@ def usecases():
         "analysis": rows("SELECT * FROM oss_lake.uc_analysis"),
         "dashboard": rows("SELECT toString(minute) AS minute, city, users, samples, poor_pct "
                           "FROM oss_lake.uc_dashboard"),
-        "alerts": rows("SELECT area, city, toString(minute) AS minute, cells, drop_db, rsrp_now "
+        "alerts": rows("SELECT area, city, district, toString(minute) AS minute, cells, drop_db, rsrp_now "
                        "FROM oss_lake.uc_alert_areas LIMIT 5"),
         "alert_cells": rows(
             "SELECT h3ToString(cell) AS id, city, drop_db, "

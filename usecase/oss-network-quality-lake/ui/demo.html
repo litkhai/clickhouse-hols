@@ -131,7 +131,9 @@
   function showLayers(d, deltas) {
     d.layers.forEach(function (l, i) {
       var b = buttons[i];
-      b.querySelector(".meta:last-child").textContent = size(l.bytes);
+      var prev = i ? d.layers[i - 1].rows : 0, r = prev && l.rows ? prev / l.rows : 0;
+      b.querySelector(".meta:last-child").textContent = size(l.bytes) + (i === 0 ? "" :
+        " · " + (r < 1.5 ? T("demo.ratio.same") : T("demo.ratio", { r: fmt(Math.round(r)) })));
       var delta = deltas ? l.rows - shown[i] : 0;
       setTimeout(function () {
         animate(i, l.rows);
@@ -150,7 +152,8 @@
       var key = a.minute + a.area, fresh = deltas && !seenAlerts[key];
       seenAlerts[key] = 1;
       return "<li" + (fresh ? " class=\"new\"" : "") + "><span class=\"al-dot\" aria-hidden=\"true\"></span>" + esc(T("alert.line", {
-        time: a.minute.slice(11, 16), city: T("city.short." + a.city), cells: a.cells, drop: a.drop_db, area: a.area })) + "</li>";
+        time: a.minute.slice(11, 16), city: T("city.short." + a.city), cells: a.cells, drop: a.drop_db, area: a.area,
+        district: LAB.district(a.district) })) + "</li>";
     }).join("");
   }
 

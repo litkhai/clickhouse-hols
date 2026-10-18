@@ -445,7 +445,10 @@ page. Stop with Ctrl-C and remove the container with <code>docker rm -f oss-lake
   is the full URL, so the function refuses any query string (400) and redirects a trailing slash
   (308) without querying ClickHouse. Errors return a fixed body; the detail goes to the function log.
   It has no write endpoint (POST returns 405). When the function cannot reach ClickHouse or the quota
-  is spent, the demo falls back to the recorded minutes.</li>
+  is spent, the demo falls back to the recorded minutes. Pages and function answer with a
+  Content-Security-Policy (<code>default-src 'self'</code>, inline scripts and styles allowed, <code>frame-ancestors
+  'none'</code>), <code>X-Frame-Options: DENY</code> and a Permissions-Policy that turns off camera, microphone,
+  location, payment and USB (<code>vercel.json</code>).</li>
 </ul>
 <pre><code class="language-bash">cd usecase/oss-network-quality-lake
 set -a; . /path/to/your-service.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD (an admin of your service)
@@ -467,7 +470,15 @@ vercel deploy --prod --scope litkhai  # site + function (env: CH_URL, CH_READ_US
 <p>Found on the way: the inventory dictionary has a copy on each replica. <code>SYSTEM RELOAD DICTIONARY</code>
 reloaded one replica, the other kept a copy loaded while the inventory was still empty, and every
 silver row of the history load got an empty district. The 05 check caught it. The loader now
-reloads <code>ON CLUSTER 'default'</code> and waits until every replica holds the whole inventory.</p>
+reloads <code>ON CLUSTER 'default'</code> and waits until every replica holds the whole inventory. The dictionary
+also reloads itself every 5–10 minutes (<code>LIFETIME(MIN 300 MAX 600)</code>). District names are written into
+silver and gold at insert, so after an inventory change: reload on every replica, then reprocess the
+affected window.</p>
+<p>The checks in 05 look at the last complete hour before the lake's "now", not at whole tables, so they
+still hold days after a load although the layers keep different TTLs. They assume an unbroken hour;
+right after <code>feed start</code> skipped a gap, wait an hour before rerunning them. The bronze check fails on a
+whole missing minute as well as on a partial or duplicated one (checked 2026-10-18 by deleting one
+minute from a local lake: "bronze is missing a minute").</p>
 <p>Cost, estimated 2026-10-18:</p>
 <ul>
 <li>The service already runs around the clock (idle scaling off), so its base compute is not caused
@@ -886,7 +897,10 @@ open usecase/oss-network-quality-lake/site/dist/index.html
   한도, 시간당 쿼터(질의 3,000개, 읽기 50억 행), 엣지 캐시 20초. 엣지 캐시 키가 URL 전체라서, 함수는
   쿼리 문자열을 거부하고(400) 끝의 <code>/</code>는 돌려보냅니다(308). 둘 다 ClickHouse를 부르지 않습니다. 오류
   응답은 고정 문구이고 자세한 내용은 함수 로그에만 남습니다. 쓰기 엔드포인트는 없습니다(POST는 405).
-  함수가 ClickHouse에 닿지 못하거나 쿼터를 다 쓰면 데모는 녹화한 몇 분으로 돌아갑니다.</li>
+  함수가 ClickHouse에 닿지 못하거나 쿼터를 다 쓰면 데모는 녹화한 몇 분으로 돌아갑니다. 페이지와 함수는
+  Content-Security-Policy(<code>default-src 'self'</code>, 인라인 스크립트·스타일 허용, <code>frame-ancestors 'none'</code>),
+  <code>X-Frame-Options: DENY</code>, 카메라·마이크·위치·결제·USB를 끈 Permissions-Policy를 함께 보냅니다
+  (<code>vercel.json</code>).</li>
 </ul>
 <pre><code class="language-bash">cd usecase/oss-network-quality-lake
 set -a; . /path/to/your-service.env; set +a   # CH_HOST, CH_USER, CH_PASSWORD (서비스 관리자)
@@ -907,7 +921,13 @@ vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ
 <p>만나며 고친 것: 인벤토리 Dictionary는 복제본마다 사본이 따로 있습니다. <code>SYSTEM RELOAD DICTIONARY</code>는
 한 복제본만 다시 읽었고, 다른 복제본은 인벤토리가 비어 있을 때 읽은 사본을 그대로 들고 있어서 이력
 적재의 실버 행이 모두 지역 없이 들어갔습니다. 05의 검사가 이를 잡았습니다. 이제 적재기는
-<code>ON CLUSTER 'default'</code>로 다시 읽고, 모든 복제본이 인벤토리 전체를 가질 때까지 기다립니다.</p>
+<code>ON CLUSTER 'default'</code>로 다시 읽고, 모든 복제본이 인벤토리 전체를 가질 때까지 기다립니다. Dictionary는
+5–10분마다 스스로 다시 읽기도 합니다(<code>LIFETIME(MIN 300 MAX 600)</code>). 지역 이름은 적재할 때 실버와 골드에
+박히므로, 인벤토리를 바꾼 뒤에는 모든 복제본에서 다시 읽고 영향받은 구간을 다시 처리합니다.</p>
+<p>05의 검사는 테이블 전체가 아니라 레이크의 '지금' 직전 완결된 1시간만 봅니다. 그래서 층마다 TTL이 달라도
+적재하고 며칠 뒤에 다시 돌려도 맞습니다. 그 1시간이 끊기지 않았다고 가정하므로, <code>feed start</code>가 빈 구간을
+건너뛴 직후라면 1시간 뒤에 다시 돌립니다. 브론즈 검사는 일부가 빠지거나 겹친 분뿐 아니라 통째로 빠진 분도
+잡습니다(2026-10-18 로컬 레이크에서 1분을 지워 "bronze is missing a minute"를 확인).</p>
 <p>비용 (2026-10-18 추정):</p>
 <ul>
 <li>이 서비스는 이미 상시 실행 중이라(유휴 축소 꺼짐) 기본 컴퓨트는 이 실습 때문에 생긴 비용이 아닙니다.</li>

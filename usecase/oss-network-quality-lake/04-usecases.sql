@@ -72,6 +72,7 @@ CREATE OR REPLACE VIEW oss_lake.uc_alert_areas AS
 SELECT
     h3ToString(area)                                         AS area,
     any(city)                                                AS city,
+    any(dictGet('oss_lake.cell_dict', 'region2', cell))      AS district,
     any(minute)                                              AS minute,
     count()                                                  AS cells,
     round(avg(drop_db), 1)                                   AS drop_db,

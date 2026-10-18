@@ -58,7 +58,7 @@
   "uc.alert.who": "值班人员 · 下游系统",
   "uc.alert.title": "订阅：出事时通知我",
   "uc.alert.body": "当某个网格最近 1 分钟的信号远低于它自己前 1 小时时，就是告警。网格按区域合并成一行人能读懂的文字。下面是 PoC 中产生的告警；生成器每分钟注入一次突降，让管道有东西可传。",
-  "alert.line": "{time} UTC · {city} 区域 {area}：{cells} 个网格，信号下降 {drop} dB",
+  "alert.line": "{time} UTC · {district}（区域 {area}）：{cells} 个网格，信号下降 {drop} dB",
   "alert.none": "当前没有告警。",
   "uc.alert.how": "做法：通常在新数据就绪时通过消息队列发出“现在来取”的事件，订阅方随即取走。也可以把结果直接推送到 Kafka 主题。",
   "uc.bulk.who": "数据工程师 · 其他分析平台",
@@ -299,5 +299,17 @@
   "next.s3": "向智能体和外部使用方开放：带限制的只读用户，Git 中的模式契约。指标：模式变更的前置时间。",
   "next.risks": "需要提前考虑：用户假名属于个人数据；细粒度汇总中用户计数状态的大小；写入批次大小；每个使用方的配额。",
   "next.repo": "GitHub 上的实验：litkhai/clickhouse-hols，usecase/oss-network-quality-lake",
-  "demo.stopped": "数据馈送已停止：数据湖的最后一分钟是 {t}（UTC），以下内容均以该时刻为准。"
+  "demo.stopped": "数据馈送已停止：数据湖的最后一分钟是 {t}（UTC），以下内容均以该时刻为准。",
+  "district.Central": "中心区",
+  "district.North-East": "东北区",
+  "district.East": "东区",
+  "district.South-East": "东南区",
+  "district.South-West": "西南区",
+  "district.West": "西区",
+  "district.North-West": "西北区",
+  "col.cell": "网格",
+  "col.users": "用户",
+  "col.avg_rsrp": "平均 RSRP",
+  "demo.ratio": "前一阶段行数的 1/{r}",
+  "demo.ratio.same": "与前一阶段行数相近"
 }

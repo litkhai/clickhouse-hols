@@ -58,7 +58,7 @@
   "uc.alert.who": "オンコール担当 · 下流システム",
   "uc.alert.title": "購読: 何か起きたら知らせる",
   "uc.alert.body": "グリッドの直近 1 分の信号が自分の直前 1 時間を大きく下回るとアラートです。グリッドをエリアごとにまとめ、人が読める 1 行にします。下は PoC で出たアラートです。パイプラインが運ぶものがあるよう、生成器が毎分ひとつ急な低下を入れています。",
-  "alert.line": "{time} UTC · {city} エリア {area}:グリッド {cells} 個、信号 {drop} dB 低下",
+  "alert.line": "{time} UTC · {district}(エリア {area}):グリッド {cells} 個、信号 {drop} dB 低下",
   "alert.none": "今はアラートがありません。",
   "uc.alert.how": "どうやって: 一般的には、新しいデータが用意できるとメッセージキューで「今取りに来て」というイベントを送り、購読者がそのとき受け取ります。結果を Kafka トピックに直接送ることもできます。",
   "uc.bulk.who": "データエンジニア · 他の分析基盤",
@@ -299,5 +299,17 @@
   "next.s3": "エージェントと外部の利用者に開く: 制限付きの読み取り専用ユーザー、Git のスキーマ契約。指標: スキーマ変更のリードタイム。",
   "next.risks": "あらかじめ備えること: 加入者の仮名は個人情報であること、細かい粒度のロールアップでのユーザー数の状態サイズ、取り込みのバッチサイズ、利用者ごとのクォータ。",
   "next.repo": "GitHub のラボ: litkhai/clickhouse-hols、usecase/oss-network-quality-lake",
-  "demo.stopped": "フィードは止まっています。レイクの最後の分は {t}(UTC)で、下はすべてその時点のものです。"
+  "demo.stopped": "フィードは止まっています。レイクの最後の分は {t}(UTC)で、下はすべてその時点のものです。",
+  "district.Central": "中心部",
+  "district.North-East": "北東部",
+  "district.East": "東部",
+  "district.South-East": "南東部",
+  "district.South-West": "南西部",
+  "district.West": "西部",
+  "district.North-West": "北西部",
+  "col.cell": "グリッド",
+  "col.users": "ユーザー",
+  "col.avg_rsrp": "平均 RSRP",
+  "demo.ratio": "前の段の行の 1/{r}",
+  "demo.ratio.same": "前の段とほぼ同じ行数"
 }

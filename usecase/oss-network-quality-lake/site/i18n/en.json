@@ -58,7 +58,7 @@
   "uc.alert.who": "On-call staff · downstream systems",
   "uc.alert.title": "Subscription: tell me when something happens",
   "uc.alert.body": "When a grid cell's signal in the latest minute falls well below its own previous hour, that is an alert. Grid cells are folded per area into one line a person can read. Below: alerts raised in the PoC; the generator injects one sudden drop a minute so the pipeline has something to carry.",
-  "alert.line": "{time} UTC · {city} area {area}: {cells} grid cells, signal down {drop} dB",
+  "alert.line": "{time} UTC · {district} (area {area}): {cells} grid cells, signal down {drop} dB",
   "alert.none": "No alerts right now.",
   "uc.alert.how": "How: typically, when new data is ready an event goes out on a message queue saying \"fetch now\", and subscribers take it then. Results can also be pushed straight to a Kafka topic.",
   "uc.bulk.who": "Data engineers · other analytics platforms",
@@ -299,5 +299,17 @@
   "next.s3": "Open it to agents and external consumers: read-only users with limits, the schema contract in Git. Measure: schema-change lead time.",
   "next.risks": "Plan for: subscriber pseudonyms are personal data; user-count state size at fine grain; ingest batch sizes; a quota per consumer.",
   "next.repo": "The lab on GitHub: litkhai/clickhouse-hols, usecase/oss-network-quality-lake",
-  "demo.stopped": "The feed is stopped: the lake's last minute is {t} (UTC). Everything below is as of that minute."
+  "demo.stopped": "The feed is stopped: the lake's last minute is {t} (UTC). Everything below is as of that minute.",
+  "district.Central": "Central",
+  "district.North-East": "North-East",
+  "district.East": "East",
+  "district.South-East": "South-East",
+  "district.South-West": "South-West",
+  "district.West": "West",
+  "district.North-West": "North-West",
+  "col.cell": "Grid cell",
+  "col.users": "Users",
+  "col.avg_rsrp": "Avg RSRP",
+  "demo.ratio": "1/{r} of the rows before",
+  "demo.ratio.same": "about the same rows as before"
 }

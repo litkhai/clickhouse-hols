@@ -91,6 +91,10 @@ FROM oss_lake.noc_from_serving
 ORDER BY list DESC, rnk
 FORMAT PrettyCompactMonoBlock;
 
+-- Exact equality across layers relies on the generator's whole-dB rsrp (round() in
+-- 02-generate.sql): bronze averages Float64, gold divides Float64 sums of Float32 values, and with
+-- fractional inputs the rounded averages could differ in the last digit without any real bug.
+--
 -- The check. Freeze what serving holds now (the scheduled refresh may swap it while the
 -- checks run), then every layer must return exactly those 20 rows, in both directions.
 DROP TABLE IF EXISTS oss_lake.check_serving;

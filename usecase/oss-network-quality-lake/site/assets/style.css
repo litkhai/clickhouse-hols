@@ -15,7 +15,12 @@
 :lang(ko) { --sans: Inter, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
 :lang(ja) { --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif; }
 :lang(zh) { --sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; }
-:lang(ko), :lang(ja), :lang(zh) { word-break: keep-all; }
+:lang(ko) { word-break: keep-all; }
+/* Japanese and Chinese have no spaces: keep-all would make whole sentences unbreakable and leave
+   overflow-wrap to split them anywhere, mid-word and before punctuation */
+:lang(ja), :lang(zh) { word-break: normal; line-break: strict; }
+/* where supported, break Japanese at phrase boundaries (ignored elsewhere, which keeps the rule above) */
+:lang(ja) { word-break: auto-phrase; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -152,6 +157,7 @@ table { border-collapse: collapse; font-size: .86rem; }
 .list-signal h4 { color: var(--c-weak); }
 .rank { width: 100%; background: var(--surface); border: 1px solid var(--line); font-size: .78rem; }
 .rank th, .rank td { padding: 3px 6px; border-block-end: 1px solid var(--grid); text-align: start; }
+.rank th { white-space: nowrap; }
 .rank th.num, .rank td.num { text-align: end; }
 .rank tr.mine td { background: var(--accent-soft); font-weight: 700; }
 @media (max-width: 560px) { .lists { grid-template-columns: 1fr; } }
@@ -304,7 +310,7 @@ pre.sql.out { background: var(--ground); border: 1px solid var(--line); }
 .chart { position: relative; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart .grid { stroke: var(--grid); stroke-width: 1; }
-.chart .axis { font-size: 11px; fill: var(--ink-3); }
+.chart .axis { font-size: 12px; fill: var(--ink-3); }
 .chart .line { fill: none; stroke: var(--bar); stroke-width: 2; stroke-linejoin: round; }
 .chart .dot { fill: var(--bar); stroke: var(--surface); stroke-width: 2; }
 .chart .sm { position: relative; }
@@ -484,3 +490,5 @@ h1 { letter-spacing: -.01em; }
 .pg-note b { color: var(--info); }
 @media (max-width: 1000px) { .sec { scroll-margin-top: 110px; } }
 .chart .tip[hidden], [hidden] { display: none !important; }
+.map-scale line { stroke: var(--ink-3); stroke-width: 1.5; }
+.map-scale text { font-size: 11px; fill: var(--ink-3); }
