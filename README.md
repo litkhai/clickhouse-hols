@@ -71,7 +71,7 @@ and [MOVED.md](MOVED.md).
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | `PREWHERE` behaviour over the MySQL protocol |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse point-query performance |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` table engine + querying it with PromQL (OSS 26.8; Cloud is Private Preview only — no Cloud lab yet) |
-| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | Case study: a telco OSS data lake — industry trend, generalized architecture, use cases, features verified in a PoC and lessons, over a running ClickHouse lake (OSS 26.9; en/ko/ja/zh) |
+| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | Case study: a telco OSS data lake — industry trend, reference architecture, use cases, features verified in a PoC and lessons, over a running ClickHouse lake (OSS 26.9; en/ko/ja/zh) |
 
 ### 🔬 Workloads (`workload/`)
 
@@ -285,7 +285,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [usecase/mysql-prewhere](usecase/mysql-prewhere/) | MySQL 프로토콜에서의 `PREWHERE` 동작 |
 | [usecase/mysql-protocol-benchmark](usecase/mysql-protocol-benchmark/) | MySQL vs ClickHouse 포인트 쿼리 성능 |
 | [usecase/timeseries-promql-oss](usecase/timeseries-promql-oss/) | `TimeSeries` 테이블 엔진 + PromQL로 조회하기 (OSS 26.8; Cloud는 Private Preview 전용 — Cloud 실습은 아직 없음) |
-| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | 사례 연구: 통신사 OSS 데이터 레이크 — 업계 흐름, 일반화한 아키텍처, 유즈케이스, PoC에서 검증한 기능과 교훈, 실제로 도는 ClickHouse 레이크 (OSS 26.9; en/ko/ja/zh) |
+| [usecase/oss-network-quality-lake](usecase/oss-network-quality-lake/) | 사례 연구: 통신사 OSS 데이터 레이크 — 업계 흐름, 참조 아키텍처, 유즈케이스, PoC에서 검증한 기능과 교훈, 실제로 도는 ClickHouse 레이크 (OSS 26.9; en/ko/ja/zh) |
 
 ### 🔬 워크로드 (`workload/`)
 

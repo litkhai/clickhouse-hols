@@ -41,7 +41,7 @@
 <p>A telco <strong>OSS</strong> (operations: equipment, faults, quality; not BSS, which is billing) collects logs,
 metrics and events from every device on the network (UE: phones, IoT modules, vehicles, routers)
 and from the network equipment itself. This lab shows <strong>who uses that data, and how</strong>: a reference
-architecture generalized from a real operator's OSS platform, the use cases built on it (NOC map,
+architecture for a typical telco OSS lake, the use cases built on it (NOC map,
 dashboards, ad hoc analysis, request/response serving, subscriptions, bulk export, schema contracts,
 data quality, pipeline observability, lake history, AI agents, Managed Postgres as an expansion),
 and a small ClickHouse lake that actually runs five of them.</p>
@@ -50,15 +50,15 @@ the OSS data layer, from public sources) → architecture → use cases → feat
 lessons from the field → try it. A static page in English (default, at <code>/</code>), Korean, Japanese and
 Chinese works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
 the colours of clickhouse.com (computed styles, read 2026-10-18).</p>
-<p>The architecture is generalized from a real case: no customer, product, host, table or topic names
-and none of its figures appear here. The operator and the three cities are fictional; only the
-city-centre coordinates (Seoul, Busan, Daegu) are real. All data is generated in SQL. IMSIs use the
-test network code 001-01.</p>
+<p>A composite scenario: a fictional operator, built from common telco OSS practice (3GPP PM/CM/trace,
+medallion layering); names are invented and figures are measured in this lab. Only the city-centre
+coordinates (Seoul, Busan, Daegu) are real places. All data is generated in SQL. IMSIs use the test
+network code 001-01.</p>
 <p><strong>Verified on ClickHouse 26.9.13.15</strong> (<code>clickhouse/clickhouse-server:26.9.13.15</code>), 2026-10-18:
 <code>tools/hol run usecase/oss-network-quality-lake</code> passes (01–05 and 99, about 30 s; two runs in a row after the last change), and the live demo was run
 with <code>ui/up.sh</code> and its button pressed several times. Machine: Apple M4 Pro, macOS, Docker Desktop;
 the container sees 12 CPUs and 7.75 GiB.</p>
-<h3>Reference architecture (generalized)</h3>
+<h3>Reference architecture</h3>
 <p>Sources (devices, base stations, servers, applications) → collection (an agent per node, an
 aggregator) → raw messages on a message bus (Kafka) → stream processing that maps to an industry
 information model and enriches → curated messages → sink → storage: history in an open-table-format
@@ -423,7 +423,7 @@ browser on 2026-10-18 at 320 px and desktop width, light and dark, in all four l
 <hr /></div>
   <div class="readme ko"><p>통신사 <strong>OSS</strong>(운영: 장비, 장애, 품질. 요금·청구를 다루는 BSS가 아님)는 망에 붙은 모든 단말(UE: 휴대폰,
 IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를 모읍니다. 이 실습은 <strong>그 데이터를 누가
-어떻게 쓰는지</strong>를 보여 줍니다. 실제 통신사 OSS 플랫폼에서 일반화한 참조 구조, 그 위의 유즈케이스(NOC
+어떻게 쓰는지</strong>를 보여 줍니다. 전형적인 통신사 OSS 레이크의 참조 구조, 그 위의 유즈케이스(NOC
 지도, 대시보드, 즉석 분석, 즉시 조회 서빙, 구독, 대량 추출, 스키마 계약, 데이터 품질, 파이프라인 관측,
 레이크 이력, AI 에이전트, 확장안으로 Managed Postgres), 그리고 그중 다섯 가지를 실제로 돌리는 작은
 ClickHouse 레이크입니다.</p>
@@ -431,14 +431,14 @@ ClickHouse 레이크입니다.</p>
 유즈케이스 → PoC에서 검증한 기능 → 현장에서 배운 것 → 직접 해 보기 순서입니다. 정적 페이지는 영어(기본,
 <code>/</code>), 한국어, 일본어, 중국어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
 있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.</p>
-<p>구조는 실제 사례를 일반화했습니다. 고객, 제품, 호스트, 테이블, 토픽 이름과 그 사례의 수치는 여기에
-없습니다. 통신사와 세 도시는 가상이고, 도시 중심 좌표(서울, 부산, 대구)만 실제입니다. 데이터는 모두
-SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.</p>
+<p>합성 시나리오입니다. 가상의 통신사를 두고 흔한 통신 OSS 관행(3GPP PM/CM/트레이스, 메달리온 계층)으로
+구성했으며, 이름은 지어낸 것이고 수치는 이 실습에서 측정한 값입니다. 도시 중심 좌표(서울, 부산, 대구)만
+실제 장소입니다. 데이터는 모두 SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.</p>
 <p><strong>ClickHouse 26.9.13.15에서 검증</strong> (<code>clickhouse/clickhouse-server:26.9.13.15</code>), 2026-10-18:
 <code>tools/hol run usecase/oss-network-quality-lake</code> 통과(01–05와 99, 약 30초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 <code>ui/up.sh</code>로
 띄워 버튼을 여러 번 눌러 확인했습니다. 기기: Apple M4 Pro, macOS, Docker Desktop, 컨테이너는
 CPU 12개와 7.75 GiB를 봅니다.</p>
-<h3>참조 구조 (일반화)</h3>
+<h3>참조 구조</h3>
 <p>원천(단말, 기지국, 서버, 애플리케이션) → 수집(노드마다 에이전트, 집계기) → 메시지 버스(Kafka)의 원천
 메시지 → 업계 표준 정보 모델에 맞추고 부가 정보를 붙이는 스트림 처리 → 정제된 메시지 → 싱크 → 저장:
 이력은 오픈 테이블 포맷 레이크, 바로 쓰는 요약(골드)은 <strong>ClickHouse</strong> → 세 가지 서빙(HTTP 즉시 조회,
