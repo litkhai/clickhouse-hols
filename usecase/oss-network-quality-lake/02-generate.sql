@@ -33,6 +33,11 @@ WITH
        FROM (SELECT h3, ring, is_hole FROM oss_lake.grid ORDER BY city, idx)) AS g,
     toUnixTimestamp({start:DateTime}) AS seed,
     intDiv(number, per_minute)                      AS m,
+    -- every minute one res-7 area (about 49 cells) somewhere in a city has an incident:
+    -- its signal drops by 22 dB for that minute, so alerts have something to catch
+    (SELECT groupArray(a) FROM (SELECT DISTINCT h3ToParent(h3, 7) AS a FROM oss_lake.grid
+       WHERE ring BETWEEN 8 AND 40 ORDER BY a)) AS areas,
+    areas[1 + cityHash64(intDiv(seed, 60) + m) % greatest(length(areas), 1)] AS incident_area,
     number % per_minute % 3                         AS city,
     -- pow(u, 1.8) leans towards 0 = the centre: crowded downtown, quiet edges
     toUInt32(floor(per_city * pow((cityHash64(seed, number, 1) % 1000000) / 1e6, 1.8))) AS k,
@@ -45,7 +50,8 @@ WITH
     -- roughly normal noise, sd ~6 dB
     ((cityHash64(seed, number, 4) % 1000 + cityHash64(seed, number, 5) % 1000
       + cityHash64(seed, number, 6) % 1000) / 1000 - 1.5) * 12              AS noise,
-    greatest(-140, least(-44, round(if(hole, -117, -78 - ring * 0.45) + noise))) AS rsrp_v,
+    greatest(-140, least(-44, round(if(hole, -117, -78 - ring * 0.45) + noise
+        - if(h3ToParent(cell, 7) = incident_area, 22, 0))))                  AS rsrp_v,
     round(2 * (-8 + (rsrp_v + 90) * 0.12 + noise * 0.1)) / 2                 AS rsrq_v,
     round(2 * ((rsrp_v + 105) * 0.5 + noise * 0.2)) / 2                      AS sinr_v
 SELECT

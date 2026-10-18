@@ -1,4 +1,4 @@
-# OSS network-quality lake — one measurement from a phone to the NOC map
+# Telco OSS data lake — who uses it for what, and one measurement through it
 
 [English](#english) | [한국어](#한국어)
 
@@ -6,31 +6,67 @@
 
 ## English
 
-A telco **OSS** (operations: equipment, faults, quality; not BSS, which is billing) receives
-measurement traces from phones. A NOC screen needs, for the last hour, the 10 H3 res-9 cells with
-the most users and the 10 with the weakest signal. This lab builds that as four ClickHouse layers
-and follows one measurement through them, so the flow of data is visible: what each layer changes,
-and how the row count shrinks from millions to the 20 rows the screen reads.
+A telco **OSS** (operations: equipment, faults, quality; not BSS, which is billing) collects logs,
+metrics and events from every device on the network (UE: phones, IoT modules, vehicles, routers)
+and from the network equipment itself. This lab shows **who uses that data, and how**: a reference
+architecture generalized from a real operator's OSS platform, the use cases built on it (NOC map,
+dashboards, ad hoc analysis, request/response serving, subscriptions, bulk export, schema contracts,
+data quality, pipeline observability, lake history, AI agents, Managed Postgres as an expansion),
+and a small ClickHouse lake that actually runs five of them.
 
-It is made to be shown: a static explainer page (works without ClickHouse) and a local live demo
-with a "send next minute" button, both in Korean, English, Japanese and Chinese. Performance numbers
-are a supporting line, not the point.
+It is made to be shown to colleagues: a static explainer page in Korean, English, Japanese and
+Chinese (works without ClickHouse) and a local live demo with a "send next minute" button. Use cases
+come first; measured numbers are kept in the engineers' section.
 
-The operator and the three cities are fictional; only the city-centre coordinates (Seoul, Busan,
-Daegu) are real. All data is generated in SQL. IMSIs use the test network code 001-01.
+The architecture is generalized from a real case: no customer, product, host, table or topic names
+and none of its figures appear here. The operator and the three cities are fictional; only the
+city-centre coordinates (Seoul, Busan, Daegu) are real. All data is generated in SQL. IMSIs use the
+test network code 001-01.
 
 **Verified on ClickHouse 26.9.13.15** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
-`tools/hol run usecase/oss-network-quality-lake` passes (01–99, about 26 s; three runs in a row after the fix below), and the live demo was run
+`tools/hol run usecase/oss-network-quality-lake` passes (01–04 and 99, about 26 s; two runs in a row after the last change), and the live demo was run
 with `ui/up.sh` and its button pressed several times. Machine: Apple M4 Pro, macOS, Docker Desktop;
 the container sees 12 CPUs and 7.75 GiB.
 
-### The layers
+### Reference architecture (generalized)
 
-All four are tables in database `oss_lake` (Atomic).
+Sources (devices, base stations, servers, applications) → collection (an agent per node, an
+aggregator) → raw messages on a message bus (Kafka) → stream processing that maps to an industry
+information model and enriches → curated messages → sink → storage: history in an open-table-format
+lake, ready-to-use summaries (gold) in **ClickHouse** → serving in three ways (request/response over
+HTTP, bulk export, subscription) → NOC screens, dashboards, analysts, business apps, AI agents.
+Two rails run along it: a **schema contract in Git** from which every stage's schema and DDL is
+generated, and a **control-plane API** that declares, deploys and observes every component.
+
+### Use cases
+
+| Group | Use case | In this lab |
+|---|---|---|
+| Seeing | NOC map: busiest cells, weakest cells, an area whose signal just dropped | run (`cell_rank_now`, `uc_alert_cells`) |
+| Seeing | Dashboard: KPI per minute and city | run (`uc_dashboard`) |
+| Seeing | Ad hoc analysis: weak signal downtown vs edge | run (`uc_analysis`) |
+| Serving | Request/response over HTTP, streamed row by row | run (ClickHouse HTTP interface) |
+| Serving | Subscription: alerts every minute; push to a Kafka topic | alerts run (`uc_alert_areas`); Kafka publish is an example (`examples/subscribe-kafka.sql`) |
+| Serving | Bulk export | described |
+| Serving | Managed Postgres for subscriptions, keys, watermarks; `pg_clickhouse` joins the lake from Postgres | expansion example (`examples/postgres-pg-clickhouse.sql`, pattern verified in clickhouse-managed-postgres-hols) |
+| Running | Schema contract in Git → generated DDL | described |
+| Running | Data quality at every stage | run (silver drops rows without a cell or subscriber, keeps missing RSRP as NULL) |
+| Running | Pipeline observability (ClickStack) | described |
+| Running | Lake history (Iceberg) joined with gold | described |
+| AI | Agents turn questions into SQL over MCP/HTTP; agent observability (Langfuse) | described |
+
+Every minute the generator degrades one res-7 area (about 49 cells) by 22 dB, so the alert use case
+and the live feed have something new to catch each minute.
+
+### The layers this lab runs
+
+In the reference architecture raw messages and standardization live in Kafka and stream processing.
+To keep the flow visible in one place, this lab keeps all four stages inside ClickHouse and links them
+with materialized views. All four are tables in database `oss_lake` (Atomic).
 
 | Step | Layer | Table | What happens | Rows (2 h) |
 |---|---|---|---|---:|
-| 1 | phone | `synth_traces` (parameterized view) | 180,000 measurements a minute across three cities | — |
+| 1 | devices | `synth_traces` (parameterized view) | 180,000 measurements a minute across three cities | — |
 | 2 | bronze | `ue_trace_raw` | kept as received: H3 as a string, IMSI as 44-char base64 ciphertext, everything Nullable, daily partition, TTL 3 days | 21,600,000 |
 | 3 | silver | `ue_trace` ← MV | `stringToH3`, `cityHash64(imsi)`, Float32, only `rsrp` stays Nullable; rows without a cell or a subscriber are dropped | 21,470,291 |
 | 4 | gold | `cell_kpi_1m` ← MV | AggregatingMergeTree, one row per (minute, cell): `uniqState(imsi_hash)` + SimpleAggregateFunction sums | 2,431,595 |
@@ -120,13 +156,15 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `01-schema.sql` | database, `params`, `grid`, the four layer tables, both MVs, the refreshable MV, read-only user `oss_reader` |
 | `02-generate.sql` | the cell grid (3 cities × 6,769 res-9 cells, a weak-coverage spot per city), the `synth_traces` view, two hours of traces |
 | `03-queries.sql` | the NOC query on each layer, `SYSTEM REFRESH VIEW`, the same-20-rows check |
+| `04-usecases.sql` | use-case views (analysis, dashboard, alerts per cell and per area) and their checks |
+| `examples/` | patterns not run here: publishing alerts to Kafka, reading the lake from Postgres with `pg_clickhouse` |
 | `99-cleanup.sql` | drops `oss_lake`, `oss_pitfall` and the user |
 | `pitfall.sql` | the pitfall above, by hand |
 | `snapshot.sh` | writes `site/data/snapshot.json` (counts, sample rows, the 20 cells with boundaries, query times) and rebuilds the pages |
 | `site/` | explainer (`explainer.html`), shared CSS/JS, catalogues `i18n/{ko,en,ja,zh}.json`, `build.py` |
 | `ui/server.py` | stdlib-only server: explainer at `/`, demo at `/demo`, fixed endpoints `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | the live demo page (no build step, no CDN) |
-| `ui/up.sh` | container + 01–03 + server, in one command |
+| `ui/up.sh` | container + 01–04 + server, in one command |
 | `site/data/replay.json` | six live-feed presses recorded with `ui/server.py --record 6`, replayed by the demo where there is no ClickHouse |
 | `vercel.json` | static deployment: `python3 site/build.py` → `site/dist`, `noindex` header |
 
@@ -199,30 +237,66 @@ Ken Lee (ClickHouse SA) · License: MIT
 
 ## 한국어
 
-통신사 **OSS**(운영: 장비, 장애, 품질. 요금·청구를 다루는 BSS가 아님)는 휴대폰의 측정 기록을
-받습니다. NOC 화면은 지난 1시간 동안 사용자가 가장 많은 H3 res-9 셀 10개와 신호가 가장 약한 셀
-10개를 보여 줘야 합니다. 이 실습은 그것을 ClickHouse 레이어 네 개로 만들고, 측정 한 건이 그
-레이어들을 지나가는 모습을 따라갑니다. 레이어마다 무엇이 바뀌는지, 행 수가 수백만에서 화면이 읽는
-20행까지 어떻게 줄어드는지가 보이도록 했습니다.
+통신사 **OSS**(운영: 장비, 장애, 품질. 요금·청구를 다루는 BSS가 아님)는 망에 붙은 모든 단말(UE: 휴대폰,
+IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를 모읍니다. 이 실습은 **그 데이터를 누가
+어떻게 쓰는지**를 보여 줍니다. 실제 통신사 OSS 플랫폼에서 일반화한 참조 구조, 그 위의 유즈케이스(NOC
+지도, 대시보드, 즉석 분석, 즉시 조회 서빙, 구독, 대량 추출, 스키마 계약, 데이터 품질, 파이프라인 관측,
+레이크 이력, AI 에이전트, 확장안으로 Managed Postgres), 그리고 그중 다섯 가지를 실제로 돌리는 작은
+ClickHouse 레이크입니다.
 
-보여 주기 위한 실습입니다. 정적인 설명 페이지(ClickHouse 없이 열림)와 "다음 1분 보내기" 버튼이
-있는 로컬 라이브 데모를 한국어, 영어, 일본어, 중국어로 제공합니다. 성능 수치는 보조 정보입니다.
+동료들에게 보여 주기 위한 실습입니다. 정적인 설명 페이지(한국어, 영어, 일본어, 중국어. ClickHouse 없이
+열림)와 "다음 1분 보내기" 버튼이 있는 로컬 라이브 데모가 있습니다. 유즈케이스가 먼저이고, 측정한 수치는
+엔지니어용 절에 둡니다.
 
-통신사와 세 도시는 가상이고, 도시 중심 좌표(서울, 부산, 대구)만 실제입니다. 데이터는 모두 SQL로
-만듭니다. IMSI는 시험망 코드 001-01을 씁니다.
+구조는 실제 사례를 일반화했습니다. 고객, 제품, 호스트, 테이블, 토픽 이름과 그 사례의 수치는 여기에
+없습니다. 통신사와 세 도시는 가상이고, 도시 중심 좌표(서울, 부산, 대구)만 실제입니다. 데이터는 모두
+SQL로 만듭니다. IMSI는 시험망 코드 001-01을 씁니다.
 
 **ClickHouse 26.9.13.15에서 검증** (`clickhouse/clickhouse-server:26.9.13.15`), 2026-10-18:
-`tools/hol run usecase/oss-network-quality-lake` 통과(01–99, 약 26초. 아래 우회 뒤 연속 세 번). 라이브 데모는 `ui/up.sh`로
+`tools/hol run usecase/oss-network-quality-lake` 통과(01–04와 99, 약 26초. 마지막 변경 뒤 연속 두 번). 라이브 데모는 `ui/up.sh`로
 띄워 버튼을 여러 번 눌러 확인했습니다. 기기: Apple M4 Pro, macOS, Docker Desktop, 컨테이너는
 CPU 12개와 7.75 GiB를 봅니다.
 
-### 레이어
+### 참조 구조 (일반화)
+
+원천(단말, 기지국, 서버, 애플리케이션) → 수집(노드마다 에이전트, 집계기) → 메시지 버스(Kafka)의 원천
+메시지 → 업계 표준 정보 모델에 맞추고 부가 정보를 붙이는 스트림 처리 → 정제된 메시지 → 싱크 → 저장:
+이력은 오픈 테이블 포맷 레이크, 바로 쓰는 요약(골드)은 **ClickHouse** → 세 가지 서빙(HTTP 즉시 조회,
+대량 추출, 구독) → NOC 화면, 대시보드, 분석가, 업무 앱, AI 에이전트. 옆으로 두 줄이 함께 갑니다.
+모든 단계의 스키마와 DDL을 만드는 **Git의 스키마 계약**, 모든 구성 요소를 선언하고 배포하고 관측하는
+**컨트롤 플레인 API**입니다.
+
+### 유즈케이스
+
+| 묶음 | 유즈케이스 | 이 실습에서 |
+|---|---|---|
+| 보기 | NOC 지도: 가장 붐비는 셀, 가장 약한 셀, 방금 신호가 떨어진 지역 | 실행 (`cell_rank_now`, `uc_alert_cells`) |
+| 보기 | 대시보드: 분·도시별 KPI | 실행 (`uc_dashboard`) |
+| 보기 | 즉석 분석: 도심과 외곽의 약한 신호 | 실행 (`uc_analysis`) |
+| 서빙 | HTTP 즉시 조회, 한 행씩 흘려 받기 | 실행 (ClickHouse HTTP 인터페이스) |
+| 서빙 | 구독: 1분마다 알림, Kafka 토픽으로 발행 | 알림 실행 (`uc_alert_areas`), Kafka 발행은 예시 (`examples/subscribe-kafka.sql`) |
+| 서빙 | 대량 추출 | 설명 |
+| 서빙 | 구독·키·워터마크는 Managed Postgres에, `pg_clickhouse`로 Postgres에서 레이크 조인 | 확장 예시 (`examples/postgres-pg-clickhouse.sql`, 방식은 clickhouse-managed-postgres-hols에서 검증) |
+| 운영 | Git 스키마 계약 → DDL 생성 | 설명 |
+| 운영 | 단계마다 데이터 품질 확인 | 실행 (실버가 셀·가입자 없는 행을 버리고, 없는 RSRP는 NULL로 유지) |
+| 운영 | 파이프라인 관측 (ClickStack) | 설명 |
+| 운영 | 레이크 이력(Iceberg)과 골드 조인 | 설명 |
+| AI | 에이전트가 MCP/HTTP로 질문을 SQL로 바꿔 조회, 에이전트 관측(Langfuse) | 설명 |
+
+생성기는 1분마다 res-7 지역 하나(셀 약 49개)의 신호를 22 dB 떨어뜨립니다. 그래서 알림 유즈케이스와
+라이브 데모가 매분 새로 잡을 것이 생깁니다.
+
+### 이 실습이 돌리는 레이어
+
+참조 구조에서 원천 메시지와 표준화는 Kafka와 스트림 처리에 있습니다. 흐름을 한곳에서 보이도록 이
+실습은 네 단계를 모두 ClickHouse 안에 두고 Materialized View로 잇습니다.
+
 
 네 개 모두 `oss_lake` 데이터베이스(Atomic)의 테이블입니다.
 
 | 단계 | 레이어 | 테이블 | 하는 일 | 행 (2시간) |
 |---|---|---|---|---:|
-| 1 | 휴대폰 | `synth_traces` (매개변수 뷰) | 세 도시에서 1분에 180,000건 | — |
+| 1 | 단말 | `synth_traces` (매개변수 뷰) | 세 도시에서 1분에 180,000건 | — |
 | 2 | 브론즈 | `ue_trace_raw` | 받은 그대로: H3는 문자열, IMSI는 44자 base64 암호문, 모두 Nullable, 일 단위 파티션, TTL 3일 | 21,600,000 |
 | 3 | 실버 | `ue_trace` ← MV | `stringToH3`, `cityHash64(imsi)`, Float32, `rsrp`만 Nullable. 셀이나 가입자가 없는 행은 버림 | 21,470,291 |
 | 4 | 골드 | `cell_kpi_1m` ← MV | AggregatingMergeTree, (분, 셀)마다 한 행: `uniqState(imsi_hash)` + SimpleAggregateFunction 합계 | 2,431,595 |
@@ -308,13 +382,15 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `01-schema.sql` | 데이터베이스, `params`, `grid`, 레이어 테이블 네 개, MV 두 개, Refreshable MV, 읽기 전용 사용자 `oss_reader` |
 | `02-generate.sql` | 셀 격자(3개 도시 × res-9 셀 6,769개, 도시마다 음영 지역 한 곳), `synth_traces` 뷰, 2시간치 측정 |
 | `03-queries.sql` | 레이어별 NOC 질의, `SYSTEM REFRESH VIEW`, 같은 20행 검사 |
+| `04-usecases.sql` | 유즈케이스 뷰(분석, 대시보드, 셀별·지역별 알림)와 검사 |
+| `examples/` | 여기서 돌리지 않는 방식: Kafka로 알림 발행, `pg_clickhouse`로 Postgres에서 레이크 읽기 |
 | `99-cleanup.sql` | `oss_lake`, `oss_pitfall`, 사용자 삭제 |
 | `pitfall.sql` | 위 함정을 손으로 재현 |
 | `snapshot.sh` | `site/data/snapshot.json`(행 수, 견본 행, 경계가 붙은 20개 셀, 질의 시간)을 쓰고 페이지를 다시 만듦 |
 | `site/` | 설명 페이지(`explainer.html`), 공용 CSS/JS, 카탈로그 `i18n/{ko,en,ja,zh}.json`, `build.py` |
 | `ui/server.py` | 표준 라이브러리만 쓰는 서버: `/`에 설명, `/demo`에 데모, 고정 엔드포인트 `/api/layers`, `/api/q/<1-4>`, `/api/map`, `POST /api/tick` |
 | `ui/demo.html` | 라이브 데모 페이지(빌드 단계 없음, CDN 없음) |
-| `ui/up.sh` | 컨테이너 + 01–03 + 서버를 명령 하나로 |
+| `ui/up.sh` | 컨테이너 + 01–04 + 서버를 명령 하나로 |
 | `site/data/replay.json` | `ui/server.py --record 6`으로 녹화한 라이브 데모 버튼 6번. ClickHouse가 없는 곳에서 데모가 재생 |
 | `vercel.json` | 정적 배포: `python3 site/build.py` → `site/dist`, `noindex` 헤더 |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local demo in one command: a ClickHouse container with its HTTP port published,
-# the lab's SQL (01-03), then the demo server.  Stop with Ctrl-C; remove with
+# the lab's SQL (01-04), then the demo server.  Stop with Ctrl-C; remove with
 #   docker rm -f oss-lake-demo
 set -euo pipefail
 LAB="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,7 +14,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$NAME"; then
         -e CLICKHOUSE_PASSWORD= -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
         -p "127.0.0.1:$CH_PORT:8123" "$IMAGE" >/dev/null
     until docker exec "$NAME" clickhouse-client -q "SELECT 1" >/dev/null 2>&1; do sleep 1; done
-    for f in 01-schema.sql 02-generate.sql 03-queries.sql; do
+    for f in 01-schema.sql 02-generate.sql 03-queries.sql 04-usecases.sql; do
         echo "loading $f"
         docker exec -i "$NAME" clickhouse-client --multiquery < "$LAB/$f" >/dev/null
     done

@@ -85,8 +85,11 @@ def esc(v):
 # ---------------------------------------------------------------- SQL excerpts
 
 def statement(file, head):
-    """The statement in <file> that starts with <head>, up to its closing semicolon."""
+    """The statement in <file> that starts with <head>, up to its closing semicolon;
+    the whole file when <head> is None."""
     text = (LAB / file).read_text()
+    if head is None:
+        return text.strip()
     i = text.find(head)
     if i < 0:
         sys.exit("SQL excerpt not found: %s in %s" % (head, file))
@@ -105,6 +108,11 @@ SQL = {
     "serving": ("01-schema.sql", "CREATE MATERIALIZED VIEW oss_lake.cell_rank_rmv"),
     "noc_bronze": ("03-queries.sql", "CREATE OR REPLACE VIEW oss_lake.noc_from_bronze"),
     "noc_gold": ("03-queries.sql", "CREATE OR REPLACE VIEW oss_lake.noc_from_gold"),
+    "uc_analysis": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_analysis"),
+    "uc_dashboard": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_dashboard"),
+    "uc_alert_cells": ("04-usecases.sql", "CREATE OR REPLACE VIEW oss_lake.uc_alert_cells"),
+    "kafka": ("examples/subscribe-kafka.sql", None),
+    "postgres": ("examples/postgres-pg-clickhouse.sql", None),
 }
 
 
@@ -218,9 +226,61 @@ def block_measured(s, t):
         "{cpus}", str(m["cpus"])).replace("{mem}", m["mem"]))
 
 
+def block_flow(s, t):
+    """The four stages in plain words, each with a glimpse of the one measurement we follow."""
+    st = s["story"]
+    raw, sil = st["raw"], st["silver"]
+    chips = {
+        "bronze": "h3 '%s' · imsi '%s…'" % (raw["h3_res09"], raw["imsi"][:8]),
+        "silver": "h3 %s · imsi → %s…" % (sil["h3"], str(sil["imsi_hash"])[:6]),
+        "gold": t["flow.gold.chip"].replace("{n}", num(st["folded_rows"])),
+        "serving": t["flow.serving.chip"],
+    }
+    cards = []
+    for key in ("bronze", "silver", "gold", "serving"):
+        cards.append(
+            "<li class=\"stage stage-%s\"><p class=\"st-name\">%s</p><p class=\"st-what\">%s</p>"
+            "<p class=\"st-chip\"><code>%s</code></p></li>" % (
+                key, t["flow.%s.name" % key], t["flow.%s.what" % key], esc(chips[key])))
+    return "<ol class=\"flow\">%s</ol>" % "".join(cards)
+
+
+def block_uc_analysis(s, t):
+    rows = s["usecases"]["analysis"]
+    top = max(r["poor_pct"] for r in rows) or 1
+    out = []
+    for r in rows:
+        out.append(
+            "<tr><td>%s</td><td>%s</td><td class=\"num\">%s%%</td>"
+            "<td class=\"barcell\"><span style=\"width:%.1f%%\"></span></td></tr>" % (
+                t["city.short.%d" % r["city"]], t["zone." + r["zone"]], num(r["poor_pct"]),
+                max(1.5, 100.0 * r["poor_pct"] / top)))
+    return ("<div class=\"scroll\"><table class=\"rank analysis\"><thead><tr><th scope=\"col\">%s</th>"
+            "<th scope=\"col\">%s</th><th scope=\"col\" class=\"num\">%s</th><th></th></tr></thead>"
+            "<tbody>%s</tbody></table></div>" % (t["col.city"], t["col.zone"], t["col.poor"], "".join(out)))
+
+
+def block_uc_alerts(s, t):
+    items = []
+    for a in s["usecases"]["alerts"]:
+        items.append("<li><span class=\"al-dot\" aria-hidden=\"true\"></span>%s</li>" % html.escape(
+            t["alert.line"].replace("{time}", a["minute"][11:16]).replace(
+                "{city}", t["city.short.%d" % a["city"]]).replace("{cells}", num(a["cells"])).replace(
+                "{drop}", num(a["drop_db"])).replace("{area}", a["area"])))
+    return "<ul class=\"alerts\">%s</ul>" % ("".join(items) or "<li>%s</li>" % t["alert.none"])
+
+
+def block_uc_http(s, t):
+    h = s["usecases"]["http"]
+    cmd = "curl 'http://localhost:18123/?user=oss_reader' \\\n  --data-binary '%s'" % h["query"]
+    return "<pre class=\"sql\"><code>%s</code></pre><pre class=\"sql out\"><code>%s</code></pre>" % (
+        html.escape(cmd), html.escape("\n".join(h["lines"])))
+
+
 BLOCKS = {"raw": block_raw, "compare": block_compare, "gold": block_gold, "fold": block_fold,
           "funnel": block_funnel, "serving": block_serving, "timings": block_timings,
-          "measured": block_measured}
+          "measured": block_measured, "flow": block_flow, "uc_analysis": block_uc_analysis,
+          "uc_alerts": block_uc_alerts, "uc_http": block_uc_http}
 
 
 # ---------------------------------------------------------------- page

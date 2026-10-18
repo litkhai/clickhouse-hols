@@ -9,6 +9,7 @@ Fixed endpoints only, no free SQL:
     GET  /api/layers      row count, size and a sample row per layer
     GET  /api/q/<1-4>     the NOC query on bronze, silver, gold or serving
     GET  /api/map         the 20 cells and a density background, as H3 boundaries
+    GET  /api/usecases    analysis, dashboard series, alerts, an HTTP-streaming sample
     POST /api/tick        live feed: one more minute of traces into bronze
 
 Reads use the read-only user oss_reader; only /api/tick writes (CH_WRITE_USER).
@@ -150,6 +151,29 @@ def map_data():
     return {"cells": cells, "density": density}
 
 
+def usecases():
+    """What the lake is used for (04-usecases.sql): analysis, dashboard series, alerts, and the
+    first lines of the same alert query streamed over ClickHouse's HTTP interface."""
+    alert_sql = ("SELECT area, city, minute, cells, drop_db, rsrp_now "
+                 "FROM oss_lake.uc_alert_areas FORMAT JSONEachRow")
+    params = urllib.parse.urlencode({"user": READ_USER, "password": ""})
+    req = urllib.request.Request(CH_URL + "/?" + params, data=alert_sql.encode(), method="POST")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        lines = [l for l in r.read().decode().splitlines() if l][:3]
+    return {
+        "analysis": rows("SELECT * FROM oss_lake.uc_analysis"),
+        "dashboard": rows("SELECT toString(minute) AS minute, city, users, samples, poor_pct "
+                          "FROM oss_lake.uc_dashboard"),
+        "alerts": rows("SELECT area, city, toString(minute) AS minute, cells, drop_db, rsrp_now "
+                       "FROM oss_lake.uc_alert_areas LIMIT 5"),
+        "alert_cells": rows(
+            "SELECT h3ToString(cell) AS id, city, drop_db, "
+            "arrayMap(p -> [round(p.1, 5), round(p.2, 5)], h3ToGeoBoundary(cell)) AS boundary "
+            "FROM oss_lake.uc_alert_cells"),
+        "http": {"query": alert_sql, "lines": lines},
+    }
+
+
 # ---------------------------------------------------------------- the one write
 
 TICK = threading.Lock()
@@ -204,6 +228,7 @@ def snapshot(path):
         "story": story(),
         "queries": [noc(n, repeat=5) for n in range(1, 5)],
         "map": map_data(),
+        "usecases": usecases(),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(snap, ensure_ascii=False, indent=1) + "\n")
@@ -216,7 +241,7 @@ def record(path, n):
     after --snapshot."""
     def frame(extra=None):
         f = {**counts(), "story": story(), "cells": map_data()["cells"],
-             "q": [noc(k) for k in range(1, 5)]}
+             "q": [noc(k) for k in range(1, 5)], "usecases": usecases()}
         f.update(extra or {})
         return f
     write("SYSTEM REFRESH VIEW oss_lake.cell_rank_rmv")
@@ -259,6 +284,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api(noc, int(path[7:]))
         if path == "/api/map":
             return self.api(map_data)
+        if path == "/api/usecases":
+            return self.api(usecases)
         page = build.page_for(path)
         if page is None:
             return self.send(404, b"not found", "text/plain")

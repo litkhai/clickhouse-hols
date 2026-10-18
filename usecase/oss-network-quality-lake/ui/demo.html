@@ -36,7 +36,9 @@
   <section class="card">
     <h3 style="margin:0 0 8px;font-size:1rem">{{demo.map}} <span class="status" id="map-at"></span></h3>
     <div class="maps" id="maps"></div>
-    <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
+    <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-alert"></i>{{map.legend.alert}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
+    <h3 style="margin:14px 0 4px;font-size:1rem">{{demo.alerts}}</h3>
+    <ul class="alerts" id="alerts" aria-live="polite"></ul>
   </section>
 
   <section class="card panel">
@@ -82,6 +84,7 @@
     if (path === "/api/tick") out = { inserted: f.inserted, total_s: f.total_s, anchor_ts: f.anchor_ts, layers: f.layers };
     else if (path === "/api/layers") out = { anchor_ts: f.anchor_ts, layers: f.layers, story: f.story };
     else if (path === "/api/map") out = { cells: f.cells, density: REPLAY.density };
+    else if (path === "/api/usecases") out = f.usecases;
     else out = f.q[+path.slice(7) - 1];
     return new Promise(function (ok) { setTimeout(function () { ok(out); }, path === "/api/tick" ? 350 : 0); });
   }
@@ -138,6 +141,18 @@
     });
   }
 
+  var seenAlerts = {};
+  function showAlerts(list, deltas) {
+    var ul = document.getElementById("alerts");
+    ul.innerHTML = (list.length ? list : [null]).map(function (a) {
+      if (!a) return "<li>" + esc(T("alert.none")) + "</li>";
+      var key = a.minute + a.area, fresh = deltas && !seenAlerts[key];
+      seenAlerts[key] = 1;
+      return "<li" + (fresh ? " class=\"new\"" : "") + "><span class=\"al-dot\" aria-hidden=\"true\"></span>" + esc(T("alert.line", {
+        time: a.minute.slice(11, 16), city: T("city.short." + a.city), cells: a.cells, drop: a.drop_db, area: a.area })) + "</li>";
+    }).join("");
+  }
+
   function samplesFor(d, n) {
     if (n === 1) return d.story.raw;
     if (n === 2) return d.story.silver;
@@ -175,10 +190,12 @@
       last = d;
       showLayers(d, deltas);
       document.getElementById("status").textContent = T("demo.anchor", { t: d.anchor_ts });
-      return api("/api/map");
-    }).then(function (m) {
+      return Promise.all([api("/api/map"), api("/api/usecases")]);
+    }).then(function (both) {
+      var m = both[0], uc = both[1];
       var box = document.getElementById("maps");
-      LAB.drawMaps(box, m);
+      LAB.drawMaps(box, m, uc.alert_cells);
+      showAlerts(uc.alerts, deltas);
       document.getElementById("map-at").textContent = T("demo.map.at", { t: last.anchor_ts.slice(11, 16) });
       if (deltas && !LAB.reducedMotion()) { box.classList.remove("pulse"); void box.offsetWidth; box.classList.add("pulse"); }
       select(selected);
