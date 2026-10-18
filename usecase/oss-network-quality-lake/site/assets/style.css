@@ -477,3 +477,4 @@ h1 { letter-spacing: -.01em; }
 .pg-note { margin: 8px 0; padding: 10px 12px; border: 1px dashed var(--info); border-radius: 6px; font-size: .88rem; }
 .pg-note b { color: var(--info); }
 @media (max-width: 1000px) { .sec { scroll-margin-top: 110px; } }
+.chart .tip[hidden], [hidden] { display: none !important; }
