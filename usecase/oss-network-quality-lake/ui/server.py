@@ -289,7 +289,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.send(200, fn(*a))
         except Exception as e:  # ClickHouse down or lab not loaded: say so, do not crash
-            self.send(503, {"error": str(e)})
+            print("ClickHouse error on %s: %s" % (self.path, e), file=sys.stderr)
+            self.send(503, {"error": "unavailable"})
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path

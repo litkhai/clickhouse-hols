@@ -231,12 +231,17 @@
     document.querySelector(".lead").textContent = T("demo.lead.auto");
     var status = document.getElementById("status");
     var seen = last && last.anchor_ts;
-    status.textContent = T("demo.auto", { t: seen });
+    /* the feed can be stopped on purpose: after 3 minutes without a new minute, say so */
+    function say() {
+      var age = Date.now() - Date.parse(String(seen).replace(" ", "T") + "Z");
+      status.textContent = T(age > 180000 ? "demo.stopped" : "demo.auto", { t: seen });
+    }
+    say();
     setInterval(function () {
       api("/api/layers").then(function (d) {
-        if (d.anchor_ts === seen) return;
+        if (d.anchor_ts === seen) return say();
         seen = d.anchor_ts;
-        return refresh(true).then(function () { status.textContent = T("demo.auto", { t: seen }); });
+        return refresh(true).then(say);
       }).catch(function () {});
     }, 30000);
   }

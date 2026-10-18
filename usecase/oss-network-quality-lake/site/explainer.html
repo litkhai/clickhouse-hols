@@ -30,6 +30,8 @@
   <p class="kicker">{{hero.kicker}}</p>
   <h1>{{hero.title}}</h1>
   <p class="lead">{{hero.lead}}</p>
+  <p class="result">{{hero.result|srv_ms=queries.3.elapsed_ms,raw_ms=queries.0.elapsed_ms,raw_rows=queries.0.read_rows,date=generated}}</p>
+  <ul class="aud"><li>{{aud.exec}}</li><li>{{aud.sa}}</li><li>{{aud.eng}}</li></ul>
   <p class="note">{{hero.note}}</p>
 </section>
 
@@ -50,6 +52,7 @@
       <ul class="pains">
         <li>{{sit.p1}}</li><li>{{sit.p2}}</li><li>{{sit.p3}}</li><li>{{sit.p4}}</li>
       </ul>
+      <p class="note">{{sit.note}}</p>
       <p class="note">{{where.body}}</p>
     </div>
   </div>
@@ -81,7 +84,7 @@
   <div class="ov" role="img" aria-label="{{arch.aria}}">
     <div class="ov-col"><h3>{{arch.c.src}}</h3>
       <p class="bx on">{{arch.s.trace}}</p><p class="bx on">{{arch.s.cm}}</p>
-      <p class="bx on">{{arch.s.pm}}</p><p class="bx on">{{arch.s.voc}}</p></div>
+      <p class="bx on">{{arch.s.pm}}</p><p class="bx on">{{arch.s.fm}}</p><p class="bx on">{{arch.s.voc}}</p></div>
     <div class="ov-col"><h3>{{arch.c.ing}}</h3>
       <p class="bx on">Kafka</p></div>
     <div class="ov-col c-bronze"><h3>{{arch.c.bronze}}</h3>
@@ -230,12 +233,17 @@
     <article class="lesson">
       <h3><span class="ln-n">d</span>{{lesson.d.title}}</h3>
       <p>{{lesson.d.body}}</p>
-      <div class="tz"><span class="bx">event_kst <code>09:00</code></span><span class="ar">≠</span><span class="bx">UTC <code>00:00</code></span><span class="note">{{lesson.d.fig}}</span></div>
+      <div class="tz"><span class="bx">event_local <code>14:00</code></span><span class="ar">≠</span><span class="bx">UTC <code>12:00</code></span><span class="note">{{lesson.d.fig}}</span></div>
     </article>
     <article class="lesson">
       <h3><span class="ln-n">e</span>{{lesson.e.title}}</h3>
       <p>{{lesson.e.body}}</p>
       <ul class="limits"><li>{{lesson.e.l1}}</li><li>{{lesson.e.l2}}</li><li>{{lesson.e.l3}}</li></ul>
+    </article>
+    <article class="lesson">
+      <h3><span class="ln-n">f</span>{{lesson.f.title}}</h3>
+      <p>{{lesson.f.body}}</p>
+      <ul class="limits"><li>{{lesson.f.l1}}</li><li>{{lesson.f.l2}}</li><li>{{lesson.f.l3}}</li></ul>
     </article>
   </div>
   <p class="measured">{{lesson.measured}}</p>
@@ -248,6 +256,11 @@
   <pre><code>cd usecase/oss-network-quality-lake
 ui/up.sh</code></pre>
   <p><a class="button" href="[[to_demo]]">{{cta.button}}</a></p>
+  <p class="note">{{cta.cost}}</p>
+  <h3>{{next.title}}</h3>
+  <ol class="next"><li>{{next.s1}}</li><li>{{next.s2}}</li><li>{{next.s3}}</li></ol>
+  <p>{{next.risks}}</p>
+  <p><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/oss-network-quality-lake">{{next.repo}}</a></p>
 </section>
 </main>
 </div>
