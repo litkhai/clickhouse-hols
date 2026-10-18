@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23131312%27/%3E%3Crect x=%277%27 y=%2716%27 width=%274%27 height=%279%27 fill=%27%23faff69%27/%3E%3Crect x=%2714%27 y=%2711%27 width=%274%27 height=%2714%27 fill=%27%23faff69%27/%3E%3Crect x=%2721%27 y=%277%27 width=%274%27 height=%2718%27 fill=%27%23faff69%27/%3E%3C/svg%3E">
 <title>{{meta.title}}</title>
 <style>[[css]]</style>
 </head>
@@ -70,7 +71,7 @@
     </ol>
     <div class="fabric" aria-hidden="true"><span>{{trend.fabric}}</span></div>
   </div>
-  <p class="pg-note"><b>Managed Postgres</b> {{trend.pg}} <span class="tag ex">{{trend.pg.tag}}</span></p>
+  <p class="pg-note"><b>Managed Postgres</b> {{trend.pg}}</p>
 </section>
 
 <!-- 3 · architecture -->
@@ -80,9 +81,9 @@
   <div class="ov" role="img" aria-label="{{arch.aria}}">
     <div class="ov-col"><h3>{{arch.c.src}}</h3>
       <p class="bx on">{{arch.s.trace}}</p><p class="bx on">{{arch.s.cm}}</p>
-      <p class="bx off">{{arch.s.pm}}</p><p class="bx off">{{arch.s.voc}}</p></div>
+      <p class="bx on">{{arch.s.pm}}</p><p class="bx on">{{arch.s.voc}}</p></div>
     <div class="ov-col"><h3>{{arch.c.ing}}</h3>
-      <p class="bx on">Kafka<small>{{arch.i.note}}</small></p></div>
+      <p class="bx on">Kafka</p></div>
     <div class="ov-col c-bronze"><h3>{{arch.c.bronze}}</h3>
       <p class="bx on">{{arch.b.raw}}<small>{{arch.b.note}}</small></p></div>
     <div class="ov-col c-silver"><h3>{{arch.c.silver}}</h3>
@@ -91,13 +92,12 @@
       <p class="bx on">{{arch.g.c1}}</p><p class="bx on">{{arch.g.c10}}</p><p class="bx on">{{arch.g.r1}}</p>
       <p class="ax">{{arch.g.axes}}</p></div>
     <div class="ov-col c-serving"><h3>{{arch.c.serve}}</h3>
-      <p class="bx on">{{arch.r.now}}</p><p class="bx on">REST · HTTP</p><p class="bx on">{{arch.r.sub}}</p><p class="bx off">{{arch.r.bulk}}</p></div>
+      <p class="bx on">{{arch.r.now}}</p><p class="bx on">REST · HTTP</p><p class="bx on">{{arch.r.sub}}</p><p class="bx on">{{arch.r.bulk}}</p></div>
     <div class="ov-col"><h3>{{arch.c.out}}</h3>
       <p class="bx on">{{arch.o.noc}}</p><p class="bx on">{{arch.o.alert}}</p><p class="bx on">{{arch.o.dash}}</p>
-      <p class="bx off">{{arch.o.agent}}</p><p class="bx off">{{arch.o.catalog}}</p>
+      <p class="bx on">{{arch.o.agent}}</p><p class="bx on">{{arch.o.catalog}}</p>
       <p class="ax">{{arch.o.limits}}</p></div>
   </div>
-  <ul class="legend"><li><i class="k-on"></i>{{arch.k.on}}</li><li><i class="k-off"></i>{{arch.k.off}}</li></ul>
   <div class="rails">
     <p class="rail"><b>{{arch.contract}}</b> {{arch.contract.d}}</p>
     <p class="rail"><b>{{arch.control}}</b> {{arch.control.d}}</p>
@@ -108,56 +108,55 @@
 <section id="uses" class="sec">
   <h2><span class="n">4</span>{{uc.title}}</h2>
   <p>{{uc.body}}</p>
-  <ul class="uc-key"><li><span class="tag run">{{tag.run}}</span> {{tag.run.d}}</li><li><span class="tag ex">{{tag.ex}}</span> {{tag.ex.d}}</li></ul>
   <div class="ucs">
   <article class="uc uc-wide">
-    <p class="uc-who">{{uc.noc.who}} <span class="tag run">{{tag.run}}</span></p>
+    <p class="uc-who">{{uc.noc.who}}</p>
     <h4>{{uc.noc.title}}</h4>
     <div class="maps" id="maps"><p class="muted">{{map.nojs}}</p></div>
     <ul class="legend"><li><i class="k-top"></i>{{map.legend.top}}</li><li><i class="k-weak"></i>{{map.legend.weak}}</li><li><i class="k-alert"></i>{{map.legend.alert}}</li><li><i class="k-d"></i>{{map.legend.density}}</li></ul>
     <details><summary>{{more}}</summary><p>{{uc.noc.body}}</p><p class="uc-how">{{uc.noc.how}}</p></details>
   </article>
   <article class="uc">
-    <p class="uc-who">{{uc.dash.who}} <span class="tag run">{{tag.run}}</span></p>
+    <p class="uc-who">{{uc.dash.who}}</p>
     <h4>{{uc.dash.title}}</h4>
     <div class="chart" id="chart"><p class="muted">{{map.nojs}}</p></div>
     <details><summary>{{more}}</summary><p>{{uc.dash.body}}</p><p class="uc-how">{{uc.dash.how}}</p>[[sql:uc_dashboard]]</details>
   </article>
   <article class="uc">
-    <p class="uc-who">{{uc.analysis.who}} <span class="tag run">{{tag.run}}</span></p>
+    <p class="uc-who">{{uc.analysis.who}}</p>
     <h4>{{uc.analysis.title}}</h4>
     [[uc_analysis]]
     <details><summary>{{more}}</summary><p>{{uc.analysis.body}}</p><p class="uc-how">{{uc.analysis.how}}</p>[[sql:uc_analysis]]</details>
   </article>
   <article class="uc">
-    <p class="uc-who">{{uc.alert.who}} <span class="tag run">{{tag.run}}</span></p>
+    <p class="uc-who">{{uc.alert.who}}</p>
     <h4>{{uc.alert.title}}</h4>
     [[uc_alerts]]
-    <details><summary>{{more}}</summary><p>{{uc.alert.body}}</p><p class="uc-how">{{uc.alert.how}}</p><p class="note">{{uc.alert.webhook}}</p><p class="note">{{example.note}}</p>[[sql:kafka]]</details>
+    <details><summary>{{more}}</summary><p>{{uc.alert.body}}</p><p class="uc-how">{{uc.alert.how}}</p><p class="note">{{uc.alert.webhook}}</p>[[sql:kafka]]</details>
   </article>
   <article class="uc">
-    <p class="uc-who">{{uc.rest.who}} <span class="tag run">{{tag.run}}</span></p>
+    <p class="uc-who">{{uc.rest.who}}</p>
     <h4>{{uc.rest.title}}</h4>
     [[uc_http]]
     <details><summary>{{more}}</summary><p>{{uc.rest.body}}</p><p class="uc-how">{{uc.rest.how}}</p></details>
   </article>
   </div>
   <div class="tiles">
-    <article class="tile"><span class="ic" aria-hidden="true">PG</span><p class="uc-who">{{uc.pg.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.pg.title}}</h4>
-      <details><summary>{{more}}</summary><p>{{uc.pg.body}}</p><p class="uc-how">{{uc.pg.how}}</p><p class="note">{{uc.pg.note}}</p>[[sql:postgres]]</details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">AI</span><p class="uc-who">{{uc.agent.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.agent.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">PG</span><p class="uc-who">{{uc.pg.who}}</p><h4>{{uc.pg.title}}</h4>
+      <details><summary>{{more}}</summary><p>{{uc.pg.body}}</p><p class="uc-how">{{uc.pg.how}}</p>[[sql:postgres]]</details></article>
+    <article class="tile"><span class="ic" aria-hidden="true">AI</span><p class="uc-who">{{uc.agent.who}}</p><h4>{{uc.agent.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.agent.body}}</p><p class="uc-how">{{uc.agent.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">{ }</span><p class="uc-who">{{uc.contract.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.contract.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">{ }</span><p class="uc-who">{{uc.contract.who}}</p><h4>{{uc.contract.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.contract.body}}</p><p class="uc-how">{{uc.contract.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">✓</span><p class="uc-who">{{uc.quality.who}} <span class="tag run">{{tag.run}}</span></p><h4>{{uc.quality.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">✓</span><p class="uc-who">{{uc.quality.who}}</p><h4>{{uc.quality.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.quality.body}}</p><p class="uc-how">{{uc.quality.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">◎</span><p class="uc-who">{{uc.obs.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.obs.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">◎</span><p class="uc-who">{{uc.obs.who}}</p><h4>{{uc.obs.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.obs.body}}</p><p class="uc-how">{{uc.obs.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">⧉</span><p class="uc-who">{{uc.history.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.history.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">⧉</span><p class="uc-who">{{uc.history.who}}</p><h4>{{uc.history.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.history.body}}</p><p class="uc-how">{{uc.history.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">⇩</span><p class="uc-who">{{uc.bulk.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.bulk.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">⇩</span><p class="uc-who">{{uc.bulk.who}}</p><h4>{{uc.bulk.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.bulk.body}}</p><p class="uc-how">{{uc.bulk.how}}</p></details></article>
-    <article class="tile"><span class="ic" aria-hidden="true">◇</span><p class="uc-who">{{uc.llmobs.who}} <span class="tag ex">{{tag.ex}}</span></p><h4>{{uc.llmobs.title}}</h4>
+    <article class="tile"><span class="ic" aria-hidden="true">◇</span><p class="uc-who">{{uc.llmobs.who}}</p><h4>{{uc.llmobs.title}}</h4>
       <details><summary>{{more}}</summary><p>{{uc.llmobs.body}}</p><p class="uc-how">{{uc.llmobs.how}}</p></details></article>
   </div>
 </section>
@@ -249,7 +248,6 @@
   <pre><code>cd usecase/oss-network-quality-lake
 ui/up.sh</code></pre>
   <p><a class="button" href="[[to_demo]]">{{cta.button}}</a></p>
-  <p class="note">{{cta.note}}</p>
 </section>
 </main>
 </div>
