@@ -17,7 +17,7 @@ ClickHouse 25.11 includes important SQL compatibility improvements, Map type enh
 1. **HAVING without GROUP BY** - ANSI SQL compatibility for aggregate filtering
 2. **Fractional LIMIT** - Percentage-based data sampling
 3. **Map Aggregation (sumMap)** - Direct aggregation on Map types
-4. **Geometry Functions (readWKT*)** - WKT format spatial data support
+4. **Geometry Functions (readWKT\*)** - WKT format spatial data support
 
 ### 🚀 Quick Start
 
@@ -320,7 +320,7 @@ ClickHouse 25.11은 SQL 호환성 개선, Map 타입 향상, 공간 데이터 �
 1. **HAVING without GROUP BY** - 집계 필터링을 위한 ANSI SQL 호환성
 2. **Fractional LIMIT** - 퍼센트 기반 데이터 샘플링
 3. **Map Aggregation (sumMap)** - Map 타입 직접 집계
-4. **Geometry Functions (readWKT*)** - WKT 형식 공간 데이터 지원
+4. **Geometry Functions (readWKT\*)** - WKT 형식 공간 데이터 지원
 
 ### 🚀 빠른 시작
 
