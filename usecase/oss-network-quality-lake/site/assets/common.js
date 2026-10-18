@@ -87,6 +87,10 @@ var LAB = (function () {
         var t = el("title", {}, g);
         t.textContent = T("map.tip." + c.list, { rnk: c.rnk, cell: c.cell, users: c.users, rsrp: c.avg_rsrp });
       });
+      /* scale bar: 2 km */
+      var km = s / 111, bar = 2 * km, sb = el("g", { "class": "map-scale" }, svg);
+      el("line", { x1: pad, x2: (pad + bar).toFixed(1), y1: H - pad, y2: H - pad }, sb);
+      el("text", { x: (pad + bar + 4).toFixed(1), y: H - pad + 4 }, sb).textContent = "2 km";
       var cap = document.createElement("figcaption");
       cap.textContent = T("city." + city);
       fig.appendChild(svg); fig.appendChild(cap); box.appendChild(fig);
@@ -105,7 +109,15 @@ var LAB = (function () {
     var vals = points.map(function (p) { return p.poor_pct; });
     var lo = Math.floor(Math.min.apply(null, vals)), hi = Math.ceil(Math.max.apply(null, vals));
     if (hi === lo) hi = lo + 1;
-    var W = 640, H = 92, L = 40, R = 12, Tp = 8, B = 20;
+    /* drawn at the box's own width, so axis text keeps its CSS size instead of shrinking with a viewBox */
+    var W = Math.max(260, Math.round(box.clientWidth || 640)), H = 96, L = 40, R = 8, Tp = 8, B = 22;
+    if (!box._redraw) {
+      box._redraw = true;
+      var last = W;
+      window.addEventListener("resize", function () {
+        if (Math.abs((box.clientWidth || 0) - last) > 40) { last = box.clientWidth; drawChart(box, points); }
+      });
+    }
     function x(i) { return L + (W - L - R) * i / Math.max(1, minutes.length - 1); }
     function y(v) { return Tp + (H - Tp - B) * (1 - (v - lo) / (hi - lo)); }
     byCity.forEach(function (ps, c) {
@@ -113,7 +125,7 @@ var LAB = (function () {
       wrap.className = "sm";
       var title = document.createElement("p");
       title.className = "sm-t";
-      title.textContent = T("city." + c);
+      title.textContent = T("city." + c) + " · " + T("col.poor") + " (%)";
       var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
         "aria-label": T("chart.aria") + " · " + T("city." + c) });
       [lo, hi].forEach(function (g) {
@@ -121,8 +133,8 @@ var LAB = (function () {
         var tl = el("text", { x: L - 6, y: y(g) + 4, "text-anchor": "end", "class": "axis" }, svg);
         tl.textContent = g + "%";
       });
-      if (c === 2) [0, Math.floor((minutes.length - 1) / 2), minutes.length - 1].forEach(function (i) {
-        var t = el("text", { x: x(i), y: H - 4, "text-anchor": "middle", "class": "axis" }, svg);
+      if (c === 2) [0, Math.floor((minutes.length - 1) / 2), minutes.length - 1].forEach(function (i, j) {
+        var t = el("text", { x: x(i), y: H - 4, "text-anchor": ["start", "middle", "end"][j], "class": "axis" }, svg);
         t.textContent = minutes[i].slice(11, 16);
       });
       var d = ps.map(function (p, i) { return (i ? "L" : "M") + x(minutes.indexOf(p.minute)).toFixed(1) + " " + y(p.poor_pct).toFixed(1); }).join(" ");
@@ -149,5 +161,13 @@ var LAB = (function () {
     });
   }
 
-  return { T: T, fmt: fmt, reveal: reveal, drawMaps: drawMaps, drawChart: drawChart, reducedMotion: reducedMotion };
+  /* "C North-West" (the lake's district value) in the page's language */
+  function district(v) {
+    var m = /^([ABC]) (.+)$/.exec(v || "");
+    if (!m) return v;
+    return T("city.short." + "ABC".indexOf(m[1])) + " " + T("district." + m[2]);
+  }
+
+  return { T: T, fmt: fmt, reveal: reveal, drawMaps: drawMaps, drawChart: drawChart, reducedMotion: reducedMotion,
+           district: district };
 })();

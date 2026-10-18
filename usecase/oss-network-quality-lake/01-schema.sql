@@ -55,7 +55,10 @@ CREATE DICTIONARY oss_lake.cell_dict
 PRIMARY KEY cell
 SOURCE(CLICKHOUSE(DB 'oss_lake' TABLE 'cell_inventory'))
 LAYOUT(HASHED())
-LIFETIME(0);
+-- Reloads itself every 5-10 minutes, on every replica. District names are written into silver
+-- and gold at insert, so rows inserted before an inventory change keep the old name: after a
+-- change, reload (ON CLUSTER on a replicated service) and reprocess the affected window.
+LIFETIME(MIN 300 MAX 600);
 
 -- ---------------------------------------------------------------- bronze
 -- Exactly what the probes send: H3 as a string, the subscriber as a vendor-supplied hash of

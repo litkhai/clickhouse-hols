@@ -213,8 +213,8 @@ def block_serving(s, t):
             for r in rows if r["list"] == lst)
         cols.append(
             "<div class=\"list list-%s\"><h4>%s</h4><table class=\"rank\"><thead><tr><th scope=\"col\">#</th>"
-            "<th scope=\"col\">cell</th><th scope=\"col\" class=\"num\">%s</th></tr></thead><tbody>%s</tbody></table></div>"
-            % (lst, t["list." + lst], metric, trs))
+            "<th scope=\"col\">%s</th><th scope=\"col\" class=\"num\">%s</th></tr></thead><tbody>%s</tbody></table></div>"
+            % (lst, t["list." + lst], t["col.cell"], t["col." + metric], trs))
     return "<div class=\"lists\">%s</div>" % "".join(cols)
 
 
@@ -267,13 +267,22 @@ def block_uc_analysis(s, t):
             "<tbody>%s</tbody></table></div>" % (t["col.city"], t["col.zone"], t["col.poor"], "".join(out)))
 
 
+def district(t, v):
+    """'C North-West' (the lake's district value) in the page's language."""
+    m = re.match(r"^([ABC]) (.+)$", v or "")
+    if not m:
+        return v
+    return "%s %s" % (t["city.short.%d" % "ABC".index(m.group(1))], t["district." + m.group(2)])
+
+
 def block_uc_alerts(s, t):
     items = []
     for a in s["usecases"]["alerts"]:
         items.append("<li><span class=\"al-dot\" aria-hidden=\"true\"></span>%s</li>" % html.escape(
             t["alert.line"].replace("{time}", a["minute"][11:16]).replace(
                 "{city}", t["city.short.%d" % a["city"]]).replace("{cells}", num(a["cells"])).replace(
-                "{drop}", num(a["drop_db"])).replace("{area}", a["area"])))
+                "{drop}", num(a["drop_db"])).replace("{area}", a["area"]).replace(
+                "{district}", district(t, a.get("district", "")))))
     return "<ul class=\"alerts\">%s</ul>" % ("".join(items) or "<li>%s</li>" % t["alert.none"])
 
 
@@ -289,7 +298,7 @@ def block_regions(s, t):
     top = max(r["poor_pct"] for r in rows) or 1
     out = "".join(
         "<tr><td>%s</td><td class=\"num\">%s%%</td><td class=\"barcell\"><span style=\"width:%.1f%%\"></span></td></tr>"
-        % (esc(r["region2"]), num(r["poor_pct"]), max(1.5, 100.0 * r["poor_pct"] / top)) for r in rows)
+        % (esc(district(t, r["region2"])), num(r["poor_pct"]), max(1.5, 100.0 * r["poor_pct"] / top)) for r in rows)
     return ("<div class=\"scroll\"><table class=\"rank analysis\"><thead><tr><th scope=\"col\">%s</th>"
             "<th scope=\"col\" class=\"num\">%s</th><th></th></tr></thead><tbody>%s</tbody></table></div>"
             % (t["col.region"], t["col.poor"], out))
