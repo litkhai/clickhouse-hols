@@ -210,7 +210,7 @@ with materialized views. All four are tables in database <code>oss_lake</code> (
 <td>2</td>
 <td>bronze</td>
 <td><code>ue_trace_raw</code></td>
-<td>kept as received: H3 as a string, the IMSI as a vendor-supplied hash (44-char base64), everything Nullable, daily partition, TTL 3 days</td>
+<td>kept as received: H3 as a string, the IMSI as a vendor-supplied hash (44-char base64), everything Nullable, daily partition, TTL 1 day (whole parts dropped)</td>
 <td style="text-align: right;">21,600,000</td>
 </tr>
 <tr>
@@ -247,8 +247,10 @@ with materialized views. All four are tables in database <code>oss_lake</code> (
 seeded from the start minute).</p>
 <p>"The last hour" ends at <code>max(params.anchor_ts)</code>, not <code>now()</code>, so the lab still answers the question
 whenever it is opened; the live feed moves the anchor one minute per press. <strong>In production the
-queries and the refreshable MV would use <code>now()</code>.</strong> Bronze's TTL is real: data older than 3 days
-(wall clock) is removed, so reload the lab rather than reopening an old container.</p>
+queries and the refreshable MV would use <code>now()</code>.</strong> The TTLs are real (wall clock): bronze and silver
+keep 1 day, gold 2 days, each with daily partitions and <code>ttl_only_drop_parts = 1</code>, so expiry drops
+whole parts instead of rewriting them, and a partition can stay up to a day past its TTL. Reload the
+lab rather than reopening an old container.</p>
 <h3>Same answer from every layer</h3>
 <p><code>03-queries.sql</code> asks the NOC question of each layer through four views (<code>noc_from_bronze</code>,
 <code>_silver</code>, <code>_gold</code>, <code>_serving</code>), refreshes serving, and fails unless all four return the same 20
@@ -435,8 +437,9 @@ page. Stop with Ctrl-C and remove the container with <code>docker rm -f oss-lake
   listed in its docstring. All checks in 03–05 passed there.</li>
 <li><strong>Feed</strong>: <code>cloud/feed.sql</code> adds two refreshable MVs. <code>feed_rmv</code> generates the next minute every
   minute (up to five to catch up after a pause, never a minute twice). <code>anchor_rmv</code> then moves the
-  lake's "now"; the serving refresh depends on it. It also adds TTLs: silver 3 days, gold 7 days;
-  not on <code>params</code> (one row a minute), so a long pause cannot empty the lake's clock. <code>feed start</code>
+  lake's "now"; the serving refresh depends on it. The TTLs come from <code>01-schema.sql</code> (bronze and
+  silver 1 day, gold 2 days, whole parts dropped), so a feed that never stops keeps the lake the same
+  size. <code>params</code> (one row a minute) has none, so a long pause cannot empty the lake's clock. <code>feed start</code>
   restarts the clock one minute ago when it is more than five minutes behind, so the gap is skipped,
   not replayed. The live demo says "stopped" when no new minute has arrived for three minutes.</li>
 <li><strong>Site</strong>: Vercel project <code>oss-lake</code>. The pages are static. <code>api/index.py</code> serves the demo's GET
@@ -483,9 +486,14 @@ minute from a local lake: "bronze is missing a minute").</p>
 <ul>
 <li>The service already runs around the clock (idle scaling off), so its base compute is not caused
   by the lab.</li>
-<li>Added: about 0.11 TB of storage including one daily backup, at $27.50 per TB-month (the
-  published rate for the service's region, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a
-  second of CPU a minute.</li>
+<li>Added, estimated 2026-10-18 for the first TTLs (3 days raw, 7 days gold): about 0.11 TB of
+  storage including one daily backup, at $27.50 per TB-month (the published rate for the service's
+  region, read 2026-10-18), so about $3 a month; plus the feed's compute, roughly a second of CPU a
+  minute.</li>
+<li>Re-estimated 2026-10-19 for the current TTLs (1 day, gold 2 days), from the Cloud lake's 2-hour
+  sizes on 2026-10-18 22:34 UTC extrapolated linearly (not measured at steady state): bronze about
+  11 GB, silver 4.2 GB, gold 1-minute 2.3 GB, district 1.9 GB, 10-minute 1.4 GB, about 21 GB in all;
+  with a daily backup roughly double, so about $1.2 a month at the same rate.</li>
 <li>If idle scaling is turned on later, the feed keeps the service awake. Stop it first.</li>
 </ul>
 <h3>Languages</h3>
@@ -668,7 +676,7 @@ SHA-256이라, 그 범위의 번호를 모두 대입해 보면 되돌릴 수 있
 <td>2</td>
 <td>브론즈</td>
 <td><code>ue_trace_raw</code></td>
-<td>받은 그대로: H3는 문자열, IMSI는 벤더가 준 해시(44자 base64), 모두 Nullable, 일 단위 파티션, TTL 3일</td>
+<td>받은 그대로: H3는 문자열, IMSI는 벤더가 준 해시(44자 base64), 모두 Nullable, 일 단위 파티션, TTL 1일(파트째 삭제)</td>
 <td style="text-align: right;">21,600,000</td>
 </tr>
 <tr>
@@ -704,8 +712,10 @@ SHA-256이라, 그 범위의 번호를 모두 대입해 보면 되돌릴 수 있
 <p>행 수는 2026-10-18 새로 돌린 결과입니다(데이터가 시작 시각으로 시드되므로 실행마다 조금씩 다릅니다).</p>
 <p>"지난 1시간"은 <code>now()</code>가 아니라 <code>max(params.anchor_ts)</code>에서 끝납니다. 그래서 언제 열어도 같은
 질문에 답하고, 라이브 데모는 버튼을 누를 때마다 기준 시각을 1분 옮깁니다. <strong>운영 환경에서는
-질의와 Refreshable MV가 <code>now()</code>를 씁니다.</strong> 브론즈의 TTL은 실제로 동작합니다. 3일(벽시계 기준)이
-지난 데이터는 지워지므로, 오래된 컨테이너를 다시 열지 말고 실습을 다시 적재하세요.</p>
+질의와 Refreshable MV가 <code>now()</code>를 씁니다.</strong> TTL은 실제로 동작합니다(벽시계 기준). 브론즈와 실버는 1일,
+골드는 2일이고, 모두 일 단위 파티션에 <code>ttl_only_drop_parts = 1</code>이라 만료된 데이터를 다시 쓰지 않고 파트째
+버립니다. 그래서 파티션 하나가 TTL보다 최대 하루 더 남을 수 있습니다. 오래된 컨테이너를 다시 열지 말고
+실습을 다시 적재하세요.</p>
 <h3>어느 레이어에서도 같은 답</h3>
 <p><code>03-queries.sql</code>은 뷰 네 개(<code>noc_from_bronze</code>, <code>_silver</code>, <code>_gold</code>, <code>_serving</code>)로 각 레이어에 NOC
 질문을 던지고, 서빙을 새로 고친 뒤, 네 레이어가 같은 20행을 돌려주지 않으면 실패합니다(검사 중에 예약된 새로 고침이
@@ -888,8 +898,9 @@ open usecase/oss-network-quality-lake/site/dist/index.html
   차이만 더한 것이고, 03–05의 검사는 거기서도 모두 통과했습니다.</li>
 <li><strong>흐름</strong>: <code>cloud/feed.sql</code>이 Refreshable MV 두 개를 더합니다. <code>feed_rmv</code>가 1분마다 다음 1분을
   만들고(멈췄다 다시 켜면 한 번에 최대 5분씩 따라잡고, 같은 1분을 두 번 넣지 않음), 이어서
-  <code>anchor_rmv</code>가 레이크의 '지금'을 옮깁니다. 서빙 새로 고침은 그 뒤에 돕니다. TTL도 더합니다:
-  실버 3일, 골드 7일. <code>params</code>(1분에 1행)에는 걸지 않아, 오래 멈춰도 레이크의 시계가 비지 않습니다.
+  <code>anchor_rmv</code>가 레이크의 '지금'을 옮깁니다. 서빙 새로 고침은 그 뒤에 돕니다. TTL은 <code>01-schema.sql</code>에
+  있습니다(브론즈·실버 1일, 골드 2일, 파트째 삭제). 그래서 흐름이 멈추지 않아도 레이크 크기가 일정합니다.
+  <code>params</code>(1분에 1행)에는 걸지 않아, 오래 멈춰도 레이크의 시계가 비지 않습니다.
   <code>feed start</code>는 시계가 5분 넘게 뒤처져 있으면 1분 전으로 다시 맞춰, 빈 구간을 다시 만들지 않고
   건너뜁니다. 라이브 데모는 3분 동안 새 1분이 없으면 "멈춤"으로 표시합니다.</li>
 <li><strong>사이트</strong>: Vercel 프로젝트 <code>oss-lake</code>. 페이지는 정적입니다. <code>api/index.py</code>가 데모의 GET
@@ -931,8 +942,11 @@ vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ
 <p>비용 (2026-10-18 추정):</p>
 <ul>
 <li>이 서비스는 이미 상시 실행 중이라(유휴 축소 꺼짐) 기본 컴퓨트는 이 실습 때문에 생긴 비용이 아닙니다.</li>
-<li>더해지는 것은 일일 백업 하나를 포함한 저장 약 0.11 TB입니다. 서비스 리전의 공시 요금 TB·월 $27.50(2026-10-18
-  확인)으로 월 약 $3이고, 여기에 1분에 약 1초인 흐름의 CPU가 붙습니다.</li>
+<li>처음 TTL(원본 3일, 골드 7일) 기준 2026-10-18 추정: 일일 백업 하나를 포함한 저장 약 0.11 TB. 서비스 리전의
+  공시 요금 TB·월 $27.50(2026-10-18 확인)으로 월 약 $3이고, 여기에 1분에 약 1초인 흐름의 CPU가 붙습니다.</li>
+<li>지금 TTL(1일, 골드 2일) 기준 2026-10-19 다시 추정: 2026-10-18 22:34 UTC Cloud 레이크의 2시간치 크기를
+  선형으로 늘린 값입니다(정착 상태에서 잰 값 아님). 브론즈 약 11 GB, 실버 4.2 GB, 골드 1분 2.3 GB, 지역
+  1.9 GB, 10분 1.4 GB, 모두 약 21 GB입니다. 일일 백업까지 대략 두 배라 같은 요금으로 월 약 $1.2입니다.</li>
 <li>나중에 유휴 축소를 켜면 흐름이 서비스를 계속 깨워 둡니다. 그 전에 흐름을 멈추세요.</li>
 </ul>
 <h3>언어</h3>
