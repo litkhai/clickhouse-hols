@@ -1,4 +1,8 @@
 -- OSS network-quality lake: four layers, one database.
+-- Every layer keeps a short history and forgets the rest by TTL, so a feed that never stops
+-- stays the same size: bronze and silver 1 day, gold 2 days (the screens read the last hour).
+-- Daily partitions with ttl_only_drop_parts = 1: expiry drops whole parts instead of
+-- rewriting them in merges, so a partition can stay up to one day past its TTL.
 --   bronze  ue_trace_raw   as received from the probes
 --   silver  ue_trace       cleaned (MV from bronze)
 --   gold    cell_kpi_1m    one row per minute x cell (MV from silver)
@@ -81,7 +85,8 @@ CREATE TABLE oss_lake.ue_trace_raw
 ENGINE = MergeTree
 PARTITION BY toDate(event_ts)
 ORDER BY event_ts
-TTL toDateTime(event_ts) + INTERVAL 3 DAY;
+TTL toDateTime(event_ts) + INTERVAL 1 DAY
+SETTINGS ttl_only_drop_parts = 1;
 
 -- ---------------------------------------------------------------- silver
 -- Typed and pseudonymised: H3 as a number, a 64-bit hash instead of the vendor value,
@@ -102,7 +107,9 @@ CREATE TABLE oss_lake.ue_trace
 )
 ENGINE = MergeTree
 PARTITION BY toDate(event_ts)
-ORDER BY (event_ts, h3);
+ORDER BY (event_ts, h3)
+TTL toDateTime(event_ts) + INTERVAL 1 DAY
+SETTINGS ttl_only_drop_parts = 1;
 
 -- Rows without a cell or a subscriber cannot be placed or counted: silver drops them.
 CREATE MATERIALIZED VIEW oss_lake.ue_trace_mv TO oss_lake.ue_trace AS
@@ -136,7 +143,10 @@ CREATE TABLE oss_lake.cell_kpi_1m
     poor_n     SimpleAggregateFunction(sum, UInt64)    -- rsrp < -100 dBm
 )
 ENGINE = AggregatingMergeTree
-ORDER BY (bucket, cell);
+PARTITION BY toDate(bucket)
+ORDER BY (bucket, cell)
+TTL bucket + INTERVAL 2 DAY
+SETTINGS ttl_only_drop_parts = 1;
 
 CREATE MATERIALIZED VIEW oss_lake.cell_kpi_1m_mv TO oss_lake.cell_kpi_1m AS
 SELECT
@@ -163,7 +173,10 @@ CREATE TABLE oss_lake.region_kpi_1m
     poor_n     SimpleAggregateFunction(sum, UInt64)
 )
 ENGINE = AggregatingMergeTree
-ORDER BY (bucket, region1, region2);
+PARTITION BY toDate(bucket)
+ORDER BY (bucket, region1, region2)
+TTL bucket + INTERVAL 2 DAY
+SETTINGS ttl_only_drop_parts = 1;
 
 CREATE MATERIALIZED VIEW oss_lake.region_kpi_1m_mv TO oss_lake.region_kpi_1m AS
 SELECT
@@ -191,7 +204,10 @@ CREATE TABLE oss_lake.cell_kpi_10m
     poor_n     SimpleAggregateFunction(sum, UInt64)
 )
 ENGINE = AggregatingMergeTree
-ORDER BY (bucket, cell);
+PARTITION BY toDate(bucket)
+ORDER BY (bucket, cell)
+TTL bucket + INTERVAL 2 DAY
+SETTINGS ttl_only_drop_parts = 1;
 
 CREATE MATERIALIZED VIEW oss_lake.cell_kpi_10m_mv TO oss_lake.cell_kpi_10m AS
 SELECT

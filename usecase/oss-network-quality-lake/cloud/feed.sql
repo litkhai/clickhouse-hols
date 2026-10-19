@@ -1,12 +1,9 @@
 -- Cloud only (cloud/load.py runs it after 01-05): the data keeps flowing by itself.
 -- Locally the live demo's button does what feed_rmv does here.
 
--- A feed that never stops needs every layer to forget, not only bronze. Not params: one row a
--- minute is small, and an emptied params would restart the feed at 1970 after a long pause.
-ALTER TABLE oss_lake.ue_trace      MODIFY TTL toDateTime(event_ts) + INTERVAL 3 DAY;
-ALTER TABLE oss_lake.cell_kpi_1m   MODIFY TTL bucket + INTERVAL 7 DAY;
-ALTER TABLE oss_lake.cell_kpi_10m  MODIFY TTL bucket + INTERVAL 7 DAY;
-ALTER TABLE oss_lake.region_kpi_1m MODIFY TTL bucket + INTERVAL 7 DAY;
+-- A feed that never stops needs every layer to forget: the TTLs are in 01-schema.sql (bronze and
+-- silver 1 day, gold 2 days, whole parts dropped). Not params: one row a minute is small, and an
+-- emptied params would restart the feed at 1970 after a long pause.
 
 -- Every minute: the next minutes of device traces, from the lake's 'now' up to the wall clock
 -- (at most 5 per run, so a pause is caught up gradually). The WHERE makes a repeated run
