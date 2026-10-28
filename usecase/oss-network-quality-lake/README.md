@@ -226,6 +226,7 @@ and feeding `uniqState` a non-Nullable hash. Another fix is a state type that fo
 | `vercel.json` | deployment: `python3 site/build.py` → `site/dist`, the `api/index.py` function, `noindex` header, `/en/` redirects |
 | `api/index.py` | Vercel function: the demo's read-only GET endpoints against the lake on Cloud |
 | `cloud/load.py`, `cloud/feed.sql` | load the lab into a Cloud service (with the Cloud differences), self-running feed, stop switch, drop |
+| `cloud/check.py` | check the live site from outside, no credentials: every page, every endpoint, the feed, read headroom |
 
 ### Run it
 
@@ -294,7 +295,14 @@ python3 cloud/load.py harden          # on a lake loaded before 2026-10-18: read
 python3 cloud/load.py feed stop       # the stop switch; `feed start` resumes, `feed status` shows it
 python3 cloud/load.py drop            # remove the database and both users
 vercel deploy --prod --scope litkhai  # site + function (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
+python3 cloud/check.py                # the live site as a viewer sees it; exit 1 when a check fails
 ```
+
+`cloud/check.py` needs no credentials and sends about a dozen requests. It fails when a page or an
+endpoint does not answer 200 (an endpoint's 503 is what silently sends the demo to its recording),
+when the lake's "now" is more than 5 minutes behind (feed stopped), or when a NOC query reads more
+than 75% of the reader's 30 M rows. First run 2026-10-28 15:43 UTC: all 22 checks passed; bronze and
+silver read 10.8 M and 10.7 M rows (36%), gold 1.2 M, serving 20.
 
 Measured 2026-10-18 on that service (2 replicas, 8 GiB minimum each, 2 vCPUs):
 
@@ -574,6 +582,7 @@ Nullable이 아닌 해시를 넣어 이 함정을 피합니다. 상태 타입을
 | `vercel.json` | 배포: `python3 site/build.py` → `site/dist`, `api/index.py` 함수, `noindex` 헤더, `/en/` 넘겨주기 |
 | `api/index.py` | Vercel 함수: Cloud의 레이크에 대한 데모의 읽기 전용 GET 엔드포인트 |
 | `cloud/load.py`, `cloud/feed.sql` | Cloud 서비스에 실습 적재(Cloud 차이 포함), 스스로 도는 흐름, 멈춤 스위치, 삭제 |
+| `cloud/check.py` | 라이브 사이트를 밖에서 확인, 자격 증명 없음: 모든 페이지, 모든 엔드포인트, 흐름, 읽기 여유 |
 
 ### 실행
 
@@ -640,7 +649,13 @@ python3 cloud/load.py harden          # 2026-10-18 전에 적재한 레이크: �
 python3 cloud/load.py feed stop       # 멈춤 스위치. `feed start`로 다시, `feed status`로 확인
 python3 cloud/load.py drop            # 데이터베이스와 두 사용자 삭제
 vercel deploy --prod --scope litkhai  # 사이트 + 함수 (env: CH_URL, CH_READ_USER, CH_READ_PASSWORD)
+python3 cloud/check.py                # 보는 사람 입장에서 라이브 사이트 확인; 하나라도 실패하면 exit 1
 ```
+
+`cloud/check.py`는 자격 증명이 필요 없고 요청을 열두어 개 보냅니다. 페이지나 엔드포인트가 200이 아니면
+(엔드포인트의 503이 데모를 소리 없이 녹화본으로 보내는 원인), 레이크의 '지금'이 5분 넘게 뒤처지면(흐름 멈춤),
+NOC 쿼리가 reader 한도 3천만 행의 75%를 넘게 읽으면 실패합니다. 첫 실행 2026-10-28 15:43 UTC: 22개 모두
+통과, 브론즈·실버 1,080만·1,074만 행(36%), 골드 122만, 서빙 20행을 읽었습니다.
 
 2026-10-18 그 서비스(복제본 2개, 각 최소 8 GiB, vCPU 2개)에서 측정했습니다.
 
