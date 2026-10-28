@@ -3,7 +3,9 @@
 var LAB = (function () {
   var cat = JSON.parse(document.getElementById("i18n").textContent);
   var lang = document.documentElement.lang;
-  var nf = new Intl.NumberFormat(lang);
+  /* "always": es groups 4-digit numbers too (1.234), as build.py does; same output elsewhere */
+  var nf = new Intl.NumberFormat(lang, { useGrouping: "always" });
+  var nf1 = new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   function fmt(v) { return typeof v === "number" ? nf.format(v) : String(v); }
 
@@ -168,6 +170,8 @@ var LAB = (function () {
     return T("city.short." + "ABC".indexOf(m[1])) + " " + T("district." + m[2]);
   }
 
-  return { T: T, fmt: fmt, reveal: reveal, drawMaps: drawMaps, drawChart: drawChart, reducedMotion: reducedMotion,
+  function fmt1(v) { return nf1.format(v); }
+
+  return { T: T, fmt: fmt, fmt1: fmt1, reveal: reveal, drawMaps: drawMaps, drawChart: drawChart, reducedMotion: reducedMotion,
            district: district };
 })();

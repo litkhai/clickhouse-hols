@@ -104,7 +104,7 @@
   function size(b) {
     var u = ["B", "KiB", "MiB", "GiB"], i = 0;
     while (b >= 1024 && i < 3) { b /= 1024; i++; }
-    return (i < 2 ? Math.round(b) : b.toFixed(1)) + " " + u[i];
+    return (i < 2 ? Math.round(b) : LAB.fmt1(b)) + " " + u[i];
   }
   function esc(v) {
     return String(v === null ? "NULL" : v).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });

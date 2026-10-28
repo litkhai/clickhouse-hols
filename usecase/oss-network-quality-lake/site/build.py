@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the explainer and the demo page in every locale.
 
-    python3 site/build.py        write site/dist/ (en at /, then /ko/, /ja/, /zh/)
+    python3 site/build.py        write site/dist/ (en at /, then /ko/, /ja/, /zh/, /es/)
 
 Text comes from site/i18n/<locale>.json (ko is the authoring source, en the default page);
 the build fails when the key sets differ or a template names a key that is missing. The explainer's numbers and
@@ -17,10 +17,13 @@ import html, json, pathlib, re, sys, textwrap
 
 SITE = pathlib.Path(__file__).resolve().parent
 LAB = SITE.parent
-LOCALES = ["en", "ko", "ja", "zh"]
+LOCALES = ["en", "ko", "ja", "zh", "es"]
 DEFAULT = "en"      # served at /; the others under a path prefix
 SOURCE = "ko"       # the catalogue the others are checked against
-NAMES = {"ko": "한국어", "en": "English", "ja": "日本語", "zh": "中文"}
+NAMES = {"ko": "한국어", "en": "English", "ja": "日本語", "zh": "中文", "es": "Español"}
+# Thousands and decimal marks: es writes 180.000 and 0,4. render() picks the page's.
+MARKS = {"es": str.maketrans(",.", ".,")}
+marks = None
 PAGES = {"explainer": SITE / "explainer.html", "demo": LAB / "ui" / "demo.html"}
 
 
@@ -63,20 +66,24 @@ def get(obj, path):
     return obj
 
 
+def local(text):
+    return text.translate(marks) if marks else text
+
+
 def num(v):
     if isinstance(v, bool) or v is None:
         return str(v)
     if isinstance(v, int) or (isinstance(v, str) and v.isdigit()):
-        return "{:,}".format(int(v))
+        return local("{:,}".format(int(v)))
     if isinstance(v, float):
-        return "{:,}".format(v) if v != int(v) else "{:,}".format(int(v))
+        return local("{:,}".format(v) if v != int(v) else "{:,}".format(int(v)))
     return str(v)
 
 
 def size(b):
     for unit in ("B", "KiB", "MiB", "GiB"):
         if b < 1024 or unit == "GiB":
-            return ("%.0f %s" if unit in ("B", "KiB") else "%.1f %s") % (b, unit)
+            return local(("%.0f %s" if unit in ("B", "KiB") else "%.1f %s") % (b, unit))
         b /= 1024.0
 
 
@@ -389,6 +396,8 @@ def href(from_loc, to_loc, page):
 
 
 def render(page, loc, cats=None, snap=None):
+    global marks
+    marks = MARKS.get(loc)
     cats = cats or load_catalogues()
     snap = snap if snap is not None else snapshot()
     t = cats[loc]
@@ -448,7 +457,7 @@ def main():
             out = dist / prefix(loc) / ("demo/" if page == "demo" else "") / "index.html"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(render(page, loc, cats, snap))
-    print("wrote %s/{,ko/,ja/,zh/}{index.html,demo/index.html}" % dist.relative_to(LAB))
+    print("wrote %s/{,ko/,ja/,zh/,es/}{index.html,demo/index.html}" % dist.relative_to(LAB))
 
 
 if __name__ == "__main__":

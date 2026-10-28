@@ -241,6 +241,8 @@ footer.site-footer { max-width: 1080px; margin: 0 auto; padding: 16px; color: va
 .warn { border-inline-start: 4px solid var(--warning); padding: 10px 12px; background: var(--surface); border-radius: 0 10px 10px 0; }
 .panel h3 { margin: 0 0 6px; font-size: 1rem; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* a grid item grows to its widest table otherwise; the table's .scroll box scrolls instead */
+.cols > * { min-width: 0; }
 @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 .rank tr td:first-child { color: var(--c-top); white-space: nowrap; }
 .rank tr.weak td:first-child { color: var(--c-weak); }
