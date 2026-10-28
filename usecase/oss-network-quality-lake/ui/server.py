@@ -109,18 +109,18 @@ def story():
     folded = rows(
         "SELECT count() AS n FROM oss_lake.ue_trace WHERE h3 = %s "
         "AND toStartOfMinute(event_ts) = toDateTime('%s')" % (silver["h3"], gold["bucket"]))[0]["n"]
+    # The last minute only: with the always-on feed bronze holds one to two days, far past
+    # the reader's max_rows_to_read, and a whole-table scan made /api/layers fail.
     drops = rows(
         "SELECT countIf(h3_res09 IS NULL OR imsi IS NULL) AS dropped, "
         "countIf(rsrp IS NULL AND h3_res09 IS NOT NULL AND imsi IS NOT NULL) AS no_rsrp, "
-        "count() AS total FROM oss_lake.ue_trace_raw")[0]
-    per_minute = rows(
-        "SELECT count() AS n FROM oss_lake.ue_trace_raw "
-        "WHERE event_ts >= %s - INTERVAL 1 MINUTE AND event_ts < %s" % (ANCHOR64, ANCHOR64))[0]["n"]
+        "count() AS total FROM oss_lake.ue_trace_raw "
+        "WHERE event_ts >= %s - INTERVAL 1 MINUTE AND event_ts < %s" % (ANCHOR64, ANCHOR64))[0]
     gold_window = rows(
         "WITH %s AS t SELECT count() AS n FROM oss_lake.cell_kpi_1m WHERE %s" % (ANCHOR, WINDOW))[0]["n"]
     return {"raw": raw, "silver": silver, "gold": gold, "folded_rows": int(folded),
             "dropped": int(drops["dropped"]), "no_rsrp": int(drops["no_rsrp"]),
-            "per_minute": int(per_minute), "gold_window_rows": int(gold_window),
+            "per_minute": int(drops["total"]), "gold_window_rows": int(gold_window),
             "rank1_cell": top["cell_str"]}
 
 
