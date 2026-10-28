@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-08T13:08:35Z",
+  "generated": "2026-10-28T07:25:28Z",
   "labs": [
     {
       "path": "chc/api/chc-api-test",
@@ -405,6 +405,27 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.1/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.1/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.1/"
+    },
+    {
+      "path": "local/releases/26.10",
+      "title_ko": "ClickHouse 26.10 새 기능 실습",
+      "summary_ko": "LATERAL JOIN과 임의 ON 조건의 OUTER 조인, 함수 합성과 _ 플레이스홀더, IN 집합의 디스크 스필, LogsQL 방언, XGBoost 딕셔너리 등 ClickHouse 26.10 새 기능을 SQL 스크립트로 실습합니다.",
+      "title_en": "ClickHouse 26.10 new-features lab",
+      "summary_en": "Hands-on SQL for ClickHouse 26.10 features: LATERAL JOIN and OUTER joins on any ON condition, function composition with _ placeholders, IN sets spilling to disk, the LogsQL dialect and XGBoost dictionaries.",
+      "category": "feature",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.10",
+      "verified_on": "26.10.3.7",
+      "tags": [
+        "roadmap",
+        "join",
+        "observability",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/local/releases/26.10/"
     },
     {
       "path": "usecase/ads-analytics",

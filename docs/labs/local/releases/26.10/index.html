@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClickHouse 26.10 · ClickHouse HOLs</title>
+<meta name="description" content="ClickHouse 26.10 — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../../assets/site.css">
+<script src="../../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/releases/26.10</code>
+    <span class="badge ok"><span class="en">verified on</span><span class="ko">검증</span> 26.10.3.7</span>
+  </nav>
+  <div class="readme en"><h1>ClickHouse 26.10</h1>
+<hr />
+<p><strong>Released 2026-10-22 · verified here against 26.10.3.7</strong></p>
+<p>26.10 is the largest release so far: 37 backward incompatible changes, 60 new
+features, 41 experimental features and 225 performance improvements. The
+announcement leads with a <code>Cluster</code> database engine, query cache on disk, a
+columns cache, <code>LATERAL JOIN</code>, joins on arbitrary <code>ON</code> conditions, PromQL and
+LogsQL, an Elasticsearch table function and an XGBoost dictionary.</p>
+<p>This lab takes five that you can see working in a single container, and asks
+of each what it actually does, not just whether it parses.</p>
+<table>
+<thead>
+<tr>
+<th>Lab</th>
+<th>Feature</th>
+<th>Why it is here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/01-lateral-join.sql">01</a></td>
+<td><code>LATERAL JOIN</code>, OUTER joins on any <code>ON</code></td>
+<td>Top-n per group in standard SQL, and the end of <code>INVALID_JOIN_ON_EXPRESSION</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/02-function-composition.sql">02</a></td>
+<td>Function composition, placeholders <code>_</code> / <code>_1</code>, Trino spellings, <code>SIMILAR TO</code></td>
+<td>The shortest lambda syntax ClickHouse has had, with one rule that bites</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/03-in-set-spill.sql">03</a></td>
+<td><code>IN</code> sets spill to disk</td>
+<td>A large <code>IN (subquery)</code> under a memory cap now finishes — if you set the right threshold</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/04-logsql.sql">04</a></td>
+<td>LogsQL dialect</td>
+<td>VictoriaLogs queries over a ClickHouse table, and what the translation reads</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/05-xgboost.sql">05</a></td>
+<td>XGBoost dictionary</td>
+<td>A model trained at load time and served by a function</td>
+</tr>
+</tbody>
+</table>
+<h3>Quick start</h3>
+<pre><code class="language-bash">./00-setup.sh                 # brings up ClickHouse 26.10 via local/oss-docker
+./01-lateral-join.sh
+./02-function-composition.sh
+./03-in-set-spill.sh          # builds a 20-million-key set several times
+./04-logsql.sh
+./05-xgboost.sh
+</code></pre>
+<p>Each <code>NN-*.sh</code> pipes the matching <code>.sql</code> into <code>clickhouse-client</code>, then runs
+the statements that are <em>supposed</em> to fail, one connection each. An error stops
+a <code>.sql</code> file at that line, so every <code>.sql</code> here is exception-free and every
+refusal lives in its <code>.sh</code>. Read the SQL — the comments are the lab.</p>
+<p>Three labs use experimental settings: <code>allow_experimental_lateral_join</code> (01),
+<code>enable_logsql_dialect</code> (04) and <code>enable_xgboost</code> (05). The block nested loop
+join (01), composition (02) and <code>IN</code> spilling (03) are production tier.</p>
+<hr />
+<h3>01 · <code>LATERAL JOIN</code> and joins on arbitrary <code>ON</code> conditions</h3>
+<pre><code class="language-sql">SET allow_experimental_lateral_join = 1;
+
+SELECT c.name, t.id, t.amount
+FROM customers AS c
+LEFT JOIN LATERAL (
+    SELECT id, amount FROM orders AS o
+    WHERE o.customer_id = c.id          -- refers to the row on the left
+    ORDER BY amount DESC
+    LIMIT 2
+) AS t ON true
+SETTINGS join_use_nulls = 1;
+</code></pre>
+<p><code>LATERAL</code> lets a subquery in <code>FROM</code> refer to the row on its left: the standard
+spelling of "top n per group" and "an aggregate per row".</p>
+<p><strong>It is not a per-row loop.</strong> <code>EXPLAIN</code> shows the correlated predicate turned
+into a join key (<code>customer_id &lt;=&gt; customer_id</code>) and <code>ORDER BY ... LIMIT 2</code>
+turned into a <code>LimitBy</code> step labelled <em>"LIMIT BY for decorrelated correlated
+subquery"</em>, under an ordinary hash join. The lab writes the same thing by hand
+with <code>LIMIT 2 BY customer_id</code> and gets the same rows. <code>LATERAL</code> is the readable
+spelling of something ClickHouse could already do, which is also why it scales
+like a hash join and not like a loop.</p>
+<p><strong>Set <code>join_use_nulls = 1</code>.</strong> With the default <code>0</code>, the customer with no orders
+comes back with order id <code>0</code> and amount <code>0.00</code> — a row that reads like a real
+order. With <code>1</code> it is <code>NULL</code>. This is not specific to <code>LATERAL</code>, but <code>LEFT JOIN
+LATERAL</code> is exactly where you look for the empty side.</p>
+<p><strong>An aggregate subquery always returns a row.</strong> <code>INNER JOIN LATERAL (SELECT
+count() ...)</code> keeps the customer without orders, with <code>count = 0</code>. That is SQL,
+not a bug: an aggregate with no <code>GROUP BY</code> produces one row from no input.</p>
+<p><strong>What it refuses</strong> (in <code>01-lateral-join.sh</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Result on 26.10.3.7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FROM a, LATERAL (...)</code></td>
+<td><code>Code: 62</code> <em>LATERAL is not supported with COMMA JOIN</em></td>
+</tr>
+<tr>
+<td><code>CROSS JOIN LATERAL (...)</code></td>
+<td><code>Code: 62</code> <em>LATERAL is not supported with CROSS JOIN</em></td>
+</tr>
+<tr>
+<td>a subquery with no reference to the left side</td>
+<td><code>Code: 48</code> <em>must reference at least one column from the left side</em></td>
+</tr>
+<tr>
+<td><code>LIMIT ... WITH TIES</code> inside</td>
+<td><code>Code: 48</code> <em>decorrelation does not support LIMIT ... WITH TIES</em></td>
+</tr>
+</tbody>
+</table>
+<p>So the forms PostgreSQL users reach for first — the comma and <code>CROSS JOIN
+LATERAL</code> — are the two that do not parse. Write <code>LEFT</code> or <code>INNER JOIN LATERAL
+... ON true</code>.</p>
+<p><strong>Arbitrary <code>ON</code> conditions.</strong> The second half of the lab joins orders to a
+table of overlapping price bands on <code>abs(amount - lo) &lt; 10</code>. No column of one
+side equals a column of the other, so there is no hash key. Which join runs
+depends on the kind:</p>
+<table>
+<thead>
+<tr>
+<th>Join</th>
+<th>Condition</th>
+<th>Algorithm (<code>query_log.used_join_algorithms</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INNER</code></td>
+<td><code>amount &gt;= lo AND amount &lt; hi</code></td>
+<td><code>IE_JOIN</code></td>
+</tr>
+<tr>
+<td><code>INNER</code></td>
+<td><code>abs(amount - lo) &lt; 10</code></td>
+<td><code>CONSTANT</code> (a <code>CROSS</code> join and a filter)</td>
+</tr>
+<tr>
+<td><code>LEFT</code></td>
+<td><code>o.customer_id = c.id</code></td>
+<td><code>HASH</code></td>
+</tr>
+<tr>
+<td><code>LEFT</code></td>
+<td><code>abs(amount - lo) &lt; 10</code></td>
+<td><code>BlockNestedLoopJoin</code> in <code>EXPLAIN</code>; <strong><code>[]</code> in <code>query_log</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>INNER</code> joins on such conditions already worked before 26.10. What is new is
+the <code>OUTER</code> case: on 26.9.11.2 a <code>LEFT</code> or <code>FULL</code> join without an equality
+fails with <code>Code: 403 INVALID_JOIN_ON_EXPRESSION</code>. 26.10 runs it as a block nested
+loop join — every left block against every right block, as costly as a
+<code>CROSS JOIN</code> with a filter, so mind the size of both sides. Turning it off
+(<code>allow_block_nested_loop_join = 0</code>) brings back the 403, now with a hint
+naming the setting.</p>
+<p><strong>The new <code>query_log</code> columns do not see the new join.</strong> <code>used_join_algorithms</code>,
+<code>used_join_kinds</code> and <code>used_number_of_joins</code> are new in 26.10 and record hash,
+IE and cross joins correctly. For a block nested loop join they come back <code>[]</code>,
+<code>[]</code> and <code>0</code> — reproduced at 20,000 × 20,000 rows. Until that changes, find
+such queries by their plan, not by <code>query_log</code>.</p>
+<hr />
+<h3>02 · Function composition and placeholders</h3>
+<pre><code class="language-sql">SELECT arrayMap(plus(_, 1) | multiply(_, 2), [1, 2, 3]);   -- [4, 6, 8]
+SELECT arrayMap(_1 * 2 + 1, [1, 2, 3]);                     -- [3, 5, 7]
+SELECT arrayMap(lower | reverse, ['AbC', 'XyZ']);           -- ['cba', 'zyx']
+</code></pre>
+<p>A placeholder turns an expression into a lambda; <code>|</code> chains two functions left
+to right, so <code>f | g</code> is <code>g(f(x))</code>, the way a shell pipe reads. The analyzer
+resolves both into an ordinary lambda — <code>EXPLAIN QUERY TREE</code> shows
+<code>lambda(tuple(__composed_arg_1), multiply(plus(__composed_arg_1, 1), 2))</code> — so
+there is no run-time cost and nothing a lambda could not already do.</p>
+<p><strong>The rule that bites: every bare <code>_</code> is a new argument.</strong> <code>_ * _</code> is
+<code>(a, b) -&gt; a * b</code>, not <code>x -&gt; x * x</code>, and <code>arrayMap(_ * _, [1, 2, 3])</code> fails
+with <em>must be a function with 1 arguments, found Function((?, ?) -&gt; ?)</em>. Number
+them to reuse one: <code>_1 * _1</code>. The two-argument reading is what you want in
+<code>arrayFold(_1 + _2, arr, 0)</code>.</p>
+<p>The other three rules, each shown as an error in the <code>.sh</code>:</p>
+<ul>
+<li><code>SELECT 5 | 3</code> → <code>Code: 36</code>. <code>|</code> is composition only where a function is
+  expected. For bitwise OR, <code>bitOr</code>.</li>
+<li><code>arrayMap(toString | length, ...)</code> → <code>Code: 36</code>. A variadic function cannot
+  be composed by name; write <code>toString(_)</code>.</li>
+<li><code>arrayMap(plus(_, 1), [1]) FROM (SELECT 100 AS _)</code> → <code>Code: 43</code>. A column
+  named <code>_</code> wins, and the "lambda" is a number.</li>
+</ul>
+<p>That last one is the compatibility guarantee: <code>SELECT _ FROM (SELECT 1 AS _)</code>
+and <code>arrayMap(_ -&gt; _ + 1, ...)</code> still mean what they meant in 26.9.</p>
+<p><strong>Other dialects, in plain ClickHouse SQL.</strong> 26.9 accepted these only behind
+<code>dialect = 'trino'</code>. 26.10 accepts them in the default dialect; on 26.9.11.2
+every one fails (<code>Code: 62</code> or <code>Code: 46</code>):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TRY_CAST('abc' AS Int32)</code></td>
+<td><code>NULL</code> instead of an exception</td>
+</tr>
+<tr>
+<td><code>ARRAY[1, 2, 3]</code></td>
+<td>array constructor</td>
+</tr>
+<tr>
+<td><code>starts_with</code>, <code>slice</code>, <code>regexp_like</code></td>
+<td>Trino names for existing functions</td>
+</tr>
+<tr>
+<td><code>SIMILAR TO</code></td>
+<td>the SQL-standard pattern predicate</td>
+</tr>
+</tbody>
+</table>
+<p><code>SIMILAR TO</code> takes LIKE's <code>%</code> and <code>_</code> plus regex-style alternation and
+grouping, matched against the <strong>whole</strong> string: <code>'bc' SIMILAR TO '(a|b)c'</code> is
+true, <code>'abc' SIMILAR TO '(a|b)c'</code> is false.</p>
+<hr />
+<h3>03 · <code>IN</code> sets spill to disk</h3>
+<pre><code class="language-sql">SELECT count() FROM numbers(2000000)
+WHERE intHash64(number) IN (SELECT k FROM ids)       -- 20 million keys
+SETTINGS max_memory_usage = 400000000,                -- 400 MB cap
+         max_bytes_before_external_set = 100000000;   -- spill past 100 MB
+</code></pre>
+<p><code>x IN (SELECT ...)</code> builds a hash set of the subquery before the outer query
+reads a row. Until 26.10 the set had to fit in memory. Now it is written to
+disk in parts past a threshold and merged back for the lookup. Measured with
+20 million <code>UInt64</code> keys and 2 million probes:</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Peak memory</th>
+<th><code>spilled_to_disk</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>defaults, no cap</td>
+<td>768 MiB</td>
+<td><code>[]</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td><code>max_bytes_before_external_set = 100 MB</code></td>
+<td>155 MiB</td>
+<td><code>['set']</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td>400 MB cap + 100 MB threshold</td>
+<td>156 MiB</td>
+<td><code>['set']</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td><code>NOT IN</code>, 100 MB threshold</td>
+<td>158 MiB</td>
+<td><code>['set']</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td>400 MB cap, spilling off (what 26.9 does)</td>
+<td>—</td>
+<td>—</td>
+<td><code>Code: 241 MEMORY_LIMIT_EXCEEDED</code></td>
+</tr>
+<tr>
+<td><strong>400 MB cap, defaults otherwise</strong></td>
+<td>—</td>
+<td>—</td>
+<td><strong><code>Code: 241</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>Spilling cost 1.3 to 2 times the run time across the runs behind this table.
+The profile events show what happened: 2 parts written, 1 merge, 250 MiB on
+disk, about 7.4 million keys kept in memory as the tail.</p>
+<p><strong>The last row is the one to remember.</strong> The new default,
+<code>max_bytes_ratio_before_external_set = 0.5</code>, is half of the memory available
+under the <strong>server or user</strong> limit, calculated when the query starts. It does
+not look at a per-query <code>max_memory_usage</code>. Here the server limit is 3.16 GiB,
+so the ratio's threshold is about 1.6 GiB, far above a 400 MB cap: the query
+hits the cap first and fails exactly as on 26.9. The changelog says so in one
+clause; it is easy to read past. To spill under a per-query cap, set
+<code>max_bytes_before_external_set</code> below it.</p>
+<p><code>GLOBAL IN</code> spills the same way (<code>['set']</code>, checked by hand). A <code>LEFT SEMI
+JOIN</code> doing the same lookup does not — it is a join and fails under the same
+cap with <code>Code: 241</code> in <code>FillingRightJoinSide</code>; joins have their own spill
+settings.</p>
+<p>On 26.9.11.2 neither setting exists, and the capped query fails at the same
+point with the same code.</p>
+<hr />
+<h3>04 · The LogsQL dialect</h3>
+<pre><code class="language-sql">SET enable_logsql_dialect = 1, logsql_table = 'logs', dialect = 'logsql';
+
+level:error | stats by (host) count() as n | sort by (host);
+&quot;disk quota&quot; | fields _time, host, _msg | sort by (_time) | limit 3;
+_time:[2026-10-26T01:00:00Z, 2026-10-26T02:00:00Z) | count();
+</code></pre>
+<p>LogsQL, the query language of VictoriaLogs, is a filter followed by pipes.
+26.10 translates it at parse time into a <code>SELECT</code> over one configured table,
+whose time and message fields are the columns named by <code>logsql_time_column</code>
+and <code>logsql_message_column</code> (<code>_time</code> and <code>_msg</code> by default). Everything in the
+lab parses and returns the right answer: word, phrase, field, numeric, stream,
+<code>i()</code> and substring filters, <code>stats by</code>, <code>sort</code>, <code>fields</code>, <code>limit</code>.</p>
+<p><strong>What it reads is the finding.</strong> Over 2 million rows with a text index on
+<code>_msg</code>, with the query condition cache off so every run is a cold read:</p>
+<pre><code class="language-text">query                                 returned        read
+_time:[01:00, 02:00) | fields _time      3,600       8,192
+SQL: WHERE hasToken(_msg, 'quota')          20     163,840
+quota | fields _time                        20   2,000,000
+i(QUOTA) | fields _time                     20   2,000,000
+*uota* | fields _time                       20   2,000,000
+</code></pre>
+<p>The time range prunes by the primary key. <strong>Every text filter reads the whole
+table</strong>, text index or not, while the same word written as SQL <code>hasToken</code> reads
+20 granules through the index. The reason is the translation. The lab recovers
+it from the query condition cache's log line, since the translated <code>SELECT</code> is
+not logged anywhere else. The word <code>quota</code> becomes:</p>
+<pre><code class="language-text">match(ifNull(toString(_msg), ''), '(?:^|[^0-9A-Za-z_\x80-\xFF])quota(?:$|[^0-9A-Za-z_\x80-\xFF])')
+</code></pre>
+<p>A regular expression over <code>toString</code> of the column: correct word-boundary
+semantics, and nothing an index can answer.</p>
+<p>So, on 26.10.3.7: put a <code>_time</code> range in every LogsQL query, and keep hot
+lookups in SQL. Repeated LogsQL queries do get faster — the query condition
+cache remembers which granules a predicate ruled out — which is why the lab
+switches it off before measuring.</p>
+<p>Two smaller things: in this dialect a <code>--</code> comment becomes part of the next
+query's text in <code>query_log</code>, and the <code>format</code> pipe is LogsQL's, not
+ClickHouse's <code>FORMAT</code> (<code>| format null</code> fails).</p>
+<hr />
+<h3>05 · XGBoost dictionaries</h3>
+<pre><code class="language-sql">SET enable_xgboost = 1;
+
+CREATE DICTIONARY late_model (distance_km Float64, items Float64, hour Float64, late Float64)
+PRIMARY KEY (distance_km, items, hour)              -- the features, in order
+SOURCE(CLICKHOUSE(DB 'xg' TABLE 'train'))           -- late is the one attribute: the target
+LAYOUT(XGBOOST(objective 'binary:logistic' num_iterations 100 max_depth 4))
+LIFETIME(0);
+
+SELECT predictXGBoost('late_model', 12.5, 20, 18);   -- a probability
+</code></pre>
+<p>A dictionary that holds a model instead of rows. Loading it trains a
+gradient-boosted model on the source table; <code>predictXGBoost</code> runs it.</p>
+<p>The lab generates 50,000 deliveries with a known rule — late when the distance
+and the basket are both large, or in the evening rush — and flips 5% of the
+labels, which caps the best possible accuracy at about 0.95. Trained on 80% in
+0.07 s, scored on the other 20%:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Accuracy</th>
+<th>ROC AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>XGBoost, 100 rounds, depth 4</td>
+<td><strong>0.9536</strong></td>
+<td>0.9343</td>
+</tr>
+<tr>
+<td>the rule that generated the data</td>
+<td>0.9536</td>
+<td>—</td>
+</tr>
+<tr>
+<td>always "on time"</td>
+<td>0.6948</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The model matches the true rule exactly on the held-out rows: it has learned
+the rule and nothing of the noise.</p>
+<p><strong>Trees do not extrapolate.</strong> A regressor on <code>y = 2·x1 + 3·x2</code>, trained for
+<code>x1</code> in [0, 99], predicts 8.00, 400.13 and 791.91 inside the range — and 791.91
+again for <code>x1 = 1000</code>, where the truth is 8,000. Outside the training range a
+tree model returns its largest leaf. Adding rows up to <code>x1 = 1099</code> and running
+<code>SYSTEM RELOAD DICTIONARY</code> gives 7,984.52.</p>
+<p>That reload is the whole lifecycle, and it is worth knowing before building on
+this:</p>
+<ul>
+<li><strong>Training happens on every load</strong>, including a server restart. The model is
+  not persisted. <code>SYSTEM RELOAD DICTIONARY</code> retrains on the current rows; a
+  non-zero <code>LIFETIME</code> retrains on a schedule.</li>
+<li><strong>The whole training set is in memory</strong> while it trains.</li>
+<li><code>system.dictionaries</code> shows <code>element_count = 0</code> and <code>bytes_allocated = 0</code>:
+  there are no rows, and XGBoost does not report the model's memory.</li>
+<li><code>dictGet</code> fails (<code>Code: 1 UNSUPPORTED_METHOD</code>); <code>predictXGBoost</code> is the only
+  way in, and it needs <code>enable_xgboost = 1</code> on every query (<code>Code: 344</code>
+  without).</li>
+<li>The layout's documentation marks it as not supported in ClickHouse Cloud.</li>
+</ul>
+<hr />
+<h3>Also in 26.10, not covered by these labs</h3>
+<p>Where a row says <em>checked</em>, it was run on 26.10.3.7 in the lab container.
+Everything else is from the changelog.</p>
+<p><strong>Removals and breaking changes</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>The old query analysis is gone, also for remote queries</strong></td>
+<td>A server no longer uses it for a query another server sends. A cluster whose initiator is older than 26.10 gets the analyzer on 26.10 shards regardless, and can see <code>NOT_FOUND_COLUMN_IN_BLOCK</code>. Upgrade initiators last, or all at once</td>
+</tr>
+<tr>
+<td><strong><code>seccomp</code> filter on by default</strong></td>
+<td>The packaged <code>config.xml</code> and the Docker image set <code>seccomp</code> to <code>trap</code>. A sandbox that refuses the <code>seccomp</code> system call needs <code>log</code> or <code>disabled</code> <strong>before</strong> the upgrade; executable UDFs may need it off. <em>Checked</em>: <code>trap</code> in <code>system.server_settings</code>, and the server starts under this repository's Docker seccomp profile</td>
+</tr>
+<tr>
+<td><code>system.metric_log</code> is bucketed by default</td>
+<td>One <code>metrics Map(Enum16, Int64)</code> column with 128 buckets instead of thousands of columns. <em>Checked</em>: 12 real columns, and the 2,281 old names are <code>ALIAS metrics['...']</code>, so existing queries keep working</td>
+</tr>
+<tr>
+<td>Settings constraints apply to SQL-defined users</td>
+<td>A <code>GRANT</code>, <code>DROP ROLE</code> or <code>CREATE USER OR REPLACE</code> that would change a constrained setting indirectly is refused</td>
+</tr>
+<tr>
+<td><code>max_bytes_before_external_join</code> drives spilling for every hash join</td>
+<td>Including <code>grace_hash</code>; <code>max_rows_in_join</code> / <code>max_bytes_in_join</code> are hard caps again</td>
+</tr>
+<tr>
+<td><code>arrayCount</code> returns <code>UInt64</code></td>
+<td><em>Checked</em>. <code>array_count_legacy_uint32_result = 1</code> or <code>compatibility = '26.9'</code> restores <code>UInt32</code>; set it on upgraded shards during a rolling upgrade</td>
+</tr>
+<tr>
+<td><code>accurateCast</code> to <code>Nullable</code> throws</td>
+<td>Instead of returning <code>NULL</code> for an unrepresentable value</td>
+</tr>
+<tr>
+<td><code>SELECT ... FINAL</code> on <code>SummingMergeTree</code> keeps all-zero rows</td>
+<td>It used to drop them depending on which columns were read, so <code>count()</code> and <code>SELECT *</code> disagreed</td>
+</tr>
+<tr>
+<td><code>skip_unavailable_shards</code> with every shard skipped</td>
+<td>Fails with <code>ALL_CONNECTION_TRIES_FAILED</code> instead of an empty result</td>
+</tr>
+<tr>
+<td><code>MATERIALIZED</code> columns follow <code>TTL</code> resets</td>
+<td>Recomputed when the <code>TTL</code> resets their source column</td>
+</tr>
+<tr>
+<td>JSON <code>null</code> into a non-<code>Nullable</code> number</td>
+<td>Throws with <code>input_format_null_as_default = 0</code> instead of storing <code>0</code></td>
+</tr>
+<tr>
+<td><code>arrayJoin</code> lowered to an <code>ARRAY JOIN</code> step</td>
+<td>Streams instead of materializing; <code>runningDifference</code> and friends next to it now see the expansion's blocks</td>
+</tr>
+<tr>
+<td><code>ATTACH TABLE ... FROM</code> needs <code>FILE</code> grants</td>
+<td><code>READ ON FILE</code> and <code>WRITE ON FILE</code> on the source</td>
+</tr>
+<tr>
+<td>Storage configuration is validated</td>
+<td>An unknown element under a disk is <code>UNKNOWN_ELEMENT_IN_CONFIG</code> — a server with a typo there will not start</td>
+</tr>
+<tr>
+<td>Zero-argument <code>year()</code> removed</td>
+<td>The 26.9 lab noted that the changelog listed it but the build did not have it. <em>Checked</em>: still <code>Code: 42</code> here</td>
+</tr>
+<tr>
+<td><code>validate_mutation_query</code>, <code>enable_optimize_predicate_expression</code> and others</td>
+<td>Obsolete; mutations are always validated</td>
+</tr>
+<tr>
+<td>Experimental <code>ZXC</code> codec format changed</td>
+<td>Data written with <code>CODEC(ZXC)</code> before 26.10 cannot be read</td>
+</tr>
+<tr>
+<td><code>Remote</code>, <code>RemoteSecure</code>, <code>Cluster</code> engines reject an empty database name</td>
+<td>A server holding such a database does not start — drop them first</td>
+</tr>
+</tbody>
+</table>
+<p><strong>New features</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hash tables use up to half the memory</strong></td>
+<td><em>Checked</em> against 26.9.11.2 in the same Docker VM (Apple silicon, 7.75 GiB, <code>max_threads = 8</code>, one run each): <code>GROUP BY</code> on 20 M <code>UInt64</code> keys 512.46 → 256.49 MiB, <code>uniqExact</code> over 20 M values 514.66 → 258.68 MiB, <code>GROUP BY</code> on 5 M <code>String</code> keys unchanged at 128.5 MiB. Wall time was 14–40% <em>higher</em> on 26.10 in these single runs — not a benchmark, but no speed-up on this setup either</td>
+</tr>
+<tr>
+<td><code>keyValuePairs</code> text index answers <code>IN</code></td>
+<td><em>Checked</em>: <code>attrs['tenant'] IN ('t7', 't9')</code> reads 27/245 granules; on 26.9.11.2 it reads 245/245, the trap the 26.9 lab recorded. <code>mapContainsKeyValue(map, k, v)</code> is new and indexed too (13/245)</td>
+</tr>
+<tr>
+<td><code>Cluster</code> database engine</td>
+<td>Real-time access to the tables of a configured cluster database, forwarding <code>SELECT</code> and <code>INSERT</code></td>
+</tr>
+<tr>
+<td><code>Overlay</code> database engine</td>
+<td>The union of the tables of several databases, each an <code>Alias</code> to the first source that has it</td>
+</tr>
+<tr>
+<td>Query cache on disk</td>
+<td>Entries in a filesystem cache: more room, survive restarts, shareable through a distributed cache. <code>query_cache_on_disk_cache_name</code></td>
+</tr>
+<tr>
+<td><code>elasticsearch</code> table function</td>
+<td><em>Checked</em>: listed in <code>system.table_functions</code>; not exercised here</td>
+</tr>
+<tr>
+<td>Workload scheduling and spilling</td>
+<td><code>scheduler</code> per workload (<code>fifo</code>, <code>fair</code>, <code>las</code>, <code>priority</code>), and <code>max_memory_before_spill</code> / <code>max_memory_to_spill_ratio</code> as a per-workload soft limit that makes <code>ORDER BY</code>, <code>GROUP BY</code>, <code>IN</code>, <code>DISTINCT</code> and grace-hash <code>JOIN</code> spill</td>
+</tr>
+<tr>
+<td>Notebook mode in <code>/play</code></td>
+<td>A <code>[+]</code> under the result adds query or Markdown cells, restored on reload</td>
+</tr>
+<tr>
+<td><code>SQLite</code> format, <code>Freeform</code> input format</td>
+<td>Read and write SQLite files; schema inference for arbitrary tabular text</td>
+</tr>
+<tr>
+<td><code>written_rows</code> quota resource</td>
+<td>Limit <code>INSERT</code>ed rows, not only bytes</td>
+</tr>
+<tr>
+<td><code>query_log</code>: <code>used_join_*</code>, <code>spilled_to_disk</code></td>
+<td>Labs 01 and 03 use them — and lab 01 shows what they miss</td>
+</tr>
+<tr>
+<td><code>traceView</code> table function</td>
+<td>An OpenTelemetry trace as a call tree with per-span timeline bars</td>
+</tr>
+<tr>
+<td><code>obfuscate</code> table function</td>
+<td>Anonymized query results</td>
+</tr>
+<tr>
+<td><code>SIMILAR TO</code>, <code>sql_compatible_division_for_integers</code></td>
+<td><em>Checked</em>: <code>-7 / 2 = -3</code> with the setting, truncating toward zero</td>
+</tr>
+<tr>
+<td>New functions</td>
+<td><em>Checked</em>: <code>arrayMinIndex</code>, <code>arrayMaxIndex</code>, <code>arrayRemoveAt</code>, <code>mapRemove</code>, <code>mapEntries</code>, <code>normalizedQueryHashUnordered</code> (<code>SELECT a, b</code> and <code>SELECT b, a</code> hash the same), <code>encodeQuotedPrintable</code> / <code>decodeQuotedPrintable</code></td>
+</tr>
+<tr>
+<td><code>-Map</code> over non-<code>Map</code> columns</td>
+<td><em>Checked</em>: <code>sumMap(v, k)</code></td>
+</tr>
+<tr>
+<td><code>avg</code>, <code>sum</code> over <code>Interval</code></td>
+<td><em>Checked</em>: <code>avg(toIntervalSecond(n))</code> is <code>IntervalSecond</code></td>
+</tr>
+<tr>
+<td><code>MATERIALIZED</code> CTEs in recursive <code>WITH</code></td>
+<td>Evaluated once, read by every step</td>
+</tr>
+<tr>
+<td><code>BACKUP ... EXCEPT DATA FROM TABLE</code></td>
+<td>Definition without rows</td>
+</tr>
+<tr>
+<td><code>FileLog</code> globs and <code>SYSTEM RESET FILELOG</code></td>
+<td>Re-read files without recreating the table</td>
+</tr>
+<tr>
+<td><code>clickhouse-client --login</code> with any OIDC provider</td>
+<td>Endpoint discovery, device-code flow</td>
+</tr>
+<tr>
+<td><code>Parquet</code> <code>VARIANT</code>, Iceberg <code>variant</code></td>
+<td>Read into <code>Dynamic</code> / <code>JSON</code></td>
+</tr>
+<tr>
+<td><code>generateRandom</code> for <code>JSON</code>, <code>Dynamic</code>, <code>Variant</code>, <code>Time</code></td>
+<td>With realistic generated JSON schemas</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Experimental</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Columns cache</td>
+<td><code>use_columns_cache</code>: deserialized columns of wide parts kept in memory per granule stripe, cheaper than the uncompressed cache. <em>Checked</em>: setting present, tier Experimental</td>
+</tr>
+<tr>
+<td>PromQL</td>
+<td>The announcement quotes 100% basic and 93% extended compatibility. New range functions (<code>stddev_over_time</code>, <code>mad_over_time</code>, ...), <code>timestamp</code>, <code>step</code>, <code>range</code>, stale markers, and many fixes. See the <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/timeseries-promql-oss">TimeSeries + PromQL lab</a></td>
+</tr>
+<tr>
+<td><code>PCO</code> codec</td>
+<td><code>enable_pco_codec</code>, for fixed-width numbers</td>
+</tr>
+<tr>
+<td>Unity Catalog v2</td>
+<td>One catalog for <code>DeltaLake</code> and <code>Iceberg</code> tables, <code>use_unity_catalog_v2</code></td>
+</tr>
+<tr>
+<td>Embedded Iceberg REST catalog</td>
+<td>Namespaces in memory or Keeper, metadata in S3</td>
+</tr>
+<tr>
+<td><code>ipcrypt*</code> functions</td>
+<td>Format-preserving IP encryption, deterministic or prefix-preserving</td>
+</tr>
+<tr>
+<td>Iceberg v3 deletion vectors, <code>DROP PARTITION</code></td>
+<td>Read support; drop on standalone tables and REST catalogs</td>
+</tr>
+<tr>
+<td>Distributed plans</td>
+<td>Join runtime filters across stages, compression of exchanged data, trace propagation to workers</td>
+</tr>
+</tbody>
+</table>
+<h3>Verified</h3>
+<p>Every query in the five <code>.sql</code> files was run against <strong>26.10.3.7</strong>
+(<code>clickhouse/clickhouse-server:26.10</code>, pulled 2026-10-28) with
+<code>tools/hol run local/releases/26.10</code> — five PASS — and every <code>NN-*.sh</code> was run
+end to end against a <code>clickhouse-26-10</code> container started with this
+repository's seccomp profile. Every number, plan fragment and error code above
+is from those runs. The 26.9 comparisons ran on 26.9.11.2, the <code>26.9</code> image
+already on the machine.</p>
+<p><code>00-setup.sh</code> was then run as a reader would, bringing up <code>clickhouse-26-10</code>
+through <code>local/oss-docker</code>, and all five <code>NN-*.sh</code> were run against it again
+with the same results. Its last check prints <em>Could not verify version</em> even
+though the server is up: it looks for a version string in the reply to <code>/</code>,
+which is <code>Ok.</code>. The 26.9 script has the same check; <code>./01-lateral-join.sh</code>
+working is the real confirmation.</p>
+<p>Three things were worked around while writing, all noted in the SQL:</p>
+<ul>
+<li>An error stops a <code>.sql</code> file at that line, so every refusal is in the <code>.sh</code>
+  runners, one connection each — the same split the 26.9 lab used for lab 04.</li>
+<li>The query condition cache makes a repeated filter read fewer rows than a cold
+  one. The first LogsQL measurements were taken with it on and looked as if the
+  text index were used; lab 04 measures with <code>use_query_condition_cache = 0</code>.</li>
+<li><code>query_log</code> keeps every run, so the comparison queries take the latest row
+  per <code>log_comment</code> with <code>LIMIT 1 BY</code>, and re-running a lab does not pile up
+  rows.</li>
+</ul>
+<p>Two observations disagree with what the changelog leads you to expect, and are
+flagged above: block nested loop joins are missing from the new <code>query_log</code>
+join columns (lab 01), and LogsQL text filters do not reach a text index
+(lab 04).</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>2026-10-22 릴리스 · 여기서는 26.10.3.7로 검증</strong></p>
+<p>26.10은 지금까지 가장 큰 릴리스입니다 — 하위 호환성 변경 37개, 신기능 60개,
+실험 기능 41개, 성능 개선 225개. 발표는 <code>Cluster</code> 데이터베이스 엔진, 디스크
+쿼리 캐시, 컬럼 캐시, <code>LATERAL JOIN</code>, 임의 <code>ON</code> 조건 조인, PromQL과 LogsQL,
+Elasticsearch 테이블 함수, XGBoost 딕셔너리를 앞세웁니다.</p>
+<p>이 랩은 그중 <strong>컨테이너 하나에서 눈으로 확인할 수 있는</strong> 다섯 가지를 골라,
+파싱되는지가 아니라 실제로 무엇을 하는지를 묻습니다.</p>
+<table>
+<thead>
+<tr>
+<th>랩</th>
+<th>기능</th>
+<th>선정 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/01-lateral-join.sql">01</a></td>
+<td><code>LATERAL JOIN</code>, 임의 <code>ON</code>의 OUTER 조인</td>
+<td>표준 SQL로 쓰는 그룹별 상위 n개, 그리고 <code>INVALID_JOIN_ON_EXPRESSION</code>의 끝</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/02-function-composition.sql">02</a></td>
+<td>함수 합성, 플레이스홀더 <code>_</code> / <code>_1</code>, Trino 표기, <code>SIMILAR TO</code></td>
+<td>ClickHouse에서 가장 짧은 람다 문법. 단, 물리는 규칙이 하나 있음</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/03-in-set-spill.sql">03</a></td>
+<td><code>IN</code> 집합의 디스크 스필</td>
+<td>메모리 상한 아래의 큰 <code>IN (subquery)</code>가 이제 끝까지 돈다 — 임계값을 맞게 설정하면</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/04-logsql.sql">04</a></td>
+<td>LogsQL 방언</td>
+<td>ClickHouse 테이블 위의 VictoriaLogs 쿼리, 그리고 번역 결과가 실제로 읽는 양</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.10/05-xgboost.sql">05</a></td>
+<td>XGBoost 딕셔너리</td>
+<td>로드 시점에 학습하고 함수로 서빙하는 모델</td>
+</tr>
+</tbody>
+</table>
+<h3>빠른 시작</h3>
+<pre><code class="language-bash">./00-setup.sh                 # local/oss-docker으로 26.10 기동
+./01-lateral-join.sh
+./02-function-composition.sh
+./03-in-set-spill.sh          # 2,000만 키 집합을 여러 번 만듭니다
+./04-logsql.sh
+./05-xgboost.sh
+</code></pre>
+<p>각 <code>NN-*.sh</code>는 같은 이름의 <code>.sql</code>을 <code>clickhouse-client</code>에 넘긴 뒤, <strong>실패해야
+하는</strong> 문장을 연결 하나씩 실행합니다. 에러는 <code>.sql</code> 파일을 그 줄에서 멈추므로
+여기의 <code>.sql</code>은 모두 예외가 없고, 거부 사례는 전부 <code>.sh</code>에 있습니다. SQL을
+읽으세요 — 주석이 곧 랩입니다.</p>
+<p>실험 설정을 쓰는 랩은 세 개입니다: <code>allow_experimental_lateral_join</code>(01),
+<code>enable_logsql_dialect</code>(04), <code>enable_xgboost</code>(05). 블록 중첩 루프
+조인(01), 함수 합성(02), <code>IN</code> 스필(03)은 production 등급입니다.</p>
+<hr />
+<h3>01 · <code>LATERAL JOIN</code>과 임의 <code>ON</code> 조건 조인</h3>
+<pre><code class="language-sql">SET allow_experimental_lateral_join = 1;
+
+SELECT c.name, t.id, t.amount
+FROM customers AS c
+LEFT JOIN LATERAL (
+    SELECT id, amount FROM orders AS o
+    WHERE o.customer_id = c.id          -- 왼쪽 행을 참조
+    ORDER BY amount DESC
+    LIMIT 2
+) AS t ON true
+SETTINGS join_use_nulls = 1;
+</code></pre>
+<p><code>LATERAL</code>은 <code>FROM</code>의 서브쿼리가 왼쪽 행을 참조하게 합니다. "그룹별 상위 n개"와
+"행마다 집계"의 표준 표기입니다.</p>
+<p><strong>행마다 도는 루프가 아닙니다.</strong> <code>EXPLAIN</code>을 보면 상관 조건은 조인 키
+(<code>customer_id &lt;=&gt; customer_id</code>)가 되고, <code>ORDER BY ... LIMIT 2</code>는 *"LIMIT BY for
+decorrelated correlated subquery"*라는 <code>LimitBy</code> 단계가 되어 평범한 해시 조인
+아래에 놓입니다. 랩은 같은 것을 <code>LIMIT 2 BY customer_id</code>로 손수 쓰고 같은 행을
+얻습니다. <code>LATERAL</code>은 ClickHouse가 이미 할 수 있던 일을 읽기 좋게 쓰는
+방법이고, 그래서 루프가 아니라 해시 조인처럼 확장됩니다.</p>
+<p><strong><code>join_use_nulls = 1</code>을 설정하세요.</strong> 기본값 <code>0</code>이면 주문이 없는 고객이 주문
+id <code>0</code>, 금액 <code>0.00</code>으로 돌아옵니다 — 진짜 주문처럼 보이는 행입니다. <code>1</code>이면
+<code>NULL</code>입니다. <code>LATERAL</code>만의 문제는 아니지만, <code>LEFT JOIN LATERAL</code>은 바로 빈
+쪽을 확인하려고 쓰는 구문입니다.</p>
+<p><strong>집계 서브쿼리는 항상 한 행을 돌려줍니다.</strong> <code>INNER JOIN LATERAL (SELECT
+count() ...)</code>은 주문 없는 고객을 <code>count = 0</code>으로 남깁니다. 버그가 아니라
+SQL입니다 — <code>GROUP BY</code> 없는 집계는 입력이 없어도 한 행을 만듭니다.</p>
+<p><strong>거부하는 것</strong> (<code>01-lateral-join.sh</code>):</p>
+<table>
+<thead>
+<tr>
+<th>형태</th>
+<th>26.10.3.7 결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FROM a, LATERAL (...)</code></td>
+<td><code>Code: 62</code> <em>LATERAL is not supported with COMMA JOIN</em></td>
+</tr>
+<tr>
+<td><code>CROSS JOIN LATERAL (...)</code></td>
+<td><code>Code: 62</code> <em>LATERAL is not supported with CROSS JOIN</em></td>
+</tr>
+<tr>
+<td>왼쪽을 참조하지 않는 서브쿼리</td>
+<td><code>Code: 48</code> <em>must reference at least one column from the left side</em></td>
+</tr>
+<tr>
+<td>안쪽의 <code>LIMIT ... WITH TIES</code></td>
+<td><code>Code: 48</code> <em>decorrelation does not support LIMIT ... WITH TIES</em></td>
+</tr>
+</tbody>
+</table>
+<p>PostgreSQL 사용자가 먼저 쓰는 형태 — 콤마와 <code>CROSS JOIN LATERAL</code> — 가 정확히
+파싱되지 않는 두 가지입니다. <code>LEFT</code> 또는 <code>INNER JOIN LATERAL ... ON true</code>로
+쓰세요.</p>
+<p><strong>임의 <code>ON</code> 조건.</strong> 랩 후반은 주문을 서로 겹치는 가격대 테이블에
+<code>abs(amount - lo) &lt; 10</code>으로 조인합니다. 한쪽 컬럼이 다른 쪽 컬럼과 같다는
+조건이 없으니 해시 키가 없습니다. 어떤 조인이 도는지는 종류에 따라 다릅니다.</p>
+<table>
+<thead>
+<tr>
+<th>조인</th>
+<th>조건</th>
+<th>알고리즘 (<code>query_log.used_join_algorithms</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INNER</code></td>
+<td><code>amount &gt;= lo AND amount &lt; hi</code></td>
+<td><code>IE_JOIN</code></td>
+</tr>
+<tr>
+<td><code>INNER</code></td>
+<td><code>abs(amount - lo) &lt; 10</code></td>
+<td><code>CONSTANT</code> (<code>CROSS</code> 조인 + 필터)</td>
+</tr>
+<tr>
+<td><code>LEFT</code></td>
+<td><code>o.customer_id = c.id</code></td>
+<td><code>HASH</code></td>
+</tr>
+<tr>
+<td><code>LEFT</code></td>
+<td><code>abs(amount - lo) &lt; 10</code></td>
+<td><code>EXPLAIN</code>에는 <code>BlockNestedLoopJoin</code>, <strong><code>query_log</code>에는 <code>[]</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>이런 조건의 <code>INNER</code> 조인은 26.10 이전에도 됐습니다. 새로운 것은 <code>OUTER</code>
+쪽입니다. 26.9.11.2에서는 등호 없는 <code>LEFT</code>·<code>FULL</code> 조인이 <code>Code: 403
+INVALID_JOIN_ON_EXPRESSION</code>으로 실패합니다. 26.10은 이를 블록 중첩 루프
+조인으로 실행합니다 — 왼쪽 블록마다 오른쪽 블록 전부와 비교하므로 필터를 단
+<code>CROSS JOIN</code>만큼 비쌉니다. 양쪽 크기를 보세요. 끄면
+(<code>allow_block_nested_loop_join = 0</code>) 403이 돌아오고, 이제 설정 이름을 알려
+주는 힌트가 붙습니다.</p>
+<p><strong>새 <code>query_log</code> 컬럼이 새 조인을 보지 못합니다.</strong> <code>used_join_algorithms</code>,
+<code>used_join_kinds</code>, <code>used_number_of_joins</code>는 26.10에 새로 생겼고 해시·IE·크로스
+조인은 제대로 기록합니다. 블록 중첩 루프 조인에서는 <code>[]</code>, <code>[]</code>, <code>0</code>이
+나옵니다 — 20,000 × 20,000 행에서도 재현했습니다. 바뀌기 전까지 이런 쿼리는
+<code>query_log</code>가 아니라 플랜으로 찾으세요.</p>
+<hr />
+<h3>02 · 함수 합성과 플레이스홀더</h3>
+<pre><code class="language-sql">SELECT arrayMap(plus(_, 1) | multiply(_, 2), [1, 2, 3]);   -- [4, 6, 8]
+SELECT arrayMap(_1 * 2 + 1, [1, 2, 3]);                     -- [3, 5, 7]
+SELECT arrayMap(lower | reverse, ['AbC', 'XyZ']);           -- ['cba', 'zyx']
+</code></pre>
+<p>플레이스홀더는 식을 람다로 바꾸고, <code>|</code>는 두 함수를 왼쪽에서 오른쪽으로
+잇습니다. <code>f | g</code>는 <code>g(f(x))</code>로, 셸 파이프처럼 읽힙니다. 애널라이저가 둘 다
+평범한 람다로 풀어 씁니다 — <code>EXPLAIN QUERY TREE</code>에
+<code>lambda(tuple(__composed_arg_1), multiply(plus(__composed_arg_1, 1), 2))</code>가
+보입니다. 실행 비용은 없고, 람다로 못 하던 일이 생긴 것도 아닙니다.</p>
+<p><strong>물리는 규칙: 맨 <code>_</code> 하나하나가 새 인자입니다.</strong> <code>_ * _</code>는 <code>x -&gt; x * x</code>가
+아니라 <code>(a, b) -&gt; a * b</code>이고, <code>arrayMap(_ * _, [1, 2, 3])</code>은 *must be a
+function with 1 arguments, found Function((?, ?) -&gt; ?)*로 실패합니다. 하나를
+다시 쓰려면 번호를 붙이세요: <code>_1 * _1</code>. 두 인자로 읽히는 것이 바로 원하는
+경우는 <code>arrayFold(_1 + _2, arr, 0)</code>입니다.</p>
+<p>나머지 세 규칙은 <code>.sh</code>에서 에러로 보여 줍니다.</p>
+<ul>
+<li><code>SELECT 5 | 3</code> → <code>Code: 36</code>. <code>|</code>는 함수가 올 자리에서만 합성입니다. 비트
+  OR은 <code>bitOr</code>.</li>
+<li><code>arrayMap(toString | length, ...)</code> → <code>Code: 36</code>. 가변 인자 함수는 이름으로
+  합성할 수 없습니다. <code>toString(_)</code>로 쓰세요.</li>
+<li><code>arrayMap(plus(_, 1), [1]) FROM (SELECT 100 AS _)</code> → <code>Code: 43</code>. <code>_</code>라는
+  컬럼이 이기고, "람다"는 숫자가 됩니다.</li>
+</ul>
+<p>마지막 것이 호환성 보장입니다. <code>SELECT _ FROM (SELECT 1 AS _)</code>와
+<code>arrayMap(_ -&gt; _ + 1, ...)</code>은 26.9에서와 같은 뜻입니다.</p>
+<p><strong>다른 방언의 표기를 기본 ClickHouse SQL에서.</strong> 26.9는 이것들을
+<code>dialect = 'trino'</code>에서만 받았습니다. 26.10은 기본 방언에서 받고, 26.9.11.2에서는
+모두 실패합니다(<code>Code: 62</code> 또는 <code>Code: 46</code>).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TRY_CAST('abc' AS Int32)</code></td>
+<td>예외 대신 <code>NULL</code></td>
+</tr>
+<tr>
+<td><code>ARRAY[1, 2, 3]</code></td>
+<td>배열 생성자</td>
+</tr>
+<tr>
+<td><code>starts_with</code>, <code>slice</code>, <code>regexp_like</code></td>
+<td>기존 함수의 Trino 이름</td>
+</tr>
+<tr>
+<td><code>SIMILAR TO</code></td>
+<td>SQL 표준 패턴 술어</td>
+</tr>
+</tbody>
+</table>
+<p><code>SIMILAR TO</code>는 LIKE의 <code>%</code>·<code>_</code>에 정규식식 선택과 그룹을 더한 것이고, <strong>문자열
+전체</strong>와 비교합니다. <code>'bc' SIMILAR TO '(a|b)c'</code>는 참, <code>'abc' SIMILAR TO
+'(a|b)c'</code>는 거짓입니다.</p>
+<hr />
+<h3>03 · <code>IN</code> 집합의 디스크 스필</h3>
+<pre><code class="language-sql">SELECT count() FROM numbers(2000000)
+WHERE intHash64(number) IN (SELECT k FROM ids)       -- 키 2,000만 개
+SETTINGS max_memory_usage = 400000000,                -- 상한 400 MB
+         max_bytes_before_external_set = 100000000;   -- 100 MB를 넘으면 스필
+</code></pre>
+<p><code>x IN (SELECT ...)</code>는 바깥 쿼리가 한 행을 읽기 전에 서브쿼리 결과로 해시 집합을
+만듭니다. 26.10 전에는 이 집합이 메모리에 다 들어가야 했습니다. 이제는 임계값을
+넘으면 조각으로 디스크에 쓰고, 조회할 때 병합해 읽습니다. <code>UInt64</code> 키
+2,000만 개와 조회 200만 건으로 측정한 결과입니다.</p>
+<table>
+<thead>
+<tr>
+<th>실행</th>
+<th>최대 메모리</th>
+<th><code>spilled_to_disk</code></th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기본값, 상한 없음</td>
+<td>768 MiB</td>
+<td><code>[]</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td><code>max_bytes_before_external_set = 100 MB</code></td>
+<td>155 MiB</td>
+<td><code>['set']</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td>상한 400 MB + 임계값 100 MB</td>
+<td>156 MiB</td>
+<td><code>['set']</code></td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td><code>NOT IN</code>, 임계값 100 MB</td>
+<td>158 MiB</td>
+<td><code>['set']</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td>상한 400 MB, 스필 끔 (26.9와 같음)</td>
+<td>—</td>
+<td>—</td>
+<td><code>Code: 241 MEMORY_LIMIT_EXCEEDED</code></td>
+</tr>
+<tr>
+<td><strong>상한 400 MB, 나머지는 기본값</strong></td>
+<td>—</td>
+<td>—</td>
+<td><strong><code>Code: 241</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>이 표를 만든 실행들에서 스필은 실행 시간을 1.3~2배로 늘렸습니다. 프로파일
+이벤트로 보면 조각 2개를 쓰고, 병합 1번, 디스크 250 MiB, 꼬리로 메모리에 남긴
+키 약 740만 개입니다.</p>
+<p><strong>기억할 것은 마지막 행입니다.</strong> 새 기본값
+<code>max_bytes_ratio_before_external_set = 0.5</code>는 <strong>서버 또는 사용자</strong> 한도 아래
+사용 가능한 메모리의 절반이고, 쿼리 시작 시점에 계산합니다. 쿼리별
+<code>max_memory_usage</code>는 보지 않습니다. 여기서 서버 한도는 3.16 GiB이므로 비율
+임계값은 약 1.6 GiB — 400 MB 상한보다 훨씬 위입니다. 쿼리는 상한에 먼저
+닿아 26.9와 똑같이 실패합니다. changelog에는 한 구절로 적혀 있어 지나치기
+쉽습니다. 쿼리별 상한 아래에서 스필하려면 <code>max_bytes_before_external_set</code>을
+그보다 낮게 두세요.</p>
+<p><code>GLOBAL IN</code>도 같은 방식으로 스필합니다(<code>['set']</code>, 손으로 확인). 같은 조회를
+하는 <code>LEFT SEMI JOIN</code>은 스필하지 않습니다 — 조인이므로 같은 상한에서
+<code>FillingRightJoinSide</code>의 <code>Code: 241</code>로 실패합니다. 조인은 자기 스필 설정이
+따로 있습니다.</p>
+<p>26.9.11.2에는 두 설정 모두 없고, 상한을 건 쿼리는 같은 지점에서 같은 코드로
+실패합니다.</p>
+<hr />
+<h3>04 · LogsQL 방언</h3>
+<pre><code class="language-sql">SET enable_logsql_dialect = 1, logsql_table = 'logs', dialect = 'logsql';
+
+level:error | stats by (host) count() as n | sort by (host);
+&quot;disk quota&quot; | fields _time, host, _msg | sort by (_time) | limit 3;
+_time:[2026-10-26T01:00:00Z, 2026-10-26T02:00:00Z) | count();
+</code></pre>
+<p>VictoriaLogs의 쿼리 언어 LogsQL은 필터 뒤에 파이프가 이어지는 형태입니다.
+26.10은 이를 파싱 시점에 설정된 테이블 하나에 대한 <code>SELECT</code>로 번역합니다.
+시간·메시지 필드는 <code>logsql_time_column</code>·<code>logsql_message_column</code>이 가리키는
+컬럼(기본 <code>_time</code>, <code>_msg</code>)입니다. 랩의 모든 쿼리가 파싱되고 맞는 답을 냅니다
+— 단어·구문·필드·숫자·스트림·<code>i()</code>·부분 문자열 필터, <code>stats by</code>, <code>sort</code>,
+<code>fields</code>, <code>limit</code>.</p>
+<p><strong>발견은 읽는 양에 있습니다.</strong> <code>_msg</code>에 텍스트 인덱스가 있는 200만 행에서,
+매번 콜드 읽기가 되도록 쿼리 조건 캐시를 끄고 측정했습니다.</p>
+<pre><code class="language-text">query                                 returned        read
+_time:[01:00, 02:00) | fields _time      3,600       8,192
+SQL: WHERE hasToken(_msg, 'quota')          20     163,840
+quota | fields _time                        20   2,000,000
+i(QUOTA) | fields _time                     20   2,000,000
+*uota* | fields _time                       20   2,000,000
+</code></pre>
+<p>시간 범위는 기본 키로 가지치기됩니다. <strong>텍스트 필터는 인덱스가 있든 없든 전부
+테이블 전체를 읽고</strong>, 같은 단어를 SQL <code>hasToken</code>으로 쓰면 인덱스로 그래뉼
+20개만 읽습니다. 이유는 번역에 있습니다. 번역된 <code>SELECT</code>는 어디에도 기록되지
+않아서, 랩은 쿼리 조건 캐시의 로그 줄에서 그것을 되찾습니다. 단어 <code>quota</code>는
+이렇게 됩니다.</p>
+<pre><code class="language-text">match(ifNull(toString(_msg), ''), '(?:^|[^0-9A-Za-z_\x80-\xFF])quota(?:$|[^0-9A-Za-z_\x80-\xFF])')
+</code></pre>
+<p>컬럼의 <code>toString</code>에 대한 정규식입니다. 단어 경계 의미는 정확하지만, 어떤
+인덱스도 답할 수 없는 형태입니다.</p>
+<p>그러니 26.10.3.7에서는 모든 LogsQL 쿼리에 <code>_time</code> 범위를 넣고, 자주 도는 조회는
+SQL로 두세요. LogsQL 쿼리를 반복하면 빨라지기는 합니다 — 쿼리 조건 캐시가 그
+조건으로 걸러낸 그래뉼을 기억하기 때문이고, 랩이 측정 전에 캐시를 끄는 이유도
+그것입니다.</p>
+<p>작은 것 둘: 이 방언에서 <code>--</code> 주석은 <code>query_log</code>에서 다음 쿼리 텍스트의 일부가
+되고, <code>format</code> 파이프는 ClickHouse의 <code>FORMAT</code>이 아니라 LogsQL의 것입니다
+(<code>| format null</code>은 실패).</p>
+<hr />
+<h3>05 · XGBoost 딕셔너리</h3>
+<pre><code class="language-sql">SET enable_xgboost = 1;
+
+CREATE DICTIONARY late_model (distance_km Float64, items Float64, hour Float64, late Float64)
+PRIMARY KEY (distance_km, items, hour)              -- 특성, 이 순서대로
+SOURCE(CLICKHOUSE(DB 'xg' TABLE 'train'))           -- 유일한 속성 late가 목표값
+LAYOUT(XGBOOST(objective 'binary:logistic' num_iterations 100 max_depth 4))
+LIFETIME(0);
+
+SELECT predictXGBoost('late_model', 12.5, 20, 18);   -- 확률
+</code></pre>
+<p>행 대신 모델을 담는 딕셔너리입니다. 로드하면 소스 테이블로 그래디언트
+부스팅 모델을 학습하고, <code>predictXGBoost</code>가 그 모델을 실행합니다.</p>
+<p>랩은 규칙이 알려진 배송 5만 건을 만듭니다 — 거리와 장바구니가 둘 다 크거나
+저녁 혼잡 시간이면 지연 — 그리고 레이블 5%를 뒤집어, 가능한 최고 정확도를
+약 0.95로 묶습니다. 80%로 0.07초에 학습하고 나머지 20%로 평가했습니다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>정확도</th>
+<th>ROC AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>XGBoost, 100 라운드, 깊이 4</td>
+<td><strong>0.9536</strong></td>
+<td>0.9343</td>
+</tr>
+<tr>
+<td>데이터를 만든 규칙</td>
+<td>0.9536</td>
+<td>—</td>
+</tr>
+<tr>
+<td>항상 "정시"</td>
+<td>0.6948</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>모델은 보류한 행에서 진짜 규칙과 정확히 일치합니다. 규칙을 배웠고 잡음은
+하나도 배우지 않았습니다.</p>
+<p><strong>트리는 외삽하지 않습니다.</strong> <code>x1</code>이 [0, 99]인 데이터로 <code>y = 2·x1 + 3·x2</code>를
+학습한 회귀 모델은 범위 안에서 8.00, 400.13, 791.91을 예측하고 — <code>x1 = 1000</code>
+에서도 791.91을 냅니다. 정답은 8,000입니다. 학습 범위 밖에서 트리 모델은 가장
+큰 리프 값을 돌려줍니다. <code>x1 = 1099</code>까지 행을 추가하고 <code>SYSTEM RELOAD
+DICTIONARY</code>를 실행하면 7,984.52가 나옵니다.</p>
+<p>그 리로드가 생명주기 전부이고, 이 위에 무언가를 만들기 전에 알아 둘 만합니다.</p>
+<ul>
+<li><strong>학습은 로드할 때마다</strong> 일어납니다. 서버 재시작 포함. 모델은 저장되지
+  않습니다. <code>SYSTEM RELOAD DICTIONARY</code>는 현재 행으로 다시 학습하고, 0이 아닌
+  <code>LIFETIME</code>은 주기적으로 다시 학습합니다.</li>
+<li>학습하는 동안 <strong>학습 데이터 전체가 메모리에</strong> 있습니다.</li>
+<li><code>system.dictionaries</code>는 <code>element_count = 0</code>, <code>bytes_allocated = 0</code>을
+  보여 줍니다. 행이 없고, XGBoost가 모델 메모리를 보고하지 않습니다.</li>
+<li><code>dictGet</code>은 실패하고(<code>Code: 1 UNSUPPORTED_METHOD</code>), 들어가는 길은
+  <code>predictXGBoost</code>뿐이며, 매 쿼리에 <code>enable_xgboost = 1</code>이 필요합니다(없으면
+  <code>Code: 344</code>).</li>
+<li>레이아웃 문서는 ClickHouse Cloud에서 지원하지 않는다고 표시합니다.</li>
+</ul>
+<hr />
+<h3>26.10의 다른 변화 (이 랩에서 다루지 않음)</h3>
+<p><em>확인</em>이라고 적힌 행은 랩 컨테이너의 26.10.3.7에서 실행했습니다. 나머지는
+changelog 내용입니다.</p>
+<p><strong>제거와 호환성 변경</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>이전 쿼리 분석이 원격 쿼리에서도 사라짐</strong></td>
+<td>다른 서버가 보낸 쿼리에도 더 이상 쓰지 않습니다. 이니시에이터가 26.10보다 오래된 클러스터는 26.10 샤드에서 무조건 애널라이저를 쓰게 되고 <code>NOT_FOUND_COLUMN_IN_BLOCK</code>을 볼 수 있습니다. 이니시에이터를 마지막에, 또는 한꺼번에 업그레이드하세요</td>
+</tr>
+<tr>
+<td><strong><code>seccomp</code> 필터 기본 활성</strong></td>
+<td>패키지의 <code>config.xml</code>과 Docker 이미지가 <code>seccomp</code>을 <code>trap</code>으로 둡니다. <code>seccomp</code> 시스템 콜을 거부하는 샌드박스는 업그레이드 <strong>전에</strong> <code>log</code> 또는 <code>disabled</code>로 바꿔야 하고, 실행형 UDF는 꺼야 할 수 있습니다. <em>확인</em>: <code>system.server_settings</code>에 <code>trap</code>, 이 저장소의 Docker seccomp 프로필로 서버가 기동함</td>
+</tr>
+<tr>
+<td><code>system.metric_log</code> 기본이 bucketed</td>
+<td>수천 개 컬럼 대신 버킷 128개짜리 <code>metrics Map(Enum16, Int64)</code> 컬럼 하나. <em>확인</em>: 실제 컬럼 12개, 기존 이름 2,281개는 <code>ALIAS metrics['...']</code>라 기존 쿼리는 그대로 동작</td>
+</tr>
+<tr>
+<td>SQL로 정의한 사용자에게도 설정 제약 적용</td>
+<td>제약된 설정을 간접적으로 바꾸는 <code>GRANT</code>·<code>DROP ROLE</code>·<code>CREATE USER OR REPLACE</code>는 거부</td>
+</tr>
+<tr>
+<td>모든 해시 조인의 스필 기준이 <code>max_bytes_before_external_join</code></td>
+<td><code>grace_hash</code> 포함. <code>max_rows_in_join</code>·<code>max_bytes_in_join</code>은 다시 하드 상한</td>
+</tr>
+<tr>
+<td><code>arrayCount</code>가 <code>UInt64</code> 반환</td>
+<td><em>확인</em>. <code>array_count_legacy_uint32_result = 1</code> 또는 <code>compatibility = '26.9'</code>로 <code>UInt32</code> 복원. 롤링 업그레이드 중에는 업그레이드된 샤드에 설정</td>
+</tr>
+<tr>
+<td><code>Nullable</code>로의 <code>accurateCast</code>가 예외</td>
+<td>표현할 수 없는 값에 <code>NULL</code>을 돌려주던 동작 대신</td>
+</tr>
+<tr>
+<td><code>SummingMergeTree</code>의 <code>SELECT ... FINAL</code>이 전부 0인 행을 유지</td>
+<td>읽은 컬럼에 따라 지워져서 <code>count()</code>와 <code>SELECT *</code>가 달랐음</td>
+</tr>
+<tr>
+<td>모든 샤드를 건너뛴 <code>skip_unavailable_shards</code></td>
+<td>빈 결과 대신 <code>ALL_CONNECTION_TRIES_FAILED</code></td>
+</tr>
+<tr>
+<td><code>MATERIALIZED</code> 컬럼이 <code>TTL</code> 리셋을 따름</td>
+<td>원본 컬럼이 <code>TTL</code>로 리셋되면 다시 계산</td>
+</tr>
+<tr>
+<td>비-<code>Nullable</code> 숫자에 JSON <code>null</code></td>
+<td><code>input_format_null_as_default = 0</code>이면 <code>0</code> 저장 대신 예외</td>
+</tr>
+<tr>
+<td><code>arrayJoin</code>이 <code>ARRAY JOIN</code> 단계로 내려감</td>
+<td>물질화 대신 스트리밍. 옆의 <code>runningDifference</code> 등은 확장된 블록을 봄</td>
+</tr>
+<tr>
+<td><code>ATTACH TABLE ... FROM</code>에 <code>FILE</code> 권한 필요</td>
+<td>원본에 <code>READ ON FILE</code>과 <code>WRITE ON FILE</code></td>
+</tr>
+<tr>
+<td>스토리지 설정 검증</td>
+<td>디스크 아래 모르는 요소는 <code>UNKNOWN_ELEMENT_IN_CONFIG</code> — 오타가 있으면 서버가 안 뜸</td>
+</tr>
+<tr>
+<td>무인자 <code>year()</code> 제거</td>
+<td>26.9 랩은 changelog에 있지만 빌드에 없다고 기록했습니다. <em>확인</em>: 여기서도 여전히 <code>Code: 42</code></td>
+</tr>
+<tr>
+<td><code>validate_mutation_query</code>, <code>enable_optimize_predicate_expression</code> 등</td>
+<td>폐기. 뮤테이션은 항상 검증</td>
+</tr>
+<tr>
+<td>실험 코덱 <code>ZXC</code> 형식 변경</td>
+<td>26.10 전에 <code>CODEC(ZXC)</code>로 쓴 데이터는 읽을 수 없음</td>
+</tr>
+<tr>
+<td><code>Remote</code>·<code>RemoteSecure</code>·<code>Cluster</code> 엔진이 빈 데이터베이스 이름 거부</td>
+<td>그런 데이터베이스가 있으면 서버가 안 뜸 — 먼저 삭제</td>
+</tr>
+</tbody>
+</table>
+<p><strong>신기능</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>해시 테이블 메모리 최대 절반</strong></td>
+<td>같은 Docker VM(Apple silicon, 7.75 GiB, <code>max_threads = 8</code>, 각 1회)에서 26.9.11.2와 <em>확인</em>: <code>UInt64</code> 키 2,000만 개 <code>GROUP BY</code> 512.46 → 256.49 MiB, 값 2,000만 개 <code>uniqExact</code> 514.66 → 258.68 MiB, <code>String</code> 키 500만 개 <code>GROUP BY</code>는 128.5 MiB로 변화 없음. 소요 시간은 이 1회 실행들에서 26.10이 14~40% <em>더 길었음</em> — 벤치마크는 아니지만, 이 환경에서 빨라지지도 않음</td>
+</tr>
+<tr>
+<td><code>keyValuePairs</code> 텍스트 인덱스가 <code>IN</code>에 응답</td>
+<td><em>확인</em>: <code>attrs['tenant'] IN ('t7', 't9')</code>가 그래뉼 27/245를 읽음. 26.9.11.2는 245/245 — 26.9 랩이 기록한 함정. 새 함수 <code>mapContainsKeyValue(map, k, v)</code>도 인덱스를 탐(13/245)</td>
+</tr>
+<tr>
+<td><code>Cluster</code> 데이터베이스 엔진</td>
+<td>설정된 클러스터 데이터베이스의 테이블에 실시간 접근, <code>SELECT</code>·<code>INSERT</code> 전달</td>
+</tr>
+<tr>
+<td><code>Overlay</code> 데이터베이스 엔진</td>
+<td>여러 데이터베이스 테이블의 합집합. 각 테이블은 그것을 가진 첫 원본의 <code>Alias</code></td>
+</tr>
+<tr>
+<td>디스크 쿼리 캐시</td>
+<td>파일시스템 캐시에 항목 저장: 공간이 크고, 재시작 후에도 남고, 분산 캐시로 공유 가능. <code>query_cache_on_disk_cache_name</code></td>
+</tr>
+<tr>
+<td><code>elasticsearch</code> 테이블 함수</td>
+<td><em>확인</em>: <code>system.table_functions</code>에 있음. 여기서 실행하지는 않음</td>
+</tr>
+<tr>
+<td>워크로드 스케줄링과 스필</td>
+<td>워크로드별 <code>scheduler</code>(<code>fifo</code>, <code>fair</code>, <code>las</code>, <code>priority</code>), 그리고 <code>ORDER BY</code>·<code>GROUP BY</code>·<code>IN</code>·<code>DISTINCT</code>·grace-hash <code>JOIN</code>을 스필시키는 워크로드별 소프트 한도 <code>max_memory_before_spill</code>·<code>max_memory_to_spill_ratio</code></td>
+</tr>
+<tr>
+<td><code>/play</code> 노트북 모드</td>
+<td>결과 아래 <code>[+]</code>로 쿼리·Markdown 셀 추가, 새로 고쳐도 복원</td>
+</tr>
+<tr>
+<td><code>SQLite</code> 형식, <code>Freeform</code> 입력 형식</td>
+<td>SQLite 파일 읽기·쓰기, 임의 표 형식 텍스트의 스키마 추론</td>
+</tr>
+<tr>
+<td><code>written_rows</code> 쿼터 자원</td>
+<td>바이트뿐 아니라 <code>INSERT</code>한 행 수 제한</td>
+</tr>
+<tr>
+<td><code>query_log</code>: <code>used_join_*</code>, <code>spilled_to_disk</code></td>
+<td>랩 01·03이 사용 — 그리고 랩 01은 무엇을 놓치는지 보여 줌</td>
+</tr>
+<tr>
+<td><code>traceView</code> 테이블 함수</td>
+<td>OpenTelemetry 트레이스를 span별 타임라인 막대가 있는 호출 트리로</td>
+</tr>
+<tr>
+<td><code>obfuscate</code> 테이블 함수</td>
+<td>익명화된 쿼리 결과</td>
+</tr>
+<tr>
+<td><code>SIMILAR TO</code>, <code>sql_compatible_division_for_integers</code></td>
+<td><em>확인</em>: 설정을 켜면 <code>-7 / 2 = -3</code>, 0 쪽으로 버림</td>
+</tr>
+<tr>
+<td>새 함수</td>
+<td><em>확인</em>: <code>arrayMinIndex</code>, <code>arrayMaxIndex</code>, <code>arrayRemoveAt</code>, <code>mapRemove</code>, <code>mapEntries</code>, <code>normalizedQueryHashUnordered</code>(<code>SELECT a, b</code>와 <code>SELECT b, a</code>가 같은 해시), <code>encodeQuotedPrintable</code>·<code>decodeQuotedPrintable</code></td>
+</tr>
+<tr>
+<td>비-<code>Map</code> 컬럼에 <code>-Map</code></td>
+<td><em>확인</em>: <code>sumMap(v, k)</code></td>
+</tr>
+<tr>
+<td><code>Interval</code>에 <code>avg</code>·<code>sum</code></td>
+<td><em>확인</em>: <code>avg(toIntervalSecond(n))</code>의 타입은 <code>IntervalSecond</code></td>
+</tr>
+<tr>
+<td>재귀 <code>WITH</code> 안의 <code>MATERIALIZED</code> CTE</td>
+<td>한 번 계산하고 모든 단계가 읽음</td>
+</tr>
+<tr>
+<td><code>BACKUP ... EXCEPT DATA FROM TABLE</code></td>
+<td>행 없이 정의만</td>
+</tr>
+<tr>
+<td><code>FileLog</code> 글롭과 <code>SYSTEM RESET FILELOG</code></td>
+<td>테이블을 다시 만들지 않고 파일 재읽기</td>
+</tr>
+<tr>
+<td>임의 OIDC 공급자로 <code>clickhouse-client --login</code></td>
+<td>엔드포인트 탐색, device-code 흐름</td>
+</tr>
+<tr>
+<td><code>Parquet</code> <code>VARIANT</code>, Iceberg <code>variant</code></td>
+<td><code>Dynamic</code>·<code>JSON</code>으로 읽기</td>
+</tr>
+<tr>
+<td><code>JSON</code>·<code>Dynamic</code>·<code>Variant</code>·<code>Time</code>에 <code>generateRandom</code></td>
+<td>그럴듯한 JSON 스키마 생성</td>
+</tr>
+</tbody>
+</table>
+<p><strong>실험 기능</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>컬럼 캐시</td>
+<td><code>use_columns_cache</code>: wide 파트의 역직렬화된 컬럼을 그래뉼 묶음 단위로 메모리에 보관. 비압축 캐시보다 저렴. <em>확인</em>: 설정 존재, 등급 Experimental</td>
+</tr>
+<tr>
+<td>PromQL</td>
+<td>발표는 기본 100%, 확장 93% 호환을 인용합니다. 새 범위 함수(<code>stddev_over_time</code>, <code>mad_over_time</code> 등), <code>timestamp</code>, <code>step</code>, <code>range</code>, stale marker, 다수 수정. <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/timeseries-promql-oss">TimeSeries + PromQL 랩</a> 참고</td>
+</tr>
+<tr>
+<td><code>PCO</code> 코덱</td>
+<td><code>enable_pco_codec</code>, 고정 폭 숫자용</td>
+</tr>
+<tr>
+<td>Unity Catalog v2</td>
+<td><code>DeltaLake</code>와 <code>Iceberg</code> 테이블을 카탈로그 하나로, <code>use_unity_catalog_v2</code></td>
+</tr>
+<tr>
+<td>내장 Iceberg REST 카탈로그</td>
+<td>네임스페이스는 메모리나 Keeper, 메타데이터는 S3</td>
+</tr>
+<tr>
+<td><code>ipcrypt*</code> 함수</td>
+<td>형식 보존 IP 암호화, 결정적 또는 프리픽스 보존</td>
+</tr>
+<tr>
+<td>Iceberg v3 deletion vector, <code>DROP PARTITION</code></td>
+<td>읽기 지원, 단독 테이블과 REST 카탈로그에서 삭제</td>
+</tr>
+<tr>
+<td>분산 플랜</td>
+<td>단계 간 조인 런타임 필터, 교환 데이터 압축, 워커로 트레이스 전파</td>
+</tr>
+</tbody>
+</table>
+<h3>검증</h3>
+<p>다섯 <code>.sql</code> 파일의 모든 쿼리를 <strong>26.10.3.7</strong>
+(<code>clickhouse/clickhouse-server:26.10</code>, 2026-10-28 pull)에서
+<code>tools/hol run local/releases/26.10</code>으로 실행했고 — 다섯 개 PASS — 모든
+<code>NN-*.sh</code>를 이 저장소의 seccomp 프로필로 띄운 <code>clickhouse-26-10</code> 컨테이너에서
+끝까지 실행했습니다. 위의 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
+26.9 비교는 이미 받아 두었던 <code>26.9</code> 이미지인 26.9.11.2에서 했습니다.</p>
+<p>그다음 <code>00-setup.sh</code>를 독자처럼 실행해 <code>local/oss-docker</code>로 <code>clickhouse-26-10</code>을
+띄우고, 다섯 개 <code>NN-*.sh</code>를 다시 실행해 같은 결과를 얻었습니다. 마지막 확인
+단계는 서버가 떠 있어도 <em>Could not verify version</em>을 출력합니다. <code>/</code>의 응답에서
+버전 문자열을 찾는데, 응답은 <code>Ok.</code>이기 때문입니다. 26.9 스크립트에도 같은
+확인이 있습니다. 실제 확인은 <code>./01-lateral-join.sh</code>가 동작하는 것입니다.</p>
+<p>작성 중 우회한 것이 셋 있고, 모두 SQL에 주석으로 남겼습니다.</p>
+<ul>
+<li>에러는 <code>.sql</code> 파일을 그 줄에서 멈추므로, 거부 사례는 전부 <code>.sh</code> 러너에
+  연결 하나씩 두었습니다 — 26.9 랩이 랩 04에서 쓴 것과 같은 분리입니다.</li>
+<li>쿼리 조건 캐시 때문에 반복한 필터는 콜드 읽기보다 적은 행을 읽습니다. 처음
+  LogsQL 측정은 캐시를 켠 채 해서 텍스트 인덱스를 쓰는 것처럼 보였습니다. 랩
+  04는 <code>use_query_condition_cache = 0</code>으로 측정합니다.</li>
+<li><code>query_log</code>는 모든 실행을 남기므로, 비교 쿼리는 <code>LIMIT 1 BY</code>로
+  <code>log_comment</code>별 최신 행만 가져옵니다. 랩을 다시 돌려도 행이 쌓이지 않습니다.</li>
+</ul>
+<p>changelog가 기대하게 만드는 것과 다른 관찰이 둘 있고 위에 표시했습니다. 블록
+중첩 루프 조인이 새 <code>query_log</code> 조인 컬럼에서 빠지는 것(랩 01), 그리고 LogsQL
+텍스트 필터가 텍스트 인덱스에 닿지 않는 것(랩 04)입니다.</p>
+<hr />
+<p><strong>Happy Learning! 🚀</strong></p>
+<h2>License</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<h2>라이선스</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.10"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><span class="step empty"></span><a class="step next" href="../../../../labs/local/releases/26.9/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse 26.9</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
