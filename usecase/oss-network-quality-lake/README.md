@@ -277,7 +277,11 @@ After changing the SQL, refresh the snapshot against a loaded container:
   is the full URL, so the function refuses any query string (400) and redirects a trailing slash
   (308) without querying ClickHouse. Errors return a fixed body; the detail goes to the function log.
   It has no write endpoint (POST returns 405). When the function cannot reach ClickHouse or the quota
-  is spent, the demo falls back to the recorded minutes. Pages and function answer with a
+  is spent, the demo falls back to the recorded minutes. Every endpoint reads a bounded window:
+  on 2026-10-28 (feed always on since 2026-10-19, bronze holding one to two days) the data-quality
+  counts behind `/api/layers` still scanned all of bronze, read 132.66 M rows, hit the 30 M limit,
+  and the demo had fallen back to the recording; they now count the last minute (180,000 rows).
+  Pages and function answer with a
   Content-Security-Policy (`default-src 'self'`, inline scripts and styles allowed, `frame-ancestors
   'none'`), `X-Frame-Options: DENY` and a Permissions-Policy that turns off camera, microphone,
   location, payment and USB (`vercel.json`).
@@ -611,7 +615,10 @@ SQL을 바꾼 뒤에는 적재된 컨테이너를 대상으로 스냅숏을 다�
   한도, 시간당 쿼터(질의 3,000개, 읽기 50억 행), 엣지 캐시 20초. 엣지 캐시 키가 URL 전체라서, 함수는
   쿼리 문자열을 거부하고(400) 끝의 `/`는 돌려보냅니다(308). 둘 다 ClickHouse를 부르지 않습니다. 오류
   응답은 고정 문구이고 자세한 내용은 함수 로그에만 남습니다. 쓰기 엔드포인트는 없습니다(POST는 405).
-  함수가 ClickHouse에 닿지 못하거나 쿼터를 다 쓰면 데모는 녹화한 몇 분으로 돌아갑니다. 페이지와 함수는
+  함수가 ClickHouse에 닿지 못하거나 쿼터를 다 쓰면 데모는 녹화한 몇 분으로 돌아갑니다. 모든 엔드포인트는
+  범위를 정해 읽습니다: 2026-10-28(2026-10-19부터 feed 상시 가동, bronze에 하루~이틀치)에 `/api/layers`의
+  데이터 품질 집계가 bronze 전체를 읽어 1억 3,266만 행에서 3천만 행 한도에 걸렸고, 데모는 녹화본으로
+  돌아가 있었습니다. 지금은 최근 1분(18만 행)만 셉니다. 페이지와 함수는
   Content-Security-Policy(`default-src 'self'`, 인라인 스크립트·스타일 허용, `frame-ancestors 'none'`),
   `X-Frame-Options: DENY`, 카메라·마이크·위치·결제·USB를 끈 Permissions-Policy를 함께 보냅니다
   (`vercel.json`).
