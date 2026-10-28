@@ -684,8 +684,12 @@ end to end against a <code>clickhouse-26-10</code> container started with this
 repository's seccomp profile. Every number, plan fragment and error code above
 is from those runs. The 26.9 comparisons ran on 26.9.11.2, the <code>26.9</code> image
 already on the machine.</p>
-<p><code>00-setup.sh</code> was <strong>not</strong> run: another stack held host port 8123 on the test
-machine. It is the 26.9 script with the version and the lab list changed.</p>
+<p><code>00-setup.sh</code> was then run as a reader would, bringing up <code>clickhouse-26-10</code>
+through <code>local/oss-docker</code>, and all five <code>NN-*.sh</code> were run against it again
+with the same results. Its last check prints <em>Could not verify version</em> even
+though the server is up: it looks for a version string in the reply to <code>/</code>,
+which is <code>Ok.</code>. The 26.9 script has the same check; <code>./01-lateral-join.sh</code>
+working is the real confirmation.</p>
 <p>Three things were worked around while writing, all noted in the SQL:</p>
 <ul>
 <li>An error stops a <code>.sql</code> file at that line, so every refusal is in the <code>.sh</code>
@@ -1342,8 +1346,11 @@ changelog 내용입니다.</p>
 <code>NN-*.sh</code>를 이 저장소의 seccomp 프로필로 띄운 <code>clickhouse-26-10</code> 컨테이너에서
 끝까지 실행했습니다. 위의 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
 26.9 비교는 이미 받아 두었던 <code>26.9</code> 이미지인 26.9.11.2에서 했습니다.</p>
-<p><code>00-setup.sh</code>는 실행하지 <strong>않았습니다</strong>. 테스트한 장비에서 다른 스택이 호스트
-포트 8123을 쓰고 있었습니다. 26.9 스크립트에서 버전과 랩 목록만 바꾼 것입니다.</p>
+<p>그다음 <code>00-setup.sh</code>를 독자처럼 실행해 <code>local/oss-docker</code>로 <code>clickhouse-26-10</code>을
+띄우고, 다섯 개 <code>NN-*.sh</code>를 다시 실행해 같은 결과를 얻었습니다. 마지막 확인
+단계는 서버가 떠 있어도 <em>Could not verify version</em>을 출력합니다. <code>/</code>의 응답에서
+버전 문자열을 찾는데, 응답은 <code>Ok.</code>이기 때문입니다. 26.9 스크립트에도 같은
+확인이 있습니다. 실제 확인은 <code>./01-lateral-join.sh</code>가 동작하는 것입니다.</p>
 <p>작성 중 우회한 것이 셋 있고, 모두 SQL에 주석으로 남겼습니다.</p>
 <ul>
 <li>에러는 <code>.sql</code> 파일을 그 줄에서 멈추므로, 거부 사례는 전부 <code>.sh</code> 러너에

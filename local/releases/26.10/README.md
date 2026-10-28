@@ -404,8 +404,12 @@ repository's seccomp profile. Every number, plan fragment and error code above
 is from those runs. The 26.9 comparisons ran on 26.9.11.2, the `26.9` image
 already on the machine.
 
-`00-setup.sh` was **not** run: another stack held host port 8123 on the test
-machine. It is the 26.9 script with the version and the lab list changed.
+`00-setup.sh` was then run as a reader would, bringing up `clickhouse-26-10`
+through `local/oss-docker`, and all five `NN-*.sh` were run against it again
+with the same results. Its last check prints *Could not verify version* even
+though the server is up: it looks for a version string in the reply to `/`,
+which is `Ok.`. The 26.9 script has the same check; `./01-lateral-join.sh`
+working is the real confirmation.
 
 Three things were worked around while writing, all noted in the SQL:
 
@@ -819,8 +823,11 @@ changelog 내용입니다.
 끝까지 실행했습니다. 위의 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
 26.9 비교는 이미 받아 두었던 `26.9` 이미지인 26.9.11.2에서 했습니다.
 
-`00-setup.sh`는 실행하지 **않았습니다**. 테스트한 장비에서 다른 스택이 호스트
-포트 8123을 쓰고 있었습니다. 26.9 스크립트에서 버전과 랩 목록만 바꾼 것입니다.
+그다음 `00-setup.sh`를 독자처럼 실행해 `local/oss-docker`로 `clickhouse-26-10`을
+띄우고, 다섯 개 `NN-*.sh`를 다시 실행해 같은 결과를 얻었습니다. 마지막 확인
+단계는 서버가 떠 있어도 *Could not verify version*을 출력합니다. `/`의 응답에서
+버전 문자열을 찾는데, 응답은 `Ok.`이기 때문입니다. 26.9 스크립트에도 같은
+확인이 있습니다. 실제 확인은 `./01-lateral-join.sh`가 동작하는 것입니다.
 
 작성 중 우회한 것이 셋 있고, 모두 SQL에 주석으로 남겼습니다.
 
