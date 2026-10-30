@@ -48,7 +48,7 @@ and a small ClickHouse lake that actually runs five of them.</p>
 <p>It is made to be shown to colleagues as a case study: situation → the industry trend (virtualizing
 the OSS data layer, from public sources) → architecture → use cases → features verified in the PoC →
 lessons → try it, with next steps. A static page in English (default, at <code>/</code>), Korean, Japanese,
-Chinese and Spanish works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
+Chinese, Spanish and German works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
 the colours of clickhouse.com (computed styles, read 2026-10-18).</p>
 <p>A composite scenario: a fictional operator and fictional cities, built from common telco OSS practice
 (medallion layering over 3GPP-style data). The lab runs device (UE) traces only; performance counters
@@ -511,8 +511,8 @@ minute from a local lake: "bronze is missing a minute").</p>
 <li>If idle scaling is turned on later, the feed keeps the service awake. Stop it first.</li>
 </ul>
 <h3>Languages</h3>
-<p>Korean is the source. <code>site/i18n/{ko,en,ja,zh,es}.json</code> is one catalogue per language, shared by the
-explainer and the demo; <code>build.py</code> writes <code>/</code> (en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code>, <code>/es/</code> and fails when the key
+<p>Korean is the source. <code>site/i18n/{ko,en,ja,zh,es,de}.json</code> is one catalogue per language, shared by the
+explainer and the demo; <code>build.py</code> writes <code>/</code> (en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code>, <code>/es/</code>, <code>/de/</code> and fails when the key
 sets differ (seen: removing <code>cta.note</code> from <code>ja.json</code> stopped the build with
 <code>ja.json: missing ['cta.note']</code>). SQL, table and column names are not translated. Checked in the
 browser on 2026-10-18 at 320 px and desktop width, light and dark, in ko, en, ja and zh.</p>
@@ -524,6 +524,10 @@ are grouped the same way). Checked in the browser on 2026-10-28 at 320 px and de
 no sideways scroll on <code>/es/</code> or <code>/es/demo/</code>, the recorded demo pressed once. The same check found the
 demo 2 px too wide at 320 px in every language (a ranking table widened its grid column) and 17 px in
 Spanish; <code>.cols &gt; * { min-width: 0 }</code> fixed both.</p>
+<p>German (added 2026-10-30, translated from <code>en.json</code>) uses the formal <em>Sie</em>, with telco and ClickHouse
+terms as the industry writes them (RSRP, NOC, Materialized View); a grid cell is a <em>Rasterzelle</em>, a
+radio cell a <em>Funkzelle</em>. Numbers are marked as in Spanish (<code>180.000</code>, <code>0,4</code>), and <code>:lang(de)</code> turns
+on <code>hyphens: auto</code> so long compounds break at syllables instead of anywhere.</p>
 <h3>Not covered</h3>
 <ul>
 <li>Scale: two hours, about 20k cells. The point is the flow, not the size.</li>
@@ -541,7 +545,7 @@ IoT 모듈, 차량, 공유기 등)과 망 장비의 로그, 지표, 이벤트를
 ClickHouse 레이크입니다.</p>
 <p>동료들과 나누는 사례 연구입니다. 상황 → 업계 흐름(OSS 데이터 레이어의 가상화, 공개 자료) → 아키텍처 →
 유즈케이스 → PoC에서 검증한 기능 → 배운 것 → 직접 해 보기와 다음 단계 순서입니다. 정적 페이지는 영어(기본,
-<code>/</code>), 한국어, 일본어, 중국어, 스페인어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
+<code>/</code>), 한국어, 일본어, 중국어, 스페인어, 독일어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
 있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.</p>
 <p>합성 시나리오입니다. 가상의 통신사와 가상의 도시를 두고, 흔한 통신 OSS 관행(3GPP 형태의 데이터 위에
 메달리온 계층)으로 구성했습니다. 실습이 돌리는 것은 단말(UE) 트레이스뿐이고, 성능 카운터(PM)·경보(FM)·
@@ -984,8 +988,8 @@ NOC 쿼리가 reader 한도 3천만 행의 75%를 넘게 읽으면 실패합니�
 <li>나중에 유휴 축소를 켜면 흐름이 서비스를 계속 깨워 둡니다. 그 전에 흐름을 멈추세요.</li>
 </ul>
 <h3>언어</h3>
-<p>한국어가 원본입니다. <code>site/i18n/{ko,en,ja,zh}.json</code>은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
-함께 씁니다. <code>build.py</code>는 <code>/</code>(en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code>를 쓰고, 키 집합이 다르면 실패합니다
+<p>한국어가 원본입니다. <code>site/i18n/{ko,en,ja,zh,es,de}.json</code>은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
+함께 씁니다. <code>build.py</code>는 <code>/</code>(en), <code>/ko/</code>, <code>/ja/</code>, <code>/zh/</code>, <code>/es/</code>, <code>/de/</code>를 쓰고, 키 집합이 다르면 실패합니다
 (확인: <code>ja.json</code>에서 <code>cta.note</code>를 빼자 <code>ja.json: missing ['cta.note']</code>로 멈춤). SQL, 테이블과 컬럼
 이름은 번역하지 않습니다. 2026-10-18 브라우저에서 320px과 데스크톱 너비, 라이트와 다크로 ko, en, ja,
 zh를 확인했습니다.</p>
@@ -996,6 +1000,10 @@ zh를 확인했습니다.</p>
 확인했습니다. <code>/es/</code>와 <code>/es/demo/</code>에 가로 스크롤이 없고, 녹화된 데모 버튼을 한 번 눌렀습니다. 같은 확인에서
 320px 데모가 모든 언어에서 2px(순위 표가 그리드 칸을 넓힘), 스페인어에서 17px 넘쳤고,
 <code>.cols &gt; * { min-width: 0 }</code>로 둘 다 고쳤습니다.</p>
+<p>독일어(2026-10-30 추가, <code>en.json</code>에서 번역)는 존칭 <em>Sie</em>를 쓰고, 통신과 ClickHouse 용어는 업계 표기(RSRP,
+NOC, Materialized View)를 따릅니다. 그리드 칸은 <em>Rasterzelle</em>, 무선 셀은 <em>Funkzelle</em>입니다. 숫자는
+스페인어와 같이 <code>180.000</code>, <code>0,4</code>로 쓰고, <code>:lang(de)</code>에 <code>hyphens: auto</code>를 켜서 긴 합성어가 아무 데서나
+끊기지 않고 음절에서 끊깁니다.</p>
 <h3>다루지 않는 것</h3>
 <ul>
 <li>규모: 2시간, 셀 약 2만 개. 크기가 아니라 흐름이 목적입니다.</li>

@@ -15,7 +15,7 @@ report it. What it catches:
 import datetime, json, sys, urllib.error, urllib.request
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://oss-lake.clickhouse.kr").rstrip("/")
-PAGES = ["/", "/demo/"] + ["/%s/%s" % (loc, p) for loc in ("ko", "ja", "zh", "es") for p in ("", "demo/")]
+PAGES = ["/", "/demo/"] + ["/%s/%s" % (loc, p) for loc in ("ko", "ja", "zh", "es", "de") for p in ("", "demo/")]
 API = ["/api/layers", "/api/map", "/api/usecases"] + ["/api/q/%d" % n for n in (1, 2, 3, 4)]
 FRESH = 5                 # minutes; the anchor trails by up to 2, the edge cache adds up to 1
 MAX_ROWS = 30000000       # the reader's max_rows_to_read (cloud/load.py READER_SETTINGS)

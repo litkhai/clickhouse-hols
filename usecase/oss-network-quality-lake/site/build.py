@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the explainer and the demo page in every locale.
 
-    python3 site/build.py        write site/dist/ (en at /, then /ko/, /ja/, /zh/, /es/)
+    python3 site/build.py        write site/dist/ (en at /, then /ko/, /ja/, /zh/, /es/, /de/)
 
 Text comes from site/i18n/<locale>.json (ko is the authoring source, en the default page);
 the build fails when the key sets differ or a template names a key that is missing. The explainer's numbers and
@@ -17,12 +17,12 @@ import html, json, pathlib, re, sys, textwrap
 
 SITE = pathlib.Path(__file__).resolve().parent
 LAB = SITE.parent
-LOCALES = ["en", "ko", "ja", "zh", "es"]
+LOCALES = ["en", "ko", "ja", "zh", "es", "de"]
 DEFAULT = "en"      # served at /; the others under a path prefix
 SOURCE = "ko"       # the catalogue the others are checked against
-NAMES = {"ko": "한국어", "en": "English", "ja": "日本語", "zh": "中文", "es": "Español"}
-# Thousands and decimal marks: es writes 180.000 and 0,4. render() picks the page's.
-MARKS = {"es": str.maketrans(",.", ".,")}
+NAMES = {"ko": "한국어", "en": "English", "ja": "日本語", "zh": "中文", "es": "Español", "de": "Deutsch"}
+# Thousands and decimal marks: es and de write 180.000 and 0,4. render() picks the page's.
+MARKS = {"es": str.maketrans(",.", ".,"), "de": str.maketrans(",.", ".,")}
 marks = None
 PAGES = {"explainer": SITE / "explainer.html", "demo": LAB / "ui" / "demo.html"}
 
@@ -457,7 +457,7 @@ def main():
             out = dist / prefix(loc) / ("demo/" if page == "demo" else "") / "index.html"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(render(page, loc, cats, snap))
-    print("wrote %s/{,ko/,ja/,zh/,es/}{index.html,demo/index.html}" % dist.relative_to(LAB))
+    print("wrote %s/{,ko/,ja/,zh/,es/,de/}{index.html,demo/index.html}" % dist.relative_to(LAB))
 
 
 if __name__ == "__main__":

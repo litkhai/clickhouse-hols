@@ -17,7 +17,7 @@ and a small ClickHouse lake that actually runs five of them.
 It is made to be shown to colleagues as a case study: situation → the industry trend (virtualizing
 the OSS data layer, from public sources) → architecture → use cases → features verified in the PoC →
 lessons → try it, with next steps. A static page in English (default, at `/`), Korean, Japanese,
-Chinese and Spanish works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
+Chinese, Spanish and German works without ClickHouse; a local live demo has a "send next minute" button. Dark only, with
 the colours of clickhouse.com (computed styles, read 2026-10-18).
 
 A composite scenario: a fictional operator and fictional cities, built from common telco OSS practice
@@ -343,8 +343,8 @@ Cost, estimated 2026-10-18:
 
 ### Languages
 
-Korean is the source. `site/i18n/{ko,en,ja,zh,es}.json` is one catalogue per language, shared by the
-explainer and the demo; `build.py` writes `/` (en), `/ko/`, `/ja/`, `/zh/`, `/es/` and fails when the key
+Korean is the source. `site/i18n/{ko,en,ja,zh,es,de}.json` is one catalogue per language, shared by the
+explainer and the demo; `build.py` writes `/` (en), `/ko/`, `/ja/`, `/zh/`, `/es/`, `/de/` and fails when the key
 sets differ (seen: removing `cta.note` from `ja.json` stopped the build with
 `ja.json: missing ['cta.note']`). SQL, table and column names are not translated. Checked in the
 browser on 2026-10-18 at 320 px and desktop width, light and dark, in ko, en, ja and zh.
@@ -357,6 +357,11 @@ are grouped the same way). Checked in the browser on 2026-10-28 at 320 px and de
 no sideways scroll on `/es/` or `/es/demo/`, the recorded demo pressed once. The same check found the
 demo 2 px too wide at 320 px in every language (a ranking table widened its grid column) and 17 px in
 Spanish; `.cols > * { min-width: 0 }` fixed both.
+
+German (added 2026-10-30, translated from `en.json`) uses the formal *Sie*, with telco and ClickHouse
+terms as the industry writes them (RSRP, NOC, Materialized View); a grid cell is a *Rasterzelle*, a
+radio cell a *Funkzelle*. Numbers are marked as in Spanish (`180.000`, `0,4`), and `:lang(de)` turns
+on `hyphens: auto` so long compounds break at syllables instead of anywhere.
 
 ### Not covered
 
@@ -381,7 +386,7 @@ ClickHouse 레이크입니다.
 
 동료들과 나누는 사례 연구입니다. 상황 → 업계 흐름(OSS 데이터 레이어의 가상화, 공개 자료) → 아키텍처 →
 유즈케이스 → PoC에서 검증한 기능 → 배운 것 → 직접 해 보기와 다음 단계 순서입니다. 정적 페이지는 영어(기본,
-`/`), 한국어, 일본어, 중국어, 스페인어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
+`/`), 한국어, 일본어, 중국어, 스페인어, 독일어로 ClickHouse 없이 열리고, 로컬 라이브 데모에는 "다음 1분 보내기" 버튼이
 있습니다. 다크 모드 전용이며 clickhouse.com의 색(계산된 스타일, 2026-10-18 확인)을 씁니다.
 
 합성 시나리오입니다. 가상의 통신사와 가상의 도시를 두고, 흔한 통신 OSS 관행(3GPP 형태의 데이터 위에
@@ -689,8 +694,8 @@ NOC 쿼리가 reader 한도 3천만 행의 75%를 넘게 읽으면 실패합니�
 
 ### 언어
 
-한국어가 원본입니다. `site/i18n/{ko,en,ja,zh}.json`은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
-함께 씁니다. `build.py`는 `/`(en), `/ko/`, `/ja/`, `/zh/`를 쓰고, 키 집합이 다르면 실패합니다
+한국어가 원본입니다. `site/i18n/{ko,en,ja,zh,es,de}.json`은 언어마다 카탈로그 하나이며 설명 페이지와 데모가
+함께 씁니다. `build.py`는 `/`(en), `/ko/`, `/ja/`, `/zh/`, `/es/`, `/de/`를 쓰고, 키 집합이 다르면 실패합니다
 (확인: `ja.json`에서 `cta.note`를 빼자 `ja.json: missing ['cta.note']`로 멈춤). SQL, 테이블과 컬럼
 이름은 번역하지 않습니다. 2026-10-18 브라우저에서 320px과 데스크톱 너비, 라이트와 다크로 ko, en, ja,
 zh를 확인했습니다.
@@ -702,6 +707,11 @@ zh를 확인했습니다.
 확인했습니다. `/es/`와 `/es/demo/`에 가로 스크롤이 없고, 녹화된 데모 버튼을 한 번 눌렀습니다. 같은 확인에서
 320px 데모가 모든 언어에서 2px(순위 표가 그리드 칸을 넓힘), 스페인어에서 17px 넘쳤고,
 `.cols > * { min-width: 0 }`로 둘 다 고쳤습니다.
+
+독일어(2026-10-30 추가, `en.json`에서 번역)는 존칭 *Sie*를 쓰고, 통신과 ClickHouse 용어는 업계 표기(RSRP,
+NOC, Materialized View)를 따릅니다. 그리드 칸은 *Rasterzelle*, 무선 셀은 *Funkzelle*입니다. 숫자는
+스페인어와 같이 `180.000`, `0,4`로 쓰고, `:lang(de)`에 `hyphens: auto`를 켜서 긴 합성어가 아무 데서나
+끊기지 않고 음절에서 끊깁니다.
 
 ### 다루지 않는 것
 
