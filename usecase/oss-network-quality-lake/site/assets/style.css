@@ -21,6 +21,8 @@
 :lang(ja), :lang(zh) { word-break: normal; line-break: strict; }
 /* where supported, break Japanese at phrase boundaries (ignored elsewhere, which keeps the rule above) */
 :lang(ja) { word-break: auto-phrase; }
+/* German compounds (Rasterzellen, Minutenzusammenfassung) would otherwise be split anywhere by overflow-wrap */
+:lang(de) { hyphens: auto; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
