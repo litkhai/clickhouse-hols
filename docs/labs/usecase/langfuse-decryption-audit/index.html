@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decryption with an audit trail for Langfuse fields (open-source stack) · ClickHouse HOLs</title>
+<meta name="description" content="Decryption with an audit trail for Langfuse fields (open-source stack) — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/langfuse-decryption-audit</code>
+    
+  </nav>
+  <div class="readme en"><h1>Decryption with an audit trail for Langfuse fields (open-source stack)</h1>
+<hr />
+<p><strong>Verified end to end on 2026-11-02</strong> against Langfuse 4.56.0 (OSS, no licence key, from the
+<a href="https://github.com/litkhai/langfuse-hols">langfuse-hols</a> v4 stack), ClickHouse 26.8.22.13, OpenBao 2.7.2 and Keycloak 26.8.1. Fresh volumes; the decryption service ran on <code>python:3.12.15-slim</code>; Docker 29.9.2, Compose v5.6.1. <code>02</code> passed 7 checks and <code>03</code> passed 28. A fault injected on purpose (bob added to <code>svc-a-readers</code>) made <code>03</code> fail 5 checks, and it passed again once the fault was removed.</p>
+<p>Regulated teams ask for three things around LLM traces: encrypt sensitive fields, let only authorised people see them in clear, and keep a record of <strong>who decrypted what, when and why</strong>. Langfuse stores whatever it receives and has no decryption or read-audit feature. Its audit log, an Enterprise feature, records create/update/delete only. So the record has to come from the decryption path. This lab builds that path from open-source parts and tests it.</p>
+<h3>Architecture</h3>
+<pre><code>  app ── encrypt (OpenBao Transit, encrypt-only token) ──► Langfuse OSS  (stores enc:&lt;key&gt;:vault:v1:…)
+                                                              │ public API (service's project key)
+  user ── IdP login (Keycloak) ── POST /decrypt + reason ──► decrypt-service ──► audit ClickHouse
+                                                              │  1. attempt row      (audit.decrypt_events,
+                                                              │  2. OpenBao login     insert-only writer,
+                                                              │     with the USER's JWT                select-only auditor)
+                                                              │  3. transit/decrypt + X-Request-Id
+                                                              ▼  4. outcome row
+                                                           OpenBao ── audit file ──► read in place by ClickHouse file()
+</code></pre>
+<ul>
+<li><strong>The service holds no OpenBao token.</strong> It logs in with the user's own JWT, through a role per key (<code>reader-svc-a</code>, <code>reader-svc-b</code>). OpenBao checks the signature against Keycloak and checks the <code>groups</code> claim, so the identity in OpenBao's audit log is the user's own.</li>
+<li><strong>No trail, no decryption.</strong> The <code>attempt</code> row is written before OpenBao is asked to decrypt. If it cannot be written, the service answers 503 and OpenBao is never called.</li>
+<li><strong>Two records, reconciled.</strong> The service's rows have the who, why and result. OpenBao's file shows that the key was actually used. ClickHouse reads that file with <code>file()</code>, and a query lists decryptions OpenBao performed that have no <code>attempt</code> row. Someone with the right who goes to OpenBao directly shows up there.</li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+<li>The langfuse-hols v4 stack running: in that repository, <code>_base/bin/up.sh v4</code>. No licence key is needed. The lab looks for the clone next to this repository; set <code>LANGFUSE_HOLS_DIR</code> otherwise.</li>
+<li>Docker with Compose, <code>curl</code>, <code>jq</code>, <code>openssl</code>, <code>python3</code>.</li>
+<li>Free loopback ports 8090 (Keycloak), 8095 (decrypt-service), 8200 (OpenBao) and 18123 (audit ClickHouse).</li>
+</ul>
+<h3>Run</h3>
+<pre><code class="language-bash">cd usecase/langfuse-decryption-audit
+./01-up.sh               # .env with generated passwords, 4 containers, OpenBao/ClickHouse/Keycloak config
+./02-encrypt-and-send.sh # the &quot;app&quot;: encrypt with OpenBao, send 2 encrypted + 1 plaintext trace to Langfuse
+./03-decrypt-checks.sh   # 9 request scenarios, a bypass, the trail, the reconciliation, immutability
+./04-audit-report.sh     # the reviewer's queries (per user, refusals, reconciliation)
+./99-down.sh [--purge]   # --purge also deletes the audit table, OpenBao's audit file, .env and .state
+</code></pre>
+<p>OpenBao runs in dev mode (in memory), so <code>01-up.sh</code> applies its configuration on every run. Langfuse is not touched by <code>99-down.sh</code>.</p>
+<h3>What the checks found (2026-11-02)</h3>
+<p><code>02-encrypt-and-send.sh</code>: 7 PASS
+- The app's token encrypts with both keys and gets <strong>HTTP 403</strong> when it tries to decrypt.
+- Langfuse's API returns <code>enc:svc-a:vault:v1:…</code> for the encrypted traces; Langfuse's ClickHouse holds <strong>0</strong> rows with their plaintext, and the plaintext control is found by the same query.</p>
+<p><code>03-decrypt-checks.sh</code>: 28 PASS</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Result</th>
+<th>OpenBao's reason (in the service row)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>alice (<code>svc-a-readers</code>) → A, with a reason</td>
+<td>200, plaintext</td>
+<td>—</td>
+</tr>
+<tr>
+<td>carol (<code>svc-b-readers</code>) → B, with a reason</td>
+<td>200, plaintext</td>
+<td>—</td>
+</tr>
+<tr>
+<td>alice → B</td>
+<td>403</td>
+<td><code>claim "groups" does not match any associated bound claim values</code></td>
+</tr>
+<tr>
+<td>bob (no group) → A</td>
+<td>403</td>
+<td><code>"groups" claim not found in token</code></td>
+</tr>
+<tr>
+<td>alice → A, no reason</td>
+<td>400</td>
+<td>(stopped by the service before OpenBao)</td>
+</tr>
+<tr>
+<td>no token</td>
+<td>401</td>
+<td>—</td>
+</tr>
+<tr>
+<td>alice's token edited to carol / <code>svc-b-readers</code>, signature kept</td>
+<td>403</td>
+<td><code>error verifying token signature</code></td>
+</tr>
+<tr>
+<td>audit ClickHouse stopped</td>
+<td>503, no plaintext</td>
+<td>OpenBao received <strong>0</strong> decrypt calls for that request</td>
+</tr>
+<tr>
+<td>alice straight to OpenBao (bypass)</td>
+<td>plaintext</td>
+<td>she holds the right; no service row</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The service's rows:</strong> after these requests the table holds <code>attempt 2, denied 3, reason_missing 1, success 2, unauthenticated 1</code>. A refusal records the user the token <em>claimed</em> (<code>claimed_user</code>) and an empty verified <code>user</code>. The edited token is logged as <code>carol (claimed)</code>. The table holds 0 plaintext, and so does the service's container log.</li>
+<li><strong>OpenBao's file:</strong> the entry for alice's request id carries <code>username: alice</code> and <code>transit/decrypt/svc-a</code>. The three refused logins match the three denied rows by request id. The file holds 0 plaintext (raw or base64) and 0 token signatures; the request id is there in clear.</li>
+<li><strong>Reconciliation:</strong> exactly 1 decryption without an <code>attempt</code> row, alice's bypass.</li>
+<li><strong>Immutability:</strong> <code>audit_writer</code> gets Code 497 for SELECT, <code>ALTER … DELETE</code> and TRUNCATE. <code>auditor</code> gets Code 497 for INSERT and <code>ALTER … UPDATE</code>. The row count is unchanged afterwards.</li>
+</ul>
+<h3>Things worth knowing</h3>
+<ul>
+<li><strong>OpenBao 2.7.2 does not enable audit devices through the API.</strong> It returns <code>cannot enable audit device via API; use declarative, config-based audit device management instead</code>. The device is an <code>audit</code> block in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/openbao/audit.hcl">openbao/audit.hcl</a>. Dev mode accepts it with <code>-config</code>.</li>
+<li><strong>A refused login is a normal response in OpenBao's audit file, and its message is HMAC'd</strong> (<code>response.data.error = "hmac-sha256:…"</code>). The file says <em>that</em> a login failed; only the service row says <em>why</em>.</li>
+<li><strong>The request id is the join key.</strong> <code>sys/config/auditing/request-headers/X-Request-Id</code> with <code>hmac: false</code> keeps it in clear. The ciphertext and the returned plaintext are HMAC'd.</li>
+<li><strong>ClickHouse 26.8:</strong> <code>GRANT READ ON FILE</code> is shown as <code>GRANT FILE ON *.*</code>. The reconciliation's <code>IN (subquery)</code> also needs <code>CREATE TEMPORARY TABLE ON *.*</code> for the auditor; without it the query fails with Code 497.</li>
+<li><strong>Log the intent before decrypting.</strong> The first version wrote its row after decrypting: with the audit store down, OpenBao had already decrypted though the user got nothing. The <code>attempt</code> row closes that gap. Report 4 lists attempts with no outcome row.</li>
+</ul>
+<h3>Mapping to Azure (documented, not run)</h3>
+<table>
+<thead>
+<tr>
+<th>Here</th>
+<th>On Azure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenBao Transit key per service</td>
+<td>Azure Key Vault key per service, <code>decrypt</code> / <code>unwrapKey</code> operations</td>
+</tr>
+<tr>
+<td>OpenBao audit file</td>
+<td>Key Vault diagnostic logs (<code>AuditEvent</code>) to Log Analytics or a storage account</td>
+</tr>
+<tr>
+<td>Keycloak</td>
+<td>Microsoft Entra ID; groups claim or app roles</td>
+</tr>
+<tr>
+<td>the user's JWT → OpenBao role</td>
+<td>the service calls Key Vault with the user's token (on-behalf-of), so the caller identity in Key Vault's log is the user</td>
+</tr>
+<tr>
+<td>audit ClickHouse + reconciliation</td>
+<td>the same table; Key Vault's logs exported and joined by request id</td>
+</tr>
+</tbody>
+</table>
+<h3>Not production</h3>
+<ul>
+<li>OpenBao runs in dev mode (in-memory storage, auto-unsealed, root token in <code>.env</code>). Production needs real storage, unseal, TLS and no root token in use.</li>
+<li>Users get tokens through the password grant only to script the lab. A real portal uses the authorization code flow.</li>
+<li>The service is single-instance, stdlib, without TLS. OpenBao's audit file is shared with ClickHouse through a volume; in production ship it (or a socket device) to the audit store.</li>
+</ul>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/docker-compose.yml">docker-compose.yml</a></td>
+<td>OpenBao, Keycloak, audit ClickHouse, decrypt-service</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/openbao/audit.hcl">openbao/audit.hcl</a></td>
+<td>declarative file audit device</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/keycloak/realm-corp.json">keycloak/realm-corp.json</a></td>
+<td>realm, groups, <code>decrypt-portal</code> client (groups claim, <code>openbao</code> audience)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/decrypt-service/service.py">decrypt-service/service.py</a></td>
+<td>the decryption service (stdlib)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/clickhouse/schema.sql">clickhouse/schema.sql</a></td>
+<td><code>audit.decrypt_events</code> with TTL</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/04-audit-report.sql">04-audit-report.sql</a></td>
+<td>reviewer queries, incl. the reconciliation over <code>file()</code></td>
+</tr>
+<tr>
+<td><code>01</code>–<code>04</code>, <code>99</code>, <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/lib.sh">lib.sh</a></td>
+<td>setup, checks, report, teardown</td>
+</tr>
+</tbody>
+</table>
+<p>Related: field encryption in the Python SDK's export hook is langfuse-hols <a href="https://github.com/litkhai/langfuse-hols/tree/main/labs/v4/langfuse-ee"><code>labs/v4/langfuse-ee</code> step 14</a>.</p>
+<hr /></div>
+  <div class="readme ko"><p><strong>2026-11-02에 처음부터 끝까지 검증</strong>했습니다. Langfuse 4.56.0(OSS, 라이선스 키 없음, <a href="https://github.com/litkhai/langfuse-hols">langfuse-hols</a> v4 스택), ClickHouse 26.8.22.13, OpenBao 2.7.2, Keycloak 26.8.1 기준입니다. 새 볼륨으로 실행했고, 복호화 서비스는 <code>python:3.12.15-slim</code>에서 돌렸습니다. Docker 29.9.2, Compose v5.6.1입니다. <code>02</code>는 확인 7개, <code>03</code>은 28개를 통과했습니다. 일부러 넣은 결함(bob을 <code>svc-a-readers</code>에 추가)에서 <code>03</code>은 5개가 실패했고, 결함을 되돌리자 다시 통과했습니다.</p>
+<p>규제가 있는 조직은 LLM trace에 세 가지를 요구합니다. 민감 필드를 암호화할 것, 권한이 있는 사람만 평문을 볼 것, 그리고 <strong>누가 언제 무엇을 왜 복호화했는지</strong> 기록할 것입니다. Langfuse는 받은 값을 그대로 저장할 뿐 복호화 기능도 조회 감사 기능도 없습니다. Enterprise 기능인 감사 로그도 생성·수정·삭제만 기록합니다. 그래서 기록은 복호화 경로에서 남겨야 합니다. 이 실습은 그 경로를 오픈소스로 만들고 시험합니다.</p>
+<h3>구조</h3>
+<pre><code>  앱 ── 암호화 (OpenBao Transit, 암호화 전용 토큰) ──► Langfuse OSS  (enc:&lt;키&gt;:vault:v1:… 저장)
+                                                           │ public API (서비스의 프로젝트 키)
+  사용자 ── IdP 로그인 (Keycloak) ── POST /decrypt + 사유 ──► decrypt-service ──► 감사 ClickHouse
+                                                           │  1. attempt 행        (audit.decrypt_events,
+                                                           │  2. 사용자 JWT로        쓰기 전용 writer,
+                                                           │     OpenBao 로그인       읽기 전용 auditor)
+                                                           │  3. transit/decrypt + X-Request-Id
+                                                           ▼  4. 결과 행
+                                                        OpenBao ── 감사 파일 ──► ClickHouse file()로 그 자리에서 읽음
+</code></pre>
+<ul>
+<li><strong>서비스는 OpenBao 토큰을 갖고 있지 않습니다.</strong> 사용자 본인의 JWT로, 키마다 있는 role(<code>reader-svc-a</code>, <code>reader-svc-b</code>)에 로그인합니다. OpenBao가 Keycloak 기준으로 서명과 <code>groups</code> claim을 확인하므로, OpenBao 감사 로그에 남는 신원도 사용자 본인입니다.</li>
+<li><strong>이력이 없으면 복호화도 없습니다.</strong> OpenBao에 복호화를 요청하기 전에 <code>attempt</code> 행을 씁니다. 쓰지 못하면 503으로 끝나고 OpenBao는 호출되지 않습니다.</li>
+<li><strong>두 기록을 대조합니다.</strong> 서비스 행에는 누가, 왜, 결과가 있습니다. OpenBao 파일은 키가 실제로 쓰였다는 기록입니다. ClickHouse가 그 파일을 <code>file()</code>로 읽고, <code>attempt</code> 행이 없는 OpenBao 복호화를 쿼리로 찾습니다. 권한이 있는 사람이 OpenBao로 직접 간 경우가 여기에 걸립니다.</li>
+</ul>
+<h3>사전 준비</h3>
+<ul>
+<li>langfuse-hols v4 스택 실행: 그 저장소에서 <code>_base/bin/up.sh v4</code>. 라이선스 키는 필요 없습니다. 이 저장소 옆에 clone이 있다고 보고, 다르면 <code>LANGFUSE_HOLS_DIR</code>을 지정합니다.</li>
+<li>Docker와 Compose, <code>curl</code>, <code>jq</code>, <code>openssl</code>, <code>python3</code>.</li>
+<li>비어 있는 loopback 포트 8090(Keycloak), 8095(decrypt-service), 8200(OpenBao), 18123(감사 ClickHouse).</li>
+</ul>
+<h3>실행</h3>
+<pre><code class="language-bash">cd usecase/langfuse-decryption-audit
+./01-up.sh               # 생성한 비밀번호로 .env, 컨테이너 4개, OpenBao·ClickHouse·Keycloak 설정
+./02-encrypt-and-send.sh # &quot;앱&quot; 역할: OpenBao로 암호화, Langfuse에 암호화 trace 2개와 평문 대조 1개 전송
+./03-decrypt-checks.sh   # 요청 시나리오 9개, 우회, 이력, 대조, 수정 불가 확인
+./04-audit-report.sh     # 감사 담당 쿼리(사용자별, 거부, 대조)
+./99-down.sh [--purge]   # --purge는 감사 테이블, OpenBao 감사 파일, .env, .state까지 삭제
+</code></pre>
+<p>OpenBao는 dev 모드(메모리)라 <code>01-up.sh</code>가 실행할 때마다 설정을 다시 넣습니다. <code>99-down.sh</code>는 Langfuse를 건드리지 않습니다.</p>
+<h3>확인한 것 (2026-11-02)</h3>
+<p><code>02-encrypt-and-send.sh</code>: 7개 PASS
+- 앱 토큰은 두 키로 암호화할 수 있고, 복호화를 시도하면 <strong>HTTP 403</strong>입니다.
+- Langfuse API는 암호화한 trace에 <code>enc:svc-a:vault:v1:…</code>를 돌려주고, Langfuse의 ClickHouse에서 그 평문을 가진 행은 <strong>0</strong>개입니다. 같은 쿼리가 평문 대조는 찾습니다.</p>
+<p><code>03-decrypt-checks.sh</code>: 28개 PASS</p>
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>결과</th>
+<th>OpenBao의 거부 사유(서비스 행에 기록)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>alice(<code>svc-a-readers</code>) → A, 사유 있음</td>
+<td>200, 평문</td>
+<td>—</td>
+</tr>
+<tr>
+<td>carol(<code>svc-b-readers</code>) → B, 사유 있음</td>
+<td>200, 평문</td>
+<td>—</td>
+</tr>
+<tr>
+<td>alice → B</td>
+<td>403</td>
+<td><code>claim "groups" does not match any associated bound claim values</code></td>
+</tr>
+<tr>
+<td>bob(그룹 없음) → A</td>
+<td>403</td>
+<td><code>"groups" claim not found in token</code></td>
+</tr>
+<tr>
+<td>alice → A, 사유 없음</td>
+<td>400</td>
+<td>(OpenBao 전에 서비스가 막음)</td>
+</tr>
+<tr>
+<td>토큰 없음</td>
+<td>401</td>
+<td>—</td>
+</tr>
+<tr>
+<td>alice 토큰을 carol / <code>svc-b-readers</code>로 고치고 서명은 그대로</td>
+<td>403</td>
+<td><code>error verifying token signature</code></td>
+</tr>
+<tr>
+<td>감사 ClickHouse 중지</td>
+<td>503, 평문 없음</td>
+<td>그 요청으로 OpenBao 복호화 호출 <strong>0</strong>회</td>
+</tr>
+<tr>
+<td>alice가 OpenBao로 직접(우회)</td>
+<td>평문</td>
+<td>권한은 있음, 서비스 행은 없음</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>서비스 행:</strong> 위 요청 뒤 테이블은 <code>attempt 2, denied 3, reason_missing 1, success 2, unauthenticated 1</code>입니다. 거부된 요청에는 토큰이 <em>주장한</em> 사용자(<code>claimed_user</code>)가 남고, 검증된 <code>user</code>는 비어 있습니다. 고친 토큰은 <code>carol (claimed)</code>로 남습니다. 테이블에도, 서비스 컨테이너 로그에도 평문은 0건입니다.</li>
+<li><strong>OpenBao 파일:</strong> alice의 request id 항목에 <code>username: alice</code>와 <code>transit/decrypt/svc-a</code>가 있습니다. 거부된 로그인 3건이 서비스의 denied 행 3건과 request id로 맞습니다. 평문(원문, base64)과 토큰 서명은 0건이고, request id는 평문으로 있습니다.</li>
+<li><strong>대조:</strong> <code>attempt</code> 행이 없는 복호화는 정확히 1건, alice의 우회입니다.</li>
+<li><strong>수정 불가:</strong> <code>audit_writer</code>는 SELECT, <code>ALTER … DELETE</code>, TRUNCATE에서 Code 497을 받았습니다. <code>auditor</code>는 INSERT와 <code>ALTER … UPDATE</code>에서 Code 497입니다. 이후 행 수는 그대로였습니다.</li>
+</ul>
+<h3>알아 둘 것</h3>
+<ul>
+<li><strong>OpenBao 2.7.2는 API로 감사 장치를 켜지 않습니다.</strong> <code>cannot enable audit device via API; use declarative, config-based audit device management instead</code>로 거부합니다. 장치는 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/openbao/audit.hcl">openbao/audit.hcl</a>의 <code>audit</code> 블록이고, dev 모드도 <code>-config</code>로 받습니다.</li>
+<li><strong>거부된 로그인은 OpenBao 감사 파일에 일반 응답으로 남고, 메시지는 HMAC으로 가려집니다</strong>(<code>response.data.error = "hmac-sha256:…"</code>). 파일은 로그인이 실패했다는 <em>사실</em>만 알려 주고, <em>이유</em>는 서비스 행에만 있습니다.</li>
+<li><strong>request id가 연결 키입니다.</strong> <code>sys/config/auditing/request-headers/X-Request-Id</code>에 <code>hmac: false</code>를 주면 평문으로 남습니다. 암호문과 돌려준 평문은 HMAC으로 남습니다.</li>
+<li><strong>ClickHouse 26.8:</strong> <code>GRANT READ ON FILE</code>은 <code>GRANT FILE ON *.*</code>로 보입니다. 대조 쿼리의 <code>IN (subquery)</code>는 auditor에게 <code>CREATE TEMPORARY TABLE ON *.*</code>도 필요합니다. 없으면 Code 497로 실패합니다.</li>
+<li><strong>복호화 전에 의도를 남깁니다.</strong> 첫 버전은 복호화한 뒤에 행을 썼습니다. 그래서 감사 저장소가 내려가 있으면 사용자는 아무것도 못 받았는데 OpenBao는 이미 복호화한 상태였습니다. <code>attempt</code> 행이 이 틈을 막습니다. 보고서 4번이 결과 행이 없는 attempt를 보여 줍니다.</li>
+</ul>
+<h3>Azure에 대응하면 (문서 기준, 실행하지 않음)</h3>
+<table>
+<thead>
+<tr>
+<th>여기</th>
+<th>Azure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>서비스별 OpenBao Transit 키</td>
+<td>서비스별 Azure Key Vault 키, <code>decrypt</code> / <code>unwrapKey</code> 연산</td>
+</tr>
+<tr>
+<td>OpenBao 감사 파일</td>
+<td>Key Vault 진단 로그(<code>AuditEvent</code>)를 Log Analytics나 스토리지로</td>
+</tr>
+<tr>
+<td>Keycloak</td>
+<td>Microsoft Entra ID, groups claim 또는 앱 역할</td>
+</tr>
+<tr>
+<td>사용자 JWT → OpenBao role</td>
+<td>서비스가 사용자 토큰으로 Key Vault 호출(on-behalf-of), Key Vault 로그의 호출자가 사용자</td>
+</tr>
+<tr>
+<td>감사 ClickHouse + 대조</td>
+<td>같은 테이블, Key Vault 로그를 내보내 request id로 대조</td>
+</tr>
+</tbody>
+</table>
+<h3>운영용이 아닌 부분</h3>
+<ul>
+<li>OpenBao는 dev 모드입니다(메모리 저장소, 자동 unseal, <code>.env</code>의 root 토큰). 운영에는 실제 저장소, unseal, TLS가 필요하고 root 토큰을 쓰지 않습니다.</li>
+<li>사용자 토큰을 password grant로 받는 것은 실습을 스크립트로 돌리기 위해서입니다. 실제 화면은 authorization code 방식을 씁니다.</li>
+<li>서비스는 단일 인스턴스, stdlib, TLS 없음입니다. OpenBao 감사 파일은 볼륨으로 ClickHouse와 나눕니다. 운영에서는 파일(또는 socket 장치)을 감사 저장소로 보냅니다.</li>
+</ul>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/docker-compose.yml">docker-compose.yml</a></td>
+<td>OpenBao, Keycloak, 감사 ClickHouse, decrypt-service</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/openbao/audit.hcl">openbao/audit.hcl</a></td>
+<td>선언형 파일 감사 장치</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/keycloak/realm-corp.json">keycloak/realm-corp.json</a></td>
+<td>realm, 그룹, <code>decrypt-portal</code> client(groups claim, <code>openbao</code> audience)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/decrypt-service/service.py">decrypt-service/service.py</a></td>
+<td>복호화 서비스(stdlib)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/clickhouse/schema.sql">clickhouse/schema.sql</a></td>
+<td>TTL이 있는 <code>audit.decrypt_events</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/04-audit-report.sql">04-audit-report.sql</a></td>
+<td>감사 담당 쿼리, <code>file()</code> 위의 대조 포함</td>
+</tr>
+<tr>
+<td><code>01</code>–<code>04</code>, <code>99</code>, <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/langfuse-decryption-audit/lib.sh">lib.sh</a></td>
+<td>설정, 확인, 보고서, 정리</td>
+</tr>
+</tbody>
+</table>
+<p>관련: Python SDK의 export hook에서 하는 필드 암호화는 langfuse-hols <a href="https://github.com/litkhai/langfuse-hols/tree/main/labs/v4/langfuse-ee"><code>labs/v4/langfuse-ee</code> 14단계</a>입니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/langfuse-decryption-audit"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/usecase/korean-rag-tokenizers/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval</span></a><a class="step next" href="../../../labs/usecase/langfuse-on-clickhouse/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Langfuse on ClickHouse, without Langfuse</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

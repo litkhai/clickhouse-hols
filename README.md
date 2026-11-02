@@ -62,6 +62,7 @@ and [MOVED.md](MOVED.md).
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: Cloud performance validation at billions of rows |
 | [usecase/fulltext-search](usecase/fulltext-search/) | Bilingual (ko/en) full-text search over support tickets |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | Korean keyword search for RAG: text-index tokenizers, a Kiwi morpheme column, hybrid retrieval (OSS 26.9) |
+| [usecase/langfuse-decryption-audit](usecase/langfuse-decryption-audit/) | Who decrypted which Langfuse field, when and why: OpenBao Transit with per-user JWT login, a decryption service that requires a reason, an insert-only ClickHouse audit table reconciled with OpenBao's audit file (open-source stack; OSS 26.8) |
 | [usecase/langfuse-on-clickhouse](usecase/langfuse-on-clickhouse/) | Langfuse's ClickHouse tables without Langfuse: a v4 snapshot and the langfuse-hols trace, analytics and score SQL (OSS 26.8) |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | Geospatial analytics with H3 indexing |
 | [usecase/korea-geo](usecase/korea-geo/) | Korean administrative boundaries with Superset |
@@ -276,6 +277,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: 수십억 행 규모 Cloud 성능 검증 |
 | [usecase/fulltext-search](usecase/fulltext-search/) | 한/영 이중 언어 지원 티켓 전문 검색 |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | 한국어 RAG 키워드 검색: text index 토크나이저, Kiwi 형태소 컬럼, 하이브리드 검색 (OSS 26.9) |
+| [usecase/langfuse-decryption-audit](usecase/langfuse-decryption-audit/) | Langfuse 필드를 누가, 언제, 왜 복호화했는지: 사용자 JWT로 로그인하는 OpenBao Transit, 사유를 요구하는 복호화 서비스, OpenBao 감사 파일과 대조하는 추가 전용 ClickHouse 감사 테이블 (오픈소스 구성, OSS 26.8) |
 | [usecase/langfuse-on-clickhouse](usecase/langfuse-on-clickhouse/) | Langfuse 없이 보는 Langfuse의 ClickHouse 테이블: v4 스냅샷과 langfuse-hols의 trace, 분석, 점수 SQL (OSS 26.8) |
 | [usecase/ch-geo-analytics](usecase/ch-geo-analytics/) | H3 인덱싱 기반 공간 분석 |
 | [usecase/korea-geo](usecase/korea-geo/) | 한국 행정경계(시군구) + Superset |

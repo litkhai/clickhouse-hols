@@ -1,0 +1,79 @@
+# langfuse-decryption-audit — the decryption path and its audit trail, next to a running Langfuse.
+#
+# Langfuse itself is NOT in this file: it is the langfuse-hols v4 stack (OSS is enough), started
+# with `_base/bin/up.sh v4` in that repository and reached here at host.docker.internal:3000.
+#
+#   openbao           Transit keys per service, JWT auth against Keycloak, file audit device (dev mode)
+#   keycloak          the company IdP stand-in: users, groups, the `decrypt-portal` client
+#   decrypt-service   the only path to plaintext: reason required, logs every request to ClickHouse
+#   clickhouse-audit  the audit store (separate from Langfuse's ClickHouse), reads OpenBao's audit file
+#
+# Secrets come from .env, which 01-up.sh writes (gitignored). Host ports are loopback only.
+name: langfuse-decryption-audit
+
+services:
+  openbao:
+    image: docker.io/openbao/openbao:2.7.2   # MPL-2.0 fork of Vault; pinned (#92)
+    command: server -dev -dev-listen-address=0.0.0.0:8200 -config=/openbao/config/audit.hcl
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${BAO_ROOT_TOKEN:?run 01-up.sh, it writes .env}
+    volumes:
+      - ./openbao/audit.hcl:/openbao/config/audit.hcl:ro
+      - bao_logs:/openbao/logs
+    ports:
+      - 127.0.0.1:8200:8200
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    # Frontend URL = the issuer OpenBao checks. Inside the network `keycloak` resolves; the host
+    # scripts pin it to 127.0.0.1 (curl --resolve).
+    command: start-dev --import-realm --http-port=8090 --hostname=http://keycloak:8090
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?run 01-up.sh, it writes .env}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - 127.0.0.1:8090:8090
+
+  clickhouse-audit:
+    image: docker.io/clickhouse/clickhouse-server:26.8.22.13
+    user: "101:101"
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: ${CH_ADMIN_PASSWORD:?run 01-up.sh, it writes .env}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - ch_audit_data:/var/lib/clickhouse
+      - bao_logs:/var/lib/clickhouse/user_files/openbao:ro   # OpenBao's audit file, read with file()
+    ports:
+      - 127.0.0.1:18123:8123
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 3s
+      retries: 20
+
+  decrypt-service:
+    image: docker.io/python:3.12.15-slim
+    command: python /app/service.py
+    environment:
+      BAO_ADDR: http://openbao:8200
+      LANGFUSE_HOST: ${LANGFUSE_HOST_FROM_CONTAINER:-http://host.docker.internal:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?run 01-up.sh}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?run 01-up.sh}
+      AUDIT_URL: http://clickhouse-audit:8123
+      AUDIT_USER: audit_writer
+      AUDIT_PASSWORD: ${AUDIT_WRITER_PASSWORD:?run 01-up.sh}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./decrypt-service/service.py:/app/service.py:ro
+    ports:
+      - 127.0.0.1:8095:8095
+    depends_on:
+      clickhouse-audit:
+        condition: service_healthy
+
+volumes:
+  bao_logs:
+  ch_audit_data:
