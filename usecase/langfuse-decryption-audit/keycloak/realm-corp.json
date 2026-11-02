@@ -1,0 +1,35 @@
+{
+  "realm": "corp",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 300,
+  "groups": [
+    { "name": "svc-a-readers" },
+    { "name": "svc-b-readers" }
+  ],
+  "clients": [
+    {
+      "clientId": "decrypt-portal",
+      "name": "Decryption portal (lab)",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": { "claim.name": "groups", "full.path": "false", "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false" }
+        },
+        {
+          "name": "audience-openbao",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "openbao", "access.token.claim": "true", "id.token.claim": "false" }
+        }
+      ]
+    }
+  ]
+}
