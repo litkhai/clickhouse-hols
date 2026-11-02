@@ -1,6 +1,6 @@
 # LibreChat with Local LLM and ClickHouse MCP Server
 
-> **Related notes · 관련 글**: [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/third-party/librechat-llm-portal/)
+> **Related notes · 관련 글**: [ClickHouse AI: Agent-Facing Analytics](https://clickhouse.litkhai.dev/articles/feature/clickhouse-ai-agent-facing-analytics/) · [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/librechat/librechat-llm-portal/)
 
 로컬 LLM (Ollama)과 ClickHouse MCP 서버를 통합한 LibreChat 환경입니다.
 

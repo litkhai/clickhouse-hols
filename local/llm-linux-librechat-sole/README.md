@@ -1,6 +1,6 @@
 # LibreChat Standalone (Linux Edition)
 
-> **Related notes · 관련 글**: [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/third-party/librechat-llm-portal/)
+> **Related notes · 관련 글**: [LibreChat: 기업용 LLM Portal](https://clickhouse.litkhai.dev/articles/librechat/librechat-llm-portal/)
 
 **Ollama를 사용한 독립형 LibreChat 배포**
 
