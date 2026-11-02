@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-10-29T08:15:02Z",
+  "generated": "2026-11-02T08:55:58Z",
   "labs": [
     {
       "path": "chc/api/chc-api-test",
@@ -199,7 +199,7 @@
       "summary_ko": "LibreChat과 MongoDB만 담은 Linux용 경량 Docker 배포로, Ollama의 llama3.1:8b 모델을 쓰고 MCP 서버는 사용자가 따로 연결하도록 구성했습니다.",
       "title_en": "Standalone LibreChat on Linux with Ollama",
       "summary_en": "A lightweight Linux Docker deployment of LibreChat and MongoDB that uses Ollama's llama3.1:8b and leaves MCP servers for the user to connect.",
-      "category": "third-party",
+      "category": "librechat",
       "tags": [
         "librechat",
         "llm",
@@ -215,7 +215,7 @@
       "summary_ko": "Mac에서 Ollama 로컬 모델과 ClickHouse MCP 서버를 LibreChat에 묶어 자연어로 ClickHouse를 조회하는 환경과, tool calling을 지원하는 경량 모델 고르는 법을 담았습니다.",
       "title_en": "LibreChat with a local LLM and the ClickHouse MCP server (Mac)",
       "summary_en": "LibreChat on a Mac wired to Ollama local models and a ClickHouse MCP server for natural-language queries, with guidance on light models that support tool calling.",
-      "category": "third-party",
+      "category": "librechat",
       "tags": [
         "librechat",
         "llm",
@@ -574,7 +574,7 @@
       "summary_ko": "Langfuse v4가 ClickHouse에 쓰는 테이블(events_full, events_core, scores) 스냅샷을 일반 ClickHouse에 올려, Langfuse 없이 탐색, LLM 관측 분석, 품질 점수 SQL을 돌리는 실습 (ClickHouse 26.8.18.2)",
       "title_en": "Langfuse's ClickHouse without Langfuse: traces and scores in SQL",
       "summary_en": "A snapshot of the tables Langfuse v4 writes to ClickHouse (events_full, events_core, scores) in a plain ClickHouse, for the exploration, LLM-observability analytics and quality-score SQL with no Langfuse running (ClickHouse 26.8.18.2)",
-      "category": "third-party",
+      "category": "langfuse",
       "target": "oss",
       "tier": "T0",
       "clickhouse": "26.8.18.2",
