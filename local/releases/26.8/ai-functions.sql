@@ -9,7 +9,7 @@
 -- commands or access decisions.
 --
 -- Provider: Anthropic, model claude-haiku-5-5, through a named collection that
--- 04-ai-functions.sh creates from ./.env before this file runs and drops
+-- ai-functions.sh creates from ./.env before this file runs and drops
 -- afterwards. The key is never in this file.
 --
 -- aiSimilarity is not run: Anthropic is chat-only in ClickHouse's provider list

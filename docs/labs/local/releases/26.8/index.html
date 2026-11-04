@@ -42,8 +42,8 @@
 <p>26.8 is an LTS release and a large one — the changelog runs to 21 backward
 incompatible changes, 46 new features and 89 performance improvements. This lab
 takes three of them that you can see working in a single container, and that
-change how you write queries rather than how fast they run, and adds a fourth
-(04) that also needs an Anthropic API key.</p>
+change how you write queries rather than how fast they run, and adds AI functions
+that also need an Anthropic API key (not run by <code>tools/hol</code>).</p>
 <table>
 <thead>
 <tr>
@@ -69,7 +69,7 @@ change how you write queries rather than how fast they run, and adds a fourth
 <td>The difference between a working Korean text index and a useless one</td>
 </tr>
 <tr>
-<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/04-ai-functions.sql">04</a></td>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/ai-functions.sql">AI</a></td>
 <td><code>aiFilter</code>, <code>aiRedact</code> (Beta)</td>
 <td>An LLM call inside a <code>WHERE</code> — what it returns, what it costs, and the per-query limit that stops it. Needs an Anthropic key</td>
 </tr>
@@ -80,7 +80,7 @@ change how you write queries rather than how fast they run, and adds a fourth
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
-./04-ai-functions.sh      # needs ./.env with ANTHROPIC_API_KEY, see lab 04
+./ai-functions.sh         # needs ./.env with ANTHROPIC_API_KEY; not run by tools/hol or smoke
 </code></pre>
 <p>Each <code>NN-*.sh</code> pipes the matching <code>.sql</code> into <code>clickhouse-client</code>. Read the SQL
 — the comments are the lab.</p>
@@ -290,7 +290,7 @@ the server configuration:</p>
 <p>so it does not work out of the box in this container. <code>icu</code> handles Japanese
 without extra configuration, which is the pragmatic choice for a mixed corpus.</p>
 <hr />
-<h3>04 · AI functions: <code>aiFilter</code> and <code>aiRedact</code></h3>
+<h3>AI functions: <code>aiFilter</code> and <code>aiRedact</code> (outside <code>tools/hol</code>)</h3>
 <pre><code class="language-sql">SELECT id, body FROM tickets
 WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
                map('temperature', '1'))
@@ -302,7 +302,7 @@ prompt-injection warning: input text can steer the model, so treat the output as
 untrusted before it builds SQL, shell commands or access decisions.</p>
 <p><strong>Setup.</strong> Provider <code>anthropic</code>, model <code>claude-haiku-5-5</code>, run on local OSS
 26.8.36.3 with the author's own key. The key is never in the repository:
-<code>04-ai-functions.sh</code> reads it from <code>./.env</code> (gitignored; one line,
+<code>ai-functions.sh</code> reads it from <code>./.env</code> (gitignored; one line,
 <code>ANTHROPIC_API_KEY=...</code>, mode 600), builds the <code>CREATE NAMED COLLECTION</code>
 statement and pipes it to <code>clickhouse-client</code> on stdin (no <code>--echo</code>), and drops
 the collection when it ends. <code>ai_function_text_default_credentials</code> points the
@@ -468,7 +468,7 @@ hosts the functions may call; this container does not set it.</p>
 </tr>
 <tr>
 <td><code>aiSimilarity</code></td>
-<td>Embedding similarity of two texts; needs an embeddings provider, see lab 04 for why it is not run. <code>aiFilter</code> and <code>aiRedact</code> are lab 04</td>
+<td>Embedding similarity of two texts; needs an embeddings provider, see the AI functions section for why it is not run. <code>aiFilter</code> and <code>aiRedact</code> are that section</td>
 </tr>
 <tr>
 <td><code>CREATE HANDLER</code></td>
@@ -486,7 +486,7 @@ container this lab sets up, and the outputs quoted above are from those runs.
 Two of them needed fixing along the way, and both are noted in the SQL:
 <code>UNION ALL</code> does not expose its column aliases to a trailing <code>ORDER BY</code>, and
 <code>tokens()</code> will not take a locale from a column.</p>
-<p>Lab 04 was run separately, on <strong>26.8.36.3</strong> (the image <code>26.8</code> resolved to on
+<p>The AI functions section was run separately, on <strong>26.8.36.3</strong> (the image <code>26.8</code> resolved to on
 2026-11-04), with the Anthropic API; labs 01–03 were not re-run on that build,
 so the version at the top of this page is unchanged.</p>
 <hr /></div>
@@ -494,7 +494,7 @@ so the version at the top of this page is unchanged.</p>
 <p>26.8은 LTS이고 규모가 큽니다 — changelog에 하위 호환성 변경 21개, 신기능 46개,
 성능 개선 89개가 있습니다. 이 랩은 그중 <strong>컨테이너 하나에서 눈으로 확인할 수
 있고</strong>, 속도가 아니라 쿼리를 쓰는 방식을 바꾸는 세 가지를 다루고, Anthropic API 키가
-필요한 네 번째(04)를 더합니다.</p>
+필요한 AI 함수를 따로 더합니다(<code>tools/hol</code>은 실행하지 않음).</p>
 <table>
 <thead>
 <tr>
@@ -520,7 +520,7 @@ so the version at the top of this page is unchanged.</p>
 <td>쓸모 있는 한국어 텍스트 인덱스와 무용지물의 차이</td>
 </tr>
 <tr>
-<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/04-ai-functions.sql">04</a></td>
+<td><a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/releases/26.8/ai-functions.sql">AI</a></td>
 <td><code>aiFilter</code>·<code>aiRedact</code> (Beta)</td>
 <td><code>WHERE</code> 안의 LLM 호출 — 무엇을 돌려주고, 얼마가 들고, 무엇이 막는지. Anthropic 키 필요</td>
 </tr>
@@ -531,7 +531,7 @@ so the version at the top of this page is unchanged.</p>
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
-./04-ai-functions.sh      # ./.env에 ANTHROPIC_API_KEY 필요, 랩 04 참고
+./ai-functions.sh         # ./.env에 ANTHROPIC_API_KEY 필요, tools/hol·smoke는 실행하지 않음
 </code></pre>
 <p>각 <code>NN-*.sh</code>는 같은 이름의 <code>.sql</code>을 <code>clickhouse-client</code>에 넘깁니다. SQL을
 읽으세요 — 주석이 곧 랩입니다.</p>
@@ -738,7 +738,7 @@ icu(zh)  ['点','击','之家','向量','搜索','很快']
 <p>그래서 이 컨테이너에서는 바로 안 됩니다. <code>icu</code>는 추가 설정 없이 일본어를
 처리하므로, 혼합 코퍼스에는 그쪽이 현실적입니다.</p>
 <hr />
-<h3>04 · AI 함수: <code>aiFilter</code>와 <code>aiRedact</code></h3>
+<h3>AI 함수: <code>aiFilter</code>와 <code>aiRedact</code> (<code>tools/hol</code> 밖)</h3>
 <pre><code class="language-sql">SELECT id, body FROM tickets
 WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
                map('temperature', '1'))
@@ -749,7 +749,7 @@ WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
 유도할 수 있으므로, 출력으로 SQL·셸 명령·접근 결정을 만들기 전에 신뢰하지 않는
 값으로 다루세요.</p>
 <p><strong>준비.</strong> 제공자 <code>anthropic</code>, 모델 <code>claude-haiku-5-5</code>, 로컬 OSS 26.8.36.3에서
-작성자 본인의 키로 실행했습니다. 키는 저장소에 없습니다. <code>04-ai-functions.sh</code>가
+작성자 본인의 키로 실행했습니다. 키는 저장소에 없습니다. <code>ai-functions.sh</code>가
 <code>./.env</code>(gitignore, <code>ANTHROPIC_API_KEY=...</code> 한 줄, 권한 600)에서 읽어
 <code>CREATE NAMED COLLECTION</code> 문을 만들고 stdin으로 <code>clickhouse-client</code>에 넘기며
 (<code>--echo</code> 없음), 끝나면 컬렉션을 지웁니다. <code>ai_function_text_default_credentials</code>가
@@ -913,7 +913,7 @@ Anthropic은 채팅 함수만 지원합니다. OpenAI 키가 있어야 하며 �
 </tr>
 <tr>
 <td><code>aiSimilarity</code></td>
-<td>두 텍스트의 임베딩 유사도. 임베딩 제공자가 필요해 실행하지 않음(이유는 랩 04). <code>aiFilter</code>·<code>aiRedact</code>는 랩 04</td>
+<td>두 텍스트의 임베딩 유사도. 임베딩 제공자가 필요해 실행하지 않음(이유는 AI 함수 절). <code>aiFilter</code>·<code>aiRedact</code>는 그 절</td>
 </tr>
 <tr>
 <td><code>CREATE HANDLER</code></td>
@@ -930,7 +930,7 @@ Anthropic은 채팅 함수만 지원합니다. OpenAI 키가 있어야 하며 �
 실행했고, 위에 인용한 출력은 그 실행 결과입니다. 그 과정에서 두 가지를 고쳐야
 했고 둘 다 SQL에 적어뒀습니다. <code>UNION ALL</code>은 컬럼 별칭을 뒤따르는 <code>ORDER BY</code>에
 노출하지 않으며, <code>tokens()</code>는 로케일을 컬럼에서 받지 않습니다.</p>
-<p>랩 04는 따로 <strong>26.8.36.3</strong>(2026-11-04에 <code>26.8</code> 이미지가 가리킨 빌드)에서 Anthropic
+<p>AI 함수 절은 따로 <strong>26.8.36.3</strong>(2026-11-04에 <code>26.8</code> 이미지가 가리킨 빌드)에서 Anthropic
 API로 실행했습니다. 01–03은 그 빌드에서 다시 돌리지 않았으므로 맨 위의 버전
 표기는 그대로입니다.</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/releases/26.8"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>

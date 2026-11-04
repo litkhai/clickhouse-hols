@@ -41,7 +41,7 @@ CREATE NAMED COLLECTION ai_text_credentials AS
     api_key = '%s';\n" "$ANTHROPIC_API_KEY" | "${CH[@]}" || exit 1
 
 # --ignore-error: section 4 shows a query that is supposed to fail.
-"${CH[@]}" --ignore-error < "$SCRIPT_DIR/04-ai-functions.sql"
+"${CH[@]}" --ignore-error < "$SCRIPT_DIR/ai-functions.sql"
 
 echo ""
 echo "================================"

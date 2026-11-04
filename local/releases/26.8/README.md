@@ -11,15 +11,15 @@
 26.8 is an LTS release and a large one — the changelog runs to 21 backward
 incompatible changes, 46 new features and 89 performance improvements. This lab
 takes three of them that you can see working in a single container, and that
-change how you write queries rather than how fast they run, and adds a fourth
-(04) that also needs an Anthropic API key.
+change how you write queries rather than how fast they run, and adds AI functions
+that also need an Anthropic API key (not run by `tools/hol`).
 
 | Lab | Feature | Why it is here |
 |-----|---------|----------------|
 | [01](01-pipe-operators.sql) | Pipe operators `\|>` | The biggest syntax change in years. Queries read in the order data flows |
 | [02](02-groups-window-frame.sql) | `GROUPS` window frame mode | The third frame mode SQL defines, and the one ClickHouse was missing |
 | [03](03-cjk-tokenizers.sql) | `japanese`, `chinese`, `icu` tokenizers | The difference between a working Korean text index and a useless one |
-| [04](04-ai-functions.sql) | `aiFilter`, `aiRedact` (Beta) | An LLM call inside a `WHERE` — what it returns, what it costs, and the per-query limit that stops it. Needs an Anthropic key |
+| [AI](ai-functions.sql) | `aiFilter`, `aiRedact` (Beta) | An LLM call inside a `WHERE` — what it returns, what it costs, and the per-query limit that stops it. Needs an Anthropic key |
 
 ### Quick start
 
@@ -28,7 +28,7 @@ change how you write queries rather than how fast they run, and adds a fourth
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
-./04-ai-functions.sh      # needs ./.env with ANTHROPIC_API_KEY, see lab 04
+./ai-functions.sh         # needs ./.env with ANTHROPIC_API_KEY; not run by tools/hol or smoke
 ```
 
 Each `NN-*.sh` pipes the matching `.sql` into `clickhouse-client`. Read the SQL
@@ -238,7 +238,7 @@ without extra configuration, which is the pragmatic choice for a mixed corpus.
 
 ---
 
-### 04 · AI functions: `aiFilter` and `aiRedact`
+### AI functions: `aiFilter` and `aiRedact` (outside `tools/hol`)
 
 ```sql
 SELECT id, body FROM tickets
@@ -254,7 +254,7 @@ untrusted before it builds SQL, shell commands or access decisions.
 
 **Setup.** Provider `anthropic`, model `claude-haiku-5-5`, run on local OSS
 26.8.36.3 with the author's own key. The key is never in the repository:
-`04-ai-functions.sh` reads it from `./.env` (gitignored; one line,
+`ai-functions.sh` reads it from `./.env` (gitignored; one line,
 `ANTHROPIC_API_KEY=...`, mode 600), builds the `CREATE NAMED COLLECTION`
 statement and pipes it to `clickhouse-client` on stdin (no `--echo`), and drops
 the collection when it ends. `ai_function_text_default_credentials` points the
@@ -333,7 +333,7 @@ Worth knowing about, in rough order of how likely they are to affect you:
 | `gini` | Aggregate function for the Gini coefficient |
 | `notHas`, array-of-integers subscript, `MultiPoint` | Small conveniences, all present and working |
 | `bigquery` table function and `BigQuery` engine | |
-| `aiSimilarity` | Embedding similarity of two texts; needs an embeddings provider, see lab 04 for why it is not run. `aiFilter` and `aiRedact` are lab 04 |
+| `aiSimilarity` | Embedding similarity of two texts; needs an embeddings provider, see the AI functions section for why it is not run. `aiFilter` and `aiRedact` are that section |
 | `CREATE HANDLER` | Custom HTTP handlers as DDL |
 | `parseQueryToJSON` / `formatQueryFromJSON` | AST to JSON and back |
 
@@ -345,7 +345,7 @@ Two of them needed fixing along the way, and both are noted in the SQL:
 `UNION ALL` does not expose its column aliases to a trailing `ORDER BY`, and
 `tokens()` will not take a locale from a column.
 
-Lab 04 was run separately, on **26.8.36.3** (the image `26.8` resolved to on
+The AI functions section was run separately, on **26.8.36.3** (the image `26.8` resolved to on
 2026-11-04), with the Anthropic API; labs 01–03 were not re-run on that build,
 so the version at the top of this page is unchanged.
 
@@ -358,14 +358,14 @@ so the version at the top of this page is unchanged.
 26.8은 LTS이고 규모가 큽니다 — changelog에 하위 호환성 변경 21개, 신기능 46개,
 성능 개선 89개가 있습니다. 이 랩은 그중 **컨테이너 하나에서 눈으로 확인할 수
 있고**, 속도가 아니라 쿼리를 쓰는 방식을 바꾸는 세 가지를 다루고, Anthropic API 키가
-필요한 네 번째(04)를 더합니다.
+필요한 AI 함수를 따로 더합니다(`tools/hol`은 실행하지 않음).
 
 | 랩 | 기능 | 선정 이유 |
 |----|------|-----------|
 | [01](01-pipe-operators.sql) | 파이프 연산자 `\|>` | 수년 만의 가장 큰 문법 변화. 쿼리가 데이터 흐름 순서로 읽힘 |
 | [02](02-groups-window-frame.sql) | `GROUPS` 윈도우 프레임 | SQL이 정의한 세 번째 프레임 모드, ClickHouse에 없던 것 |
 | [03](03-cjk-tokenizers.sql) | `japanese`·`chinese`·`icu` 토크나이저 | 쓸모 있는 한국어 텍스트 인덱스와 무용지물의 차이 |
-| [04](04-ai-functions.sql) | `aiFilter`·`aiRedact` (Beta) | `WHERE` 안의 LLM 호출 — 무엇을 돌려주고, 얼마가 들고, 무엇이 막는지. Anthropic 키 필요 |
+| [AI](ai-functions.sql) | `aiFilter`·`aiRedact` (Beta) | `WHERE` 안의 LLM 호출 — 무엇을 돌려주고, 얼마가 들고, 무엇이 막는지. Anthropic 키 필요 |
 
 ### 빠른 시작
 
@@ -374,7 +374,7 @@ so the version at the top of this page is unchanged.
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
-./04-ai-functions.sh      # ./.env에 ANTHROPIC_API_KEY 필요, 랩 04 참고
+./ai-functions.sh         # ./.env에 ANTHROPIC_API_KEY 필요, tools/hol·smoke는 실행하지 않음
 ```
 
 각 `NN-*.sh`는 같은 이름의 `.sql`을 `clickhouse-client`에 넘깁니다. SQL을
@@ -581,7 +581,7 @@ Code: 139. The Japanese tokenizer requires a dictionary configured under
 
 ---
 
-### 04 · AI 함수: `aiFilter`와 `aiRedact`
+### AI 함수: `aiFilter`와 `aiRedact` (`tools/hol` 밖)
 
 ```sql
 SELECT id, body FROM tickets
@@ -596,7 +596,7 @@ WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
 값으로 다루세요.
 
 **준비.** 제공자 `anthropic`, 모델 `claude-haiku-5-5`, 로컬 OSS 26.8.36.3에서
-작성자 본인의 키로 실행했습니다. 키는 저장소에 없습니다. `04-ai-functions.sh`가
+작성자 본인의 키로 실행했습니다. 키는 저장소에 없습니다. `ai-functions.sh`가
 `./.env`(gitignore, `ANTHROPIC_API_KEY=...` 한 줄, 권한 600)에서 읽어
 `CREATE NAMED COLLECTION` 문을 만들고 stdin으로 `clickhouse-client`에 넘기며
 (`--echo` 없음), 끝나면 컬렉션을 지웁니다. `ai_function_text_default_credentials`가
@@ -673,7 +673,7 @@ Anthropic은 채팅 함수만 지원합니다. OpenAI 키가 있어야 하며 �
 | `gini` | 지니 계수 집계 함수 |
 | `notHas`, 정수 배열 첨자, `MultiPoint` | 소소한 편의 기능, 모두 동작 확인 |
 | `bigquery` 테이블 함수와 `BigQuery` 엔진 | |
-| `aiSimilarity` | 두 텍스트의 임베딩 유사도. 임베딩 제공자가 필요해 실행하지 않음(이유는 랩 04). `aiFilter`·`aiRedact`는 랩 04 |
+| `aiSimilarity` | 두 텍스트의 임베딩 유사도. 임베딩 제공자가 필요해 실행하지 않음(이유는 AI 함수 절). `aiFilter`·`aiRedact`는 그 절 |
 | `CREATE HANDLER` | 커스텀 HTTP 핸들러를 DDL로 |
 | `parseQueryToJSON` / `formatQueryFromJSON` | AST ↔ JSON |
 
@@ -684,6 +684,6 @@ Anthropic은 채팅 함수만 지원합니다. OpenAI 키가 있어야 하며 �
 했고 둘 다 SQL에 적어뒀습니다. `UNION ALL`은 컬럼 별칭을 뒤따르는 `ORDER BY`에
 노출하지 않으며, `tokens()`는 로케일을 컬럼에서 받지 않습니다.
 
-랩 04는 따로 **26.8.36.3**(2026-11-04에 `26.8` 이미지가 가리킨 빌드)에서 Anthropic
+AI 함수 절은 따로 **26.8.36.3**(2026-11-04에 `26.8` 이미지가 가리킨 빌드)에서 Anthropic
 API로 실행했습니다. 01–03은 그 빌드에서 다시 돌리지 않았으므로 맨 위의 버전
 표기는 그대로입니다.
