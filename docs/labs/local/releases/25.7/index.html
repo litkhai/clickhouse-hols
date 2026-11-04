@@ -43,14 +43,14 @@
 </blockquote>
 <p>A hands-on laboratory for learning and testing ClickHouse 25.7 new features. This directory focuses on verified and working features newly added in ClickHouse 25.7 (released 2025-07-24).</p>
 <h3>📋 Overview</h3>
-<p>ClickHouse 25.7 includes revolutionary SQL UPDATE/DELETE optimization, AI-powered SQL generation, count() aggregation optimization, JOIN performance improvements, and massive bulk UPDATE performance enhancements.</p>
+<p>ClickHouse 25.7 adds <code>UPDATE ... SET ... WHERE</code> on patch parts (experimental), AI-powered SQL generation, count() aggregation optimization, and JOIN performance improvements.</p>
 <h3>🎯 Key Features</h3>
 <ol>
-<li><strong>SQL UPDATE and DELETE Operations</strong> - Up to 1000x faster updates/deletes with lightweight patch-part mechanism</li>
+<li><strong>SQL UPDATE and DELETE Operations</strong> - <code>UPDATE ... SET ... WHERE</code> writes a small patch part instead of rewriting the data part; <code>DELETE FROM</code> for lightweight delete</li>
 <li><strong>AI-Powered SQL Generation</strong> - Natural language SQL generation using OpenAI/Anthropic API (?? prefix)</li>
 <li><strong>count() Aggregation Optimization</strong> - 20-30% faster aggregation performance and reduced memory usage</li>
 <li><strong>JOIN Performance Improvements</strong> - Up to 1.8x faster JOIN operations</li>
-<li><strong>Bulk UPDATE Performance</strong> - Up to 4000x faster bulk updates compared to PostgreSQL</li>
+<li><strong>Bulk UPDATE Performance</strong> - the same five bulk updates as <code>UPDATE</code> (patch parts) and as <code>ALTER TABLE ... UPDATE</code>, with the time and bytes written measured</li>
 </ol>
 <h3>🚀 Quick Start</h3>
 <h4>Prerequisites</h4>
@@ -81,26 +81,27 @@ source 01-sql-update-delete.sql
 </code></pre>
 <h3>📚 Feature Details</h3>
 <h4>1. SQL UPDATE and DELETE Operations (01-sql-update-delete)</h4>
-<p><strong>New Feature:</strong> UPDATE/DELETE using lightweight patch-part mechanism (up to 1000x faster)</p>
+<p><strong>New Feature:</strong> <code>UPDATE t SET ... WHERE ...</code> using the patch-part mechanism (experimental in 25.7)</p>
 <p><strong>Test Content:</strong>
-- Single record UPDATE performance
-- Conditional bulk UPDATE (WHERE clause)
-- UPDATE with complex expressions
-- Lightweight DELETE operations (up to 1000x faster)
-- Inventory management system practice
-- Large-scale table updates with 10 million rows</p>
+- The settings the server reports, and what it says when they are missing (<code>.sh</code>)
+- <code>UPDATE</code> on a table with <code>enable_block_number_column = 1, enable_block_offset_column = 1</code>: the patch part in <code>system.parts</code>, no mutation
+- <code>ALTER TABLE ... UPDATE</code> on an identical table: the mutation and the rewritten part
+- What each wrote, from <code>system.part_log</code>
+- <code>OPTIMIZE ... FINAL</code> folding the patch into the data part
+- <code>DELETE FROM</code> (lightweight delete) shown as what it is
+- 1,000,000 rows per table</p>
 <p><strong>Execute:</strong></p>
 <pre><code class="language-bash">./01-sql-update-delete.sh
 # Or
 cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client --multiline --multiquery
 </code></pre>
 <p><strong>Key Learning Points:</strong>
-- Patch-part mechanism: Stores only changes without rewriting entire parts
-- Optimized updates with ALTER TABLE UPDATE syntax
-- Selective updates with WHERE conditions
-- Conditional value setting with CASE statements
-- Complex update logic using subqueries
-- System resource efficiency with asynchronous execution</p>
+- Needs, read from 25.7.8.71 (<code>system.settings</code>, <code>system.merge_tree_settings</code> and the error text): session setting <code>allow_experimental_lightweight_update = 1</code> (default 0; without it: Code 344), and on the table <code>enable_block_number_column = 1</code> and <code>enable_block_offset_column = 1</code> (default 0; without them: Code 48, one message per missing setting). Existing tables can get them with <code>ALTER TABLE ... MODIFY SETTING</code>
+- Patch part: <code>UPDATE ... SET quantity = 0 WHERE category = 'Books'</code> (250,000 of 1,000,000 rows) created one patch part of 250,000 rows, 44,032 bytes on disk (8.3 MB uncompressed), next to the untouched data part. No entry in <code>system.mutations</code>. The new value is visible at once because patches are applied on <code>SELECT</code> (<code>apply_patch_parts</code>)
+- <code>ALTER TABLE ... UPDATE</code> with the same predicate on an identical table: a mutation, and a new data part of 1,000,000 rows, 35,321,998 bytes on disk (44.0 MB uncompressed) replaced the old one
+- The patch is merged into the data part by a merge (<code>OPTIMIZE ... FINAL</code>); read with <code>apply_patch_parts = 0</code> the merged part already holds the updated values
+- <code>DELETE FROM t WHERE ...</code> is not a patch part: <code>system.mutations</code> shows <code>UPDATE _row_exists = 0 WHERE ...</code>, and the rows stay in the active parts until a merge
+- You cannot <code>UPDATE</code> an ORDER BY key column (Code 420, <code>04-bulk-update.sh</code>)</p>
 <p><strong>Real-World Use Cases:</strong>
 - Real-time inventory management and pricing adjustments
 - E-commerce promotions and discount application
@@ -108,9 +109,10 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - User profile and settings updates
 - Batch data processing and ETL pipelines
 - GDPR-compliant data deletion</p>
-<p><strong>Performance Comparison:</strong>
-- Traditional approach: Requires full part rewrite (slow)
-- ClickHouse 25.7: Patch-part applies only changes (up to 1000x faster)</p>
+<p><strong>Size of what is written (this run, 1,000,000 rows, 250,000 updated):</strong>
+- <code>UPDATE</code> (patch part): 44,032 bytes on disk
+- <code>ALTER TABLE ... UPDATE</code> (rewritten part): 35,321,998 bytes on disk
+- Timings (tens to hundreds of milliseconds at this size) varied from run to run and are not quoted; no speed factor is claimed</p>
 <hr />
 <h4>2. count() Aggregation Optimization (02-count-optimization)</h4>
 <p><strong>New Feature:</strong> Optimized count() aggregation function (20-30% faster with reduced memory usage)</p>
@@ -177,24 +179,21 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - Filter data before JOIN with WHERE conditions</p>
 <hr />
 <h4>4. Bulk UPDATE Performance (04-bulk-update)</h4>
-<p><strong>New Feature:</strong> Up to 4000x faster bulk updates compared to PostgreSQL</p>
+<p><strong>New Feature:</strong> bulk <code>UPDATE</code> on patch parts, measured against <code>ALTER TABLE ... UPDATE</code></p>
 <p><strong>Test Content:</strong>
-- Large-scale bulk UPDATE (10 million rows)
-- UPDATE with complex WHERE conditions
-- Multiple column simultaneous UPDATE
-- Conditional UPDATE using CASE statements
-- UPDATE using aggregation results
-- Performance comparison and benchmarking</p>
+- Two identical tables of 3,000,000 rows
+- Five bulk updates (single category, several categories, compound WHERE, three columns at once, almost-every-row), run as <code>UPDATE</code> on one table and as <code>ALTER TABLE ... UPDATE</code> on the other
+- Both tables end with the same data (row-hash sum compared)
+- Time (<code>system.query_log</code>) and bytes written (<code>system.part_log</code>) for each way
+- What <code>UPDATE</code> refuses (<code>.sh</code>): key column (Code 420), no WHERE (Code 62), table without the block settings (Code 48)</p>
 <p><strong>Execute:</strong></p>
 <pre><code class="language-bash">./04-bulk-update.sh
 </code></pre>
 <p><strong>Key Learning Points:</strong>
-- Patch-part mechanism eliminates need for full table rewrite
-- Can update millions of rows in seconds
-- Efficient processing of complex conditional updates
-- JOIN-like UPDATE using subqueries
-- System load minimization with asynchronous mutations
-- ALTER TABLE UPDATE syntax utilization</p>
+- Patch parts write only the changed rows; <code>ALTER TABLE ... UPDATE</code> rewrites the parts it touches
+- Measured here (3,000,000 rows per table, 25.7.8.71, single local container, five statements each): <code>UPDATE</code> wrote 8 patch parts, 4,534,893 rows, about 7.5 MB on disk (198 MB uncompressed); <code>ALTER TABLE ... UPDATE</code> wrote 15 mutated parts, 15,000,000 rows, about 170 MB on disk (685 MB uncompressed)
+- Time is not in favour of the patch here: over four runs the five <code>UPDATE</code> statements took 0.7 to 2.3 s in total and the five <code>ALTER TABLE ... UPDATE</code> (with <code>mutations_sync = 2</code>) 0.2 to 0.9 s. Fewer bytes written, not shorter wall time, is what this run shows
+- Do not extrapolate: one small table, one node, cache state not controlled</p>
 <p><strong>Real-World Use Cases:</strong>
 - Real-time inventory synchronization and pricing adjustments
 - Retail: Daily closing price updates and promotions
@@ -203,11 +202,35 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - IoT: Device configuration and status bulk updates
 - Data migration: Legacy system modernization
 - Data quality: Bulk correction and normalization</p>
-<p><strong>Performance Comparison:</strong>
-| Database | Million Row Update Time | Technology | Performance |
-|----------|------------------------|----------|------------|
-| ClickHouse 25.7 | Seconds | Patch-part mechanism | 4000x faster |
-| PostgreSQL | Hours | Full row rewrite | Baseline |</p>
+<p><strong>Measured (3,000,000 rows, five bulk updates, one run):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>New parts</th>
+<th>Rows written</th>
+<th>Bytes on disk</th>
+<th>Statement time, total of five</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UPDATE</code> (patch parts)</td>
+<td>8</td>
+<td>4,534,893</td>
+<td>7,476,049</td>
+<td>1,432 ms</td>
+</tr>
+<tr>
+<td><code>ALTER TABLE ... UPDATE</code></td>
+<td>15</td>
+<td>15,000,000</td>
+<td>169,986,047</td>
+<td>157 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The time column varied between runs (<code>UPDATE</code> 0.7-2.3 s, <code>ALTER</code> 0.2-0.9 s over four runs); the bytes moved by less than 0.2%. No comparison with another database was run.</p>
 <hr />
 <h4>5. AI-Powered SQL Generation (Feature Description)</h4>
 <p><strong>New Feature:</strong> Natural language to SQL conversion using OpenAI or Anthropic API</p>
@@ -310,10 +333,10 @@ docker logs clickhouse-25-7
 </thead>
 <tbody>
 <tr>
-<td>UPDATE/DELETE</td>
-<td>Slow (full rewrites)</td>
-<td>Patch-part mechanism</td>
-<td>Up to 1000x faster</td>
+<td>UPDATE</td>
+<td><code>ALTER TABLE ... UPDATE</code> rewrites parts</td>
+<td><code>UPDATE</code> writes a patch part (experimental)</td>
+<td>44 KB vs 35 MB written in lab 01; time: see lab 04</td>
 </tr>
 <tr>
 <td>count() aggregation</td>
@@ -329,46 +352,15 @@ docker logs clickhouse-25-7
 </tr>
 <tr>
 <td>Bulk UPDATE</td>
-<td>Slow for large datasets</td>
-<td>Highly optimized</td>
-<td>Up to 4000x vs PostgreSQL</td>
+<td>Mutation rewrites parts</td>
+<td>Patch parts</td>
+<td>7.5 MB vs 170 MB on disk in lab 04; slower wall time in that run</td>
 </tr>
 <tr>
 <td>SQL Generation</td>
 <td>Manual only</td>
 <td>AI-powered (optional)</td>
 <td>Natural language to SQL</td>
-</tr>
-</tbody>
-</table>
-<h4>UPDATE Performance Comparison</h4>
-<table>
-<thead>
-<tr>
-<th>Operation</th>
-<th>Traditional RDBMS</th>
-<th>ClickHouse 25.7</th>
-<th>Performance Gain</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Single row UPDATE</td>
-<td>Milliseconds</td>
-<td>Microseconds</td>
-<td>100-1000x</td>
-</tr>
-<tr>
-<td>Bulk UPDATE (1M rows)</td>
-<td>Hours</td>
-<td>Seconds</td>
-<td>4000x</td>
-</tr>
-<tr>
-<td>Complex conditional UPDATE</td>
-<td>Very slow</td>
-<td>Fast</td>
-<td>1000x</td>
 </tr>
 </tbody>
 </table>
@@ -501,14 +493,14 @@ WHERE table = 'your_table'
 </blockquote>
 <p>ClickHouse 25.7 신기능을 학습하고 테스트하는 실습 환경입니다. 이 디렉토리는 2025년 7월 24일 출시된 ClickHouse 25.7에서 새롭게 추가된 기능들을 실습하고 반복 학습할 수 있도록 구성되어 있습니다.</p>
 <h3>📋 개요</h3>
-<p>ClickHouse 25.7은 혁신적인 SQL UPDATE/DELETE 최적화, AI 기반 SQL 생성, count() 집계 최적화, JOIN 성능 개선, 그리고 대규모 bulk UPDATE 성능 향상을 포함합니다.</p>
+<p>ClickHouse 25.7은 patch part 기반 <code>UPDATE ... SET ... WHERE</code>(실험적), AI 기반 SQL 생성, count() 집계 최적화, JOIN 성능 개선을 포함합니다.</p>
 <h3>🎯 주요 기능</h3>
 <ol>
-<li><strong>SQL UPDATE and DELETE Operations</strong> - 경량 patch-part 메커니즘으로 최대 1000배 빠른 업데이트/삭제</li>
+<li><strong>SQL UPDATE and DELETE Operations</strong> - <code>UPDATE ... SET ... WHERE</code>는 데이터 파트를 다시 쓰지 않고 작은 patch part를 씁니다. 경량 삭제는 <code>DELETE FROM</code></li>
 <li><strong>AI-Powered SQL Generation</strong> - OpenAI/Anthropic API를 이용한 자연어 SQL 생성 (?? prefix)</li>
 <li><strong>count() Aggregation Optimization</strong> - 20-30% 빠른 집계 성능과 메모리 사용량 감소</li>
 <li><strong>JOIN Performance Improvements</strong> - 최대 1.8배 빠른 JOIN 연산</li>
-<li><strong>Bulk UPDATE Performance</strong> - PostgreSQL 대비 최대 4000배 빠른 대량 업데이트</li>
+<li><strong>Bulk UPDATE Performance</strong> - 같은 대량 업데이트 5건을 <code>UPDATE</code>(patch part)와 <code>ALTER TABLE ... UPDATE</code>로 실행하고 시간과 기록한 바이트를 측정</li>
 </ol>
 <h3>🚀 빠른 시작</h3>
 <h4>사전 요구사항</h4>
@@ -539,26 +531,27 @@ source 01-sql-update-delete.sql
 </code></pre>
 <h3>📚 기능 상세</h3>
 <h4>1. SQL UPDATE and DELETE Operations (01-sql-update-delete)</h4>
-<p><strong>새로운 기능:</strong> 경량 patch-part 메커니즘을 사용한 UPDATE/DELETE (최대 1000배 빠름)</p>
+<p><strong>새로운 기능:</strong> patch-part 메커니즘을 사용한 <code>UPDATE t SET ... WHERE ...</code> (25.7에서는 실험적)</p>
 <p><strong>테스트 내용:</strong>
-- 단일 레코드 UPDATE 성능
-- 조건부 대량 UPDATE (WHERE 절)
-- 복잡한 표현식을 이용한 UPDATE
-- 경량 DELETE 연산 (최대 1000배 빠름)
-- 재고 관리 시스템 실습
-- 1000만 행 대규모 테이블 업데이트</p>
+- 서버가 보고하는 설정과, 설정이 없을 때의 오류(<code>.sh</code>)
+- <code>enable_block_number_column = 1, enable_block_offset_column = 1</code> 테이블에서 <code>UPDATE</code>: <code>system.parts</code>의 patch part, mutation 없음
+- 같은 테이블에서 <code>ALTER TABLE ... UPDATE</code>: mutation과 다시 쓴 파트
+- <code>system.part_log</code>로 본 각각의 기록량
+- <code>OPTIMIZE ... FINAL</code>이 patch를 데이터 파트에 합치는 과정
+- <code>DELETE FROM</code>(경량 삭제)이 실제로 무엇인지
+- 테이블당 1,000,000행</p>
 <p><strong>실행:</strong></p>
 <pre><code class="language-bash">./01-sql-update-delete.sh
 # 또는
 cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client --multiline --multiquery
 </code></pre>
 <p><strong>주요 학습 포인트:</strong>
-- Patch-part 메커니즘: 전체 파트를 다시 쓰지 않고 변경 사항만 저장
-- ALTER TABLE UPDATE 구문으로 최적화된 업데이트
-- WHERE 조건을 이용한 선택적 업데이트
-- CASE 문을 이용한 조건부 값 설정
-- 서브쿼리를 이용한 복잡한 업데이트 로직
-- 비동기 실행으로 시스템 리소스 효율성</p>
+- 필요한 것(25.7.8.71의 <code>system.settings</code>, <code>system.merge_tree_settings</code>, 오류 메시지에서 확인): 세션 설정 <code>allow_experimental_lightweight_update = 1</code>(기본 0, 없으면 Code 344), 테이블 설정 <code>enable_block_number_column = 1</code>과 <code>enable_block_offset_column = 1</code>(기본 0, 없으면 Code 48, 빠진 설정마다 메시지 하나). 기존 테이블은 <code>ALTER TABLE ... MODIFY SETTING</code>으로 켤 수 있습니다
+- Patch part: <code>UPDATE ... SET quantity = 0 WHERE category = 'Books'</code>(1,000,000행 중 250,000행)는 250,000행, 디스크 44,032바이트(비압축 8.3 MB)의 patch part 하나를 데이터 파트 옆에 만들었습니다. <code>system.mutations</code>에는 항목이 없습니다. <code>SELECT</code>가 patch를 적용(<code>apply_patch_parts</code>)하므로 새 값이 바로 보입니다
+- 같은 조건의 <code>ALTER TABLE ... UPDATE</code>(동일한 테이블): mutation이 만들어지고 1,000,000행, 디스크 35,321,998바이트(비압축 44.0 MB)의 새 데이터 파트가 기존 파트를 대체했습니다
+- patch는 머지(<code>OPTIMIZE ... FINAL</code>)로 데이터 파트에 합쳐집니다. <code>apply_patch_parts = 0</code>으로 읽어도 머지된 파트에는 이미 갱신된 값이 들어 있습니다
+- <code>DELETE FROM t WHERE ...</code>는 patch part가 아닙니다. <code>system.mutations</code>에 <code>UPDATE _row_exists = 0 WHERE ...</code>가 보이고, 머지 전까지 행은 활성 파트에 남아 있습니다
+- ORDER BY 키 컬럼은 <code>UPDATE</code>할 수 없습니다(Code 420, <code>04-bulk-update.sh</code>)</p>
 <p><strong>실무 활용:</strong>
 - 실시간 재고 관리 및 가격 조정
 - E-커머스 프로모션 및 할인 적용
@@ -566,9 +559,10 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - 사용자 프로필 및 설정 업데이트
 - 배치 데이터 처리 및 ETL 파이프라인
 - GDPR 준수를 위한 데이터 삭제</p>
-<p><strong>성능 비교:</strong>
-- 전통적인 방식: 전체 파트 재작성 필요 (느림)
-- ClickHouse 25.7: Patch-part로 변경 사항만 적용 (최대 1000배 빠름)</p>
+<p><strong>기록량 (이번 실행, 1,000,000행 중 250,000행 갱신):</strong>
+- <code>UPDATE</code>(patch part): 디스크 44,032바이트
+- <code>ALTER TABLE ... UPDATE</code>(다시 쓴 파트): 디스크 35,321,998바이트
+- 이 크기에서 시간은 수십~수백 ms이고 실행마다 달라 싣지 않았습니다. 속도 배수는 주장하지 않습니다</p>
 <hr />
 <h4>2. count() Aggregation Optimization (02-count-optimization)</h4>
 <p><strong>새로운 기능:</strong> 최적화된 count() 집계 함수 (20-30% 빠르고 메모리 사용량 감소)</p>
@@ -635,24 +629,21 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - WHERE 조건으로 JOIN 전 데이터 필터링</p>
 <hr />
 <h4>4. Bulk UPDATE Performance (04-bulk-update)</h4>
-<p><strong>새로운 기능:</strong> PostgreSQL 대비 최대 4000배 빠른 대량 업데이트</p>
+<p><strong>새로운 기능:</strong> patch part 기반 대량 <code>UPDATE</code>를 <code>ALTER TABLE ... UPDATE</code>와 비교 측정</p>
 <p><strong>테스트 내용:</strong>
-- 대규모 bulk UPDATE (1000만 행)
-- 복잡한 WHERE 조건의 UPDATE
-- 다중 컬럼 동시 UPDATE
-- CASE 문을 이용한 조건부 UPDATE
-- 집계 결과를 이용한 UPDATE
-- 성능 비교 및 벤치마킹</p>
+- 3,000,000행의 동일한 테이블 두 개
+- 대량 업데이트 5건(한 카테고리, 여러 카테고리, 복합 WHERE, 세 컬럼 동시, 거의 모든 행)을 한 테이블에는 <code>UPDATE</code>로, 다른 테이블에는 <code>ALTER TABLE ... UPDATE</code>로 실행
+- 두 테이블의 최종 데이터가 같은지 확인(행 해시 합 비교)
+- 방식별 시간(<code>system.query_log</code>)과 기록한 바이트(<code>system.part_log</code>)
+- <code>UPDATE</code>가 거부하는 경우(<code>.sh</code>): 키 컬럼(Code 420), WHERE 없음(Code 62), block 설정이 없는 테이블(Code 48)</p>
 <p><strong>실행:</strong></p>
 <pre><code class="language-bash">./04-bulk-update.sh
 </code></pre>
 <p><strong>주요 학습 포인트:</strong>
-- Patch-part 메커니즘으로 전체 테이블 재작성 불필요
-- 수백만 행을 초 단위로 업데이트 가능
-- 복잡한 조건부 업데이트 효율적 처리
-- 서브쿼리를 이용한 JOIN-like UPDATE
-- 비동기 mutation으로 시스템 부하 최소화
-- ALTER TABLE UPDATE 문법 활용</p>
+- patch part는 바뀐 행만 쓰고, <code>ALTER TABLE ... UPDATE</code>는 건드린 파트를 다시 씁니다
+- 측정값(테이블당 3,000,000행, 25.7.8.71, 로컬 컨테이너 한 대, 각 5문장): <code>UPDATE</code>는 patch part 8개, 4,534,893행, 디스크 약 7.5 MB(비압축 198 MB)를 썼고, <code>ALTER TABLE ... UPDATE</code>는 변경된 파트 15개, 15,000,000행, 디스크 약 170 MB(비압축 685 MB)를 썼습니다
+- 시간은 patch 쪽이 유리하지 않았습니다. 네 번 실행에서 <code>UPDATE</code> 5문장은 합계 0.7~2.3초, <code>ALTER TABLE ... UPDATE</code>(<code>mutations_sync = 2</code>) 5문장은 0.2~0.9초였습니다. 이번 실행이 보여주는 것은 짧은 시간이 아니라 적게 쓴 바이트입니다
+- 일반화하지 마세요: 작은 테이블 하나, 노드 하나, 캐시 상태는 통제하지 않았습니다</p>
 <p><strong>실무 활용:</strong>
 - 실시간 재고 동기화 및 가격 조정
 - 소매업: 일일 마감 가격 업데이트 및 프로모션
@@ -661,11 +652,35 @@ cat 01-sql-update-delete.sql | docker exec -i clickhouse-25-7 clickhouse-client 
 - IoT: 디바이스 구성 및 상태 대량 업데이트
 - 데이터 마이그레이션: 레거시 시스템 현대화
 - 데이터 품질: 대량 정정 및 정규화</p>
-<p><strong>성능 비교:</strong>
-| Database | 수백만 행 업데이트 시간 | 기술 | 성능 |
-|----------|---------------------|------|------|
-| ClickHouse 25.7 | 초 단위 | Patch-part 메커니즘 | 4000배 빠름 |
-| PostgreSQL | 시간 단위 | 전체 행 재작성 | 기준 |</p>
+<p><strong>측정값 (3,000,000행, 대량 업데이트 5건, 한 번 실행):</strong></p>
+<table>
+<thead>
+<tr>
+<th>문장</th>
+<th>새 파트</th>
+<th>기록한 행</th>
+<th>디스크 바이트</th>
+<th>문장 시간(5건 합계)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UPDATE</code> (patch part)</td>
+<td>8</td>
+<td>4,534,893</td>
+<td>7,476,049</td>
+<td>1,432 ms</td>
+</tr>
+<tr>
+<td><code>ALTER TABLE ... UPDATE</code></td>
+<td>15</td>
+<td>15,000,000</td>
+<td>169,986,047</td>
+<td>157 ms</td>
+</tr>
+</tbody>
+</table>
+<p>시간 열은 실행마다 달랐고(네 번 실행: <code>UPDATE</code> 0.7~2.3초, <code>ALTER</code> 0.2~0.9초), 바이트는 0.2% 미만으로 움직였습니다. 다른 데이터베이스와의 비교는 실행하지 않았습니다.</p>
 <hr />
 <h4>5. AI-Powered SQL Generation (기능 설명)</h4>
 <p><strong>새로운 기능:</strong> OpenAI 또는 Anthropic API를 이용한 자연어 SQL 생성</p>
@@ -768,10 +783,10 @@ docker logs clickhouse-25-7
 </thead>
 <tbody>
 <tr>
-<td>UPDATE/DELETE</td>
-<td>Slow (full rewrites)</td>
-<td>Patch-part mechanism</td>
-<td>Up to 1000x faster</td>
+<td>UPDATE</td>
+<td><code>ALTER TABLE ... UPDATE</code> rewrites parts</td>
+<td><code>UPDATE</code> writes a patch part (experimental)</td>
+<td>44 KB vs 35 MB written in lab 01; time: see lab 04</td>
 </tr>
 <tr>
 <td>count() aggregation</td>
@@ -787,46 +802,15 @@ docker logs clickhouse-25-7
 </tr>
 <tr>
 <td>Bulk UPDATE</td>
-<td>Slow for large datasets</td>
-<td>Highly optimized</td>
-<td>Up to 4000x vs PostgreSQL</td>
+<td>Mutation rewrites parts</td>
+<td>Patch parts</td>
+<td>7.5 MB vs 170 MB on disk in lab 04; slower wall time in that run</td>
 </tr>
 <tr>
 <td>SQL Generation</td>
 <td>Manual only</td>
 <td>AI-powered (optional)</td>
 <td>Natural language to SQL</td>
-</tr>
-</tbody>
-</table>
-<h4>UPDATE Performance Comparison</h4>
-<table>
-<thead>
-<tr>
-<th>Operation</th>
-<th>Traditional RDBMS</th>
-<th>ClickHouse 25.7</th>
-<th>Performance Gain</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Single row UPDATE</td>
-<td>Milliseconds</td>
-<td>Microseconds</td>
-<td>100-1000x</td>
-</tr>
-<tr>
-<td>Bulk UPDATE (1M rows)</td>
-<td>Hours</td>
-<td>Seconds</td>
-<td>4000x</td>
-</tr>
-<tr>
-<td>Complex conditional UPDATE</td>
-<td>Very slow</td>
-<td>Fast</td>
-<td>1000x</td>
 </tr>
 </tbody>
 </table>

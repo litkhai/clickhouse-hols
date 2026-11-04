@@ -1,186 +1,117 @@
--- ClickHouse 25.6 Feature: CoalescingMergeTree Table Engine
--- Purpose: Test the CoalescingMergeTree engine optimized for sparse updates
+-- ClickHouse 25.6 Feature: CoalescingMergeTree
+-- Purpose: show what the engine really does. For each key it keeps, per column,
+--          the latest non-NULL value. It has no Sign column and no +1/-1 collapse.
 -- Reference: https://clickhouse.com/blog/clickhouse-release-25-06
+-- Nothing here raises an exception, so the file runs to the end in one pass.
 
--- Drop table if exists
-DROP TABLE IF EXISTS metrics_coalescing;
+DROP TABLE IF EXISTS device_coalescing;
+DROP TABLE IF EXISTS device_replacing;
+DROP TABLE IF EXISTS device_cols;
+DROP TABLE IF EXISTS device_plain;
 
--- Create a table with CoalescingMergeTree engine
--- CoalescingMergeTree is designed for tables with sparse updates
--- It automatically coalesces rows during merges based on Sign column
-CREATE TABLE metrics_coalescing
+-- 1. Sparse updates: every insert for device 1 sets one or two columns, the rest are NULL.
+SELECT '=== 1. CoalescingMergeTree ORDER BY key, Nullable value columns ===' AS title;
+
+CREATE TABLE device_coalescing
 (
-    metric_id UInt32,
-    timestamp DateTime,
-    value Float64,
-    Sign Int8  -- Sign column: 1 for insert, -1 for delete/update (old value)
+    device_id UInt32,
+    firmware  Nullable(String),
+    temp_c    Nullable(Float64),
+    battery   Nullable(UInt8)
 )
-ENGINE = CoalescingMergeTree(Sign)
-ORDER BY (metric_id, timestamp)
-SETTINGS index_granularity = 8192;
+ENGINE = CoalescingMergeTree
+ORDER BY device_id;
 
--- Insert initial metrics data
-INSERT INTO metrics_coalescing VALUES
-    (1, '2025-01-01 00:00:00', 100.0, 1),
-    (2, '2025-01-01 00:00:00', 200.0, 1),
-    (3, '2025-01-01 00:00:00', 300.0, 1);
+-- One INSERT = one part, so the four rows below stay unmerged until OPTIMIZE.
+INSERT INTO device_coalescing VALUES (1, 'v1.0', NULL, NULL);
+INSERT INTO device_coalescing VALUES (1, NULL, 21.5, NULL);
+INSERT INTO device_coalescing VALUES (1, NULL, NULL, 80);
+INSERT INTO device_coalescing VALUES (1, 'v1.1', NULL, 75);
 
--- Query 1: View initial data
-SELECT '=== Initial Metrics ===' AS title;
-SELECT * FROM metrics_coalescing ORDER BY metric_id, timestamp;
+SELECT '--- parts before any merge' AS step;
+SELECT name, rows FROM system.parts
+WHERE database = currentDatabase() AND table = 'device_coalescing' AND active ORDER BY name;
 
--- Simulate an update by inserting the old value with Sign=-1 and new value with Sign=1
--- Update metric_id=1 from 100.0 to 150.0
-INSERT INTO metrics_coalescing VALUES
-    (1, '2025-01-01 00:00:00', 100.0, -1),
-    (1, '2025-01-01 00:00:00', 150.0, 1);
+SELECT '--- plain SELECT: the four sparse rows, as long as no background merge has run yet' AS step;
+SELECT * FROM device_coalescing ORDER BY firmware, temp_c, battery;
 
--- Query 2: View data after update (before merge)
-SELECT '=== After Update (Before Merge) ===' AS title;
-SELECT * FROM metrics_coalescing ORDER BY metric_id, timestamp;
+SELECT '--- SELECT ... FINAL: one row, each column = latest non-NULL value' AS step;
+SELECT * FROM device_coalescing FINAL;
 
--- Query 3: Sum with Sign to get effective values
-SELECT '=== Effective Values (Sign-Weighted Sum) ===' AS title;
-SELECT
-    metric_id,
-    timestamp,
-    sum(value * Sign) AS effective_value
-FROM metrics_coalescing
-GROUP BY metric_id, timestamp
-ORDER BY metric_id;
+OPTIMIZE TABLE device_coalescing FINAL;
 
--- Insert more updates to demonstrate coalescing behavior
--- Update metric_id=2, add new timestamp for metric_id=1, delete metric_id=3
-INSERT INTO metrics_coalescing VALUES
-    (2, '2025-01-01 00:00:00', 200.0, -1),
-    (2, '2025-01-01 00:00:00', 250.0, 1),
-    (1, '2025-01-01 01:00:00', 160.0, 1),
-    (3, '2025-01-01 00:00:00', 300.0, -1);
+SELECT '--- after OPTIMIZE FINAL: the merge wrote the same single row to disk' AS step;
+SELECT * FROM device_coalescing;
+SELECT name, rows FROM system.parts
+WHERE database = currentDatabase() AND table = 'device_coalescing' AND active ORDER BY name;
 
--- Query 4: View all data with multiple updates
-SELECT '=== All Data with Multiple Updates ===' AS title;
-SELECT * FROM metrics_coalescing ORDER BY metric_id, timestamp, Sign;
+-- 2. Same inserts into ReplacingMergeTree: the whole latest row wins.
+SELECT '=== 2. The same inserts into ReplacingMergeTree ===' AS title;
 
--- Query 5: Get current effective values (final state)
-SELECT '=== Current Effective Values ===' AS title;
-SELECT
-    metric_id,
-    timestamp,
-    sum(value * Sign) AS effective_value,
-    sum(Sign) AS sign_sum,
-    CASE
-        WHEN sum(Sign) = 0 THEN 'DELETED'
-        WHEN sum(Sign) > 0 THEN 'ACTIVE'
-        ELSE 'ERROR'
-    END AS status
-FROM metrics_coalescing
-GROUP BY metric_id, timestamp
-HAVING sum(Sign) != 0  -- Filter out deleted records
-ORDER BY metric_id, timestamp;
-
--- Real-world use case: Tracking sensor metrics with updates
-DROP TABLE IF EXISTS sensor_metrics;
-
-CREATE TABLE sensor_metrics
+CREATE TABLE device_replacing
 (
-    sensor_id String,
-    reading_time DateTime,
-    temperature Float32,
-    humidity Float32,
-    location String,
-    Sign Int8
+    device_id UInt32,
+    firmware  Nullable(String),
+    temp_c    Nullable(Float64),
+    battery   Nullable(UInt8)
 )
-ENGINE = CoalescingMergeTree(Sign)
-ORDER BY (sensor_id, reading_time)
-PARTITION BY toYYYYMM(reading_time);
+ENGINE = ReplacingMergeTree
+ORDER BY device_id;
 
--- Insert initial sensor readings
-INSERT INTO sensor_metrics VALUES
-    ('SENSOR-001', '2025-01-01 10:00:00', 22.5, 45.0, 'Room-A', 1),
-    ('SENSOR-002', '2025-01-01 10:00:00', 23.0, 50.0, 'Room-B', 1),
-    ('SENSOR-003', '2025-01-01 10:00:00', 21.5, 48.0, 'Room-C', 1);
+INSERT INTO device_replacing VALUES (1, 'v1.0', NULL, NULL);
+INSERT INTO device_replacing VALUES (1, NULL, 21.5, NULL);
+INSERT INTO device_replacing VALUES (1, NULL, NULL, 80);
+INSERT INTO device_replacing VALUES (1, 'v1.1', NULL, 75);
 
--- Query 6: Initial sensor readings
-SELECT '=== Initial Sensor Readings ===' AS title;
-SELECT
-    sensor_id,
-    reading_time,
-    temperature,
-    humidity,
-    location
-FROM sensor_metrics
-WHERE Sign = 1
-ORDER BY sensor_id;
+SELECT '--- FINAL: the last row replaces the others; temp_c 21.5 is lost (NULL)' AS step;
+SELECT * FROM device_replacing FINAL;
 
--- Correct a sensor reading (was recorded with wrong location)
-INSERT INTO sensor_metrics VALUES
-    ('SENSOR-001', '2025-01-01 10:00:00', 22.5, 45.0, 'Room-A', -1),
-    ('SENSOR-001', '2025-01-01 10:00:00', 22.5, 45.0, 'Room-D', 1);
+-- 3. Side by side.
+SELECT '=== 3. Side by side (FINAL) ===' AS title;
+SELECT 'CoalescingMergeTree' AS engine, firmware, temp_c, battery FROM device_coalescing FINAL
+UNION ALL
+SELECT 'ReplacingMergeTree', firmware, temp_c, battery FROM device_replacing FINAL;
 
--- Query 7: Corrected sensor reading
-SELECT '=== After Location Correction ===' AS title;
-SELECT
-    sensor_id,
-    reading_time,
-    temperature,
-    humidity,
-    location,
-    sum(Sign) as record_count
-FROM sensor_metrics
-GROUP BY sensor_id, reading_time, temperature, humidity, location
-HAVING sum(Sign) > 0
-ORDER BY sensor_id;
+-- 4. The engine parameter is a list of columns to coalesce, not a Sign column.
+SELECT '=== 4. CoalescingMergeTree(columns): only the listed columns are coalesced ===' AS title;
 
--- Query 8: Time series with latest values
-INSERT INTO sensor_metrics VALUES
-    ('SENSOR-001', '2025-01-01 11:00:00', 23.0, 46.0, 'Room-D', 1),
-    ('SENSOR-002', '2025-01-01 11:00:00', 23.5, 51.0, 'Room-B', 1),
-    ('SENSOR-003', '2025-01-01 11:00:00', 22.0, 49.0, 'Room-C', 1);
+CREATE TABLE device_cols
+(
+    device_id UInt32,
+    temp_c    Nullable(Float64),
+    note      Nullable(String)
+)
+ENGINE = CoalescingMergeTree(temp_c)
+ORDER BY device_id;
 
-SELECT '=== Time Series Data ===' AS title;
-SELECT
-    sensor_id,
-    reading_time,
-    temperature,
-    humidity,
-    location
-FROM sensor_metrics
-WHERE Sign = 1
-ORDER BY sensor_id, reading_time;
+INSERT INTO device_cols VALUES (1, 21.5, 'first');
+INSERT INTO device_cols VALUES (1, NULL, 'second');
+INSERT INTO device_cols VALUES (1, NULL, NULL);
+OPTIMIZE TABLE device_cols FINAL;
 
--- Query 9: Latest reading per sensor
-SELECT '=== Latest Reading Per Sensor ===' AS title;
-SELECT
-    sensor_id,
-    argMax(temperature, reading_time) as latest_temp,
-    argMax(humidity, reading_time) as latest_humidity,
-    argMax(location, reading_time) as current_location,
-    max(reading_time) as last_update
-FROM sensor_metrics
-WHERE Sign = 1
-GROUP BY sensor_id
-ORDER BY sensor_id;
+SELECT '--- temp_c (listed) keeps 21.5 across later NULLs; note (not listed) is not coalesced: it kept the first insert, not the latest or a non-NULL pick' AS step;
+SELECT * FROM device_cols;
 
--- Benefits of CoalescingMergeTree
-SELECT '=== CoalescingMergeTree Benefits ===' AS info;
-SELECT
-    'Automatic coalescing during merges reduces storage' AS benefit_1,
-    'Efficient handling of sparse updates without full rewrites' AS benefit_2,
-    'Sign column enables update/delete semantics on immutable storage' AS benefit_3,
-    'Better performance than ReplacingMergeTree for frequent updates' AS benefit_4,
-    'Ideal for metrics, sensors, and real-time tracking use cases' AS benefit_5;
+-- 5. Non-Nullable columns have no NULL to skip.
+SELECT '=== 5. Non-Nullable columns: no NULL to skip, so the latest row wins ===' AS title;
 
--- Performance comparison note
-SELECT '=== Use Cases ===' AS info;
-SELECT
-    'Metrics and monitoring systems' AS use_case_1,
-    'Sensor data with corrections' AS use_case_2,
-    'User state tracking' AS use_case_3,
-    'Real-time dashboards with updates' AS use_case_4,
-    'Change data capture (CDC) scenarios' AS use_case_5;
+CREATE TABLE device_plain
+(
+    device_id UInt32,
+    firmware  String,
+    battery   UInt8
+)
+ENGINE = CoalescingMergeTree
+ORDER BY device_id;
+
+INSERT INTO device_plain VALUES (1, 'v1.1', 75);
+INSERT INTO device_plain VALUES (1, '', 0);
+OPTIMIZE TABLE device_plain FINAL;
+
+SELECT * FROM device_plain;
 
 -- Cleanup (commented out for inspection)
--- DROP TABLE sensor_metrics;
--- DROP TABLE metrics_coalescing;
+-- DROP TABLE device_coalescing; DROP TABLE device_replacing;
+-- DROP TABLE device_cols; DROP TABLE device_plain;
 
-SELECT '✅ CoalescingMergeTree Test Complete!' AS status;
+SELECT '✅ CoalescingMergeTree test complete' AS status;

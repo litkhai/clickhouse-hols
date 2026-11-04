@@ -63,11 +63,10 @@ source 01-coalescingmergetree.sql
 **New Feature:** CoalescingMergeTree table engine optimized for sparse updates
 
 **Test Content:**
-- Create tables using CoalescingMergeTree engine
-- Handle updates/deletes using Sign column
-- Verify automatic merge behavior
-- Sensor data and metrics tracking use cases
-- Real-time data modification scenarios
+- Four sparse inserts for one key (each sets one or two columns, the rest NULL) into a `CoalescingMergeTree ORDER BY key` table with `Nullable` value columns
+- Read without `FINAL`, with `FINAL`, then after `OPTIMIZE TABLE ... FINAL`
+- The same inserts into `ReplacingMergeTree` for contrast
+- What the engine parameter (a column list) does, and what the engine refuses (in the `.sh`)
 
 **Execute:**
 ```bash
@@ -77,10 +76,12 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 ```
 
 **Key Learning Points:**
-- Sign column: 1 for insert, -1 for delete/update (previous value)
-- Automatic merge based on Sign value during merge
-- More efficient than ReplacingMergeTree for frequent updates
-- Suitable for CDC (Change Data Capture) scenarios
+- For each key the engine keeps, per column, the latest non-NULL value. There is no +1/-1 collapse: `CoalescingMergeTree(Sign)` is valid, but `Sign` is only the name of a column in the parameter list (columns to coalesce), and a +1 row and a -1 row for one key do not cancel
+- Before a merge the table still holds the sparse rows; `FINAL` (or a merge) gives one row: `1  v1.1  21.5  75`
+- `ReplacingMergeTree` keeps the whole latest row, so the same inserts end as `1  v1.1  NULL  75` and the `21.5` is lost
+- Only `Nullable` columns coalesce. A non-Nullable column has no NULL to skip, so the latest row's value (`''`, `0`) wins
+- With a column list, only the listed columns are coalesced; in the run an unlisted column kept the first insert's value
+- Run on 25.6.13.41. The `.sh` also shows the refusals: unknown column (Code 16), sorting-key column in the list (Code 36), non-column argument (Code 36)
 
 **Real-World Use Cases:**
 - Metrics and monitoring systems
@@ -288,12 +289,16 @@ docker logs clickhouse-25-6
 
 #### CoalescingMergeTree vs ReplacingMergeTree
 
+Four inserts for one key: `(v1.0, NULL, NULL)`, `(NULL, 21.5, NULL)`, `(NULL, NULL, 80)`, `(v1.1, NULL, 75)`; read with `FINAL` on 25.6.13.41.
+
 | Feature | CoalescingMergeTree | ReplacingMergeTree |
 |---------|---------------------|-------------------|
-| Update method | Sign column (-1, +1) | Version column |
-| Merge timing | Automatic merge | FINAL query required |
-| Performance | Good for frequent updates | Good for rare updates |
-| Use case | Metrics, CDC | Master data, dimension tables |
+| Row kept per key | One row built column by column | The whole latest row |
+| Result of the four inserts | `v1.1, 21.5, 75` | `v1.1, NULL, 75` |
+| NULL in a later insert | Skipped, earlier non-NULL value stays (`Nullable` columns) | Overwrites |
+| Engine parameter | Columns to coalesce | Optional version column |
+| Merge timing | Background merge; `FINAL` for an exact read | Background merge; `FINAL` for an exact read |
+| Use case | Sparse updates, each writer sets a few columns | Whole-row latest version |
 
 #### Time vs DateTime
 
@@ -347,7 +352,7 @@ docker logs clickhouse-25-6
 - Use only as public identifier
 
 **When using CoalescingMergeTree:**
-- Be careful with Sign column management
+- Make sure a legitimate NULL is not meant to overwrite a value: the engine cannot tell "not set" from "set to NULL"
 - Ensure consistency at application level
 - Consider concurrency control mechanisms
 
@@ -356,7 +361,7 @@ docker logs clickhouse-25-6
 **CoalescingMergeTree:**
 - Improve merge efficiency with appropriate ORDER BY keys
 - Manage historical data with partition strategy
-- Optimize read performance with Sign filtering
+- Use `FINAL` (or wait for a merge) when you need one row per key
 
 **Time64 data type:**
 - Use Time64 only when high precision is needed
@@ -446,11 +451,10 @@ source 01-coalescingmergetree.sql
 **새로운 기능:** 희소 업데이트에 최적화된 CoalescingMergeTree 테이블 엔진
 
 **테스트 내용:**
-- CoalescingMergeTree 엔진을 사용한 테이블 생성
-- Sign 컬럼을 이용한 업데이트/삭제 처리
-- 머지 시 자동 병합 동작 확인
-- 센서 데이터 및 메트릭 추적 사용 사례
-- 실시간 데이터 수정 시나리오
+- `Nullable` 값 컬럼을 가진 `CoalescingMergeTree ORDER BY key` 테이블에 한 키에 대한 희소 INSERT 4건(각각 한두 컬럼만 채우고 나머지는 NULL)
+- `FINAL` 없이, `FINAL`로, `OPTIMIZE TABLE ... FINAL` 후에 읽기
+- 대비를 위해 같은 INSERT를 `ReplacingMergeTree`에 수행
+- 엔진 파라미터(컬럼 목록)의 역할과 엔진이 거부하는 경우(`.sh`)
 
 **실행:**
 ```bash
@@ -460,10 +464,12 @@ cat 01-coalescingmergetree.sql | docker exec -i clickhouse-25-6 clickhouse-clien
 ```
 
 **주요 학습 포인트:**
-- Sign 컬럼: 1은 삽입, -1은 삭제/업데이트(이전 값)
-- 머지 시 Sign 값을 기반으로 자동 병합
-- ReplacingMergeTree보다 빈번한 업데이트에 효율적
-- CDC(Change Data Capture) 시나리오에 적합
+- 키마다 컬럼별로 가장 최근의 NULL이 아닌 값을 남깁니다. +1/-1 상쇄(collapse)는 없습니다. `CoalescingMergeTree(Sign)`은 문법상 유효하지만 `Sign`은 파라미터 목록(병합할 컬럼)에 들어간 일반 컬럼 이름일 뿐이며, 한 키의 +1 행과 -1 행은 상쇄되지 않습니다
+- 머지 전에는 희소한 행이 그대로 남아 있고, `FINAL`(또는 머지) 후에는 한 행이 됩니다: `1  v1.1  21.5  75`
+- `ReplacingMergeTree`는 가장 최근 행 전체를 남기므로 같은 INSERT가 `1  v1.1  NULL  75`로 끝나고 `21.5`는 사라집니다
+- `Nullable` 컬럼만 병합됩니다. Nullable이 아닌 컬럼에는 건너뛸 NULL이 없어 마지막 행의 값(`''`, `0`)이 남습니다
+- 컬럼 목록을 주면 나열한 컬럼만 병합됩니다. 실행에서 나열하지 않은 컬럼은 첫 번째 INSERT의 값을 유지했습니다
+- 25.6.13.41에서 실행. `.sh`는 거부되는 경우도 보여줍니다: 없는 컬럼(Code 16), 정렬 키 컬럼을 목록에 넣음(Code 36), 컬럼이 아닌 인자(Code 36)
 
 **실무 활용:**
 - 메트릭 및 모니터링 시스템
@@ -671,12 +677,16 @@ docker logs clickhouse-25-6
 
 #### CoalescingMergeTree vs ReplacingMergeTree
 
+한 키에 대한 INSERT 4건: `(v1.0, NULL, NULL)`, `(NULL, 21.5, NULL)`, `(NULL, NULL, 80)`, `(v1.1, NULL, 75)`; 25.6.13.41에서 `FINAL`로 읽은 결과.
+
 | 기능 | CoalescingMergeTree | ReplacingMergeTree |
 |---------|---------------------|-------------------|
-| 업데이트 방식 | Sign 컬럼 (-1, +1) | 버전 컬럼 |
-| 병합 시점 | 자동 병합 | FINAL 쿼리 필요 |
-| 성능 | 빈번한 업데이트에 적합 | 드문 업데이트에 적합 |
-| 용도 | 메트릭, CDC | 마스터 데이터, 차원 테이블 |
+| 키당 남는 행 | 컬럼별로 조립한 한 행 | 가장 최근 행 전체 |
+| INSERT 4건의 결과 | `v1.1, 21.5, 75` | `v1.1, NULL, 75` |
+| 이후 INSERT의 NULL | 건너뜀, 이전 NULL이 아닌 값 유지(`Nullable` 컬럼) | 덮어씀 |
+| 엔진 파라미터 | 병합할 컬럼 목록 | 선택적 버전 컬럼 |
+| 병합 시점 | 백그라운드 머지, 정확한 읽기는 `FINAL` | 백그라운드 머지, 정확한 읽기는 `FINAL` |
+| 용도 | 희소 업데이트, 쓰는 쪽마다 몇 개 컬럼만 설정 | 행 전체의 최신 버전 |
 
 #### Time vs DateTime
 
@@ -729,7 +739,7 @@ docker logs clickhouse-25-6
 - 공개 식별자로만 사용 권장
 
 **CoalescingMergeTree 사용 시:**
-- Sign 컬럼 관리에 주의
+- 정당한 NULL이 값을 덮어써야 하는 경우가 없는지 확인: 엔진은 "설정 안 함"과 "NULL로 설정"을 구분하지 못합니다
 - 애플리케이션 레벨에서 일관성 보장 필요
 - 동시성 제어 메커니즘 고려
 
@@ -738,7 +748,7 @@ docker logs clickhouse-25-6
 **CoalescingMergeTree:**
 - 적절한 ORDER BY 키 설정으로 머지 효율 향상
 - 파티션 전략으로 과거 데이터 관리
-- Sign 필터링으로 읽기 성능 최적화
+- 키당 한 행이 필요하면 `FINAL`을 쓰거나 머지를 기다리기
 
 **Time64 데이터 타입:**
 - 높은 정밀도가 필요한 경우만 Time64 사용

@@ -1,244 +1,120 @@
--- ClickHouse 25.7 Feature: SQL UPDATE and DELETE Operations
--- Purpose: Test the new lightweight UPDATE/DELETE with patch-part mechanism (up to 1000x faster)
+-- ClickHouse 25.7 Feature: SQL UPDATE (patch parts) and DELETE
+-- Purpose: run the new `UPDATE t SET ... WHERE ...` and look at what it writes:
+--          a small patch part next to the untouched data part. Compare with
+--          `ALTER TABLE t UPDATE ...` on an identical table, which rewrites parts.
 -- Reference: https://clickhouse.com/blog/clickhouse-release-25-07
+-- Needs (confirmed on 25.7.8.71, see 01-sql-update-delete.sh for the errors without them):
+--   session setting allow_experimental_lightweight_update = 1
+--   table settings   enable_block_number_column = 1, enable_block_offset_column = 1
+-- The statements that are refused raise exceptions, so they run in the .sh, not here.
 
--- Drop table if exists
-DROP TABLE IF EXISTS inventory;
+SET allow_experimental_lightweight_update = 1;
 
--- Create a table for inventory management
-CREATE TABLE inventory
+DROP TABLE IF EXISTS inv_patch;
+DROP TABLE IF EXISTS inv_alter;
+DROP TABLE IF EXISTS inv_marker;
+
+-- The part_log query in section 5 reads only what happened after this instant.
+CREATE TABLE inv_marker (t DateTime64(6)) ENGINE = Memory;
+INSERT INTO inv_marker SELECT now64(6);
+
+-- 1. The settings, as the server reports them
+SELECT '=== 1. Settings as the server reports them (enable_block_* default to 0) ===' AS title;
+SELECT name, value, description FROM system.settings
+WHERE name IN ('allow_experimental_lightweight_update', 'apply_patch_parts') ORDER BY name;
+SELECT name, value FROM system.merge_tree_settings
+WHERE name IN ('enable_block_number_column', 'enable_block_offset_column', 'apply_patches_on_merge', 'remove_unused_patch_parts')
+ORDER BY name;
+
+-- 2. Two identical tables, 1,000,000 rows each, one part per table.
+SELECT '=== 2. Two identical tables, 1,000,000 rows ===' AS title;
+
+CREATE TABLE inv_patch
 (
-    product_id UInt32,
-    product_name String,
-    quantity UInt32,
-    price Decimal(10, 2),
-    last_updated DateTime DEFAULT now()
+    product_id UInt64,
+    category   LowCardinality(String),
+    quantity   UInt32,
+    note       String
 )
-ENGINE = MergeTree()
-ORDER BY product_id;
+ENGINE = MergeTree
+ORDER BY product_id
+SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1;
 
--- Insert initial inventory data
-INSERT INTO inventory (product_id, product_name, quantity, price) VALUES
-    (1, 'Laptop', 100, 999.99),
-    (2, 'Mouse', 500, 29.99),
-    (3, 'Keyboard', 300, 79.99),
-    (4, 'Monitor', 150, 299.99),
-    (5, 'Headphones', 400, 149.99),
-    (6, 'Webcam', 200, 89.99),
-    (7, 'USB Cable', 1000, 9.99),
-    (8, 'Charger', 350, 39.99),
-    (9, 'Mouse Pad', 600, 14.99),
-    (10, 'Docking Station', 80, 199.99);
+CREATE TABLE inv_alter AS inv_patch ENGINE = MergeTree ORDER BY product_id
+SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1;
 
--- Query 1: View initial inventory
-SELECT '=== Initial Inventory ===' AS title;
-SELECT * FROM inventory ORDER BY product_id;
+INSERT INTO inv_patch SELECT number, ['Electronics', 'Clothing', 'Books', 'Home'][1 + number % 4], 100 + number % 900, randomPrintableASCII(30)
+FROM numbers(1000000) SETTINGS max_block_size = 1000000, max_insert_threads = 1, min_insert_block_size_rows = 1000000;
+INSERT INTO inv_alter SELECT * FROM inv_patch;
 
--- Test 1: Lightweight UPDATE - Update single product price
--- This uses the new patch-part mechanism (up to 1000x faster)
-SELECT '=== Test 1: Update Single Product Price ===' AS title;
-ALTER TABLE inventory UPDATE price = 899.99 WHERE product_id = 1;
+SELECT count() AS rows_patch, countIf(quantity = 0) AS zero_qty FROM inv_patch;
 
--- Wait for mutation to complete
-SELECT sleep(1);
+-- 3. UPDATE ... SET ... WHERE: a patch part
+SELECT '=== 3. UPDATE inv_patch SET ... (patch part) ===' AS title;
 
-SELECT * FROM inventory WHERE product_id = 1;
+UPDATE inv_patch SET quantity = 0 WHERE category = 'Books';
 
--- Test 2: Bulk UPDATE - Update multiple products
-SELECT '=== Test 2: Bulk Price Increase (10% for low stock) ===' AS title;
-ALTER TABLE inventory UPDATE price = price * 1.10 WHERE quantity < 200;
+SELECT '--- parts: the data part is untouched, a patch-... part holds the changed rows' AS step;
+SELECT name, rows, bytes_on_disk, active FROM system.parts
+WHERE database = currentDatabase() AND table = 'inv_patch' ORDER BY name;
 
-SELECT sleep(1);
+SELECT '--- the new value is visible at once (the patch is applied on SELECT)' AS step;
+SELECT category, count() AS products, countIf(quantity = 0) AS zero_qty FROM inv_patch GROUP BY category ORDER BY category;
 
-SELECT product_id, product_name, quantity, price
-FROM inventory
-WHERE quantity < 200
-ORDER BY product_id;
+SELECT '--- no mutation was created' AS step;
+SELECT count() AS mutations FROM system.mutations WHERE database = currentDatabase() AND table = 'inv_patch';
 
--- Test 3: UPDATE with expression
-SELECT '=== Test 3: Update Quantity After Sale ===' AS title;
-ALTER TABLE inventory UPDATE quantity = quantity - 50 WHERE product_id = 2;
+-- 4. ALTER TABLE ... UPDATE on the identical table: a mutation that rewrites parts
+SELECT '=== 4. ALTER TABLE inv_alter UPDATE ... (mutation, rewritten part) ===' AS title;
 
-SELECT sleep(1);
+ALTER TABLE inv_alter UPDATE quantity = 0 WHERE category = 'Books' SETTINGS mutations_sync = 2;
 
-SELECT * FROM inventory WHERE product_id = 2;
+SELECT '--- parts: the old part is inactive, a new part with the mutation version _N replaced it' AS step;
+SELECT name, rows, bytes_on_disk, active FROM system.parts
+WHERE database = currentDatabase() AND table = 'inv_alter' ORDER BY name;
 
--- Test 4: Conditional UPDATE based on multiple conditions
-SELECT '=== Test 4: Discount High-Priced Items ===' AS title;
-ALTER TABLE inventory UPDATE price = price * 0.85 WHERE price > 100 AND quantity > 100;
+SELECT '--- the mutation' AS step;
+SELECT command, is_done FROM system.mutations WHERE database = currentDatabase() AND table = 'inv_alter';
 
-SELECT sleep(1);
+SELECT '--- same result' AS step;
+SELECT category, count() AS products, countIf(quantity = 0) AS zero_qty FROM inv_alter GROUP BY category ORDER BY category;
 
-SELECT product_id, product_name, quantity, price
-FROM inventory
-WHERE price > 100
-ORDER BY product_id;
+-- 5. What each wrote, from system.part_log
+SELECT '=== 5. What each wrote (system.part_log) ===' AS title;
+SYSTEM FLUSH LOGS;
+SELECT table, event_type, part_name, rows, size_in_bytes AS part_bytes, bytes_uncompressed, duration_ms
+FROM system.part_log
+WHERE database = currentDatabase() AND table IN ('inv_patch', 'inv_alter')
+  AND ((event_type = 'NewPart' AND part_name LIKE 'patch-%') OR event_type = 'MutatePart')
+  AND event_time_microseconds >= (SELECT max(t) FROM inv_marker)
+ORDER BY event_time_microseconds;
+-- part_bytes of a mutated part is the size of the whole new part; the patch part is only the changed rows.
 
--- Test 5: Lightweight DELETE - Remove out-of-stock items
--- First, set some items to zero quantity
-ALTER TABLE inventory UPDATE quantity = 0 WHERE product_id IN (7, 8);
+-- 6. A merge folds the patch into the data part
+SELECT '=== 6. OPTIMIZE ... FINAL merges the patch in (apply_patches_on_merge) ===' AS title;
+OPTIMIZE TABLE inv_patch FINAL;
+SELECT name, rows, bytes_on_disk, active FROM system.parts
+WHERE database = currentDatabase() AND table = 'inv_patch' AND active ORDER BY name;
+SELECT '--- with patches switched off on read, the merged part already holds the new values' AS step;
+SELECT countIf(quantity = 0) AS zero_qty_without_patches FROM inv_patch SETTINGS apply_patch_parts = 0;
+-- The patch part itself stays listed until the background cleanup (remove_unused_patch_parts) drops it.
 
-SELECT sleep(1);
+-- 7. DELETE FROM: lightweight delete
+SELECT '=== 7. DELETE FROM (lightweight delete) ===' AS title;
+DELETE FROM inv_patch WHERE category = 'Clothing';
 
-SELECT '=== Before DELETE: Out of Stock Items ===' AS title;
-SELECT * FROM inventory WHERE quantity = 0 ORDER BY product_id;
+SELECT count() AS rows_left, countIf(category = 'Clothing') AS clothing_left FROM inv_patch;
 
--- Now delete them (up to 1000x faster than before)
-ALTER TABLE inventory DELETE WHERE quantity = 0;
+SELECT '--- what it is: a mutation that sets the hidden _row_exists = 0, not a patch part' AS step;
+SELECT command, is_done FROM system.mutations WHERE database = currentDatabase() AND table = 'inv_patch';
 
-SELECT sleep(1);
-
-SELECT '=== After DELETE: Remaining Items ===' AS title;
-SELECT * FROM inventory ORDER BY product_id;
-
--- Test 6: Complex UPDATE scenario - Inventory restock with price adjustment
-DROP TABLE IF EXISTS sales_data;
-
-CREATE TABLE sales_data
-(
-    product_id UInt32,
-    sale_date Date,
-    quantity_sold UInt32,
-    revenue Decimal(10, 2)
-)
-ENGINE = MergeTree()
-ORDER BY (product_id, sale_date);
-
--- Insert sample sales data
-INSERT INTO sales_data VALUES
-    (1, '2025-01-01', 20, 18000.00),
-    (2, '2025-01-01', 150, 4498.50),
-    (3, '2025-01-01', 50, 3999.50),
-    (4, '2025-01-01', 30, 8999.70),
-    (5, '2025-01-01', 100, 14999.00);
-
--- Query: Sales summary
-SELECT '=== Sales Summary ===' AS title;
-SELECT
-    product_id,
-    sum(quantity_sold) as total_sold,
-    sum(revenue) as total_revenue,
-    round(sum(revenue) / sum(quantity_sold), 2) as avg_price_per_unit
-FROM sales_data
-GROUP BY product_id
-ORDER BY product_id;
-
--- Update inventory based on sales
--- Note: Using a simpler approach due to correlated subquery limitations
-SELECT '=== Update Inventory Based on Sales ===' AS title;
-
--- Update each product individually
-ALTER TABLE inventory
-UPDATE quantity = quantity - 20
-WHERE product_id = 1;
-
-ALTER TABLE inventory
-UPDATE quantity = quantity - 150
-WHERE product_id = 2;
-
-ALTER TABLE inventory
-UPDATE quantity = quantity - 50
-WHERE product_id = 3;
-
-ALTER TABLE inventory
-UPDATE quantity = quantity - 30
-WHERE product_id = 4;
-
-ALTER TABLE inventory
-UPDATE quantity = quantity - 100
-WHERE product_id = 5;
-
-SELECT sleep(1);
-
-SELECT * FROM inventory WHERE product_id <= 5 ORDER BY product_id;
-
--- Test 7: Performance comparison demo
--- Create a larger table to demonstrate performance
-DROP TABLE IF EXISTS large_inventory;
-
-CREATE TABLE large_inventory
-(
-    item_id UInt64,
-    category String,
-    stock_level UInt32,
-    unit_price Decimal(10, 2),
-    warehouse_id UInt16
-)
-ENGINE = MergeTree()
-ORDER BY item_id;
-
--- Insert 1 million rows
-INSERT INTO large_inventory
-SELECT
-    number as item_id,
-    concat('Category-', toString(number % 100)) as category,
-    rand() % 1000 as stock_level,
-    round(rand() % 10000 / 100, 2) as unit_price,
-    rand() % 50 as warehouse_id
-FROM numbers(1000000);
-
-SELECT '=== Large Inventory Stats ===' AS title;
-SELECT
-    count() as total_items,
-    avg(stock_level) as avg_stock,
-    avg(unit_price) as avg_price,
-    count(DISTINCT category) as categories
-FROM large_inventory;
-
--- Bulk UPDATE on large table (this demonstrates the performance improvement)
-SELECT '=== Performing Bulk UPDATE on 1M Rows ===' AS title;
-SELECT 'Updating all items in Category-42...' as status;
-
-ALTER TABLE large_inventory
-UPDATE unit_price = unit_price * 1.15
-WHERE category = 'Category-42';
-
-SELECT sleep(2);
-
-SELECT '=== Update Complete ===' AS title;
-SELECT
-    category,
-    count() as items_updated,
-    avg(unit_price) as new_avg_price
-FROM large_inventory
-WHERE category = 'Category-42'
-GROUP BY category;
-
--- Test 8: DELETE with complex conditions
-SELECT '=== DELETE Low Value Items from Specific Warehouse ===' AS title;
-ALTER TABLE large_inventory
-DELETE WHERE unit_price < 10 AND warehouse_id = 25;
-
-SELECT sleep(2);
-
-SELECT
-    'Deleted items: unit_price < 10 AND warehouse_id = 25' as operation,
-    count() as remaining_items
-FROM large_inventory
-WHERE warehouse_id = 25;
-
--- Performance insights
-SELECT '=== ClickHouse 25.7 UPDATE/DELETE Performance ===' AS info;
-SELECT
-    'Patch-part mechanism provides up to 1000x faster updates' AS benefit_1,
-    'Lightweight DELETE eliminates need for full table rewrites' AS benefit_2,
-    'Conditional updates scale efficiently to millions of rows' AS benefit_3,
-    'Real-time inventory management now practical in ClickHouse' AS benefit_4,
-    'Significantly faster than traditional PostgreSQL bulk updates' AS benefit_5;
-
--- Use cases
-SELECT '=== Use Cases ===' AS info;
-SELECT
-    'Real-time inventory management and stock updates' AS use_case_1,
-    'E-commerce price adjustments and promotions' AS use_case_2,
-    'Data correction and quality management' AS use_case_3,
-    'User profile and preference updates' AS use_case_4,
-    'Batch data processing and ETL operations' AS use_case_5,
-    'GDPR compliance and data deletion' AS use_case_6;
+SELECT '--- the rows are still on disk until a merge' AS step;
+SELECT name, rows, active FROM system.parts
+WHERE database = currentDatabase() AND table = 'inv_patch' AND active ORDER BY name;
+SELECT sum(rows) AS rows_in_active_data_parts FROM system.parts
+WHERE database = currentDatabase() AND table = 'inv_patch' AND active AND name NOT LIKE 'patch-%';
 
 -- Cleanup (commented out for inspection)
--- DROP TABLE sales_data;
--- DROP TABLE inventory;
--- DROP TABLE large_inventory;
+-- DROP TABLE inv_patch; DROP TABLE inv_alter; DROP TABLE inv_marker;
 
-SELECT '✅ SQL UPDATE/DELETE Test Complete!' AS status;
+SELECT '✅ SQL UPDATE/DELETE test complete' AS status;
