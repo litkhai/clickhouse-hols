@@ -75,15 +75,20 @@ FROM trips |> WHERE n >= 5 |> AGGREGATE sum(n) AS total GROUP BY city |> ORDER B
 Each line is the previous one plus a step. Nothing above ever has to be edited.
 Building a query stops being a cycle of jumping back to the top.
 
-**It is sugar.** `EXPLAIN SYNTAX` rewrites a pipe chain into the classic form:
+**It is sugar, with nesting.** `EXPLAIN SYNTAX` rewrites a pipe chain as nested subqueries, one per step:
 
 ```text
 SELECT city, sum(n) AS total FROM (SELECT * FROM (SELECT * FROM trips)
 WHERE greater(n, 2)) GROUP BY city
 ```
 
-Same AST, same plan, same performance. Nothing to weigh up except readability
-— and on a single-table lookup the classic form is still shorter, which is
+The planner flattens the nesting. On an 18M-span `otel_traces` table (Cloud
+26.8.1.608, 2026-11-04), a five-step chain and its classic form had the same
+plan steps and the same index use (27 of 213 granules), and read the same
+101,335 rows. Planning the nesting costs a little: across ten interleaved runs
+the median was 16 ms against 11 ms, with analysis and plan build taking about
+5.1 ms against 2.7 ms. That is noise on a heavy query and visible on a tiny
+one. On a single-table lookup the classic form is also still shorter, which is
 worth saying out loud before someone rewrites a codebase.
 
 !!! note
@@ -327,16 +332,20 @@ FROM trips |> WHERE n >= 5 |> AGGREGATE sum(n) AS total GROUP BY city |> ORDER B
 각 줄은 이전 줄에 한 단계를 더한 것입니다. 위쪽은 절대 고칠 일이 없습니다.
 쿼리 작성이 맨 위로 되돌아가는 반복에서 벗어납니다.
 
-**문법 설탕입니다.** `EXPLAIN SYNTAX`가 파이프 체인을 고전 형태로 되돌립니다.
+**문법 설탕이되, 중첩됩니다.** `EXPLAIN SYNTAX`는 파이프 체인을 단계마다 하나씩 중첩된 서브쿼리로 바꿉니다.
 
 ```text
 SELECT city, sum(n) AS total FROM (SELECT * FROM (SELECT * FROM trips)
 WHERE greater(n, 2)) GROUP BY city
 ```
 
-같은 AST, 같은 계획, 같은 성능입니다. 저울질할 것은 가독성뿐이고, 단일 테이블
-조회는 고전 문법이 여전히 더 짧습니다 — 누군가 코드베이스를 갈아엎기 전에
-말해둘 필요가 있습니다.
+중첩은 플래너가 펼칩니다. 스팬 1,800만 행의 `otel_traces`(Cloud 26.8.1.608,
+2026-11-04)에서 다섯 단계 체인과 같은 뜻의 고전 쿼리는 계획 단계와 인덱스 사용
+(그래뉼 213개 중 27개)이 같았고, 읽은 행도 101,335행으로 같았습니다. 중첩을
+계획하는 비용은 조금 있습니다. 번갈아 10번씩 돌린 중앙값이 16 ms 대 11 ms였고,
+분석·계획 생성에 약 5.1 ms 대 2.7 ms가 들었습니다. 무거운 쿼리에서는 묻히고,
+아주 가벼운 쿼리에서는 보이는 정도입니다. 단일 테이블 조회는 고전 문법이 여전히
+더 짧습니다 — 누군가 코드베이스를 갈아엎기 전에 말해둘 필요가 있습니다.
 
 !!! note
     `EXPLAIN SYNTAX` 자체가 26.8에서 바뀌었습니다. 줄마다 레코드 하나가 아니라
