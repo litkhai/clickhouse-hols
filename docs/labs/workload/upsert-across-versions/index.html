@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upsert, UPDATE and DELETE across ClickHouse versions · ClickHouse HOLs</title>
+<meta name="description" content="Upsert, UPDATE and DELETE across ClickHouse versions — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/upsert-across-versions</code>
+    
+  </nav>
+  <div class="readme en"><h1>Upsert, UPDATE and DELETE across ClickHouse versions</h1>
+<hr />
+<p>The same SQL for every way of changing rows in ClickHouse, run on six builds (the LTS lines 24.8, 25.3,
+25.8, 26.3, 26.8 and the latest stable 26.10). For each way the runner records: does it run on that
+version (or which error code), how long it takes, what it writes (bytes, from <code>system.part_log</code>), how
+soon the change is visible, and what it costs later <code>SELECT</code>s. Nothing here is quoted from a changelog:
+every cell in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/RESULTS.md">RESULTS.md</a> comes from a run, and the raw per-probe data (including
+<code>query_log</code> rows) is in <code>results/&lt;version&gt;.json</code>.</p>
+<p>The ways: <code>ReplacingMergeTree</code> (with and without <code>is_deleted</code>), <code>CollapsingMergeTree</code> and
+<code>VersionedCollapsingMergeTree</code>, <code>CoalescingMergeTree</code>, classic <code>ALTER TABLE ... UPDATE</code>, the SQL
+<code>UPDATE</code> (patch parts), re-inserting with a higher version, on-the-fly mutations, and three kinds of
+<code>DELETE</code>.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/upsert-across-versions
+./run_matrix.py                      # all six versions, about 17 minutes; pulls nothing, images must exist
+./run_matrix.py --versions 26.10     # one version (prefix of a line in versions.txt)
+./run_matrix.py --only 04            # one file or probe-id prefix; results merge into the JSON
+./run_matrix.py --report-only        # rebuild RESULTS.md from results/*.json
+tools/hol run workload/upsert-across-versions   # from the repository root: the SQL on 26.10 only, must not raise
+</code></pre>
+<p><code>versions.txt</code> pins the exact tags, oldest first. <code>run_matrix.py</code> is the runner of
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> (same file; containers are named <code>uav-&lt;tag&gt;</code>
+here and <code>jav-&lt;tag&gt;</code> there). A statement preceded by <code>-- probe: &lt;id&gt; [repeat=N] [value]</code> is a probe, the
+others are setup; <code>value</code> puts the first result row in the table cell. <code>-- settings: a, b</code> lists
+settings to look up in <code>system.settings</code>, then in <code>system.merge_tree_settings</code> (shown as <code>[table]</code>).
+Each statement runs in its own <code>clickhouse-client</code> call, so there is no bare <code>SET</code>.</p>
+<h3>Probes</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-replacing.sql</code></td>
+<td><code>ReplacingMergeTree(ver)</code> and <code>(ver, is_deleted)</code>, 2M keys, then 1% re-written with a higher <code>ver</code>, 0.1% marked deleted: <code>count()</code> without and with <code>FINAL</code>, <code>FINAL</code> vs <code>argMax ... GROUP BY</code> (5 repeats), <code>OPTIMIZE ... FINAL</code>, <code>FINAL CLEANUP</code></td>
+</tr>
+<tr>
+<td><code>02-collapsing.sql</code></td>
+<td><code>CollapsingMergeTree</code> and <code>VersionedCollapsingMergeTree</code> with the cancel row inserted before the state row; a state-first control</td>
+</tr>
+<tr>
+<td><code>03-coalescing.sql</code></td>
+<td><code>CoalescingMergeTree</code> with sparse inserts vs the same inserts into <code>ReplacingMergeTree</code></td>
+</tr>
+<tr>
+<td><code>04-update-mechanisms.sql</code></td>
+<td>classic <code>ALTER UPDATE</code>, re-insert into <code>ReplacingMergeTree</code> and patch-part <code>UPDATE</code>, each at 1 row, 1% and 10% of 2M rows (one table each): duration, bytes written, patch parts, then a full-scan <code>SELECT sum(v)</code> (5 repeats) against untouched control tables</td>
+</tr>
+<tr>
+<td><code>05-on-the-fly.sql</code></td>
+<td>a pending mutation (<code>SYSTEM STOP MERGES</code>, <code>mutations_sync = 0</code>) read with <code>apply_mutations_on_fly</code> 1 and 0</td>
+</tr>
+<tr>
+<td><code>06-patch-accumulation.sql</code></td>
+<td>50 successive one-row <code>UPDATE</code>s: patch-part count, scan and point read after 1, 10, 50; then <code>OPTIMIZE ... FINAL</code> and <code>ALTER TABLE ... APPLY PATCHES</code></td>
+</tr>
+<tr>
+<td><code>07-delete.sql</code></td>
+<td><code>ALTER ... DELETE</code>, <code>DELETE FROM</code>, <code>DELETE FROM</code> with <code>lightweight_delete_mode = 'lightweight_update'</code>: duration, bytes, <code>count()</code> with <code>apply_deleted_mask</code> 1 and 0</td>
+</tr>
+<tr>
+<td><code>08-scale.sql</code></td>
+<td>the read-side cost of file 04 at 20M rows (a scan of 130 to 480 ms): classic <code>ALTER UPDATE</code>, patch-part <code>UPDATE</code> and re-insert at 1% and 10%, a full-scan aggregate and a 100,000-row range read (5 repeats each) against untouched controls</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td>statements that fail even on 26.10 (UPDATE without block columns, forced lightweight DELETE, <code>CLEANUP</code> without its table setting, UPDATE of a sort-key column). <code>tools/hol</code> does not run this directory; the runner does</td>
+</tr>
+</tbody>
+</table>
+<p>Every probe in the top-level files succeeds on 26.10 (<code>tools/hol run</code> stops at the first exception).
+Failures on older versions are the result, shown as <code>✗ Code N</code> (56 UNKNOWN_STORAGE, 62 SYNTAX_ERROR,
+115 UNKNOWN_SETTING, 344 SUPPORT_IS_DISABLED, 420 CANNOT_UPDATE_COLUMN, 48 NOT_IMPLEMENTED).</p>
+<h3>What changed between versions</h3>
+<p>Written only from <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/RESULTS.md">RESULTS.md</a> (run on 2026-11-04, 12 CPUs, 15.6 GiB Docker VM). Other
+containers were running during the whole run (RESULTS.md lists their CPU% per version; the 26.10 run
+overlapped with about 300% of other load), and most timed probes take 4 to 30 ms, so differences of a
+few milliseconds are not used below.</p>
+<ul>
+<li><strong>Patch-part <code>UPDATE</code>.</strong> Syntax error (Code 62) on 24.8.14.39 and 25.3.14.14; it runs from 25.8.33.6.
+  It needs a table created with <code>enable_block_number_column = 1</code> and <code>enable_block_offset_column = 1</code>
+  (without them: Code 48, "Lightweight updates are supported only for tables with materialized
+  _block_number column", same on 25.8 to 26.10; <code>err-update-no-block-columns</code>). It needs no session
+  setting: <code>04-pu-no-setting</code> (no <code>SETTINGS</code> clause) runs on 25.8 to 26.10. The setting
+  <code>allow_experimental_lightweight_update</code> exists from 25.8 as <code>Beta</code> and as <code>Production</code> on 26.10.
+  <code>UPDATE</code> of a sort-key column fails with Code 420 (patch part and classic mutation alike).</li>
+<li><strong>How a patch part looks.</strong> In <code>system.parts</code>, a patch part has a name starting with <code>patch-</code>, for
+  example <code>patch-&lt;hash&gt;-all_4_4_0_3</code>, and <code>part_type</code> Compact. In <code>system.part_log</code> it is a <code>NewPart</code>.
+  There is no patch column in <code>system.parts</code>; the probes find them with <code>startsWith(name, 'patch-')</code>.</li>
+<li><strong>Lightweight <code>DELETE</code>.</strong> <code>DELETE FROM</code> runs on all six versions. <code>lightweight_delete_mode</code> exists
+  from 25.8 (default <code>alter_update</code>; on 24.8 and 25.3 setting it is Code 115). In the default mode
+  <code>DELETE FROM</code> is a <code>MutatePart</code> that writes about 11 KB (24.8) to 18 KB (26.10) for 1% of 2M rows;
+  <code>ALTER ... DELETE</code> writes 16 MB. With <code>lightweight_delete_mode = 'lightweight_update'</code> on a table with
+  the block columns the server writes a patch part instead (<code>07-delete-patch-bytes</code>: 5 KB on 25.8 and 26.3,
+  92 KB on 26.8 and 26.10, no <code>MutatePart</code>). <code>lightweight_update_force</code> on a table without the block columns
+  fails with Code 344 (<code>err-delete-force-no-block-columns</code>). With <code>apply_deleted_mask = 0</code> the deleted rows
+  are back (<code>count()</code> 2,000,000 against 1,980,000) on every version, and for the patch mode from 25.8.</li>
+<li><strong>Patch bytes.</strong> For the same 1% update the patch part is 93 KB (10%: 845 KB) on 25.8.33.6 and
+  26.3.62.3; on 26.8.36.3 and 26.10.3.7 they are 180 KB
+  and 1.65 MB.</li>
+<li><strong>On-the-fly mutations.</strong> <code>apply_mutations_on_fly = 1</code> returns the new value on 25.3.14.14 and
+  later; on 24.8.14.39 the setting exists but the read still returns the old value
+  (<code>05-read-on-fly</code>).</li>
+<li><strong><code>APPLY PATCHES</code>.</strong> <code>ALTER TABLE ... APPLY PATCHES</code> ran on 25.8 to 26.10. After 50 patches,
+  <code>OPTIMIZE ... FINAL</code> renamed the base part (<code>all_1_2_1</code> to <code>all_1_2_2_101</code>) and left one active
+  patch part holding the 50 rows; <code>APPLY PATCHES</code> renamed it again (<code>..._103</code>). On 25.8.33.6 no patch
+  part was active afterwards; on 26.3.62.3, 26.8.36.3 and 26.10.3.7 one patch part with 50 rows stayed
+  active. Scan and point-read results are identical in all steps.</li>
+<li><strong><code>ReplacingMergeTree</code>.</strong> Same results on all six versions: 2,020,000 rows without <code>FINAL</code>,
+  2,000,000 with it; a plain <code>OPTIMIZE FINAL</code> on the <code>is_deleted</code> table leaves the 2,000 deleted rows
+  (2,000,000 physical rows); <code>OPTIMIZE ... FINAL CLEANUP</code> removes them (1,998,000) but only when the
+  table was created with <code>allow_experimental_replacing_merge_with_cleanup = 1</code>; without it, Code 344
+  on every version.</li>
+<li><strong><code>CollapsingMergeTree</code>, cancel row first.</strong> Same on all six versions. After <code>OPTIMIZE ... FINAL</code>
+  the table keeps 101,000 rows: for each of the 1,000 cancelled keys both the -1 and the +1 row stay
+  (<code>sum(sign)</code> is 99,000 and the -1 count is 1,000). <code>FINAL</code> before the merge returns 100,000 rows.
+  <code>HAVING sum(sign) &gt; 0</code> returns the 99,000 correct keys. The state-first control and
+  <code>VersionedCollapsingMergeTree</code> with the cancel row first both end with 99,000 rows.</li>
+<li><strong><code>CoalescingMergeTree</code>.</strong> Code 56 (unknown engine) on 24.8.14.39 and 25.3.14.14; from 25.8.33.6 the
+  three sparse inserts become one row per key with all three columns set under <code>FINAL</code> and after
+  <code>OPTIMIZE</code>, where <code>ReplacingMergeTree</code> keeps only the last insert's column.</li>
+</ul>
+<h3>1 row / 1% / 10% on 2M rows</h3>
+<p>Bytes written come from <code>system.part_log</code> (<code>ProfileEvents['WriteBufferFromFileDescriptorWriteBytes']</code>),
+the update times are single runs, and the <code>SELECT sum(v)</code> columns are median (fastest) of 5 repeats in
+ms. Controls: untouched <code>MergeTree</code> 4 (4) ms on 26.10 and 9 (5) on 24.8; untouched <code>ReplacingMergeTree</code>
+with <code>FINAL</code> 5 (4) on 26.10. Values are 26.10.3.7; the oldest build where the mechanism runs is in
+brackets (24.8.14.39 for classic and re-insert, 25.8.33.6 for patch parts).</p>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Fraction</th>
+<th>Bytes written</th>
+<th>Update time</th>
+<th><code>SELECT sum(v)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>classic <code>ALTER UPDATE</code></td>
+<td>1 row</td>
+<td>8.0 MB [8.0 MB]</td>
+<td>90 ms [101]</td>
+<td>5 (4) [6 (5)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>7.9 MB [7.9 MB]</td>
+<td>98 ms [69]</td>
+<td>6 (5) [6 (5)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>7.2 MB [7.2 MB]</td>
+<td>75 ms [78]</td>
+<td>6 (4) [5 (5)]</td>
+</tr>
+<tr>
+<td>re-insert, <code>ReplacingMergeTree</code></td>
+<td>1 row</td>
+<td>1.8 KB [0.9 KB]</td>
+<td>64 ms [2]</td>
+<td><code>FINAL</code> 6 (5) [18 (17)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>186 KB [179 KB]</td>
+<td>65 ms [11]</td>
+<td><code>FINAL</code> 14 (13) [23 (18)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>1.65 MB [1.64 MB]</td>
+<td>26 ms [85]</td>
+<td><code>FINAL</code> 16 (15) [34 (16)]</td>
+</tr>
+<tr>
+<td>patch-part <code>UPDATE</code></td>
+<td>1 row</td>
+<td>2.0 KB [2.2 KB]</td>
+<td>4 ms [6]</td>
+<td>14 (10) [7 (6)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>180 KB [93 KB]</td>
+<td>21 ms [20]</td>
+<td>12 (11) [8 (7)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>1.65 MB [845 KB]</td>
+<td>28 ms [44]</td>
+<td>17 (11) [12 (10)]</td>
+</tr>
+</tbody>
+</table>
+<p>Reading the table: the classic mutation rewrites the whole <code>v</code> column (about 8 MB) at every fraction, the
+re-insert and the patch part write roughly in proportion to the changed rows. After the change, a scan
+of a mutated table costs the same as the control within the 1 ms resolution; the re-insert needs
+<code>FINAL</code> (14 to 16 ms on 26.10 against 5 ms for an untouched <code>ReplacingMergeTree</code> with <code>FINAL</code>; without
+<code>FINAL</code> it is fast and wrong, the sum counts the re-written keys twice); the patch-part table reads
+12 to 17 ms against 4 ms for the control while the patch is still a separate part. The update times of
+the re-insert on 26.10 and 24.8 differ by more than their difference in work, so they are noise; do not
+rank mechanisms by them. Only a 2M-row table and one data layout (the changed rows spread over every
+granule at 1% and 10%) were measured; the 10% threshold the lab was started from is not tested by
+anything beyond these three fractions.</p>
+<h3>Read cost at 20M rows (<code>08-scale.sql</code>)</h3>
+<p>The same three mechanisms at 10x the size, so a scan takes 130 to 480 ms and the 1 ms resolution no
+longer matters. Each table is one part before the change, the patch-part and re-insert tables have
+merges stopped, and the re-insert tables are read with <code>FINAL</code>. The scan is
+<code>SELECT sum(sipHash64(v, s)), uniq(v)</code> over every row; the range read is the same aggregate over 100,000
+ids on the sort key. Cells are median (fastest) of 5 repeats in ms, 26.10.3.7 first and the oldest build
+where the mechanism runs in brackets (24.8.14.39; 25.8.33.6 for patch parts). The run took 74 to 121 s
+per version; other containers were running (RESULTS.md has their CPU%, total 88% to 459% of 1200%), so
+read differences smaller than about 30% as noise.</p>
+<table>
+<thead>
+<tr>
+<th>Read</th>
+<th>Fraction</th>
+<th>untouched control</th>
+<th>classic <code>ALTER UPDATE</code></th>
+<th>patch-part <code>UPDATE</code></th>
+<th>re-insert, <code>FINAL</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>full scan</td>
+<td>1%</td>
+<td>148 (134) [193 (172)]</td>
+<td>149 (124) [218 (189)]</td>
+<td>202 (185) [186 (173)]</td>
+<td>274 (248) [278 (224)]</td>
+</tr>
+<tr>
+<td>full scan</td>
+<td>10%</td>
+<td>148 (134) [193 (172)]</td>
+<td>161 (128) [159 (150)]</td>
+<td>242 (204) [270 (229)]</td>
+<td>255 (223) [376 (290)]</td>
+</tr>
+<tr>
+<td>range, 100k rows</td>
+<td>1%</td>
+<td>5 (3) [5 (5)]</td>
+<td>3 (3) [12 (7)]</td>
+<td>5 (4) [6 (5)]</td>
+<td>7 (5) [10 (8)]</td>
+</tr>
+<tr>
+<td>range, 100k rows</td>
+<td>10%</td>
+<td>5 (3) [5 (5)]</td>
+<td>4 (3) [14 (11)]</td>
+<td>5 (5) [8 (7)]</td>
+<td>6 (5) [17 (12)]</td>
+</tr>
+</tbody>
+</table>
+<p>The control for the re-insert column is an untouched <code>ReplacingMergeTree</code> read with <code>FINAL</code>: 154 (131)
+on 26.10.3.7 and 170 (149) on 24.8.14.39 for the full scan, 3 (3) and 8 (4) for the range. The untouched
+<code>MergeTree</code> is the control for the other columns. Without <code>FINAL</code>, the re-insert table scans in 157 (148) ms
+on 26.10 but returns a wrong sum.</p>
+<p>What the 26.10 numbers show: a classic-mutated table scans like the control; the patch-part table
+scans about 1.4x to 1.6x the control, and the <code>FINAL</code> table about 1.7x to 1.8x (against the untouched
+<code>FINAL</code> table, 154 (131), about 1.7x). Range reads on the sort key stay in single-digit
+milliseconds for every mechanism. The updates themselves (single runs, 26.10.3.7): classic 1.37 s (1%)
+and 0.80 s (10%), writing 20 MB for both; patch part 125 ms and 269 ms, writing 1.8 MB and 16 MB;
+re-insert 63 ms and 255 ms, writing 1.8 MB and 9.2 MB.</p>
+<p>What changes between builds, from the same file:</p>
+<ul>
+<li><strong>Patch part, bytes written.</strong> 916 KB (1%) and 8.4 MB (10%) on 25.8.33.6 and 26.3.62.3; 1.79 MB and
+  16.4 MB on 26.8.36.3 and 26.10.3.7, for the same changed rows (200,000 and 2,000,000).</li>
+<li><strong>Patch part, update time (1% / 10%).</strong> 137 / 734 ms on 25.8, 141 / 553 ms on 26.3, 100 / 832 ms on
+  26.8, 125 / 269 ms on 26.10 (single runs).</li>
+<li><strong>Patch part, scan (1% / 10%).</strong> 186 (173) / 270 (229) on 25.8 against a control of 252 (203); 367 (226)
+  / 229 (160) on 26.3 against 147 (120); 281 (200) / 242 (213) on 26.8 against 209 (166); 202 (185) / 242
+  (204) on 26.10 against 148 (134). The control itself varies by 1.7x between builds on this loaded
+  machine, so the overhead ratios of 25.8 to 26.8 are not reliable; these runs do not separate the builds.</li>
+<li><strong>Classic mutation, bytes written.</strong> 79 MB (1%) and 72 MB (10%) on 24.8 to 26.8; 20.5 MB and 19.6 MB on
+  26.10.3.7. At 2M rows (file 04) all six builds wrote 7 to 8 MB. This lab did not look into why.</li>
+<li><strong>Not available.</strong> Patch parts are Code 62 on 24.8 and 25.3, as in file 04; their classic and
+  re-insert tables ran.</li>
+</ul>
+<h3>Not verified here</h3>
+<ul>
+<li>Distributed or replicated tables, <code>SharedMergeTree</code> and ClickHouse Cloud.</li>
+<li>Tables larger than 20M rows, concurrent writers, and changed rows clustered in a few granules.</li>
+<li>Wall-clock times: other containers were running (see RESULTS.md).</li>
+</ul>
+<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-04 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse에서 행을 바꾸는 모든 방법을 같은 SQL로 여섯 빌드(LTS 24.8, 25.3, 25.8, 26.3, 26.8과 최신
+stable 26.10)에서 실행합니다. 방법마다 그 버전에서 실행되는지(안 되면 오류 코드), 걸리는 시간,
+쓰는 양(<code>system.part_log</code>의 바이트), 변경이 보이기까지의 시간, 이후 <code>SELECT</code>에 드는 비용을 기록합니다.
+changelog를 인용한 내용은 없고, <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/RESULTS.md">RESULTS.md</a>의 모든 셀은 실행 결과입니다. 원시 데이터
+(<code>query_log</code> 행 포함)는 <code>results/&lt;버전&gt;.json</code>에 있습니다.</p>
+<p>대상: <code>ReplacingMergeTree</code>(<code>is_deleted</code> 유무), <code>CollapsingMergeTree</code>, <code>VersionedCollapsingMergeTree</code>,
+<code>CoalescingMergeTree</code>, 기존 <code>ALTER TABLE ... UPDATE</code>, SQL <code>UPDATE</code>(패치 파트), 더 높은 버전으로
+재삽입, on-the-fly 뮤테이션, 세 종류의 <code>DELETE</code>.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/upsert-across-versions
+./run_matrix.py                      # 여섯 버전 전부, 약 17분. 이미지는 미리 받아 둬야 함
+./run_matrix.py --versions 26.10     # 한 버전(versions.txt 줄의 접두사)
+./run_matrix.py --only 04            # 파일 또는 probe id 접두사. 결과는 JSON에 병합
+./run_matrix.py --report-only        # results/*.json으로 RESULTS.md 재생성
+tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10에서만 실행, 예외가 없어야 함
+</code></pre>
+<p><code>versions.txt</code>는 정확한 태그를 오래된 순으로 고정합니다. <code>run_matrix.py</code>는
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a>와 같은 파일입니다(컨테이너 이름은 여기서
+<code>uav-&lt;태그&gt;</code>, 거기서는 <code>jav-&lt;태그&gt;</code>). <code>-- probe: &lt;id&gt; [repeat=N] [value]</code>가 앞에 붙은 문장이 probe이고
+나머지는 준비 문장입니다. <code>value</code>는 첫 결과 행을 표 셀에 넣습니다. <code>-- settings: a, b</code>는
+<code>system.settings</code>, 없으면 <code>system.merge_tree_settings</code>(<code>[table]</code>로 표시)에서 찾습니다. 문장마다
+<code>clickhouse-client</code>를 따로 호출하므로 단독 <code>SET</code>은 쓰지 않습니다.</p>
+<h3>Probe</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-replacing.sql</code></td>
+<td><code>ReplacingMergeTree(ver)</code>, <code>(ver, is_deleted)</code>. 키 200만 개, 1%를 더 높은 <code>ver</code>로 다시 쓰고 0.1%를 삭제 표시: <code>FINAL</code> 유무의 <code>count()</code>, <code>FINAL</code> 대 <code>argMax ... GROUP BY</code>(5회 반복), <code>OPTIMIZE ... FINAL</code>, <code>FINAL CLEANUP</code></td>
+</tr>
+<tr>
+<td><code>02-collapsing.sql</code></td>
+<td>취소 행을 상태 행보다 먼저 넣은 <code>CollapsingMergeTree</code>, <code>VersionedCollapsingMergeTree</code>. 상태 행 먼저 넣는 대조군</td>
+</tr>
+<tr>
+<td><code>03-coalescing.sql</code></td>
+<td>드문드문 채운 INSERT를 <code>CoalescingMergeTree</code>와 <code>ReplacingMergeTree</code>에 넣어 비교</td>
+</tr>
+<tr>
+<td><code>04-update-mechanisms.sql</code></td>
+<td>기존 <code>ALTER UPDATE</code>, <code>ReplacingMergeTree</code> 재삽입, 패치 파트 <code>UPDATE</code>를 각각 200만 행의 1행, 1%, 10%에 적용(테이블 하나씩): 소요 시간, 쓴 바이트, 패치 파트, 그리고 건드리지 않은 대조 테이블과 전체 스캔 <code>SELECT sum(v)</code>(5회) 비교</td>
+</tr>
+<tr>
+<td><code>05-on-the-fly.sql</code></td>
+<td>대기 중인 뮤테이션(<code>SYSTEM STOP MERGES</code>, <code>mutations_sync = 0</code>)을 <code>apply_mutations_on_fly</code> 1과 0으로 읽기</td>
+</tr>
+<tr>
+<td><code>06-patch-accumulation.sql</code></td>
+<td>한 행짜리 <code>UPDATE</code> 50번 연속: 1, 10, 50번째 뒤의 패치 파트 수, 스캔, 포인트 읽기. 이어서 <code>OPTIMIZE ... FINAL</code>과 <code>ALTER TABLE ... APPLY PATCHES</code></td>
+</tr>
+<tr>
+<td><code>07-delete.sql</code></td>
+<td><code>ALTER ... DELETE</code>, <code>DELETE FROM</code>, <code>lightweight_delete_mode = 'lightweight_update'</code>의 <code>DELETE FROM</code>: 시간, 바이트, <code>apply_deleted_mask</code> 1과 0의 <code>count()</code></td>
+</tr>
+<tr>
+<td><code>08-scale.sql</code></td>
+<td>04의 읽기 비용을 2,000만 행에서 측정(스캔 130~480 ms): 기존 <code>ALTER UPDATE</code>, 패치 파트 <code>UPDATE</code>, 재삽입을 1%와 10%에 적용하고 전체 스캔 집계와 10만 행 범위 읽기를 각 5회, 건드리지 않은 대조군과 비교</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td>26.10에서도 실패하는 문장(블록 컬럼 없는 UPDATE, 강제 lightweight DELETE, 테이블 설정 없는 <code>CLEANUP</code>, 정렬 키 컬럼 UPDATE). <code>tools/hol</code>은 이 디렉터리를 실행하지 않고 러너는 실행합니다</td>
+</tr>
+</tbody>
+</table>
+<p>최상위 파일의 모든 probe는 26.10에서 성공합니다(<code>tools/hol run</code>은 첫 예외에서 멈춥니다). 이전 버전의
+실패는 결과이며 <code>✗ Code N</code>으로 표시됩니다(56 UNKNOWN_STORAGE, 62 SYNTAX_ERROR, 115 UNKNOWN_SETTING,
+344 SUPPORT_IS_DISABLED, 420 CANNOT_UPDATE_COLUMN, 48 NOT_IMPLEMENTED).</p>
+<h3>버전별 변화</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/RESULTS.md">RESULTS.md</a>에서만 가져온 내용입니다(2026-11-04 실행, CPU 12개, Docker VM 15.6 GiB). 실행
+내내 다른 컨테이너가 돌고 있었고(버전별 CPU%는 RESULTS.md에 있고 26.10 실행은 약 300%의 다른 부하와
+겹쳤습니다), 시간을 잰 대부분의 probe가 4~30 ms라서 몇 ms 차이는 아래에서 근거로 쓰지 않습니다.</p>
+<ul>
+<li><strong>패치 파트 <code>UPDATE</code>.</strong> 24.8.14.39와 25.3.14.14에서는 문법 오류(Code 62), 25.8.33.6부터 실행됩니다.
+  <code>enable_block_number_column = 1</code>, <code>enable_block_offset_column = 1</code>로 만든 테이블이 필요합니다(없으면
+  Code 48, 25.8~26.10 동일, <code>err-update-no-block-columns</code>). 세션 설정은 필요 없습니다: <code>SETTINGS</code>
+  절 없는 <code>04-pu-no-setting</code>이 25.8~26.10에서 실행됩니다. <code>allow_experimental_lightweight_update</code>는
+  25.8부터 있고 <code>Beta</code>, 26.10에서는 <code>Production</code>입니다. 정렬 키 컬럼의 <code>UPDATE</code>는 패치 파트와 기존
+  뮤테이션 모두 Code 420으로 실패합니다.</li>
+<li><strong>패치 파트의 모습.</strong> <code>system.parts</code>에서 이름이 <code>patch-</code>로 시작하고(예: <code>patch-&lt;해시&gt;-all_4_4_0_3</code>)
+  <code>part_type</code>은 Compact입니다. <code>system.part_log</code>에서는 <code>NewPart</code>입니다. <code>system.parts</code>에 패치 전용
+  컬럼은 없어서 probe는 <code>startsWith(name, 'patch-')</code>로 찾습니다.</li>
+<li><strong>Lightweight <code>DELETE</code>.</strong> <code>DELETE FROM</code>은 여섯 버전 모두에서 실행됩니다. <code>lightweight_delete_mode</code>는
+  25.8부터 있고(기본 <code>alter_update</code>, 24.8과 25.3에서 지정하면 Code 115) 기본 모드의 <code>DELETE FROM</code>은
+  200만 행의 1%에 대해 약 11 KB(24.8)~18 KB(26.10)를 쓰는 <code>MutatePart</code>이고, <code>ALTER ... DELETE</code>는
+  16 MB를 씁니다. 블록 컬럼이 있는 테이블에서 <code>lightweight_delete_mode = 'lightweight_update'</code>를
+  쓰면 패치 파트를 씁니다(<code>07-delete-patch-bytes</code>: 25.8과 26.3에서 5 KB, 26.8과 26.10에서 92 KB, <code>MutatePart</code>
+  없음). 블록 컬럼 없는 테이블에서 <code>lightweight_update_force</code>는 Code 344로 실패합니다
+  (<code>err-delete-force-no-block-columns</code>). <code>apply_deleted_mask = 0</code>이면 삭제한 행이 다시 보입니다
+  (<code>count()</code> 2,000,000 대 1,980,000). 모든 버전에서 같고 패치 모드는 25.8부터입니다.</li>
+<li><strong>패치 바이트.</strong> 같은 1% 업데이트에서 패치 파트는 25.8.33.6과 26.3.62.3에서 93 KB(10%는 845 KB), 26.8.36.3과 26.10.3.7은 180 KB와 1.65 MB입니다.</li>
+<li><strong>On-the-fly 뮤테이션.</strong> <code>apply_mutations_on_fly = 1</code>은 25.3.14.14부터 새 값을 반환하고, 24.8.14.39는
+  설정은 있지만 읽으면 이전 값이 나옵니다(<code>05-read-on-fly</code>).</li>
+<li><strong><code>APPLY PATCHES</code>.</strong> <code>ALTER TABLE ... APPLY PATCHES</code>는 25.8~26.10에서 실행됐습니다. 패치 50개 뒤
+  <code>OPTIMIZE ... FINAL</code>은 기본 파트 이름을 바꾸고(<code>all_1_2_1</code>에서 <code>all_1_2_2_101</code>) 50행을 담은 활성
+  패치 파트 하나를 남겼고, <code>APPLY PATCHES</code>는 다시 이름을 바꿨습니다(<code>..._103</code>). 25.8.33.6에서는 이후
+  활성 패치 파트가 없었고 26.3.62.3, 26.8.36.3, 26.10.3.7에서는 50행짜리 패치 파트 하나가 활성으로
+  남았습니다. 스캔과 포인트 읽기 결과는 모든 단계에서 같습니다.</li>
+<li><strong><code>ReplacingMergeTree</code>.</strong> 여섯 버전 모두 같습니다: <code>FINAL</code> 없으면 2,020,000행, 있으면 2,000,000행.
+  <code>is_deleted</code> 테이블의 일반 <code>OPTIMIZE FINAL</code>은 삭제 행 2,000개를 남기고(물리 2,000,000행),
+  <code>OPTIMIZE ... FINAL CLEANUP</code>이 지웁니다(1,998,000). 단 테이블을
+  <code>allow_experimental_replacing_merge_with_cleanup = 1</code>로 만들었을 때만이고, 아니면 모든 버전에서
+  Code 344입니다.</li>
+<li><strong>취소 행이 먼저인 <code>CollapsingMergeTree</code>.</strong> 여섯 버전 모두 같습니다. <code>OPTIMIZE ... FINAL</code> 뒤에도
+  101,000행이 남습니다. 취소된 1,000개 키마다 -1 행과 +1 행이 둘 다 남습니다(<code>sum(sign)</code>은 99,000,
+  -1 행은 1,000개). 머지 전 <code>FINAL</code>은 100,000행을 반환합니다. <code>HAVING sum(sign) &gt; 0</code>은 올바른 99,000개
+  키를 반환합니다. 상태 행을 먼저 넣은 대조군과, 취소 행이 먼저인 <code>VersionedCollapsingMergeTree</code>는
+  모두 99,000행으로 끝납니다.</li>
+<li><strong><code>CoalescingMergeTree</code>.</strong> 24.8.14.39와 25.3.14.14에서는 Code 56(알 수 없는 엔진), 25.8.33.6부터
+  드문드문 넣은 세 INSERT가 <code>FINAL</code>과 <code>OPTIMIZE</code> 뒤에 세 컬럼이 모두 채워진 키당 한 행이 됩니다.
+  <code>ReplacingMergeTree</code>는 마지막 INSERT의 컬럼만 남깁니다.</li>
+</ul>
+<h3>200만 행의 1행 / 1% / 10%</h3>
+<p>쓴 바이트는 <code>system.part_log</code>(<code>ProfileEvents['WriteBufferFromFileDescriptorWriteBytes']</code>)에서, 업데이트
+시간은 단일 실행, <code>SELECT sum(v)</code>는 5회 반복의 중앙값(최솟값) ms입니다. 대조군: 건드리지 않은
+<code>MergeTree</code>는 26.10에서 4 (4) ms, 24.8에서 9 (5), 건드리지 않은 <code>ReplacingMergeTree</code>의 <code>FINAL</code>은 26.10에서
+5 (4). 값은 26.10.3.7이고 대괄호는 그 방법이 실행되는 가장 오래된 빌드(기존 방식과 재삽입은
+24.8.14.39, 패치 파트는 25.8.33.6)입니다.</p>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>비율</th>
+<th>쓴 바이트</th>
+<th>업데이트 시간</th>
+<th><code>SELECT sum(v)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기존 <code>ALTER UPDATE</code></td>
+<td>1행</td>
+<td>8.0 MB [8.0 MB]</td>
+<td>90 ms [101]</td>
+<td>5 (4) [6 (5)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>7.9 MB [7.9 MB]</td>
+<td>98 ms [69]</td>
+<td>6 (5) [6 (5)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>7.2 MB [7.2 MB]</td>
+<td>75 ms [78]</td>
+<td>6 (4) [5 (5)]</td>
+</tr>
+<tr>
+<td>재삽입, <code>ReplacingMergeTree</code></td>
+<td>1행</td>
+<td>1.8 KB [0.9 KB]</td>
+<td>64 ms [2]</td>
+<td><code>FINAL</code> 6 (5) [18 (17)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>186 KB [179 KB]</td>
+<td>65 ms [11]</td>
+<td><code>FINAL</code> 14 (13) [23 (18)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>1.65 MB [1.64 MB]</td>
+<td>26 ms [85]</td>
+<td><code>FINAL</code> 16 (15) [34 (16)]</td>
+</tr>
+<tr>
+<td>패치 파트 <code>UPDATE</code></td>
+<td>1행</td>
+<td>2.0 KB [2.2 KB]</td>
+<td>4 ms [6]</td>
+<td>14 (10) [7 (6)]</td>
+</tr>
+<tr>
+<td></td>
+<td>1%</td>
+<td>180 KB [93 KB]</td>
+<td>21 ms [20]</td>
+<td>12 (11) [8 (7)]</td>
+</tr>
+<tr>
+<td></td>
+<td>10%</td>
+<td>1.65 MB [845 KB]</td>
+<td>28 ms [44]</td>
+<td>17 (11) [12 (10)]</td>
+</tr>
+</tbody>
+</table>
+<p>표를 읽는 법: 기존 뮤테이션은 모든 비율에서 <code>v</code> 컬럼 전체(약 8 MB)를 다시 쓰고, 재삽입과 패치
+파트는 바뀐 행 수에 대략 비례해 씁니다. 변경 뒤 뮤테이션한 테이블의 스캔은 1 ms 해상도 안에서
+대조군과 같습니다. 재삽입은 <code>FINAL</code>이 필요해서 26.10에서 14~16 ms(건드리지 않은
+<code>ReplacingMergeTree</code>의 <code>FINAL</code>은 5 ms)이고, <code>FINAL</code> 없이 읽으면 빠르지만 틀립니다(다시 쓴 키가 두 번
+합산됨). 패치가 별도 파트로 남아 있는 동안 패치 파트 테이블은 대조군 4 ms에 비해 12~17 ms입니다.
+재삽입의 업데이트 시간은 26.10과 24.8 사이에 일의 차이보다 크게 달라서 잡음이므로 방법의 순위를
+매기는 데 쓰지 마세요. 측정한 것은 200만 행 테이블 하나와 하나의 데이터 배치(1%, 10%에서 바뀐 행이
+모든 granule에 퍼짐)뿐이고, 이 실습의 출발점이던 "10% 미만" 기준은 이 세 비율 밖에서는 검증하지
+않았습니다.</p>
+<h3>2,000만 행에서의 읽기 비용(<code>08-scale.sql</code>)</h3>
+<p>같은 세 방법을 10배 크기에서 측정해 스캔이 130~480 ms가 되므로 1 ms 해상도가 더는 문제가 되지
+않습니다. 테이블마다 변경 전에는 파트 하나이고, 패치 파트와 재삽입 테이블은 머지를 멈췄으며, 재삽입
+테이블은 <code>FINAL</code>로 읽습니다. 스캔은 전체 행에 대한 <code>SELECT sum(sipHash64(v, s)), uniq(v)</code>, 범위 읽기는
+정렬 키 기준 10만 id에 대한 같은 집계입니다. 셀은 5회 반복의 중앙값(최솟값) ms이며 26.10.3.7이 먼저이고
+대괄호는 그 방법이 실행되는 가장 오래된 빌드(24.8.14.39, 패치 파트는 25.8.33.6)입니다. 버전당 74~121초가
+걸렸고 다른 컨테이너가 돌고 있었으므로(CPU% 합계는 RESULTS.md, 1200% 중 88~459%) 약 30%보다 작은
+차이는 잡음으로 보세요.</p>
+<table>
+<thead>
+<tr>
+<th>읽기</th>
+<th>비율</th>
+<th>건드리지 않은 대조군</th>
+<th>기존 <code>ALTER UPDATE</code></th>
+<th>패치 파트 <code>UPDATE</code></th>
+<th>재삽입, <code>FINAL</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>전체 스캔</td>
+<td>1%</td>
+<td>148 (134) [193 (172)]</td>
+<td>149 (124) [218 (189)]</td>
+<td>202 (185) [186 (173)]</td>
+<td>274 (248) [278 (224)]</td>
+</tr>
+<tr>
+<td>전체 스캔</td>
+<td>10%</td>
+<td>148 (134) [193 (172)]</td>
+<td>161 (128) [159 (150)]</td>
+<td>242 (204) [270 (229)]</td>
+<td>255 (223) [376 (290)]</td>
+</tr>
+<tr>
+<td>범위, 10만 행</td>
+<td>1%</td>
+<td>5 (3) [5 (5)]</td>
+<td>3 (3) [12 (7)]</td>
+<td>5 (4) [6 (5)]</td>
+<td>7 (5) [10 (8)]</td>
+</tr>
+<tr>
+<td>범위, 10만 행</td>
+<td>10%</td>
+<td>5 (3) [5 (5)]</td>
+<td>4 (3) [14 (11)]</td>
+<td>5 (5) [8 (7)]</td>
+<td>6 (5) [17 (12)]</td>
+</tr>
+</tbody>
+</table>
+<p>재삽입 열의 대조군은 건드리지 않은 <code>ReplacingMergeTree</code>를 <code>FINAL</code>로 읽은 값으로, 전체 스캔은
+26.10.3.7에서 154 (131), 24.8.14.39에서 170 (149), 범위는 3 (3)과 8 (4)입니다. 다른 열의 대조군은
+건드리지 않은 <code>MergeTree</code>입니다. <code>FINAL</code> 없이 읽으면 재삽입 테이블은 26.10에서 157 (148) ms이지만
+합계가 틀립니다.</p>
+<p>26.10 숫자가 보여 주는 것: 기존 뮤테이션을 한 테이블은 대조군과 같은 속도로 스캔되고, 패치 파트
+테이블은 대조군의 약 1.4~1.6배, <code>FINAL</code> 테이블은 약 1.7~1.8배입니다(건드리지 않은 <code>FINAL</code> 테이블
+154 (131) 기준으로는 약 1.7배). 정렬 키 범위 읽기는 모든 방법에서 한 자릿수 ms입니다. 업데이트
+자체(단일 실행, 26.10.3.7): 기존 방식은 1%에 1.37초, 10%에 0.80초로 둘 다 20 MB를 쓰고, 패치 파트는
+125 ms와 269 ms에 1.8 MB와 16 MB, 재삽입은 63 ms와 255 ms에 1.8 MB와 9.2 MB를 씁니다.</p>
+<p>같은 파일에서 본 빌드 간 변화:</p>
+<ul>
+<li><strong>패치 파트 쓴 바이트.</strong> 같은 바뀐 행(20만, 200만)에 대해 25.8.33.6과 26.3.62.3은 916 KB(1%)와
+  8.4 MB(10%), 26.8.36.3과 26.10.3.7은 1.79 MB와 16.4 MB입니다.</li>
+<li><strong>패치 파트 업데이트 시간(1% / 10%).</strong> 25.8 137 / 734 ms, 26.3 141 / 553 ms, 26.8 100 / 832 ms,
+  26.10 125 / 269 ms(단일 실행).</li>
+<li><strong>패치 파트 스캔(1% / 10%).</strong> 25.8 186 (173) / 270 (229), 대조군 252 (203). 26.3 367 (226) / 229 (160),
+  대조군 147 (120). 26.8 281 (200) / 242 (213), 대조군 209 (166). 26.10 202 (185) / 242 (204), 대조군
+  148 (134). 부하가 있는 이 머신에서 대조군 자체가 빌드 사이에 1.7배 달라지므로 25.8~26.8의 오버헤드
+  비율은 신뢰할 수 없고, 이 실행으로는 빌드를 구분할 수 없습니다.</li>
+<li><strong>기존 뮤테이션 쓴 바이트.</strong> 24.8~26.8은 79 MB(1%), 72 MB(10%), 26.10.3.7은 20.5 MB, 19.6 MB입니다.
+  200만 행(파일 04)에서는 여섯 빌드 모두 7~8 MB였습니다. 이유는 이 실습에서 조사하지 않았습니다.</li>
+<li><strong>불가.</strong> 패치 파트는 파일 04처럼 24.8과 25.3에서 Code 62이고, 그 빌드의 기존 방식과 재삽입
+  테이블은 실행됐습니다.</li>
+</ul>
+<h3>검증하지 않은 것</h3>
+<ul>
+<li>분산·복제 테이블, <code>SharedMergeTree</code>, ClickHouse Cloud.</li>
+<li>2,000만 행보다 큰 테이블, 동시 쓰기, 바뀐 행이 몇 개 granule에 몰린 경우.</li>
+<li>절대 시간: 다른 컨테이너가 돌고 있었습니다(RESULTS.md 참조).</li>
+</ul>
+<p>24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3, 26.10.3.7에서 검증, 2026-11-04(<code>./run_matrix.py</code>로 여섯 빌드 모두, <code>tools/hol run</code>은 26.10.3.7).</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/delete-benchmark/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse DELETE Mechanism Benchmark Test Guide</span></a><a class="step next" href="../../../labs/workload/mv-vs-rmv/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">MV vs RMV Resource Efficiency Comparison Test</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

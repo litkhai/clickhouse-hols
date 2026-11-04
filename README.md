@@ -81,6 +81,7 @@ and [MOVED.md](MOVED.md).
 | [workload/replacingmergetree](workload/replacingmergetree/) | `FINAL`, merge timing and the `argMax` alternative |
 | [workload/dedup-engine](workload/dedup-engine/) | Deduplication engines compared |
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE mechanisms and their costs |
+| [workload/upsert-across-versions](workload/upsert-across-versions/) | The same upsert, UPDATE and DELETE SQL on six ClickHouse versions: what each way of changing rows writes, how soon it shows, what it costs later reads |
 | [workload/mv-vs-rmv](workload/mv-vs-rmv/) | Materialized vs refreshable materialized views |
 | [workload/projection](workload/projection/) | Projections for read patterns one sort key cannot serve |
 | [workload/projection-customsettings](workload/projection-customsettings/) | Projection behaviour under custom settings |
@@ -297,6 +298,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [workload/replacingmergetree](workload/replacingmergetree/) | `FINAL`, 머지 시점, `argMax` 대안 |
 | [workload/dedup-engine](workload/dedup-engine/) | 중복 제거 엔진 비교 |
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE 메커니즘과 비용 |
+| [workload/upsert-across-versions](workload/upsert-across-versions/) | 같은 upsert·UPDATE·DELETE SQL을 ClickHouse 여섯 버전에서 실행: 행을 바꾸는 방법별 쓰기량, 반영 시점, 이후 읽기 비용 |
 | [workload/mv-vs-rmv](workload/mv-vs-rmv/) | MV vs RMV(갱신 구체화 뷰) |
 | [workload/projection](workload/projection/) | 단일 정렬 키로 커버되지 않는 읽기 패턴용 프로젝션 |
 | [workload/projection-customsettings](workload/projection-customsettings/) | 커스텀 설정에서의 프로젝션 동작 |
