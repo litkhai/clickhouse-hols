@@ -6,7 +6,7 @@
 
 A complete setup for running a local data lake environment with MinIO object storage and 5 data catalogs: Nessie, Hive Metastore, Iceberg REST, Polaris, and Unity Catalog.
 
-**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../releases/25.8/) - Fully tested with ClickHouse 25.10 and 25.11
+**🔗 Integrated with:** [ClickHouse 25.8+ Labs](../releases/25.8/) - catalog integration verified on ClickHouse 26.10.3.7 (see "Catalog integration test" below)
 
 ---
 
@@ -55,7 +55,7 @@ Recommended for comparing/testing multiple catalogs simultaneously
   - **Unity Catalog**: Databricks-compatible (port 8080)
 - **Apache Iceberg**: Table format for huge analytic datasets
 - **Jupyter Notebooks**: Interactive data exploration (port 8888)
-- **ClickHouse Integration**: Fully tested with 25.10 and 25.11
+- **ClickHouse Integration**: `DataLakeCatalog` read test for all five catalogs on 26.10.3.7 (below); older health checks are labelled as such
 
 ---
 
@@ -118,8 +118,11 @@ datalake-minio-catalog/
 │
 ├── 🧪 Tests
 │   └── tests/
-│       ├── test-catalogs.sh        # All catalogs test
-│       └── test-unity-deltalake.sh # Unity + Delta Lake test
+│       ├── test-datalakecatalog.sh # Real test: seed via catalog, read via DataLakeCatalog
+│       ├── seed_catalogs.py        # Pinned seed writer (pyiceberg / deltalake)
+│       ├── requirements-seed.txt   # Writer pins
+│       ├── test-catalogs.sh        # Health / storage check (no catalog integration)
+│       └── test-unity-deltalake.sh # Unity API + s3() Parquet check (no Delta engine)
 │
 ├── 💡 Examples
 │   └── examples/
@@ -235,12 +238,61 @@ After starting services, access via:
 
 ## 🧪 ClickHouse Integration Testing
 
-### Tested Versions
+### Catalog integration test (`DataLakeCatalog`)
 
-| Version | Unity Catalog | Delta Lake | Status | Recommendation |
-|---------|--------------|------------|--------|----------------|
-| **25.11.2.24** | ✅ Full support | ✅ Full support | ✅ All tests passed | **Recommended** |
-| **25.10.3.100** | ✅ Basic support | ⚠️ Limited support | ⚠️ 80% tests passed | Use with caution |
+`tests/test-datalakecatalog.sh` is the test that exercises ClickHouse against a catalog. For each catalog it
+
+1. seeds `lab.events` (5 rows: `id` Int64, `name` String, `amount` Float64, `ts` timestamp) **through the catalog itself** with a pinned writer (`seed_catalogs.py` in a digest-pinned `python:3.12-slim` container: pyiceberg 0.12.0 for Nessie, Hive Metastore, Iceberg REST and Polaris; `deltalake` 1.6.6 plus the Unity REST API for Unity Catalog, whose table is Delta),
+2. runs `CREATE DATABASE ... ENGINE = DataLakeCatalog(...)` in a ClickHouse container on the lab network,
+3. checks `SHOW TABLES`, `count()` = 5, `sum(id)`/`sum(amount)` = 15/152, a filtered query (`amount > 25` returns charlie, delta, echo) and a timestamp value.
+
+A catalog passes only if ClickHouse read the seeded rows through it. The script starts and removes its own stack and ClickHouse container (compose project `dlfix`; `KEEP=1` leaves them up). Host ports come from `config.env` and can be overridden from the environment (`MINIO_PORT`, `MINIO_CONSOLE_PORT`, `POSTGRES_PORT`, `JUPYTER_PORT`, ...).
+
+```bash
+tests/test-datalakecatalog.sh                       # all five
+tests/test-datalakecatalog.sh nessie polaris        # a subset
+FAULT=stop-catalog tests/test-datalakecatalog.sh    # stops each catalog after seeding: must go red
+CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
+```
+
+DDL used (engine settings read from `system.settings`, the server's error messages and the [DataLakeCatalog docs](https://clickhouse.com/docs/engines/database-engines/datalakecatalog), read 2026-11-04). Common settings for the MinIO-backed REST/Hive catalogs: `vended_credentials = 0, aws_access_key_id, aws_secret_access_key, region = 'us-east-1', storage_endpoint = 'http://minio:9000/warehouse'`.
+
+| Catalog | Engine endpoint | `catalog_type` | `SET` needed | Other settings |
+|---|---|---|---|---|
+| Nessie | `http://nessie:19120/iceberg` | `rest` | `allow_database_iceberg` | `warehouse = 'warehouse'` |
+| Iceberg REST (tabulario) | `http://iceberg-rest:8181` | `rest` | `allow_database_iceberg` | `warehouse = 'warehouse'` (required by ClickHouse, ignored by the server) |
+| Polaris | `http://polaris:8181/api/catalog` | `rest` | `allow_database_iceberg` | `warehouse = '<catalog>'`, `catalog_credential = 'root:<secret>'`, `auth_scope = 'PRINCIPAL_ROLE:ALL'`, `oauth_server_uri = '.../v1/oauth/tokens'` |
+| Hive Metastore | `thrift://hive-metastore:9083` | `hive` | `allow_experimental_database_hms_catalog` | `warehouse = 'hive'` |
+| Unity Catalog OSS | `http://unity-catalog:8080/api/2.1/unity-catalog` | `unity` | `allow_database_unity_catalog` | `use_unity_catalog_v2 = 1`, `warehouse = 'lab'`, `catalog_credential`, `storage_endpoint = 'http://minio:9000'`, `region` |
+
+Notes from the run:
+
+- Without `vended_credentials = 0`, reading from the REST catalogs failed with `ACCESS_DENIED` ("S3 access from user queries is not allowed to use the server's own credentials ..."): the default requests credentials vended by the catalog, and Nessie here is not configured to vend any.
+- Unity: Unity OSS has no endpoint setting, so the test gives it short-lived MinIO STS credentials through `server.properties` (`UNITY_SERVER_PROPERTIES`), and ClickHouse needs `storage_endpoint` to talk to MinIO. Without it ClickHouse requested `https://s3.eu-central-1.amazonaws.com/warehouse/...` with the vended key and got `403 InvalidAccessKeyId` (`UNITY_STORAGE_ENDPOINT= tests/test-datalakecatalog.sh unity` reproduces it; that run sends a throwaway MinIO key to AWS). The Unity test also passed with `use_unity_catalog_v2 = 0` (`UNITY_V2=0`); the default of the test is `1`, the setting the docs describe for serving Delta and Iceberg.
+- Hive Metastore: the image needs `hadoop-aws` on the classpath and `conf/hive-core-site.xml` to resolve `s3a://` table locations (both set in `docker-compose.yml`); the seed registers the table with an explicit `s3a://` location. The `apache/hive:3.1.3` image is amd64 only and runs under emulation on arm64 hosts. Re-creating the metastore container against an existing Postgres volume fails (`initSchema` runs on every start); use `down -v`.
+
+### Pinned versions
+
+Images are pinned (no `:latest`). Digests are the registry index digests read on 2026-11-04.
+
+| Component | Image | Digest / version |
+|---|---|---|
+| MinIO | `cgr.dev/chainguard/minio@sha256:3c60a2a8...` | `RELEASE.2026-10-23T20-06-51Z` (`minio/minio` can no longer be pulled; Chainguard publishes no version tags, so pinned by digest) |
+| MinIO client (bucket setup) | `cgr.dev/chainguard/minio-client@sha256:1dccd2a6...` | no shell: one `mc mb` call with `MC_HOST_myminio` |
+| Nessie | `ghcr.io/projectnessie/nessie:0.109.0` | `sha256:61a1a14e...` (the old Docker Hub `projectnessie/nessie` stops at 2024-01) |
+| Iceberg REST | `tabulario/iceberg-rest:1.6.0` | `sha256:3b7d31bd...` |
+| Polaris | `apache/polaris:1.8.0` | `sha256:347615e7...` |
+| Unity Catalog | `unitycatalog/unitycatalog:v0.7.0` | `sha256:cdacdc5e...` |
+| Hive Metastore | `apache/hive:3.1.3` | `sha256:d102ba29...` |
+| Hive backing DB | `postgres:11.16` | `sha256:5d2aa4a7...` |
+| Seed writer | `python@sha256:b18b261e...` (`python:3.12-slim`) | `tests/requirements-seed.txt` |
+| ClickHouse | `clickhouse/clickhouse-server:26.10.3.7` | `sha256:739e099a...` |
+
+**Verified on ClickHouse 26.10.3.7, 2026-11-04** (Docker Desktop, arm64 host): `tests/test-datalakecatalog.sh` end to end for all five catalogs read all five seeded rows (`count()`, sums, a filtered query and a timestamp value matched) through every catalog; with each catalog container stopped after seeding the same test failed for all five (0 passed, 5 failed); Unity without `storage_endpoint` failed (above). The raw output of these runs is not committed. Only the `DataLakeCatalog` read path was verified, not writes through ClickHouse, ClickPipes or other versions.
+
+### Health and storage checks (not catalog integration)
+
+`tests/test-catalogs.sh` checks MinIO (an `s3()` Parquet write and read) and, for the active catalog, only that its health endpoint answers (Hive: port 9083 open) plus a ClickHouse `ENGINE = Memory` table; ClickHouse never connects to a catalog. `tests/test-unity-deltalake.sh` does the same for Unity (API answers, `s3()` Parquet), with no Delta engine and no `DataLakeCatalog`. `CATALOG_TYPE` and `CLICKHOUSE_CONTAINER` can be set in the environment. The earlier "25.11 all tests passed / 25.10 80% passed" table came from these checks, was not re-run, and is not evidence of catalog support, so it was removed. [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md) predates the new test and was not re-checked.
 
 ### Unity Catalog + Delta Lake Testing
 
@@ -440,5 +492,5 @@ SELECT * FROM s3(
 
 - **Quick help**: `./setup.sh --help` or `./setup-multi-catalog.sh --help`
 - **Documentation**: [docs/](docs/) directory
-- **Testing**: Run `./tests/test-catalogs.sh`
+- **Testing**: Run `./tests/test-datalakecatalog.sh` (catalog integration) or `./tests/test-catalogs.sh` (health check)
 - **Logs**: `docker logs <service-name>`

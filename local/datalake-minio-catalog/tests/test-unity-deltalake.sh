@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# Health / storage check, not a Unity Catalog integration test: it checks the Unity API answers
+# and that ClickHouse reads Parquet from MinIO with s3(). No Delta Lake engine and no
+# DataLakeCatalog database are involved. The real Unity check is `unity` in test-datalakecatalog.sh.
 
 set -e
 
