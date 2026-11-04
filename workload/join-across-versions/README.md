@@ -110,6 +110,16 @@ failures on 26.10 itself. `run_matrix.py` runs them after the top-level files an
 `errors/02-lateral-forms.sql` has the LATERAL forms that do not parse or are not implemented.
 
 
+### Screens
+
+Captured 2026-11-04 from ClickHouse's `/play` UI on local throwaway containers, for the notes article
+`core-architecture/clickhouse-join`:
+
+- [`images/01-left-arbitrary-on-26-8.png`](images/01-left-arbitrary-on-26-8.png) — `03-arbitrary-left` on 26.8.36.3: Code 403
+- [`images/02-left-arbitrary-on-26-10.png`](images/02-left-arbitrary-on-26-10.png) — the same query on 26.10.3.7: the result row
+- [`images/03-runtime-filter-explain-26-10.png`](images/03-runtime-filter-explain-26-10.png) — `EXPLAIN actions = 1` of `05-star-default` on 26.10.3.7, lines 1–25 (`Runtime filters: RF2(customer_id, id)`; the `Extremes` node comes from `/play`)
+- [`images/04-used-join-algorithms-26-10.png`](images/04-used-join-algorithms-26-10.png) — `query_log.used_join_algorithms` for 11 probes on 26.10.3.7 (`03-arbitrary-left` empty)
+
 ### Verified
 
 Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-04
@@ -216,6 +226,15 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 `run_matrix.py`가 최상위 파일 뒤에 실행하고 RESULTS.md에 각각 절이 생깁니다. `errors/01-memory-cap-defaults.sql`은 `06`의 조인을 같은 상한에서 스필하지 않는 경로(기본, 비율 명시, `hash`, `partial_merge`, 버킷 1개 `grace_hash`)로 실행하고,
 `errors/02-lateral-forms.sql`은 파싱되지 않거나 구현되지 않은 LATERAL 형태입니다.
 
+
+### 화면
+
+2026-11-04, 로컬 일회용 컨테이너의 ClickHouse `/play` 화면에서 노트 글 `core-architecture/clickhouse-join`용으로 찍었습니다.
+
+- [`images/01-left-arbitrary-on-26-8.png`](images/01-left-arbitrary-on-26-8.png) — 26.8.36.3의 `03-arbitrary-left`: Code 403
+- [`images/02-left-arbitrary-on-26-10.png`](images/02-left-arbitrary-on-26-10.png) — 같은 쿼리, 26.10.3.7: 결과 행
+- [`images/03-runtime-filter-explain-26-10.png`](images/03-runtime-filter-explain-26-10.png) — 26.10.3.7의 `05-star-default` `EXPLAIN actions = 1` 1–25행(`Runtime filters: RF2(customer_id, id)`, `Extremes` 노드는 `/play`가 붙인 것)
+- [`images/04-used-join-algorithms-26-10.png`](images/04-used-join-algorithms-26-10.png) — 26.10.3.7에서 프로브 11개의 `query_log.used_join_algorithms`(`03-arbitrary-left`만 비어 있음)
 
 ### 검증
 
