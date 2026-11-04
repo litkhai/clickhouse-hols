@@ -285,6 +285,7 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 | Unity Catalog | `unitycatalog/unitycatalog:v0.7.0` | `sha256:cdacdc5e...` |
 | Hive Metastore | `apache/hive:3.1.3` | `sha256:d102ba29...` |
 | Hive 백엔드 DB | `postgres:11.16` | `sha256:5d2aa4a7...` |
+| Jupyter 베이스 (`Dockerfile.jupyter`) | `jupyter/pyspark-notebook@sha256:58377aaa...` | Docker Hub 마지막 게시 2023-10-20(2026-11-04에 `latest`가 가리키던 것). 이미지가 빌드되고 `pyarrow`가 import되도록 `boto3==1.43.117`, `pyarrow<26` 고정 |
 | 시드 작성기 | `python@sha256:b18b261e...` (`python:3.12-slim`) | `tests/requirements-seed.txt` |
 | ClickHouse | `clickhouse/clickhouse-server:26.10.3.7` | `sha256:739e099a...` |
 
@@ -294,7 +295,7 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 
 `tests/test-catalogs.sh`는 MinIO(`s3()` Parquet 쓰기/읽기)와, 활성 카탈로그에 대해서는 헬스 엔드포인트 응답(Hive는 9083 포트 열림)과 ClickHouse `ENGINE = Memory` 테이블만 확인하며, ClickHouse가 카탈로그에 연결하지 않습니다. `tests/test-unity-deltalake.sh`도 Unity에 대해 같습니다(API 응답, `s3()` Parquet). Delta 엔진도 `DataLakeCatalog`도 쓰지 않습니다. `CATALOG_TYPE`과 `CLICKHOUSE_CONTAINER`는 환경변수로 지정할 수 있습니다. 예전의 "25.11 모든 테스트 통과 / 25.10 80% 통과" 표는 이 점검에서 나온 것이고 다시 실행하지 않았으며 카탈로그 지원의 근거가 아니어서 삭제했습니다. [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)는 새 테스트보다 앞선 문서이며 다시 확인하지 않았습니다.
 
-### Unity Catalog + Delta Lake 테스트
+### Unity Catalog 상태/스토리지 점검
 
 ```bash
 # 1. Unity Catalog 시작
@@ -306,14 +307,14 @@ cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. 통합 테스트 실행
+# 3. Unity 상태/스토리지 점검 실행 (카탈로그 읽기 테스트 아님)
 ./tests/test-unity-deltalake.sh
 
 # 4. 결과 확인
-cat docs/test-results/test-results-*.md
+cat tests/test-results-*.md   # 스크립트 옆에 생성되는 보고서 (git 무시)
 ```
 
-상세 비교: [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
+과거 비교(2025-12-13, 다시 실행하지 않음): [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
 
 ---
 

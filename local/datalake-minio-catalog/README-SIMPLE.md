@@ -13,7 +13,7 @@
 
 ```bash
 # Start everything with defaults
-./setup.sh --start
+./setup-multi-catalog.sh --start
 
 # Try an example
 ./examples/basic-s3-read-write.sh
@@ -29,14 +29,14 @@
 
 - Docker & Docker Compose
 - 20GB+ disk space
-- ClickHouse 25.10+ (for testing)
+- A ClickHouse server with `DataLakeCatalog` (the lab tests use 26.10.3.7; `tests/test-datalakecatalog.sh` starts its own)
 
 ### Step-by-Step
 
 #### 1. Optional: Configure
 
 ```bash
-./setup.sh --configure
+./setup-multi-catalog.sh --configure
 ```
 
 Sets storage size and ports. **Skip this to use defaults.**
@@ -45,25 +45,25 @@ Sets storage size and ports. **Skip this to use defaults.**
 
 **Option A: Start everything (recommended for testing)**
 ```bash
-./setup.sh --start
+./setup-multi-catalog.sh --start
 ```
 
 **Option B: Start specific catalogs**
 ```bash
 # Just Unity and Nessie
-./setup.sh --start unity nessie
+./setup-multi-catalog.sh --start unity nessie
 
 # Just Hive
-./setup.sh --start hive
+./setup-multi-catalog.sh --start hive
 
 # Nessie, Iceberg, and Polaris
-./setup.sh --start nessie iceberg polaris
+./setup-multi-catalog.sh --start nessie iceberg polaris
 ```
 
 #### 3. Verify
 
 ```bash
-./setup.sh --status
+./setup-multi-catalog.sh --status
 ```
 
 #### 4. Try Examples
@@ -72,7 +72,7 @@ Sets storage size and ports. **Skip this to use defaults.**
 # Basic S3 operations
 ./examples/basic-s3-read-write.sh
 
-# Delta Lake
+# Parquet analytics (name is historical, no Delta Lake engine)
 ./examples/delta-lake-simple.sh
 
 # Test catalogs
@@ -85,13 +85,13 @@ Sets storage size and ports. **Skip this to use defaults.**
 
 | Command | Description |
 |---------|-------------|
-| `./setup.sh --start` | Start all catalogs |
-| `./setup.sh --start nessie unity` | Start specific catalogs |
-| `./setup.sh --stop` | Stop all services |
-| `./setup.sh --status` | Check status |
-| `./setup.sh --configure` | Interactive config |
-| `./setup.sh --clean` | Remove all data |
-| `./setup.sh --help` | Show help |
+| `./setup-multi-catalog.sh --start` | Start all catalogs |
+| `./setup-multi-catalog.sh --start nessie unity` | Start specific catalogs |
+| `./setup-multi-catalog.sh --stop` | Stop all services |
+| `./setup-multi-catalog.sh --status` | Check status |
+| `./setup-multi-catalog.sh --configure` | Interactive config |
+| `./setup-multi-catalog.sh --clean` | Remove all data |
+| `./setup-multi-catalog.sh --help` | Show help |
 
 ---
 
@@ -111,16 +111,16 @@ Start **one or more** catalogs:
 
 ```bash
 # All catalogs (for comprehensive testing)
-./setup.sh --start
+./setup-multi-catalog.sh --start
 
 # Modern catalogs only
-./setup.sh --start nessie unity polaris
+./setup-multi-catalog.sh --start nessie unity polaris
 
 # Traditional catalog
-./setup.sh --start hive
+./setup-multi-catalog.sh --start hive
 
 # Mix and match
-./setup.sh --start nessie hive unity
+./setup-multi-catalog.sh --start nessie hive unity
 ```
 
 ---
@@ -152,8 +152,8 @@ After starting services:
 ```
 datalake-minio-catalog/
 │
-├── setup.sh          # 🌟 NEW: Simplified setup (USE THIS)
-├── setup.sh                 # Legacy setup (one catalog at a time)
+├── setup-multi-catalog.sh   # 🌟 Multi-catalog setup (USE THIS)
+├── setup.sh                 # Single-catalog setup (one catalog at a time)
 ├── GETTING_STARTED.md       # 🌟 Quick start guide
 │
 ├── examples/                # Learning examples
@@ -183,10 +183,10 @@ datalake-minio-catalog/
 
 ```bash
 # 1. Start all services
-./setup.sh --start
+./setup-multi-catalog.sh --start
 
 # 2. Check status
-./setup.sh --status
+./setup-multi-catalog.sh --status
 
 # 3. Try examples
 ./examples/basic-s3-read-write.sh
@@ -200,41 +200,41 @@ datalake-minio-catalog/
 
 ```bash
 # 1. Start MinIO + Unity
-./setup.sh --start unity
+./setup-multi-catalog.sh --start unity
 
 # 2. Start ClickHouse 25.11
 cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Run Unity test
+# 3. Run the Unity health / storage check (not the catalog read test)
 ./tests/test-unity-deltalake.sh
 
-# 4. View results
-cat docs/test-results/test-results-unity-deltalake-*.md
+# 4. View results (written next to the script, git-ignored)
+cat tests/test-results-unity-deltalake-*.md
 ```
 
 ### Workflow 3: Development with Specific Catalogs
 
 ```bash
 # Start only what you need
-./setup.sh --start nessie iceberg
+./setup-multi-catalog.sh --start nessie iceberg
 
 # Develop and test
 # ...
 
 # Add more catalogs without restarting
-./setup.sh --start unity
+./setup-multi-catalog.sh --start unity
 
 # Stop when done
-./setup.sh --stop
+./setup-multi-catalog.sh --stop
 ```
 
 ---
 
 ## 🆚 Old vs New Setup
 
-| Feature | setup.sh (Old) | setup.sh (New) |
+| Feature | setup.sh (Old) | setup-multi-catalog.sh (New) |
 |---------|----------------|----------------------|
 | **Multiple catalogs** | ❌ One at a time | ✅ Multiple simultaneously |
 | **Default config** | ❌ Must configure | ✅ Has sensible defaults |
@@ -260,10 +260,10 @@ cat docs/test-results/test-results-unity-deltalake-*.md
 **New way:**
 ```bash
 # Start both at once!
-./setup.sh --start nessie unity
+./setup-multi-catalog.sh --start nessie unity
 
 # Or start everything
-./setup.sh --start
+./setup-multi-catalog.sh --start
 ```
 
 ---
@@ -292,16 +292,16 @@ cat docs/test-results/test-results-unity-deltalake-*.md
 ### Automatic (Recommended)
 ```bash
 # Uses defaults, just start
-./setup.sh --start
+./setup-multi-catalog.sh --start
 ```
 
 ### Custom
 ```bash
 # Interactive configuration
-./setup.sh --configure
+./setup-multi-catalog.sh --configure
 
-# Or edit config-simple.env manually
-nano config-simple.env
+# Or edit config-multi-catalog.env manually
+nano config-multi-catalog.env
 ```
 
 ### Default Settings
@@ -332,7 +332,7 @@ docker logs minio
 docker logs unity-catalog
 
 # Check status
-./setup.sh --status
+./setup-multi-catalog.sh --status
 ```
 
 ### Port conflicts
@@ -342,14 +342,14 @@ docker logs unity-catalog
 lsof -i :19000
 
 # Reconfigure with different ports
-./setup.sh --configure
+./setup-multi-catalog.sh --configure
 ```
 
 ### Can't connect to catalog
 
 ```bash
 # Check if catalog is running
-./setup.sh --status
+./setup-multi-catalog.sh --status
 
 # Test connectivity
 curl http://localhost:19120/api/v2/config  # Nessie
@@ -360,10 +360,10 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 
 ```bash
 # Stop and remove all data
-./setup.sh --clean
+./setup-multi-catalog.sh --clean
 
 # Start fresh
-./setup.sh --start
+./setup-multi-catalog.sh --start
 ```
 
 ---
@@ -374,7 +374,7 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 - **[README.md](README.md)** - Full documentation
 - **[docs/NAVIGATION_GUIDE.md](docs/NAVIGATION_GUIDE.md)** - Find your way around
 - **[docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity testing
-- **[docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)** - Version comparison
+- **[docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)** - Historical comparison (2025-12-13, not re-run)
 
 ---
 
@@ -418,7 +418,7 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 **After:**
 ```bash
 # Test all 3 at once!
-./setup.sh --start nessie unity hive
+./setup-multi-catalog.sh --start nessie unity hive
 ./tests/test-catalogs.sh
 ```
 
@@ -447,10 +447,10 @@ curl http://localhost:8080/api/2.1/unity-catalog/catalogs  # Unity
 
 ```bash
 # Show help
-./setup.sh --help
+./setup-multi-catalog.sh --help
 
 # Check status
-./setup.sh --status
+./setup-multi-catalog.sh --status
 
 # Read guide
 cat GETTING_STARTED.md
@@ -460,26 +460,21 @@ cat GETTING_STARTED.md
 
 ## 📊 ClickHouse Integration
 
-### Tested Versions
+### Verified version
 
-| Version | All Catalogs | Unity + Delta Lake | Status |
-|---------|--------------|-------------------|---------|
-| **25.11.2.24** | ✅ 100% | ✅ 100% | ✅ Recommended |
-| **25.10.3.100** | ✅ 100% | ⚠️ 80% | Use with caution |
-
-See [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
+`tests/test-datalakecatalog.sh` (ClickHouse reads seeded rows through each catalog with `DataLakeCatalog`) was run on ClickHouse 26.10.3.7 on 2026-11-04; see [README.md](README.md) for what was and was not checked. `tests/test-catalogs.sh` and `tests/test-unity-deltalake.sh` are health / storage checks only (ClickHouse does not read through a catalog there). The earlier 25.10 / 25.11 pass-rate table was removed: it came from those health checks and was not re-run. Historical record: [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md) (2025-12-13).
 
 ### Quick Test
 
 ```bash
 # 1. Start catalogs
-./setup.sh --start unity nessie
+./setup-multi-catalog.sh --start unity nessie
 
 # 2. Start ClickHouse
 cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Test
+# 3. Health / storage check
 ./tests/test-unity-deltalake.sh
 ```
 
@@ -488,18 +483,18 @@ cd ../datalake-minio-catalog
 ## 🔄 What Changed from v2.0
 
 ### New Files
-- `setup.sh` - New simplified setup script
+- `setup-multi-catalog.sh` - New multi-catalog setup script
 - `GETTING_STARTED.md` - Quick start guide
-- `config-simple.env` - New config format
+- `config-multi-catalog.env` - New config format
 - `README-SIMPLE.md` - This file
 
 ### Helper Scripts
 - `generate_parquet.py` - Generates the sample Parquet datasets
 - `register_data.py` - Registers the generated data in a catalog
-- `quickstart.sh` → `scripts-legacy/`
+- `quickstart.sh` - One-command start for a single catalog (uses `setup.sh`)
 
 ### Still There
-- `setup.sh` - Legacy support (still works)
+- `setup.sh` - Single-catalog setup (still works)
 - `config.env` - Old config (still works)
 - All tests, examples, docs - Same locations
 
@@ -519,7 +514,7 @@ cd ../datalake-minio-catalog
 
 ### v2.0 (2025-12)
 - Added Polaris and Unity Catalog
-- ClickHouse 25.10/25.11 testing
+- ClickHouse 25.10/25.11 testing (s3() / health checks, see the note in docs/COMPARISON-25.10-vs-25.11.md)
 
 ### v1.0
 - Initial release with 3 catalogs
@@ -532,7 +527,7 @@ Educational purposes demonstration project.
 
 ---
 
-**Recommendation**: Use `setup.sh` for new deployments. The old `setup.sh` remains for backward compatibility.
+**Recommendation**: Use `setup-multi-catalog.sh` for new deployments. `setup.sh` remains for single-catalog use.
 
 **Quick Links**:
 - [Getting Started](GETTING_STARTED.md)

@@ -1,8 +1,10 @@
-# Unity Catalog + Delta Lake Integration Test Guide
+# Unity Catalog + MinIO Health / Storage Check Guide
 
 ## Overview
 
-This guide provides instructions for testing Unity Catalog and Delta Lake read/write operations with ClickHouse versions 25.10 and 25.11.
+> **Updated 2026-11-04.** `tests/test-unity-deltalake.sh` is a health / storage check, not a catalog-integration test. It checks that the Unity Catalog API answers and that ClickHouse can write and read plain Parquet on MinIO with `s3()`. ClickHouse does not read through Unity, and no Delta Lake engine is used. The check that ClickHouse reads seeded rows through Unity (`DataLakeCatalog`) is `tests/test-datalakecatalog.sh unity` (ClickHouse 26.10.3.7). The 2025-12-13 25.10 / 25.11 results in [COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md) came from the earlier version of this script and were not re-run.
+
+This guide describes how to run the check against any ClickHouse container.
 
 ## Prerequisites
 
@@ -12,9 +14,10 @@ This guide provides instructions for testing Unity Catalog and Delta Lake read/w
    - Docker Desktop installed and running
    - Minimum 8GB RAM allocated to Docker
 
-2. **ClickHouse 25.10 or 25.11**
-   - Running in Docker container
-   - Named as `clickhouse-25-10` or `clickhouse-25-11`
+2. **A ClickHouse container**
+   - Running in Docker
+   - Named `clickhouse-25-10` or `clickhouse-25-11`, or pass its name in `CLICKHOUSE_CONTAINER`
+   - It reaches MinIO at `host.docker.internal:<MINIO_PORT>`
 
 3. **Unity Catalog**
    - Started via this project's setup script
@@ -45,7 +48,7 @@ When prompted:
 - **Catalog Type**: Select `5` for Unity Catalog
 - **Unity Catalog port**: `8080`
 
-### Step 2: Start ClickHouse 25.10 or 25.11
+### Step 2: Start ClickHouse (25.10 / 25.11 containers are found automatically; otherwise set `CLICKHOUSE_CONTAINER`)
 
 ```bash
 # For ClickHouse 25.11
@@ -71,57 +74,57 @@ cd ../oss-docker
 # - jupyter (port 8888)
 ```
 
-### Step 4: Run Integration Tests
+### Step 4: Run the check
 
 ```bash
 cd local/datalake-minio-catalog
 
-# Execute the test suite
-./test-unity-deltalake.sh
+# CATALOG_TYPE=unity, CLICKHOUSE_CONTAINER, MINIO_PORT, UNITY_PORT can come from the environment
+./tests/test-unity-deltalake.sh
 ```
+
+The report is written next to the script as `tests/test-results-unity-deltalake-<timestamp>.md` (git-ignored).
 
 ## Test Coverage
 
-The test suite includes the following tests:
+The script runs the following checks:
 
 ### 1. Unity Catalog - Basic Connectivity
 - Tests API connectivity to Unity Catalog
 - Validates catalog listing functionality
 
-### 2. Unity Catalog - Create Delta Lake Table
-- Creates a source table in ClickHouse
-- Prepares data for Delta Lake export
+### 2. ClickHouse - Create source table
+- Creates a `Memory` source table in ClickHouse (Unity is not involved)
 
-### 3. Delta Lake - Write to MinIO (Parquet format)
-- Writes data from ClickHouse to MinIO
-- Uses Parquet format (Delta Lake compatible)
+### 3. MinIO - Write Parquet with s3()
+- Writes data from ClickHouse to MinIO as a plain Parquet file (no Delta log)
 - Tests S3-compatible storage operations
 
-### 4. Delta Lake - Read from MinIO
+### 4. MinIO - Read Parquet with s3()
 - Reads Parquet data from MinIO
 - Validates data integrity
 - Performs aggregations
 
-### 5. Delta Lake - Append New Data
-- Tests append operations
+### 5. MinIO - Append a second Parquet file
+- Writes a second file
 - Validates incremental data loading
 
-### 6. Delta Lake - Query with Filters
+### 6. MinIO - Query Parquet with filters
 - Tests filter pushdown
 - Validates WHERE clause optimization
 - Performs aggregations on filtered data
 
-### 7. Delta Lake - Schema Validation
+### 7. MinIO - Parquet schema
 - Validates schema inference
 - Tests DESCRIBE TABLE functionality
 - Checks data type mapping
 
-### 8. Delta Lake - Performance Test (Large Dataset)
+### 8. MinIO - Large Parquet dataset
 - Writes 10,000 rows
 - Measures write/read performance
 - Tests query performance on large datasets
 
-### 9. Delta Lake - Data Type Compatibility
+### 9. MinIO - Parquet data types
 - Tests all supported data types:
   - Integer types (Int8, Int16, Int32, Int64)
   - Floating point (Float32, Float64)
@@ -148,16 +151,16 @@ The report includes:
 - **Test Summary**: Pass/fail/skip counts, total execution time
 - **Test Results**: Detailed results for each test
 - **Key Findings**: Overall assessment
-- **Recommendations**: Version-specific recommendations
+- **Scope**: what the script does and does not check
 
 ### Success Criteria
 
 ✅ **All tests passed** indicates:
-- Unity Catalog integration is functional
-- Delta Lake read operations work correctly
-- Delta Lake write operations work correctly
-- Performance is acceptable
-- All data types are supported
+- The Unity Catalog API answers
+- ClickHouse `s3()` can write and read plain Parquet on MinIO
+- The listed data types round-trip through Parquet
+
+It does **not** show that ClickHouse reads through Unity Catalog or that Delta Lake works; use `tests/test-datalakecatalog.sh unity` for that.
 
 ❌ **Some tests failed** indicates:
 - Review the markdown report for details
@@ -171,7 +174,7 @@ The report includes:
 
 **Error:**
 ```
-ClickHouse 25.10 or 25.11 container not found
+ClickHouse container not found (set CLICKHOUSE_CONTAINER, or start clickhouse-25-10/25-11)
 ```
 
 **Solution:**
@@ -225,9 +228,12 @@ Access Denied (S3_ERROR)
 - Verify MinIO credentials in `config.env`
 - Check MinIO bucket permissions:
   ```bash
-  docker exec -it minio-setup sh
-  mc alias set myminio http://minio:9000 admin password123
-  mc ls myminio/warehouse
+  # The MinIO images have no shell; run one mc call with the alias in MC_HOST_myminio
+  docker run --rm --network <compose-project>_datalake \
+    -e MC_HOST_myminio=http://admin:password123@minio:9000 \
+    --entrypoint /usr/bin/mc \
+    cgr.dev/chainguard/minio-client@sha256:1dccd2a6fd59914a98ac2d9dad95e552c91243cb0bd7242aaa224802df4b3432 \
+    ls myminio/warehouse
   ```
 
 ### Issue: Cannot connect to ClickHouse
@@ -273,44 +279,25 @@ To test with larger datasets:
 # To: FROM numbers(1000000)  # 1 million rows
 ```
 
-### Checking Delta Lake Data in MinIO
+### Checking the Parquet files in MinIO
 
 Access MinIO Console:
 1. Open browser: http://localhost:19001
 2. Login: admin / password123
 3. Navigate to: warehouse/unity-catalog/delta-test/
 
-Or use MinIO CLI:
+Or use the MinIO client (the images have no shell, so run one `mc` call):
 ```bash
-docker exec -it minio-setup sh
-mc alias set myminio http://minio:9000 admin password123
-mc ls myminio/warehouse/unity-catalog/delta-test/
+docker run --rm --network <compose-project>_datalake \
+  -e MC_HOST_myminio=http://admin:password123@minio:9000 \
+  --entrypoint /usr/bin/mc \
+  cgr.dev/chainguard/minio-client@sha256:1dccd2a6fd59914a98ac2d9dad95e552c91243cb0bd7242aaa224802df4b3432 \
+  ls myminio/warehouse/unity-catalog/delta-test/
 ```
 
-## Version-Specific Notes
+## Versions and timings
 
-### ClickHouse 25.11
-- Full Unity Catalog support
-- Enhanced Delta Lake compatibility
-- Improved Parquet read/write performance
-- Better S3 integration
-
-### ClickHouse 25.10
-- Unity Catalog support available
-- Delta Lake read/write functional
-- Standard Parquet support
-- S3 integration stable
-
-## Performance Benchmarks
-
-Expected performance on standard hardware (M1 Mac, 16GB RAM):
-
-| Test | Rows | Write Time | Read Time | Total Time |
-|------|------|------------|-----------|------------|
-| Basic Write | 5 | <1s | <1s | 1-2s |
-| Basic Read | 5 | N/A | <1s | <1s |
-| Large Dataset | 10,000 | 2-3s | 1-2s | 3-5s |
-| Query with Filters | 10,000 | N/A | 1-2s | 1-2s |
+No version comparison or timing table is kept here: the old 25.10 / 25.11 notes and the "expected performance" table were not backed by a recorded run. The 2025-12-13 results are in [COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md) (historical). The version the catalog read path was verified on is in the README.
 
 ## Integration with Spark
 
@@ -359,4 +346,4 @@ For issues or questions:
 
 ---
 
-*Last updated: 2025-12-13*
+*Last updated: 2026-11-04 (script relabelled as a health / storage check; first written 2025-12-13)*

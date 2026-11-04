@@ -285,6 +285,7 @@ Images are pinned (no `:latest`). Digests are the registry index digests read on
 | Unity Catalog | `unitycatalog/unitycatalog:v0.7.0` | `sha256:cdacdc5e...` |
 | Hive Metastore | `apache/hive:3.1.3` | `sha256:d102ba29...` |
 | Hive backing DB | `postgres:11.16` | `sha256:5d2aa4a7...` |
+| Jupyter base (`Dockerfile.jupyter`) | `jupyter/pyspark-notebook@sha256:58377aaa...` | last published to Docker Hub 2023-10-20 (what `latest` pointed to on 2026-11-04); `boto3==1.43.117` and `pyarrow<26` pinned so the image builds and `pyarrow` imports |
 | Seed writer | `python@sha256:b18b261e...` (`python:3.12-slim`) | `tests/requirements-seed.txt` |
 | ClickHouse | `clickhouse/clickhouse-server:26.10.3.7` | `sha256:739e099a...` |
 
@@ -294,7 +295,7 @@ Images are pinned (no `:latest`). Digests are the registry index digests read on
 
 `tests/test-catalogs.sh` checks MinIO (an `s3()` Parquet write and read) and, for the active catalog, only that its health endpoint answers (Hive: port 9083 open) plus a ClickHouse `ENGINE = Memory` table; ClickHouse never connects to a catalog. `tests/test-unity-deltalake.sh` does the same for Unity (API answers, `s3()` Parquet), with no Delta engine and no `DataLakeCatalog`. `CATALOG_TYPE` and `CLICKHOUSE_CONTAINER` can be set in the environment. The earlier "25.11 all tests passed / 25.10 80% passed" table came from these checks, was not re-run, and is not evidence of catalog support, so it was removed. [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md) predates the new test and was not re-checked.
 
-### Unity Catalog + Delta Lake Testing
+### Unity Catalog health / storage check
 
 ```bash
 # 1. Start Unity Catalog
@@ -306,14 +307,14 @@ cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Run integration test
+# 3. Run the Unity health / storage check (not the catalog read test)
 ./tests/test-unity-deltalake.sh
 
 # 4. View results
-cat docs/test-results/test-results-*.md
+cat tests/test-results-*.md   # report written next to the script (git-ignored)
 ```
 
-Detailed comparison: [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
+Historical comparison (2025-12-13, not re-run): [docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)
 
 ---
 

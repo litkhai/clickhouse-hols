@@ -1,6 +1,8 @@
 # MinIO and S3 compatibility
 minio>=7.2.0
-boto3>=1.28.0
+# pinned to the botocore that pyiceberg[s3fs] (aiobotocore) resolves to on 2026-11-04;
+# an open 'boto3>=1.28.0' makes pip backtrack for many minutes
+boto3==1.43.117
 
 # Data processing
 pandas>=2.0.0

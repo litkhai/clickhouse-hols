@@ -29,7 +29,7 @@ def upload_to_minio(config):
 
     # Initialize MinIO client
     minio_client = Minio(
-        f"localhost:{config.get('MINIO_PORT', '9000')}",
+        f"localhost:{config.get('MINIO_PORT', '19000')}",
         access_key=config.get('MINIO_ROOT_USER', 'admin'),
         secret_key=config.get('MINIO_ROOT_PASSWORD', 'password123'),
         secure=False
@@ -91,9 +91,12 @@ def create_iceberg_tables_nessie(config):
         catalog = load_catalog(
             "nessie",
             **{
-                "uri": f"http://localhost:{config.get('NESSIE_PORT', '19120')}/api/v2",
-                "warehouse": f"s3://{config.get('SAMPLE_DATA_BUCKET', 'warehouse')}/",
-                "s3.endpoint": f"http://localhost:{config.get('MINIO_PORT', '9000')}",
+                # Nessie's Iceberg REST endpoint is /iceberg (/api/v2 is Nessie's own API);
+                # "warehouse" is the warehouse name configured in docker-compose.yml.
+                "type": "rest",
+                "uri": f"http://localhost:{config.get('NESSIE_PORT', '19120')}/iceberg",
+                "warehouse": "warehouse",
+                "s3.endpoint": f"http://localhost:{config.get('MINIO_PORT', '19000')}",
                 "s3.access-key-id": config.get('MINIO_ROOT_USER', 'admin'),
                 "s3.secret-access-key": config.get('MINIO_ROOT_PASSWORD', 'password123'),
                 "s3.path-style-access": "true",
@@ -108,6 +111,7 @@ def create_iceberg_tables_nessie(config):
             print(f"ℹ Namespace 'demo' may already exist: {e}")
 
         # Read parquet file and create table
+        loaded = False
         if os.path.exists("sample-data/orders.parquet"):
             table = pq.read_table("sample-data/orders.parquet")
             try:
@@ -120,11 +124,16 @@ def create_iceberg_tables_nessie(config):
                 # Append data
                 iceberg_table.append(table)
                 print("✓ Loaded data into demo.orders")
+                loaded = True
             except Exception as e:
-                print(f"ℹ Table creation: {e}")
+                print(f"ℹ Table creation / load: {e}")
+                if "Could not connect" in str(e):
+                    print("  The catalog hands out the in-network MinIO address (minio:9000), which the host")
+                    print("  cannot resolve, so rows cannot be written from here. Run the same code from the")
+                    print("  Jupyter container (notebooks/02_iceberg_nessie.ipynb) to load rows.")
 
-        print("\n✓ Nessie setup complete!")
-        return True
+        print("\n✓ Nessie setup complete!" if loaded else "\nℹ Nessie: namespace/table created, no rows loaded")
+        return loaded
 
     except ImportError:
         print("✗ PyIceberg not installed. Install with: pip install pyiceberg")
@@ -149,7 +158,7 @@ def create_iceberg_tables_rest(config):
             **{
                 "uri": f"http://localhost:{config.get('ICEBERG_REST_PORT', '8181')}",
                 "warehouse": f"s3://{config.get('SAMPLE_DATA_BUCKET', 'warehouse')}/",
-                "s3.endpoint": f"http://localhost:{config.get('MINIO_PORT', '9000')}",
+                "s3.endpoint": f"http://localhost:{config.get('MINIO_PORT', '19000')}",
                 "s3.access-key-id": config.get('MINIO_ROOT_USER', 'admin'),
                 "s3.secret-access-key": config.get('MINIO_ROOT_PASSWORD', 'password123'),
                 "s3.path-style-access": "true",
@@ -164,6 +173,7 @@ def create_iceberg_tables_rest(config):
             print(f"ℹ Namespace 'demo' may already exist: {e}")
 
         # Read parquet file and create table
+        loaded = False
         if os.path.exists("sample-data/orders.parquet"):
             table = pq.read_table("sample-data/orders.parquet")
             try:
@@ -176,11 +186,16 @@ def create_iceberg_tables_rest(config):
                 # Append data
                 iceberg_table.append(table)
                 print("✓ Loaded data into demo.orders")
+                loaded = True
             except Exception as e:
-                print(f"ℹ Table creation: {e}")
+                print(f"ℹ Table creation / load: {e}")
+                if "Could not connect" in str(e):
+                    print("  The catalog hands out the in-network MinIO address (minio:9000), which the host")
+                    print("  cannot resolve, so rows cannot be written from here. Run the same code from the")
+                    print("  Jupyter container (notebooks/02_iceberg_nessie.ipynb) to load rows.")
 
-        print("\n✓ REST catalog setup complete!")
-        return True
+        print("\n✓ REST catalog setup complete!" if loaded else "\nℹ REST catalog: namespace/table created, no rows loaded")
+        return loaded
 
     except ImportError:
         print("✗ PyIceberg not installed. Install with: pip install pyiceberg")
@@ -189,7 +204,7 @@ def create_iceberg_tables_rest(config):
         print(f"✗ Error: {e}")
         return False
 
-def show_summary(config):
+def show_summary(config, loaded=None):
     """Show summary of registered data"""
     print("\n" + "="*50)
     print("Data Registration Summary")
@@ -205,10 +220,10 @@ def show_summary(config):
 
     if catalog_type != "hive":
         print(f"\n📊 Iceberg Tables ({catalog_type}):")
-        print(f"   └─ demo.orders")
+        print(f"   └─ demo.orders" + ("" if loaded else "  (no rows loaded, see above)"))
 
     print(f"\n🔗 Access URLs:")
-    print(f"   MinIO Console: http://localhost:{config.get('MINIO_CONSOLE_PORT', '9001')}")
+    print(f"   MinIO Console: http://localhost:{config.get('MINIO_CONSOLE_PORT', '19001')}")
     print(f"   Jupyter: http://localhost:8888")
 
     if catalog_type == "nessie":
@@ -236,18 +251,19 @@ def main():
         sys.exit(1)
 
     # Create Iceberg tables based on catalog type
+    loaded = None
     if catalog_type == "nessie":
-        create_iceberg_tables_nessie(config)
+        loaded = create_iceberg_tables_nessie(config)
     elif catalog_type == "iceberg-rest":
-        create_iceberg_tables_rest(config)
+        loaded = create_iceberg_tables_rest(config)
     elif catalog_type == "hive":
         print("\nℹ Hive catalog setup requires manual table creation")
         print("  Use the Jupyter notebook for examples")
 
     # Show summary
-    show_summary(config)
+    show_summary(config, loaded)
 
-    print("\n✓ Registration complete!")
+    print("\n✓ Registration complete!" if loaded or loaded is None else "\nℹ Registration finished: MinIO upload done, catalog table has no rows")
 
 if __name__ == "__main__":
     main()

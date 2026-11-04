@@ -11,7 +11,7 @@ This guide helps you navigate the reorganized project structure and find what yo
 | **Try examples** | [examples/](../examples/) |
 | **Run tests** | [tests/](../tests/) |
 | **Read documentation** | [docs/](.) |
-| **View test results** | `docs/test-results/` |
+| **View test results** | `tests/test-results-*.md` (written next to the script, git-ignored) |
 | **Learn with notebooks** | [notebooks/](../notebooks/) |
 
 ---
@@ -32,16 +32,16 @@ datalake-minio-catalog/
 │   ├── QUICKSTART_GUIDE.md     ← Detailed setup
 │   ├── SPARK_SETUP.md          ← Spark integration
 │   ├── UNITY_DELTALAKE_TEST_GUIDE.md  ← Unity testing
-│   ├── COMPARISON-25.10-vs-25.11.md   ← Version comparison
-│   └── test-results/           ← Test execution reports
+│   ├── COMPARISON-25.10-vs-25.11.md   ← Historical comparison (2025-12-13)
 │
 ├── 🧪 tests/ - All Test Scripts
-│   ├── test-catalogs.sh        ← Test all catalogs
-│   └── test-unity-deltalake.sh ← Unity + Delta Lake test
+│   ├── test-datalakecatalog.sh ← ClickHouse reads through each catalog (DataLakeCatalog)
+│   ├── test-catalogs.sh        ← Health / storage check (not catalog integration)
+│   └── test-unity-deltalake.sh ← Unity API + MinIO Parquet health / storage check
 │
 ├── 💡 examples/ - Learning Examples
 │   ├── basic-s3-read-write.sh  ← Basic S3 operations
-│   └── delta-lake-simple.sh    ← Simple Delta Lake
+│   └── delta-lake-simple.sh    ← Parquet on MinIO (name is historical)
 │
 ├── 📓 notebooks/ - Jupyter Notebooks
 │   ├── 01_minio_connection.ipynb
@@ -51,7 +51,6 @@ datalake-minio-catalog/
 │
 └── 🗄️ data & config files
     ├── sample-data/
-    ├── minio-storage/
     ├── generate_parquet.py
     └── register_data.py
 ```
@@ -83,7 +82,7 @@ datalake-minio-catalog/
    ↓
 3. tests/test-catalogs.sh
    ↓
-4. docs/test-results/ (view results)
+4. tests/test-results-*.md (view results)
    ↓
 5. docs/UNITY_DELTALAKE_TEST_GUIDE.md (advanced testing)
 ```
@@ -107,7 +106,7 @@ datalake-minio-catalog/
 ```
 1. docs/COMPARISON-25.10-vs-25.11.md
    ↓
-2. docs/test-results/ (detailed results)
+2. tests/test-results-*.md (detailed results)
    ↓
 3. tests/test-unity-deltalake.sh (run own tests)
    ↓
@@ -124,9 +123,8 @@ datalake-minio-catalog/
 - **[config.env](../config.env)** - Configuration reference
 
 ### Testing
-- **[UNITY_DELTALAKE_TEST_GUIDE.md](UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity Catalog + Delta Lake testing
-- **[COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)** - Version comparison report
-- **`test-results/`** - Historical test results
+- **[UNITY_DELTALAKE_TEST_GUIDE.md](UNITY_DELTALAKE_TEST_GUIDE.md)** - Unity API + MinIO Parquet health / storage check
+- **[COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)** - Historical 2025-12-13 comparison (health checks, not re-run)
 
 ### Advanced
 - **[SPARK_SETUP.md](SPARK_SETUP.md)** - Spark integration guide
@@ -136,27 +134,30 @@ datalake-minio-catalog/
 
 ## 🧪 Test Scripts Guide
 
+### tests/test-datalakecatalog.sh
+**Purpose**: The catalog-integration test: seeds `lab.events` through each of the 5 catalogs, then ClickHouse (26.10.3.7, started by the script) reads it with `DataLakeCatalog`
+**Usage**: `./tests/test-datalakecatalog.sh [nessie] [hive] [iceberg-rest] [polaris] [unity]` (see the README)
+
 ### tests/test-catalogs.sh
-**Purpose**: Test all 5 catalogs (Nessie, Hive, Iceberg REST, Polaris, Unity)
+**Purpose**: Health / storage check of the active catalog (`CATALOG_TYPE`): MinIO `s3()` Parquet and the catalog's health endpoint. ClickHouse does not read through the catalog
 **Usage**: `./tests/test-catalogs.sh`
 **When to use**:
 - After initial setup
 - After changing catalogs
-- To verify integration with ClickHouse
+- To check that MinIO and the catalog answer
 - Before production deployment
 
 **Output**: Terminal output with pass/fail results
 
 ### tests/test-unity-deltalake.sh
-**Purpose**: Comprehensive Unity Catalog + Delta Lake testing
+**Purpose**: Health / storage check: Unity API answers and ClickHouse `s3()` reads and writes plain Parquet on MinIO (no Delta engine, no `DataLakeCatalog`)
 **Usage**: `./tests/test-unity-deltalake.sh`
 **When to use**:
 - Testing Unity Catalog specifically
-- Comparing ClickHouse versions
-- Validating Delta Lake operations
-- Performance testing
+- Checking the Unity container and MinIO together
+- For ClickHouse reading through Unity use `test-datalakecatalog.sh unity`
 
-**Output**: Markdown report in `docs/test-results/`
+**Output**: Markdown report in `tests/` (`test-results-*.md`, git-ignored)
 
 ---
 
@@ -177,17 +178,17 @@ datalake-minio-catalog/
 - Understanding read/write flow
 
 ### examples/delta-lake-simple.sh
-**Purpose**: Learn Delta Lake operations
+**Purpose**: Parquet on MinIO with analytics queries (the name is historical; no Delta Lake engine is used)
 **Level**: Intermediate
 **What it does**:
 - Creates orders dataset
-- Exports to Delta Lake format
+- Exports to Parquet on MinIO
 - Performs analytics queries
 - Shows aggregations
 
 **When to use**:
 - After understanding basic S3
-- Learning Delta Lake
+- Learning analytics queries over Parquet
 - Building analytics pipelines
 
 ---
@@ -216,7 +217,7 @@ datalake-minio-catalog/
 → [docs/UNITY_DELTALAKE_TEST_GUIDE.md](UNITY_DELTALAKE_TEST_GUIDE.md)
 
 ### I want to see test results
-→ `docs/test-results/`
+→ `tests/test-results-*.md`
 → [docs/COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)
 
 ### I want to learn by example
@@ -232,7 +233,7 @@ datalake-minio-catalog/
 
 ### I want to compare ClickHouse versions
 → [docs/COMPARISON-25.10-vs-25.11.md](COMPARISON-25.10-vs-25.11.md)
-→ `docs/test-results/`
+→ `tests/test-results-*.md`
 
 ---
 
@@ -251,13 +252,13 @@ datalake-minio-catalog/
 ### Examples (Learning)
 ```bash
 ./examples/basic-s3-read-write.sh    # Basic S3 operations
-./examples/delta-lake-simple.sh      # Delta Lake example
+./examples/delta-lake-simple.sh      # Parquet example (name is historical, no Delta Lake)
 ```
 
 ### Tests (Validation)
 ```bash
 ./tests/test-catalogs.sh             # Test all catalogs
-./tests/test-unity-deltalake.sh      # Unity + Delta Lake test
+./tests/test-unity-deltalake.sh      # Unity health / storage check
 ```
 
 ### Jupyter (Interactive)
@@ -280,7 +281,7 @@ open http://localhost:8888
 ### Documentation (.md)
 - **README.md** - Main documentation (root level)
 - **docs/*.md** - Detailed documentation (in docs/)
-- **docs/test-results/*.md** - Test reports (in docs/test-results/)
+- **tests/test-results-*.md** - Test reports (generated, git-ignored)
 
 **View with**: Text editor or GitHub
 
@@ -309,7 +310,6 @@ If you're familiar with the old structure:
 | `./COMPARISON-25.10-vs-25.11.md` | `./docs/COMPARISON-25.10-vs-25.11.md` | Documentation organization |
 | `./QUICKSTART_GUIDE.md` | `./docs/QUICKSTART_GUIDE.md` | Documentation organization |
 | `./SPARK_SETUP.md` | `./docs/SPARK_SETUP.md` | Documentation organization |
-| `./test-results-*.md` | `./docs/test-results/*.md` | Archive organization |
 | N/A | `./examples/*.sh` | New: Learning examples |
 | N/A | `./docs/NAVIGATION_GUIDE.md` | New: This guide |
 
@@ -327,7 +327,7 @@ If you're familiar with the old structure:
 1. Read the test guide first: `docs/UNITY_DELTALAKE_TEST_GUIDE.md`
 2. Ensure services are running: `./setup.sh --status`
 3. Run tests: `./tests/test-unity-deltalake.sh`
-4. Review results: `docs/test-results/`
+4. Review results: `tests/test-results-*.md`
 
 ### When Learning
 1. Start with examples: `examples/`

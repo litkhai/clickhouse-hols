@@ -37,3 +37,4 @@ Thumbs.db
 
 # Generated data
 sample-data/orders.parquet
+test-results-*.md
