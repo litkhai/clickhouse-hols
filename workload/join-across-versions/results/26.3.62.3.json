@@ -1,0 +1,4860 @@
+{
+ "files": {
+  "00-data.sql": {
+   "setup": [
+    {
+     "id": "00-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "DROP DATABASE IF EXISTS join_lab;"
+    },
+    {
+     "id": "00-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE DATABASE join_lab;"
+    },
+    {
+     "id": "00-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.13,
+     "sql": "CREATE TABLE join_lab.facts\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
+    },
+    {
+     "id": "00-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.56,
+     "sql": "INSERT INTO join_lab.facts\nSELECT\n    number,\n    cityHash64(number, 1) % 500000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(5000000);"
+    },
+    {
+     "id": "00-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "CREATE TABLE join_lab.customers\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.3,
+     "sql": "INSERT INTO join_lab.customers\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(500000);"
+    },
+    {
+     "id": "00-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.regions\n(\n    id   UInt8,\n    name String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "INSERT INTO join_lab.regions\nSELECT number, concat('region-', toString(number)) FROM numbers(20);"
+    },
+    {
+     "id": "00-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.bands\n(\n    lo UInt32,\n    hi UInt32\n)\nENGINE = MergeTree\nORDER BY lo;"
+    },
+    {
+     "id": "00-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "INSERT INTO join_lab.bands\nSELECT number * 100, (number + 1) * 100 FROM numbers(100);"
+    },
+    {
+     "id": "00-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.prices\n(\n    customer_id UInt32,\n    ts          DateTime,\n    price       UInt32\n)\nENGINE = MergeTree\nORDER BY (customer_id, ts);"
+    },
+    {
+     "id": "00-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "INSERT INTO join_lab.prices\nSELECT\n    number % 2000,\n    toDateTime('2026-01-01 00:00:00') + intDiv(number, 2000) * 86400,\n    cityHash64(number, 7) % 1000\nFROM numbers(20000);"
+    },
+    {
+     "id": "00-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.contacts\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
+    },
+    {
+     "id": "00-setup14",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.77,
+     "sql": "INSERT INTO join_lab.contacts\nSELECT\n    cityHash64(number, 8) % 100000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(1000000);"
+    },
+    {
+     "id": "00-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "CREATE TABLE join_lab.facts_big\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
+    },
+    {
+     "id": "00-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 5.12,
+     "sql": "INSERT INTO join_lab.facts_big\nSELECT\n    number,\n    cityHash64(number, 1) % 5000000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(50000000);"
+    },
+    {
+     "id": "00-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.31,
+     "sql": "CREATE TABLE join_lab.customers_big\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup18",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 3.41,
+     "sql": "INSERT INTO join_lab.customers_big\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(5000000);"
+    },
+    {
+     "id": "00-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.25,
+     "sql": "CREATE TABLE join_lab.contacts_big\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
+    },
+    {
+     "id": "00-setup20",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 4.65,
+     "sql": "INSERT INTO join_lab.contacts_big\nSELECT\n    cityHash64(number, 8) % 1000000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(5000000);"
+    }
+   ],
+   "probes": []
+  },
+  "01-hash-baseline.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "01-default",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "01-default.1",
+       "wall_s": 0.258,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 137,
+        "memory_usage": 89600972,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 5,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 53,
+         "JoinOptimizeMicroseconds": 1972
+        }
+       }
+      },
+      {
+       "query_id": "01-default.2",
+       "wall_s": 0.236,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 79,
+        "memory_usage": 87506319,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 18,
+         "JoinOptimizeMicroseconds": 373,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      },
+      {
+       "query_id": "01-default.3",
+       "wall_s": 0.148,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 39,
+        "memory_usage": 94618468,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.3",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 25,
+         "JoinOptimizeMicroseconds": 379,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      137,
+      79,
+      39
+     ],
+     "duration_ms": 79,
+     "memory_usage": 94618468,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 25,
+      "JoinOptimizeMicroseconds": 379,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "01-hash",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "01-hash.1",
+       "wall_s": 0.181,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 97,
+        "memory_usage": 66876943,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.1",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 19,
+         "JoinOptimizeMicroseconds": 354
+        }
+       }
+      },
+      {
+       "query_id": "01-hash.2",
+       "wall_s": 0.158,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 58,
+        "memory_usage": 71100279,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 17,
+         "JoinOptimizeMicroseconds": 354
+        }
+       }
+      },
+      {
+       "query_id": "01-hash.3",
+       "wall_s": 0.136,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 34,
+        "memory_usage": 69319125,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.3",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 13,
+         "JoinOptimizeMicroseconds": 291
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      97,
+      58,
+      34
+     ],
+     "duration_ms": 58,
+     "memory_usage": 71100279,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 13,
+      "JoinOptimizeMicroseconds": 291
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "01-parallel-hash",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'parallel_hash';",
+     "runs": [
+      {
+       "query_id": "01-parallel-hash.1",
+       "wall_s": 0.123,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 29,
+        "memory_usage": 85071920,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 23,
+         "JoinOptimizeMicroseconds": 323,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      },
+      {
+       "query_id": "01-parallel-hash.2",
+       "wall_s": 0.123,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 35,
+        "memory_usage": 93952844,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 18,
+         "JoinOptimizeMicroseconds": 357,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      },
+      {
+       "query_id": "01-parallel-hash.3",
+       "wall_s": 0.121,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 31,
+        "memory_usage": 89481245,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.3",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 26,
+         "JoinOptimizeMicroseconds": 398,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      29,
+      35,
+      31
+     ],
+     "duration_ms": 31,
+     "memory_usage": 93952844,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 26,
+      "JoinOptimizeMicroseconds": 398,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "02-join-side.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "02-big-left-control",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "02-big-left-control.1",
+       "wall_s": 0.224,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 76,
+        "memory_usage": 48685679,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-left-control.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 6,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 39,
+         "JoinOptimizeMicroseconds": 608
+        }
+       }
+      },
+      {
+       "query_id": "02-big-left-control.2",
+       "wall_s": 0.138,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 27,
+        "memory_usage": 47954123,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-left-control.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 10,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 44,
+         "JoinOptimizeMicroseconds": 533
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      76,
+      27
+     ],
+     "duration_ms": 51.5,
+     "memory_usage": 48685679,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 10,
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 44,
+      "JoinOptimizeMicroseconds": 533
+     },
+     "rows": [
+      "rows\ttotal",
+      "5000000\t25002447488"
+     ],
+     "stdout": "rows\ttotal\n5000000\t25002447488\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "02-big-right-default",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.customers AS c\nINNER JOIN join_lab.facts AS f ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "02-big-right-default.1",
+       "wall_s": 0.115,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 26,
+        "memory_usage": 47820053,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-default.1",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 43,
+         "JoinOptimizeMicroseconds": 350
+        }
+       }
+      },
+      {
+       "query_id": "02-big-right-default.2",
+       "wall_s": 0.236,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 55,
+        "memory_usage": 46448660,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-default.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 23,
+         "JoinOptimizeMicroseconds": 925
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      26,
+      55
+     ],
+     "duration_ms": 40.5,
+     "memory_usage": 47820053,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 23,
+      "JoinOptimizeMicroseconds": 925
+     },
+     "rows": [
+      "rows\ttotal",
+      "5000000\t25002447488"
+     ],
+     "stdout": "rows\ttotal\n5000000\t25002447488\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "02-big-right-no-swap",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.customers AS c\nINNER JOIN join_lab.facts AS f ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash', query_plan_join_swap_table = 'false';",
+     "runs": [
+      {
+       "query_id": "02-big-right-no-swap.1",
+       "wall_s": 0.281,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 177,
+        "memory_usage": 201656050,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-no-swap.1",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 499975,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 31,
+         "JoinOptimizeMicroseconds": 392
+        }
+       }
+      },
+      {
+       "query_id": "02-big-right-no-swap.2",
+       "wall_s": 0.226,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 139,
+        "memory_usage": 200258626,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-no-swap.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 499975,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 22,
+         "JoinOptimizeMicroseconds": 400
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      177,
+      139
+     ],
+     "duration_ms": 158.0,
+     "memory_usage": 201656050,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 499975,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 22,
+      "JoinOptimizeMicroseconds": 400
+     },
+     "rows": [
+      "rows\ttotal",
+      "5000000\t25002447488"
+     ],
+     "stdout": "rows\ttotal\n5000000\t25002447488\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "03-non-equi-on.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "03-range-inner",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT b.lo, count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON f.amount >= b.lo AND f.amount < b.hi\nGROUP BY b.lo ORDER BY b.lo LIMIT 5;",
+     "runs": [
+      {
+       "query_id": "03-range-inner",
+       "wall_s": 0.113,
+       "rc": 0,
+       "stdout": "lo\tn\n0\t1044\n100\t1009\n200\t956\n300\t1025\n400\t1011\n",
+       "rows": [
+        "lo\tn",
+        "0\t1044",
+        "100\t1009",
+        "200\t956",
+        "300\t1025",
+        "400\t1011"
+       ],
+       "log": {
+        "query_duration_ms": 28,
+        "memory_usage": 1057728,
+        "read_rows": 5000100,
+        "read_bytes": 44448612,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 5,
+        "exception_code": 0,
+        "query_id": "03-range-inner",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 100,
+         "JoinProbeTableRowCount": 100000,
+         "JoinResultRowCount": 10000000,
+         "JoinReorderMicroseconds": 16,
+         "JoinOptimizeMicroseconds": 857
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      28
+     ],
+     "duration_ms": 28,
+     "memory_usage": 1057728,
+     "read_rows": 5000100,
+     "read_bytes": 44448612,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 5,
+     "events": {
+      "JoinBuildTableRowCount": 100,
+      "JoinProbeTableRowCount": 100000,
+      "JoinResultRowCount": 10000000,
+      "JoinReorderMicroseconds": 16,
+      "JoinOptimizeMicroseconds": 857
+     },
+     "rows": [
+      "lo\tn",
+      "0\t1044",
+      "100\t1009",
+      "200\t956",
+      "300\t1025",
+      "400\t1011"
+     ],
+     "stdout": "lo\tn\n0\t1044\n100\t1009\n200\t956\n300\t1025\n400\t1011\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "03-arbitrary-inner",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-inner",
+       "wall_s": 0.109,
+       "rc": 0,
+       "stdout": "n\n19152\n",
+       "rows": [
+        "n",
+        "19152"
+       ],
+       "log": {
+        "query_duration_ms": 9,
+        "memory_usage": 628892,
+        "read_rows": 5000100,
+        "read_bytes": 44448212,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "03-arbitrary-inner",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 100,
+         "JoinProbeTableRowCount": 100000,
+         "JoinResultRowCount": 10000000,
+         "JoinReorderMicroseconds": 15,
+         "JoinOptimizeMicroseconds": 414
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      9
+     ],
+     "duration_ms": 9,
+     "memory_usage": 628892,
+     "read_rows": 5000100,
+     "read_bytes": 44448212,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 100,
+      "JoinProbeTableRowCount": 100000,
+      "JoinResultRowCount": 10000000,
+      "JoinReorderMicroseconds": 15,
+      "JoinOptimizeMicroseconds": 414
+     },
+     "rows": [
+      "n",
+      "19152"
+     ],
+     "stdout": "n\n19152\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "03-arbitrary-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-left",
+       "wall_s": 0.086,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 255504,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-arbitrary-left",
+        "type": "ExceptionBeforeStart",
+        "events": {
+         "JoinReorderMicroseconds": 20,
+         "JoinOptimizeMicroseconds": 423
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+     "memory_usage": 255504,
+     "duration_ms": 2,
+     "events": {
+      "JoinReorderMicroseconds": 20,
+      "JoinOptimizeMicroseconds": 423
+     }
+    },
+    {
+     "id": "03-arbitrary-left-flag",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10\nSETTINGS allow_experimental_join_condition = 1;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-left-flag",
+       "wall_s": 0.083,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10\nSETTINGS allow_experimental_join_condition = 1;)\n",
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 259104,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-arbitrary-left-flag",
+        "type": "ExceptionBeforeStart",
+        "events": {
+         "JoinReorderMicroseconds": 18,
+         "JoinOptimizeMicroseconds": 473
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+     "memory_usage": 259104,
+     "duration_ms": 1,
+     "events": {
+      "JoinReorderMicroseconds": 18,
+      "JoinOptimizeMicroseconds": 473
+     }
+    },
+    {
+     "id": "03-equi-ineq-inner",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-inner",
+       "wall_s": 0.141,
+       "rc": 0,
+       "stdout": "n\ttotal\n2502540\t16685903732\n",
+       "rows": [
+        "n\ttotal",
+        "2502540\t16685903732"
+       ],
+       "log": {
+        "query_duration_ms": 52,
+        "memory_usage": 79482557,
+        "read_rows": 5500000,
+        "read_bytes": 44000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "03-equi-ineq-inner",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 23,
+         "JoinOptimizeMicroseconds": 354,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      52
+     ],
+     "duration_ms": 52,
+     "memory_usage": 79482557,
+     "read_rows": 5500000,
+     "read_bytes": 44000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 23,
+      "JoinOptimizeMicroseconds": 354,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "n\ttotal",
+      "2502540\t16685903732"
+     ],
+     "stdout": "n\ttotal\n2502540\t16685903732\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "03-equi-ineq-inner-flag",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit\nSETTINGS allow_experimental_join_condition = 1;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-inner-flag",
+       "wall_s": 0.172,
+       "rc": 0,
+       "stdout": "n\ttotal\n2502540\t16685903732\n",
+       "rows": [
+        "n\ttotal",
+        "2502540\t16685903732"
+       ],
+       "log": {
+        "query_duration_ms": 49,
+        "memory_usage": 76773112,
+        "read_rows": 5500000,
+        "read_bytes": 44000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "03-equi-ineq-inner-flag",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 33,
+         "JoinOptimizeMicroseconds": 493,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      49
+     ],
+     "duration_ms": 49,
+     "memory_usage": 76773112,
+     "read_rows": 5500000,
+     "read_bytes": 44000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 33,
+      "JoinOptimizeMicroseconds": 493,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "n\ttotal",
+      "2502540\t16685903732"
+     ],
+     "stdout": "n\ttotal\n2502540\t16685903732\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "03-equi-ineq-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(c.credit_limit = 0) AS no_match_or_zero\nFROM join_lab.facts AS f\nLEFT JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-left",
+       "wall_s": 0.155,
+       "rc": 0,
+       "stdout": "n\tno_match_or_zero\n5000000\t2497797\n",
+       "rows": [
+        "n\tno_match_or_zero",
+        "5000000\t2497797"
+       ],
+       "log": {
+        "query_duration_ms": 59,
+        "memory_usage": 89058580,
+        "read_rows": 5500000,
+        "read_bytes": 44000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "03-equi-ineq-left",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 19,
+         "JoinOptimizeMicroseconds": 291,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      59
+     ],
+     "duration_ms": 59,
+     "memory_usage": 89058580,
+     "read_rows": 5500000,
+     "read_bytes": 44000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 19,
+      "JoinOptimizeMicroseconds": 291,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "n\tno_match_or_zero",
+      "5000000\t2497797"
+     ],
+     "stdout": "n\tno_match_or_zero\n5000000\t2497797\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "04-correlated-subquery.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "04-exists",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5;",
+     "runs": [
+      {
+       "query_id": "04-exists",
+       "wall_s": 0.118,
+       "rc": 0,
+       "stdout": "region\tn\n0\t238\n1\t243\n2\t202\n3\t208\n4\t236\n",
+       "rows": [
+        "region\tn",
+        "0\t238",
+        "1\t243",
+        "2\t202",
+        "3\t208",
+        "4\t236"
+       ],
+       "log": {
+        "query_duration_ms": 34,
+        "memory_usage": 62123566,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 5,
+        "exception_code": 0,
+        "query_id": "04-exists",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 7,
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 4560,
+         "JoinResultRowCount": 4534,
+         "JoinReorderMicroseconds": 30,
+         "JoinOptimizeMicroseconds": 618
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      34
+     ],
+     "duration_ms": 34,
+     "memory_usage": 62123566,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 5,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 7,
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 4560,
+      "JoinResultRowCount": 4534,
+      "JoinReorderMicroseconds": 30,
+      "JoinOptimizeMicroseconds": 618
+     },
+     "rows": [
+      "region\tn",
+      "0\t238",
+      "1\t243",
+      "2\t202",
+      "3\t208",
+      "4\t236"
+     ],
+     "stdout": "region\tn\n0\t238\n1\t243\n2\t202\n3\t208\n4\t236\n"
+    },
+    {
+     "id": "04-exists-no-substitution",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5\nSETTINGS correlated_subqueries_substitute_equivalent_expressions = 0;",
+     "runs": [
+      {
+       "query_id": "04-exists-no-substitution",
+       "wall_s": 0.12,
+       "rc": 0,
+       "stdout": "region\tn\n0\t238\n1\t243\n2\t202\n3\t208\n4\t236\n",
+       "rows": [
+        "region\tn",
+        "0\t238",
+        "1\t243",
+        "2\t202",
+        "3\t208",
+        "4\t236"
+       ],
+       "log": {
+        "query_duration_ms": 34,
+        "memory_usage": 99598158,
+        "read_rows": 6000000,
+        "read_bytes": 44500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 5,
+        "exception_code": 0,
+        "query_id": "04-exists-no-substitution",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 9120,
+         "JoinResultRowCount": 9094,
+         "JoinReorderMicroseconds": 16,
+         "JoinOptimizeMicroseconds": 382
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      34
+     ],
+     "duration_ms": 34,
+     "memory_usage": 99598158,
+     "read_rows": 6000000,
+     "read_bytes": 44500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 5,
+     "events": {
+      "JoinBuildTableRowCount": 1000000,
+      "JoinProbeTableRowCount": 9120,
+      "JoinResultRowCount": 9094,
+      "JoinReorderMicroseconds": 16,
+      "JoinOptimizeMicroseconds": 382
+     },
+     "rows": [
+      "region\tn",
+      "0\t238",
+      "1\t243",
+      "2\t202",
+      "3\t208",
+      "4\t236"
+     ],
+     "stdout": "region\tn\n0\t238\n1\t243\n2\t202\n3\t208\n4\t236\n"
+    },
+    {
+     "id": "04-not-exists",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.customers AS c\nWHERE NOT EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990);",
+     "runs": [
+      {
+       "query_id": "04-not-exists",
+       "wall_s": 0.124,
+       "rc": 0,
+       "stdout": "n\n495466\n",
+       "rows": [
+        "n",
+        "495466"
+       ],
+       "log": {
+        "query_duration_ms": 28,
+        "memory_usage": 61119205,
+        "read_rows": 5995466,
+        "read_bytes": 42495466,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "04-not-exists",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500000,
+         "JoinProbeTableRowCount": 4560,
+         "JoinResultRowCount": 495466,
+         "JoinReorderMicroseconds": 12,
+         "JoinOptimizeMicroseconds": 2411,
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      28
+     ],
+     "duration_ms": 28,
+     "memory_usage": 61119205,
+     "read_rows": 5995466,
+     "read_bytes": 42495466,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500000,
+      "JoinProbeTableRowCount": 4560,
+      "JoinResultRowCount": 495466,
+      "JoinReorderMicroseconds": 12,
+      "JoinOptimizeMicroseconds": 2411,
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "n",
+      "495466"
+     ],
+     "stdout": "n\n495466\n"
+    },
+    {
+     "id": "04-scalar-select-list",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT count() AS n, sum(mx) AS total\nFROM\n(\n    SELECT c.id, (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx\n    FROM join_lab.customers AS c\n    WHERE c.id < 1000\n);",
+     "runs": [
+      {
+       "query_id": "04-scalar-select-list",
+       "wall_s": 0.124,
+       "rc": 48,
+       "code": 48,
+       "message": "Received from localhost:9000. DB::Exception: Current query is not supported yet, because can't find correlated column '__table4.id' in current header: . (NOT_IMPLEMENTED)",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 48. DB::Exception: Received from localhost:9000. DB::Exception: Current query is not supported yet, because can't find correlated column '__table4.id' in current header: . (NOT_IMPLEMENTED)\n(query: SELECT count() AS n, sum(mx) AS total\nFROM\n(\n    SELECT c.id, (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx\n    FROM join_lab.customers AS c\n    WHERE c.id < 1000\n);)\n",
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 248944,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 48,
+        "query_id": "04-scalar-select-list",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 48,
+     "message": "Received from localhost:9000. DB::Exception: Current query is not supported yet, because can't find correlated column '__table4.id' in current header: . (NOT_IMPLEMENTED)",
+     "memory_usage": 248944,
+     "duration_ms": 3,
+     "events": {}
+    }
+   ]
+  },
+  "05-runtime-filter.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "05-star-default",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3';",
+     "runs": [
+      {
+       "query_id": "05-star-default",
+       "wall_s": 0.337,
+       "rc": 0,
+       "stdout": "n\ttotal\n249471\t1245583791\n",
+       "rows": [
+        "n\ttotal",
+        "249471\t1245583791"
+       ],
+       "log": {
+        "query_duration_ms": 201,
+        "memory_usage": 225144744,
+        "read_rows": 5500020,
+        "read_bytes": 42500230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-star-default",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5000001,
+         "JoinProbeTableRowCount": 49762,
+         "JoinResultRowCount": 274352,
+         "JoinReorderMicroseconds": 35,
+         "JoinOptimizeMicroseconds": 722
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      201
+     ],
+     "duration_ms": 201,
+     "memory_usage": 225144744,
+     "read_rows": 5500020,
+     "read_bytes": 42500230,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 5000001,
+      "JoinProbeTableRowCount": 49762,
+      "JoinResultRowCount": 274352,
+      "JoinReorderMicroseconds": 35,
+      "JoinOptimizeMicroseconds": 722
+     },
+     "rows": [
+      "n\ttotal",
+      "249471\t1245583791"
+     ],
+     "stdout": "n\ttotal\n249471\t1245583791\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-star-on",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "05-star-on",
+       "wall_s": 0.299,
+       "rc": 0,
+       "stdout": "n\ttotal\n249471\t1245583791\n",
+       "rows": [
+        "n\ttotal",
+        "249471\t1245583791"
+       ],
+       "log": {
+        "query_duration_ms": 117,
+        "memory_usage": 223598284,
+        "read_rows": 5500020,
+        "read_bytes": 42500230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-star-on",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5000001,
+         "JoinProbeTableRowCount": 49760,
+         "JoinResultRowCount": 274351,
+         "JoinReorderMicroseconds": 157,
+         "JoinOptimizeMicroseconds": 999,
+         "HashJoinPreallocatedElementsInHashTables": 499968
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      117
+     ],
+     "duration_ms": 117,
+     "memory_usage": 223598284,
+     "read_rows": 5500020,
+     "read_bytes": 42500230,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 5000001,
+      "JoinProbeTableRowCount": 49760,
+      "JoinResultRowCount": 274351,
+      "JoinReorderMicroseconds": 157,
+      "JoinOptimizeMicroseconds": 999,
+      "HashJoinPreallocatedElementsInHashTables": 499968
+     },
+     "rows": [
+      "n\ttotal",
+      "249471\t1245583791"
+     ],
+     "stdout": "n\ttotal\n249471\t1245583791\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-star-off",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 0;",
+     "runs": [
+      {
+       "query_id": "05-star-off",
+       "wall_s": 0.231,
+       "rc": 0,
+       "stdout": "n\ttotal\n249471\t1245583791\n",
+       "rows": [
+        "n\ttotal",
+        "249471\t1245583791"
+       ],
+       "log": {
+        "query_duration_ms": 85,
+        "memory_usage": 225114280,
+        "read_rows": 5500020,
+        "read_bytes": 42500230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-star-off",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000001,
+         "JoinProbeTableRowCount": 524881,
+         "JoinResultRowCount": 274352,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 472,
+         "HashJoinPreallocatedElementsInHashTables": 499968
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      85
+     ],
+     "duration_ms": 85,
+     "memory_usage": 225114280,
+     "read_rows": 5500020,
+     "read_bytes": 42500230,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 5000001,
+      "JoinProbeTableRowCount": 524881,
+      "JoinResultRowCount": 274352,
+      "JoinReorderMicroseconds": 27,
+      "JoinOptimizeMicroseconds": 472,
+      "HashJoinPreallocatedElementsInHashTables": 499968
+     },
+     "rows": [
+      "n\ttotal",
+      "249471\t1245583791"
+     ],
+     "stdout": "n\ttotal\n249471\t1245583791\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-direct-default",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "05-direct-default",
+       "wall_s": 0.155,
+       "rc": 0,
+       "stdout": "n\ttotal\n5014\t24939811\n",
+       "rows": [
+        "n\ttotal",
+        "5014\t24939811"
+       ],
+       "log": {
+        "query_duration_ms": 24,
+        "memory_usage": 34627568,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-direct-default",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 6,
+         "JoinBuildTableRowCount": 500,
+         "JoinProbeTableRowCount": 5014,
+         "JoinResultRowCount": 5014,
+         "JoinReorderMicroseconds": 40,
+         "JoinOptimizeMicroseconds": 801
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      24
+     ],
+     "duration_ms": 24,
+     "memory_usage": 34627568,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 6,
+      "JoinBuildTableRowCount": 500,
+      "JoinProbeTableRowCount": 5014,
+      "JoinResultRowCount": 5014,
+      "JoinReorderMicroseconds": 40,
+      "JoinOptimizeMicroseconds": 801
+     },
+     "rows": [
+      "n\ttotal",
+      "5014\t24939811"
+     ],
+     "stdout": "n\ttotal\n5014\t24939811\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-direct-on",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "05-direct-on",
+       "wall_s": 0.14,
+       "rc": 0,
+       "stdout": "n\ttotal\n5014\t24939811\n",
+       "rows": [
+        "n\ttotal",
+        "5014\t24939811"
+       ],
+       "log": {
+        "query_duration_ms": 18,
+        "memory_usage": 1357382,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-direct-on",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 29,
+         "JoinBuildTableRowCount": 500,
+         "JoinProbeTableRowCount": 5014,
+         "JoinResultRowCount": 5014,
+         "JoinReorderMicroseconds": 19,
+         "JoinOptimizeMicroseconds": 406
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      18
+     ],
+     "duration_ms": 18,
+     "memory_usage": 1357382,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 29,
+      "JoinBuildTableRowCount": 500,
+      "JoinProbeTableRowCount": 5014,
+      "JoinResultRowCount": 5014,
+      "JoinReorderMicroseconds": 19,
+      "JoinOptimizeMicroseconds": 406
+     },
+     "rows": [
+      "n\ttotal",
+      "5014\t24939811"
+     ],
+     "stdout": "n\ttotal\n5014\t24939811\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-direct-off",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 0;",
+     "runs": [
+      {
+       "query_id": "05-direct-off",
+       "wall_s": 0.132,
+       "rc": 0,
+       "stdout": "n\ttotal\n5014\t24939811\n",
+       "rows": [
+        "n\ttotal",
+        "5014\t24939811"
+       ],
+       "log": {
+        "query_duration_ms": 15,
+        "memory_usage": 6268388,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-direct-off",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 500,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5014,
+         "JoinReorderMicroseconds": 31,
+         "JoinOptimizeMicroseconds": 623
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      15
+     ],
+     "duration_ms": 15,
+     "memory_usage": 6268388,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 500,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5014,
+      "JoinReorderMicroseconds": 31,
+      "JoinOptimizeMicroseconds": 623
+     },
+     "rows": [
+      "n\ttotal",
+      "5014\t24939811"
+     ],
+     "stdout": "n\ttotal\n5014\t24939811\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "06-memory-cap.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "06-uncapped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "06-uncapped",
+       "wall_s": 1.968,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1795,
+        "memory_usage": 2009084634,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 12,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 33,
+         "JoinOptimizeMicroseconds": 623
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1795
+     ],
+     "duration_ms": 1795,
+     "memory_usage": 2009084634,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 12,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 33,
+      "JoinOptimizeMicroseconds": 623
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-hash",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-hash",
+       "wall_s": 2.06,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1747,
+        "memory_usage": 1865447706,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-hash",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 16,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 33,
+         "JoinOptimizeMicroseconds": 2600
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1747
+     ],
+     "duration_ms": 1747,
+     "memory_usage": 1865447706,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 16,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 33,
+      "JoinOptimizeMicroseconds": 2600
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-partial-merge",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'partial_merge';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-partial-merge",
+       "wall_s": 2.834,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 2605,
+        "memory_usage": 1048694799,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-partial-merge",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 2,
+         "ExternalProcessingCompressedBytesTotal": 300761284,
+         "ExternalProcessingUncompressedBytesTotal": 2146917860,
+         "ExternalProcessingFilesTotal": 614,
+         "ExternalJoinWritePart": 614,
+         "ExternalJoinMerge": 1,
+         "ExternalJoinCompressedBytes": 300761284,
+         "ExternalJoinUncompressedBytes": 2146917860,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 1157
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2605
+     ],
+     "duration_ms": 2605,
+     "memory_usage": 1048694799,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 2,
+      "ExternalProcessingCompressedBytesTotal": 300761284,
+      "ExternalProcessingUncompressedBytesTotal": 2146917860,
+      "ExternalProcessingFilesTotal": 614,
+      "ExternalJoinWritePart": 614,
+      "ExternalJoinMerge": 1,
+      "ExternalJoinCompressedBytes": 300761284,
+      "ExternalJoinUncompressedBytes": 2146917860,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 27,
+      "JoinOptimizeMicroseconds": 1157
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-grace-hash",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'grace_hash';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-grace-hash",
+       "wall_s": 2.694,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 2487,
+        "memory_usage": 2199230190,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-grace-hash",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 15,
+         "ExternalProcessingFilesTotal": 2,
+         "ExternalJoinWritePart": 2,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 5000000,
+         "JoinReorderMicroseconds": 139,
+         "JoinOptimizeMicroseconds": 2368
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2487
+     ],
+     "duration_ms": 2487,
+     "memory_usage": 2199230190,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 15,
+      "ExternalProcessingFilesTotal": 2,
+      "ExternalJoinWritePart": 2,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 5000000,
+      "JoinReorderMicroseconds": 139,
+      "JoinOptimizeMicroseconds": 2368
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-grace-hash-8-buckets-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash', grace_hash_join_initial_buckets = 8;",
+     "runs": [
+      {
+       "query_id": "06-grace-hash-8-buckets-capped",
+       "wall_s": 2.814,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 2613,
+        "memory_usage": 465353001,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-grace-hash-8-buckets-capped",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 3,
+         "ExternalProcessingCompressedBytesTotal": 142902589,
+         "ExternalProcessingUncompressedBytesTotal": 957024455,
+         "ExternalProcessingFilesTotal": 16,
+         "ExternalJoinWritePart": 16,
+         "ExternalJoinCompressedBytes": 142902589,
+         "ExternalJoinUncompressedBytes": 957024455,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 623954,
+         "JoinReorderMicroseconds": 33,
+         "JoinOptimizeMicroseconds": 1084
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2613
+     ],
+     "duration_ms": 2613,
+     "memory_usage": 465353001,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 3,
+      "ExternalProcessingCompressedBytesTotal": 142902589,
+      "ExternalProcessingUncompressedBytesTotal": 957024455,
+      "ExternalProcessingFilesTotal": 16,
+      "ExternalJoinWritePart": 16,
+      "ExternalJoinCompressedBytes": 142902589,
+      "ExternalJoinUncompressedBytes": 957024455,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 623954,
+      "JoinReorderMicroseconds": 33,
+      "JoinOptimizeMicroseconds": 1084
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-grace-hash-16-buckets-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash', grace_hash_join_initial_buckets = 16;",
+     "runs": [
+      {
+       "query_id": "06-grace-hash-16-buckets-capped",
+       "wall_s": 3.698,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 3511,
+        "memory_usage": 313369473,
+        "read_rows": 10000000,
+        "read_bytes": 1098423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-grace-hash-16-buckets-capped",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 7,
+         "ExternalProcessingCompressedBytesTotal": 154033139,
+         "ExternalProcessingUncompressedBytesTotal": 1025678671,
+         "ExternalProcessingFilesTotal": 32,
+         "ExternalJoinWritePart": 32,
+         "ExternalJoinCompressedBytes": 154033139,
+         "ExternalJoinUncompressedBytes": 1025678671,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 5000000,
+         "JoinResultRowCount": 311613,
+         "JoinReorderMicroseconds": 108,
+         "JoinOptimizeMicroseconds": 2192
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3511
+     ],
+     "duration_ms": 3511,
+     "memory_usage": 313369473,
+     "read_rows": 10000000,
+     "read_bytes": 1098423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 7,
+      "ExternalProcessingCompressedBytesTotal": 154033139,
+      "ExternalProcessingUncompressedBytesTotal": 1025678671,
+      "ExternalProcessingFilesTotal": 32,
+      "ExternalJoinWritePart": 32,
+      "ExternalJoinCompressedBytes": 154033139,
+      "ExternalJoinUncompressedBytes": 1025678671,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 5000000,
+      "JoinResultRowCount": 311613,
+      "JoinReorderMicroseconds": 108,
+      "JoinOptimizeMicroseconds": 2192
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-default-spill-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_before_external_join = 200000000;",
+     "runs": [
+      {
+       "query_id": "06-default-spill-capped",
+       "wall_s": 0.154,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max_bytes_before_external_group_by']. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_before_external_join = 200000000;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "07-lazy-replication.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "07-lazy-default",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id;",
+     "runs": [
+      {
+       "query_id": "07-lazy-default.1",
+       "wall_s": 0.337,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 203,
+        "memory_usage": 332139878,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-default.1",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200224,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 32,
+         "JoinOptimizeMicroseconds": 1016
+        }
+       }
+      },
+      {
+       "query_id": "07-lazy-default.2",
+       "wall_s": 0.193,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 74,
+        "memory_usage": 345429267,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-default.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200224,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 20,
+         "JoinOptimizeMicroseconds": 600,
+         "HashJoinPreallocatedElementsInHashTables": 99984
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      203,
+      74
+     ],
+     "duration_ms": 138.5,
+     "memory_usage": 345429267,
+     "read_rows": 2032192,
+     "read_bytes": 223179338,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 1000000,
+      "JoinProbeTableRowCount": 200224,
+      "JoinResultRowCount": 2001816,
+      "JoinReorderMicroseconds": 20,
+      "JoinOptimizeMicroseconds": 600,
+      "HashJoinPreallocatedElementsInHashTables": 99984
+     },
+     "rows": [
+      "n\th",
+      "2001816\t2735429605406549434"
+     ],
+     "stdout": "n\th\n2001816\t2735429605406549434\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "07-lazy-on",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 1;",
+     "runs": [
+      {
+       "query_id": "07-lazy-on.1",
+       "wall_s": 0.18,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 77,
+        "memory_usage": 340560271,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-on.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 4,
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200224,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 742,
+         "HashJoinPreallocatedElementsInHashTables": 99984
+        }
+       }
+      },
+      {
+       "query_id": "07-lazy-on.2",
+       "wall_s": 0.212,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 78,
+        "memory_usage": 334359503,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-on.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200224,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 35,
+         "JoinOptimizeMicroseconds": 536,
+         "HashJoinPreallocatedElementsInHashTables": 99984
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      77,
+      78
+     ],
+     "duration_ms": 77.5,
+     "memory_usage": 340560271,
+     "read_rows": 2032192,
+     "read_bytes": 223179338,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 1000000,
+      "JoinProbeTableRowCount": 200224,
+      "JoinResultRowCount": 2001816,
+      "JoinReorderMicroseconds": 35,
+      "JoinOptimizeMicroseconds": 536,
+      "HashJoinPreallocatedElementsInHashTables": 99984
+     },
+     "rows": [
+      "n\th",
+      "2001816\t2735429605406549434"
+     ],
+     "stdout": "n\th\n2001816\t2735429605406549434\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "07-lazy-off",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;",
+     "runs": [
+      {
+       "query_id": "07-lazy-off.1",
+       "wall_s": 0.289,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 78,
+        "memory_usage": 328704143,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-off.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 4,
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200224,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 1072,
+         "HashJoinPreallocatedElementsInHashTables": 99984
+        }
+       }
+      },
+      {
+       "query_id": "07-lazy-off.2",
+       "wall_s": 0.189,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 69,
+        "memory_usage": 337923755,
+        "read_rows": 2032192,
+        "read_bytes": 223179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-off.2",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 1000000,
+         "JoinProbeTableRowCount": 200222,
+         "JoinResultRowCount": 2001816,
+         "JoinReorderMicroseconds": 40,
+         "JoinOptimizeMicroseconds": 1180,
+         "HashJoinPreallocatedElementsInHashTables": 99984
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      78,
+      69
+     ],
+     "duration_ms": 73.5,
+     "memory_usage": 337923755,
+     "read_rows": 2032192,
+     "read_bytes": 223179338,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 1000000,
+      "JoinProbeTableRowCount": 200222,
+      "JoinResultRowCount": 2001816,
+      "JoinReorderMicroseconds": 40,
+      "JoinOptimizeMicroseconds": 1180,
+      "HashJoinPreallocatedElementsInHashTables": 99984
+     },
+     "rows": [
+      "n\th",
+      "2001816\t2735429605406549434"
+     ],
+     "stdout": "n\th\n2001816\t2735429605406549434\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "08-syntax.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "08-asof-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(p.price) AS total\nFROM (SELECT customer_id, ts FROM join_lab.facts WHERE id < 1000000 AND customer_id < 2000) AS f\nASOF LEFT JOIN join_lab.prices AS p ON f.customer_id = p.customer_id AND f.ts >= p.ts;",
+     "runs": [
+      {
+       "query_id": "08-asof-left",
+       "wall_s": 0.128,
+       "rc": 0,
+       "stdout": "n\ttotal\n4049\t2031692\n",
+       "rows": [
+        "n\ttotal",
+        "4049\t2031692"
+       ],
+       "log": {
+        "query_duration_ms": 9,
+        "memory_usage": 2066232,
+        "read_rows": 60960,
+        "read_bytes": 633216,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-asof-left",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 20000,
+         "JoinProbeTableRowCount": 4049,
+         "JoinResultRowCount": 4049
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      9
+     ],
+     "duration_ms": 9,
+     "memory_usage": 2066232,
+     "read_rows": 60960,
+     "read_bytes": 633216,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 20000,
+      "JoinProbeTableRowCount": 4049,
+      "JoinResultRowCount": 4049
+     },
+     "rows": [
+      "n\ttotal",
+      "4049\t2031692"
+     ],
+     "stdout": "n\ttotal\n4049\t2031692\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-left-semi",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n FROM join_lab.regions AS r LEFT SEMI JOIN join_lab.customers AS c ON r.id = c.region;",
+     "runs": [
+      {
+       "query_id": "08-left-semi",
+       "wall_s": 0.09,
+       "rc": 0,
+       "stdout": "n\n20\n",
+       "rows": [
+        "n",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 515959,
+        "read_rows": 500020,
+        "read_bytes": 500020,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-left-semi",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 20,
+         "JoinProbeTableRowCount": 500000,
+         "JoinResultRowCount": 20,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 144
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 515959,
+     "read_rows": 500020,
+     "read_bytes": 500020,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 20,
+      "JoinProbeTableRowCount": 500000,
+      "JoinResultRowCount": 20,
+      "JoinReorderMicroseconds": 27,
+      "JoinOptimizeMicroseconds": 144
+     },
+     "rows": [
+      "n",
+      "20"
+     ],
+     "stdout": "n\n20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-left-anti",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n FROM join_lab.regions AS r LEFT ANTI JOIN (SELECT region FROM join_lab.customers WHERE region < 10) AS c ON r.id = c.region;",
+     "runs": [
+      {
+       "query_id": "08-left-anti",
+       "wall_s": 0.159,
+       "rc": 0,
+       "stdout": "n\n10\n",
+       "rows": [
+        "n",
+        "10"
+       ],
+       "log": {
+        "query_duration_ms": 8,
+        "memory_usage": 888255,
+        "read_rows": 500020,
+        "read_bytes": 500020,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-left-anti",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 250267,
+         "JoinProbeTableRowCount": 10,
+         "JoinResultRowCount": 10,
+         "JoinReorderMicroseconds": 49,
+         "JoinOptimizeMicroseconds": 212
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      8
+     ],
+     "duration_ms": 8,
+     "memory_usage": 888255,
+     "read_rows": 500020,
+     "read_bytes": 500020,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 250267,
+      "JoinProbeTableRowCount": 10,
+      "JoinResultRowCount": 10,
+      "JoinReorderMicroseconds": 49,
+      "JoinOptimizeMicroseconds": 212
+     },
+     "rows": [
+      "n",
+      "10"
+     ],
+     "stdout": "n\n10\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-paste",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(a.x + b.y) AS total\nFROM (SELECT number AS x FROM numbers(5)) AS a\nPASTE JOIN (SELECT number * 10 AS y FROM numbers(5)) AS b;",
+     "runs": [
+      {
+       "query_id": "08-paste",
+       "wall_s": 0.266,
+       "rc": 0,
+       "stdout": "n\ttotal\n5\t110\n",
+       "rows": [
+        "n\ttotal",
+        "5\t110"
+       ],
+       "log": {
+        "query_duration_ms": 13,
+        "memory_usage": 401888,
+        "read_rows": 10,
+        "read_bytes": 80,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-paste",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      13
+     ],
+     "duration_ms": 13,
+     "memory_usage": 401888,
+     "read_rows": 10,
+     "read_bytes": 80,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "5\t110"
+     ],
+     "stdout": "n\ttotal\n5\t110\n",
+     "pipeline_join": [
+      "Join",
+      "PasteJoinTransform"
+     ]
+    },
+    {
+     "id": "08-natural",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT number AS id, number * 2 AS a FROM numbers(5)) AS l\nNATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;",
+     "runs": [
+      {
+       "query_id": "08-natural",
+       "wall_s": 0.145,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 86 (NATURAL) (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join, ",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 86 (NATURAL) (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join, LEFT ARRAY JOIN, INNER, ARRAY JOIN, GLOBAL, LOCAL, ANY, ALL, ASOF, SEMI, ANTI, ONLY, LEFT, RIGHT, FULL, CROSS, PASTE, JOIN, token, OpeningRoundBracket, PREWHERE, WHERE, GROUP BY, WITH, HAVING, WINDOW, QUALIFY, ORDER BY, LIMIT, OFFSET, FETCH, SETTINGS, UNION, EXCEPT, INTERSECT, INTO OUTFILE, FORMAT, ParallelWithClause, PARALLEL WITH, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 86 (NATURAL) (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join, ",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "08-using",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT number AS id FROM numbers(5)) AS l\nINNER JOIN (SELECT number AS id FROM numbers(3)) AS r USING (id);",
+     "runs": [
+      {
+       "query_id": "08-using",
+       "wall_s": 0.135,
+       "rc": 0,
+       "stdout": "n\n3\n",
+       "rows": [
+        "n",
+        "3"
+       ],
+       "log": {
+        "query_duration_ms": 13,
+        "memory_usage": 34523856,
+        "read_rows": 8,
+        "read_bytes": 64,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-using",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 3,
+         "JoinProbeTableRowCount": 3,
+         "JoinResultRowCount": 3,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 140
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      13
+     ],
+     "duration_ms": 13,
+     "memory_usage": 34523856,
+     "read_rows": 8,
+     "read_bytes": 64,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 3,
+      "JoinProbeTableRowCount": 3,
+      "JoinResultRowCount": 3,
+      "JoinReorderMicroseconds": 27,
+      "JoinOptimizeMicroseconds": 140
+     },
+     "rows": [
+      "n",
+      "3"
+     ],
+     "stdout": "n\n3\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-full-join-use-nulls",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(l.id IS NULL) AS left_nulls, countIf(r.id IS NULL) AS right_nulls\nFROM (SELECT number AS id FROM numbers(5)) AS l\nFULL JOIN (SELECT number + 3 AS id FROM numbers(5)) AS r ON l.id = r.id\nSETTINGS join_use_nulls = 1;",
+     "runs": [
+      {
+       "query_id": "08-full-join-use-nulls",
+       "wall_s": 0.097,
+       "rc": 0,
+       "stdout": "n\tleft_nulls\tright_nulls\n8\t3\t3\n",
+       "rows": [
+        "n\tleft_nulls\tright_nulls",
+        "8\t3\t3"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 356486,
+        "read_rows": 10,
+        "read_bytes": 80,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-full-join-use-nulls",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5,
+         "JoinProbeTableRowCount": 5,
+         "JoinResultRowCount": 8,
+         "JoinReorderMicroseconds": 28,
+         "JoinOptimizeMicroseconds": 142
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 356486,
+     "read_rows": 10,
+     "read_bytes": 80,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "JoinBuildTableRowCount": 5,
+      "JoinProbeTableRowCount": 5,
+      "JoinResultRowCount": 8,
+      "JoinReorderMicroseconds": 28,
+      "JoinOptimizeMicroseconds": 142
+     },
+     "rows": [
+      "n\tleft_nulls\tright_nulls",
+      "8\t3\t3"
+     ],
+     "stdout": "n\tleft_nulls\tright_nulls\n8\t3\t3\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-lateral-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(l.id) AS total\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "08-lateral-left",
+       "wall_s": 0.086,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 94 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 94 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 94 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "09-explain.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "09-explain-runtime-filter",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "09-explain-runtime-filter",
+       "wall_s": 0.117,
+       "rc": 0,
+       "stdout": "explain\nExpression ((Project names + Projection))\nActions: INPUT : 0 -> count() UInt64 : 0\n         INPUT : 1 -> sum(__table1.amount) UInt64 : 1\n         ALIAS count() :: 0 -> n UInt64 : 2\n         ALIAS sum(__table1.amount) :: 1 -> total UInt64 : 0\nPositions: 2 0\n  Aggregating\n  Keys:\n  Aggregates:\n      count()\n        Function: count() → UInt64\n        Arguments: none\n      sum(__table1.amount)\n        Function: sum(UInt32) → UInt64\n        Arguments: __table1.amount\n  Skip merging: 0\n    Expression\n    Actions: INPUT :: 0 -> __table1.amount UInt32 : 0\n    Positions: 0\n      Join (JOIN FillRightFirst)\n      Type: INNER\n      Strictness: ALL\n      Algorithm: ConcurrentHashJoin\n      Clauses: [(__table2.id) = (__table1.customer_id)]\n        Expression (Left Pre Join Actions)\n        Actions: INPUT :: 0 -> __table2.id UInt32 : 0\n        Positions: 0\n          Expression\n          Actions: INPUT :: 0 -> __table2.id UInt32 : 0\n          Positions: 0\n            Join (JOIN FillRightFirst)\n            Type: INNER\n            Strictness: ALL\n            Algorithm: ConcurrentHashJoin\n            Clauses: [(__table2.region) = (__table3.id)]\n              Expression\n              Actions: INPUT : 0 -> id UInt32 : 0\n                       INPUT : 1 -> region UInt8 : 1\n                       ALIAS id :: 0 -> __table2.id UInt32 : 2\n                       ALIAS region :: 1 -> __table2.region UInt8 : 0\n              Positions: 0 2\n                ReadFromMergeTree (join_lab.customers)\n                ReadType: Default\n                Parts: 1\n                Granules: 62\n                Prewhere info\n                Need filter: 1\n                  Prewhere filter\n                  Prewhere filter column: and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region), __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id)) (removed)\n                  Actions: INPUT : 0 -> id UInt32 : 0\n                           INPUT : 1 -> region UInt8 : 1\n                           COLUMN Const(String) -> _runtime_filter_8122083603371575281_0 String : 2\n                           COLUMN Const(String) -> _runtime_filter_2794683925072879136_0 String : 3\n                           FUNCTION __applyFilter(_runtime_filter_8122083603371575281_0 :: 2, region : 1) -> __applyFilter(_runtime_filter_8122083603371575281_0, __table2.region) UInt8 : 4\n                           FUNCTION __applyFilter(_runtime_filter_2794683925072879136_0 :: 3, id : 0) -> __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id) UInt8 : 2\n                           FUNCTION and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region) :: 4, __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id) :: 2) -> and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region), __applyFilter(_runtime_fi... UInt8 : 3\n                  Positions: 0 1 3\n              Expression (Right Pre Join Actions)\n              Actions: INPUT :: 0 -> __table3.id UInt8 : 0\n              Positions: 0\n                BuildRuntimeFilter (Build runtime join filter on __table3.id)\n                Filter id: _runtime_filter_8122083603371575281_0\n                Allow not exact filter: 1\n                  Expression ((WHERE + Change column names to column identifiers))\n                  Actions: INPUT : 0 -> id UInt8 : 0\n                           ALIAS id :: 0 -> __table3.id UInt8 : 1\n                  Positions: 1\n                    ReadFromMergeTree (join_lab.regions)\n                    ReadType: Default\n                    Parts: 1\n                    Granules: 1\n                    Prewhere info\n                    Need filter: 1\n                      Prewhere filter\n                      Prewhere filter column: equals(__table3.name, \\'region-3\\'_String) (removed)\n                      Actions: INPUT : 0 -> name String : 0\n                               COLUMN Const(String) -> \\'region-3\\'_String String : 1\n                               FUNCTION equals(name :: 0, \\'region-3\\'_String :: 1) -> equals(__table3.name, \\'region-3\\'_String) UInt8 : 2\n                      Positions: 2\n        Expression (Right Pre Join Actions)\n        Actions: INPUT :: 0 -> __table1.customer_id UInt32 : 0\n                 INPUT :: 1 -> __table1.amount UInt32 : 1\n        Positions: 0 1\n          BuildRuntimeFilter (Build runtime join filter on __table1.customer_id)\n          Filter id: _runtime_filter_2794683925072879136_0\n          Allow not exact filter: 1\n            Expression (Change column names to column identifiers)\n            Actions: INPUT : 0 -> amount UInt32 : 0\n                     INPUT : 1 -> customer_id UInt32 : 1\n                     ALIAS amount :: 0 -> __table1.amount UInt32 : 2\n                     ALIAS customer_id :: 1 -> __table1.customer_id UInt32 : 0\n            Positions: 2 0\n              ReadFromMergeTree (join_lab.facts)\n              ReadType: Default\n              Parts: 5\n              Granules: 612\n",
+       "rows": [
+        "explain",
+        "Expression ((Project names + Projection))",
+        "Actions: INPUT : 0 -> count() UInt64 : 0",
+        "         INPUT : 1 -> sum(__table1.amount) UInt64 : 1",
+        "         ALIAS count() :: 0 -> n UInt64 : 2",
+        "         ALIAS sum(__table1.amount) :: 1 -> total UInt64 : 0",
+        "Positions: 2 0",
+        "  Aggregating",
+        "  Keys:",
+        "  Aggregates:",
+        "      count()",
+        "        Function: count() → UInt64",
+        "        Arguments: none",
+        "      sum(__table1.amount)",
+        "        Function: sum(UInt32) → UInt64",
+        "        Arguments: __table1.amount",
+        "  Skip merging: 0",
+        "    Expression",
+        "    Actions: INPUT :: 0 -> __table1.amount UInt32 : 0",
+        "    Positions: 0",
+        "      Join (JOIN FillRightFirst)"
+       ],
+       "log": {
+        "query_duration_ms": 9,
+        "memory_usage": 34695832,
+        "read_rows": 96,
+        "read_bytes": 5639,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 96,
+        "exception_code": 0,
+        "query_id": "09-explain-runtime-filter",
+        "type": "QueryFinish",
+        "events": {
+         "JoinReorderMicroseconds": 28,
+         "JoinOptimizeMicroseconds": 600
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      9
+     ],
+     "duration_ms": 9,
+     "memory_usage": 34695832,
+     "read_rows": 96,
+     "read_bytes": 5639,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 96,
+     "events": {
+      "JoinReorderMicroseconds": 28,
+      "JoinOptimizeMicroseconds": 600
+     },
+     "rows": [
+      "explain",
+      "Expression ((Project names + Projection))",
+      "Actions: INPUT : 0 -> count() UInt64 : 0",
+      "         INPUT : 1 -> sum(__table1.amount) UInt64 : 1",
+      "         ALIAS count() :: 0 -> n UInt64 : 2",
+      "         ALIAS sum(__table1.amount) :: 1 -> total UInt64 : 0",
+      "Positions: 2 0",
+      "  Aggregating",
+      "  Keys:",
+      "  Aggregates:",
+      "      count()",
+      "        Function: count() → UInt64",
+      "        Arguments: none",
+      "      sum(__table1.amount)",
+      "        Function: sum(UInt32) → UInt64",
+      "        Arguments: __table1.amount",
+      "  Skip merging: 0",
+      "    Expression",
+      "    Actions: INPUT :: 0 -> __table1.amount UInt32 : 0",
+      "    Positions: 0",
+      "      Join (JOIN FillRightFirst)"
+     ],
+     "stdout": "explain\nExpression ((Project names + Projection))\nActions: INPUT : 0 -> count() UInt64 : 0\n         INPUT : 1 -> sum(__table1.amount) UInt64 : 1\n         ALIAS count() :: 0 -> n UInt64 : 2\n         ALIAS sum(__table1.amount) :: 1 -> total UInt64 : 0\nPositions: 2 0\n  Aggregating\n  Keys:\n  Aggregates:\n      count()\n        Function: count() → UInt64\n        Arguments: none\n      sum(__table1.amount)\n        Function: sum(UInt32) → UInt64\n        Arguments: __table1.amount\n  Skip merging: 0\n    Expression\n    Actions: INPUT :: 0 -> __table1.amount UInt32 : 0\n    Positions: 0\n      Join (JOIN FillRightFirst)\n      Type: INNER\n      Strictness: ALL\n      Algorithm: ConcurrentHashJoin\n      Clauses: [(__table2.id) = (__table1.customer_id)]\n        Expression (Left Pre Join Actions)\n        Actions: INPUT :: 0 -> __table2.id UInt32 : 0\n        Positions: 0\n          Expression\n          Actions: INPUT :: 0 -> __table2.id UInt32 : 0\n          Positions: 0\n            Join (JOIN FillRightFirst)\n            Type: INNER\n            Strictness: ALL\n            Algorithm: ConcurrentHashJoin\n            Clauses: [(__table2.region) = (__table3.id)]\n              Expression\n              Actions: INPUT : 0 -> id UInt32 : 0\n                       INPUT : 1 -> region UInt8 : 1\n                       ALIAS id :: 0 -> __table2.id UInt32 : 2\n                       ALIAS region :: 1 -> __table2.region UInt8 : 0\n              Positions: 0 2\n                ReadFromMergeTree (join_lab.customers)\n                ReadType: Default\n                Parts: 1\n                Granules: 62\n                Prewhere info\n                Need filter: 1\n                  Prewhere filter\n                  Prewhere filter column: and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region), __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id)) (removed)\n                  Actions: INPUT : 0 -> id UInt32 : 0\n                           INPUT : 1 -> region UInt8 : 1\n                           COLUMN Const(String) -> _runtime_filter_8122083603371575281_0 String : 2\n                           COLUMN Const(String) -> _runtime_filter_2794683925072879136_0 String : 3\n                           FUNCTION __applyFilter(_runtime_filter_8122083603371575281_0 :: 2, region : 1) -> __applyFilter(_runtime_filter_8122083603371575281_0, __table2.region) UInt8 : 4\n                           FUNCTION __applyFilter(_runtime_filter_2794683925072879136_0 :: 3, id : 0) -> __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id) UInt8 : 2\n                           FUNCTION and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region) :: 4, __applyFilter(_runtime_filter_2794683925072879136_0, __table2.id) :: 2) -> and(__applyFilter(_runtime_filter_8122083603371575281_0, __table2.region), __applyFilter(_runtime_fi... UInt8 : 3\n                  Positions: 0 1 3\n              Expression (Right Pre Join Actions)\n              Actions: INPUT :: 0 -> __table3.id UInt8 : 0\n              Positions: 0\n                BuildRuntimeFilter (Build runtime join filter on __table3.id)\n                Filter id: _runtime_filter_8122083603371575281_0\n                Allow not exact filter: 1\n                  Expression ((WHERE + Change column names to column identifiers))\n                  Actions: INPUT : 0 -> id UInt8 : 0\n                           ALIAS id :: 0 -> __table3.id UInt8 : 1\n                  Positions: 1\n                    ReadFromMergeTree (join_lab.regions)\n                    ReadType: Default\n                    Parts: 1\n                    Granules: 1\n                    Prewhere info\n                    Need filter: 1\n                      Prewhere filter\n                      Prewhere filter column: equals(__table3.name, \\'region-3\\'_String) (removed)\n                      Actions: INPUT : 0 -> name String : 0\n                               COLUMN Const(String) -> \\'region-3\\'_String String : 1\n                               FUNCTION equals(name :: 0, \\'region-3\\'_String :: 1) -> equals(__table3.name, \\'region-3\\'_String) UInt8 : 2\n                      Positions: 2\n        Expression (Right Pre Join Actions)\n        Actions: INPUT :: 0 -> __table1.customer_id UInt32 : 0\n                 INPUT :: 1 -> __table1.amount UInt32 : 1\n        Positions: 0 1\n          BuildRuntimeFilter (Build runtime join filter on __table1.customer_id)\n          Filter id: _runtime_filter_2794683925072879136_0\n          Allow not exact filter: 1\n            Expression (Change column names to column identifiers)\n            Actions: INPUT : 0 -> amount UInt32 : 0\n                     INPUT : 1 -> customer_id UInt32 : 1\n                     ALIAS amount :: 0 -> __table1.amount UInt32 : 2\n                     ALIAS customer_id :: 1 -> __table1.customer_id UInt32 : 0\n            Positions: 2 0\n              ReadFromMergeTree (join_lab.facts)\n              ReadType: Default\n              Parts: 5\n              Granules: 612\n"
+    },
+    {
+     "id": "09-explain-lateral",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, sum(l.id) AS total\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "09-explain-lateral",
+       "wall_s": 0.104,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 114 (c) (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 114 (c) (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 114 (c) (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "09-explain-left-arbitrary",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "09-explain-left-arbitrary",
+       "wall_s": 0.172,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)\n(query: EXPLAIN actions = 1\nSELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 279128,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "09-explain-left-arbitrary",
+        "type": "ExceptionBeforeStart",
+        "events": {
+         "JoinReorderMicroseconds": 21,
+         "JoinOptimizeMicroseconds": 558
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8). (INVALID_JOIN_ON_EXPRESSION)",
+     "memory_usage": 279128,
+     "duration_ms": 3,
+     "events": {
+      "JoinReorderMicroseconds": 21,
+      "JoinOptimizeMicroseconds": 558
+     }
+    }
+   ]
+  },
+  "10-scale.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "10-big-left",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts_big AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "10-big-left.1",
+       "wall_s": 0.853,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 731,
+        "memory_usage": 608979395,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 7,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 40,
+         "JoinOptimizeMicroseconds": 1050,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-left.2",
+       "wall_s": 0.734,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 613,
+        "memory_usage": 607682557,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 46,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 24,
+         "JoinOptimizeMicroseconds": 2544,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-left.3",
+       "wall_s": 0.468,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 376,
+        "memory_usage": 606146761,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 2,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 18,
+         "JoinOptimizeMicroseconds": 572,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-left.4",
+       "wall_s": 0.96,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 818,
+        "memory_usage": 615672995,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.4",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 26,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 29,
+         "JoinOptimizeMicroseconds": 635,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-left.5",
+       "wall_s": 0.735,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 599,
+        "memory_usage": 611409414,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.5",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 123,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 58,
+         "JoinOptimizeMicroseconds": 996,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      731,
+      613,
+      376,
+      818,
+      599
+     ],
+     "duration_ms": 613,
+     "memory_usage": 615672995,
+     "read_rows": 55000000,
+     "read_bytes": 425000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 123,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 50000000,
+      "JoinResultRowCount": 50000000,
+      "JoinReorderMicroseconds": 58,
+      "JoinOptimizeMicroseconds": 996,
+      "HashJoinPreallocatedElementsInHashTables": 5000000
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "50000000\t249969458420\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-big-right",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.customers_big AS c\nINNER JOIN join_lab.facts_big AS f ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "10-big-right.1",
+       "wall_s": 0.565,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 385,
+        "memory_usage": 605839602,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.1",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 845
+        }
+       }
+      },
+      {
+       "query_id": "10-big-right.2",
+       "wall_s": 0.376,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 285,
+        "memory_usage": 611117229,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 8,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 16,
+         "JoinOptimizeMicroseconds": 555,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-right.3",
+       "wall_s": 0.404,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 310,
+        "memory_usage": 609965024,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 28,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 22,
+         "JoinOptimizeMicroseconds": 921,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-right.4",
+       "wall_s": 0.341,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 247,
+        "memory_usage": 609773232,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.4",
+        "type": "QueryFinish",
+        "events": {
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 21,
+         "JoinOptimizeMicroseconds": 671,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      },
+      {
+       "query_id": "10-big-right.5",
+       "wall_s": 0.425,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 324,
+        "memory_usage": 606718685,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.5",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 117,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 50000000,
+         "JoinResultRowCount": 50000000,
+         "JoinReorderMicroseconds": 20,
+         "JoinOptimizeMicroseconds": 485,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      385,
+      285,
+      310,
+      247,
+      324
+     ],
+     "duration_ms": 310,
+     "memory_usage": 611117229,
+     "read_rows": 55000000,
+     "read_bytes": 425000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 117,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 50000000,
+      "JoinResultRowCount": 50000000,
+      "JoinReorderMicroseconds": 20,
+      "JoinOptimizeMicroseconds": 485,
+      "HashJoinPreallocatedElementsInHashTables": 5000000
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "50000000\t249969458420\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-star",
+     "repeat": 5,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts_big AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3';",
+     "runs": [
+      {
+       "query_id": "10-star.1",
+       "wall_s": 1.543,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 1405,
+        "memory_usage": 2932366433,
+        "read_rows": 55000020,
+        "read_bytes": 425000230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 638,
+         "JoinBuildTableRowCount": 50000001,
+         "JoinProbeTableRowCount": 499796,
+         "JoinResultRowCount": 2748091,
+         "JoinReorderMicroseconds": 28,
+         "JoinOptimizeMicroseconds": 977
+        }
+       }
+      },
+      {
+       "query_id": "10-star.2",
+       "wall_s": 1.268,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 1133,
+        "memory_usage": 2938819328,
+        "read_rows": 55000020,
+        "read_bytes": 425000230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 29,
+         "JoinBuildTableRowCount": 50000001,
+         "JoinProbeTableRowCount": 499796,
+         "JoinResultRowCount": 2748091,
+         "JoinReorderMicroseconds": 40,
+         "JoinOptimizeMicroseconds": 2282,
+         "HashJoinPreallocatedElementsInHashTables": 4999776
+        }
+       }
+      },
+      {
+       "query_id": "10-star.3",
+       "wall_s": 1.061,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 919,
+        "memory_usage": 2932731979,
+        "read_rows": 55000020,
+        "read_bytes": 425000230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 52,
+         "JoinBuildTableRowCount": 50000001,
+         "JoinProbeTableRowCount": 499796,
+         "JoinResultRowCount": 2748091,
+         "JoinReorderMicroseconds": 44,
+         "JoinOptimizeMicroseconds": 807,
+         "HashJoinPreallocatedElementsInHashTables": 4999776
+        }
+       }
+      },
+      {
+       "query_id": "10-star.4",
+       "wall_s": 0.769,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 626,
+        "memory_usage": 2933655775,
+        "read_rows": 55000020,
+        "read_bytes": 425000230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.4",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 50000001,
+         "JoinProbeTableRowCount": 499796,
+         "JoinResultRowCount": 2748091,
+         "JoinReorderMicroseconds": 24,
+         "JoinOptimizeMicroseconds": 581,
+         "HashJoinPreallocatedElementsInHashTables": 4999776
+        }
+       }
+      },
+      {
+       "query_id": "10-star.5",
+       "wall_s": 1.386,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 1246,
+        "memory_usage": 2931791000,
+        "read_rows": 55000020,
+        "read_bytes": 425000230,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.5",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 3,
+         "JoinBuildTableRowCount": 50000001,
+         "JoinProbeTableRowCount": 499796,
+         "JoinResultRowCount": 2748091,
+         "JoinReorderMicroseconds": 23,
+         "JoinOptimizeMicroseconds": 1715,
+         "HashJoinPreallocatedElementsInHashTables": 4999776
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1405,
+      1133,
+      919,
+      626,
+      1246
+     ],
+     "duration_ms": 1133,
+     "memory_usage": 2938819328,
+     "read_rows": 55000020,
+     "read_bytes": 425000230,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 3,
+      "JoinBuildTableRowCount": 50000001,
+      "JoinProbeTableRowCount": 499796,
+      "JoinResultRowCount": 2748091,
+      "JoinReorderMicroseconds": 23,
+      "JoinOptimizeMicroseconds": 1715,
+      "HashJoinPreallocatedElementsInHashTables": 4999776
+     },
+     "rows": [
+      "n\ttotal",
+      "2498193\t12493613699"
+     ],
+     "stdout": "n\ttotal\n2498193\t12493613699\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-many-to-many-wide",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts_big AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f\n    ON c.customer_id = f.customer_id;",
+     "runs": [
+      {
+       "query_id": "10-many-to-many-wide.1",
+       "wall_s": 0.869,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 736,
+        "memory_usage": 1509021926,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 50,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10000790,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 46,
+         "JoinOptimizeMicroseconds": 1064
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.2",
+       "wall_s": 0.74,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 615,
+        "memory_usage": 1444958446,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 17,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 9999005,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 27,
+         "JoinOptimizeMicroseconds": 1064,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.3",
+       "wall_s": 1.035,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 795,
+        "memory_usage": 1429612402,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 7,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10001201,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 31,
+         "JoinOptimizeMicroseconds": 964,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.4",
+       "wall_s": 0.735,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 613,
+        "memory_usage": 1433216230,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.4",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10000156,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 25,
+         "JoinOptimizeMicroseconds": 1074,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.5",
+       "wall_s": 0.656,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 535,
+        "memory_usage": 1437582962,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.5",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 9999919,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 15,
+         "JoinOptimizeMicroseconds": 783,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      736,
+      615,
+      795,
+      613,
+      535
+     ],
+     "duration_ms": 615,
+     "memory_usage": 1509021926,
+     "read_rows": 15027008,
+     "read_bytes": 1098524626,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 9999919,
+      "JoinResultRowCount": 50010956,
+      "JoinReorderMicroseconds": 15,
+      "JoinOptimizeMicroseconds": 783,
+      "HashJoinPreallocatedElementsInHashTables": 993184
+     },
+     "rows": [
+      "n\th",
+      "50010956\t1549438289860116752"
+     ],
+     "stdout": "n\th\n50010956\t1549438289860116752\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-many-to-many-wide-lazy-off",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts_big AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;",
+     "runs": [
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.1",
+       "wall_s": 0.651,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 503,
+        "memory_usage": 1437431086,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide-lazy-off.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 7,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 9998850,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 46,
+         "JoinOptimizeMicroseconds": 1063,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.2",
+       "wall_s": 1.232,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 1087,
+        "memory_usage": 1434335982,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide-lazy-off.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 5,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10000341,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 33,
+         "JoinOptimizeMicroseconds": 1289,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.3",
+       "wall_s": 0.706,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 560,
+        "memory_usage": 1436946090,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide-lazy-off.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 9999953,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 87,
+         "JoinOptimizeMicroseconds": 1795,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.4",
+       "wall_s": 0.845,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 730,
+        "memory_usage": 1430548126,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide-lazy-off.4",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10001158,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 36,
+         "JoinOptimizeMicroseconds": 751,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.5",
+       "wall_s": 1.218,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 1050,
+        "memory_usage": 1442123782,
+        "read_rows": 15027008,
+        "read_bytes": 1098524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide-lazy-off.5",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 5,
+         "JoinBuildTableRowCount": 5000000,
+         "JoinProbeTableRowCount": 10001161,
+         "JoinResultRowCount": 50010956,
+         "JoinReorderMicroseconds": 42,
+         "JoinOptimizeMicroseconds": 1333,
+         "HashJoinPreallocatedElementsInHashTables": 993184
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      503,
+      1087,
+      560,
+      730,
+      1050
+     ],
+     "duration_ms": 730,
+     "memory_usage": 1442123782,
+     "read_rows": 15027008,
+     "read_bytes": 1098524626,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 5,
+      "JoinBuildTableRowCount": 5000000,
+      "JoinProbeTableRowCount": 10001161,
+      "JoinResultRowCount": 50010956,
+      "JoinReorderMicroseconds": 42,
+      "JoinOptimizeMicroseconds": 1333,
+      "HashJoinPreallocatedElementsInHashTables": 993184
+     },
+     "rows": [
+      "n\th",
+      "50010956\t1549438289860116752"
+     ],
+     "stdout": "n\th\n50010956\t1549438289860116752\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "errors/01-memory-cap-defaults.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "e01-default-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;",
+     "runs": [
+      {
+       "query_id": "e01-default-capped",
+       "wall_s": 0.298,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.74 MiB (attempt to allocate chunk of 5.35 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.74 MiB (attempt to allocate chunk of 5.35 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;)\n",
+       "log": {
+        "query_duration_ms": 199,
+        "memory_usage": 799148738,
+        "read_rows": 958464,
+        "read_bytes": 206600730,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-default-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {
+         "JoinBuildTableRowCount": 606208,
+         "JoinReorderMicroseconds": 24,
+         "JoinOptimizeMicroseconds": 698,
+         "HashJoinPreallocatedElementsInHashTables": 5000000
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.74 MiB (attempt to allocate chunk of 5.35 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+     "memory_usage": 799148738,
+     "duration_ms": 199,
+     "events": {
+      "JoinBuildTableRowCount": 606208,
+      "JoinReorderMicroseconds": 24,
+      "JoinOptimizeMicroseconds": 698,
+      "HashJoinPreallocatedElementsInHashTables": 5000000
+     }
+    },
+    {
+     "id": "e01-default-ratio-explicit",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_ratio_before_external_join = 0.5;",
+     "runs": [
+      {
+       "query_id": "e01-default-ratio-explicit",
+       "wall_s": 0.095,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_ratio_before_externa",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_ratio_before_external_sort','max_bytes_ratio_before_external_group_by']. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_ratio_before_external_join = 0.5;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_ratio_before_externa",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e01-hash-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "e01-hash-capped",
+       "wall_s": 0.303,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.10 GiB (attempt to allocate chunk of 509.91 MiB), maximum: 762.94 MiB: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.10 GiB (attempt to allocate chunk of 509.91 MiB), maximum: 762.94 MiB: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'hash';)\n",
+       "log": {
+        "query_duration_ms": 196,
+        "memory_usage": 643224305,
+        "read_rows": 2203648,
+        "read_bytes": 475122290,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-hash-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {
+         "JoinBuildTableRowCount": 2105344,
+         "JoinReorderMicroseconds": 31,
+         "JoinOptimizeMicroseconds": 874
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.10 GiB (attempt to allocate chunk of 509.91 MiB), maximum: 762.94 MiB: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+     "memory_usage": 643224305,
+     "duration_ms": 196,
+     "events": {
+      "JoinBuildTableRowCount": 2105344,
+      "JoinReorderMicroseconds": 31,
+      "JoinOptimizeMicroseconds": 874
+     }
+    },
+    {
+     "id": "e01-partial-merge-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';",
+     "runs": [
+      {
+       "query_id": "e01-partial-merge-capped",
+       "wall_s": 0.139,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 768.67 MiB (attempt to allocate chunk of 5.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 768.67 MiB (attempt to allocate chunk of 5.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';)\n",
+       "log": {
+        "query_duration_ms": 48,
+        "memory_usage": 799152844,
+        "read_rows": 3571712,
+        "read_bytes": 770225522,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-partial-merge-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {
+         "JoinBuildTableRowCount": 3489792,
+         "JoinReorderMicroseconds": 21,
+         "JoinOptimizeMicroseconds": 789
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 768.67 MiB (attempt to allocate chunk of 5.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+     "memory_usage": 799152844,
+     "duration_ms": 48,
+     "events": {
+      "JoinBuildTableRowCount": 3489792,
+      "JoinReorderMicroseconds": 21,
+      "JoinOptimizeMicroseconds": 789
+     }
+    },
+    {
+     "id": "e01-grace-hash-1-bucket-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';",
+     "runs": [
+      {
+       "query_id": "e01-grace-hash-1-bucket-capped",
+       "wall_s": 0.311,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.30 MiB (attempt to allocate chunk of 4.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+       "stderr": "Received exception from server (version 26.3.62):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.30 MiB (attempt to allocate chunk of 4.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';)\n",
+       "log": {
+        "query_duration_ms": 195,
+        "memory_usage": 799560591,
+        "read_rows": 2416640,
+        "read_bytes": 521084378,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-grace-hash-1-bucket-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {
+         "ExternalProcessingFilesTotal": 2,
+         "ExternalJoinWritePart": 2,
+         "JoinBuildTableRowCount": 2088960,
+         "JoinReorderMicroseconds": 36,
+         "JoinOptimizeMicroseconds": 1222
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.30 MiB (attempt to allocate chunk of 4.18 MiB), maximum: 762.94 MiB: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_E",
+     "memory_usage": 799560591,
+     "duration_ms": 195,
+     "events": {
+      "ExternalProcessingFilesTotal": 2,
+      "ExternalJoinWritePart": 2,
+      "JoinBuildTableRowCount": 2088960,
+      "JoinReorderMicroseconds": 36,
+      "JoinOptimizeMicroseconds": 1222
+     }
+    }
+   ]
+  },
+  "errors/02-lateral-forms.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "e02-lateral-comma",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r, LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-comma",
+       "wall_s": 0.091,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 65 (c) (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 65 (c) (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 65 (c) (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-cross-join",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nCROSS JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-cross-join",
+       "wall_s": 0.096,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 75 (c) (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 75 (c) (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 75 (c) (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-uncorrelated",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-uncorrelated",
+       "wall_s": 0.101,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-with-ties",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-with-ties",
+       "wall_s": 0.085,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  }
+ },
+ "settings": {
+  "00-data.sql": [],
+  "01-hash-baseline.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   }
+  ],
+  "02-join-side.sql": [
+   {
+    "name": "query_plan_join_swap_table",
+    "exists": true,
+    "value": "auto",
+    "tier": "Production"
+   },
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   }
+  ],
+  "03-non-equi-on.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   },
+   {
+    "name": "allow_experimental_join_condition",
+    "exists": true,
+    "value": "0",
+    "tier": "Obsolete"
+   },
+   {
+    "name": "allow_block_nested_loop_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "04-correlated-subquery.sql": [
+   {
+    "name": "allow_correlated_subqueries",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_correlated_subqueries",
+    "exists": true,
+    "value": "1",
+    "tier": "Beta"
+   },
+   {
+    "name": "correlated_subqueries_substitute_equivalent_expressions",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   }
+  ],
+  "05-runtime-filter.sql": [
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": true,
+    "value": "1",
+    "tier": "Beta"
+   },
+   {
+    "name": "enable_join_runtime_filters_index_analysis",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "06-memory-cap.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   },
+   {
+    "name": "max_bytes_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "max_bytes_ratio_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "grace_hash_join_initial_buckets",
+    "exists": true,
+    "value": "1",
+    "tier": "Experimental"
+   }
+  ],
+  "07-lazy-replication.sql": [
+   {
+    "name": "enable_lazy_columns_replication",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   }
+  ],
+  "08-syntax.sql": [
+   {
+    "name": "join_use_nulls",
+    "exists": true,
+    "value": "0",
+    "tier": "Production"
+   },
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "09-explain.sql": [
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": true,
+    "value": "1",
+    "tier": "Beta"
+   },
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "10-scale.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   },
+   {
+    "name": "query_plan_join_swap_table",
+    "exists": true,
+    "value": "auto",
+    "tier": "Production"
+   },
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": true,
+    "value": "1",
+    "tier": "Beta"
+   },
+   {
+    "name": "enable_lazy_columns_replication",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   }
+  ],
+  "errors/01-memory-cap-defaults.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "direct,parallel_hash,hash",
+    "tier": "Production"
+   },
+   {
+    "name": "max_bytes_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "max_bytes_ratio_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "grace_hash_join_initial_buckets",
+    "exists": true,
+    "value": "1",
+    "tier": "Experimental"
+   }
+  ],
+  "errors/02-lateral-forms.sql": [
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ]
+ },
+ "tag": "26.3.62.3",
+ "version": "26.3.62.3",
+ "date": "2026-11-04",
+ "machine": {
+  "ncpu": 12,
+  "mem_bytes": 16745496576,
+  "others": [
+   "langfuse-hols-v4audit-clickhouse-1",
+   "langfuse-hols-v4audit-langfuse-web-1",
+   "langfuse-hols-v4audit-langfuse-worker-1",
+   "langfuse-hols-v4audit-minio-1",
+   "langfuse-hols-v4audit-postgres-1",
+   "langfuse-hols-v4audit-redis-1",
+   "prompt-enc-openbao-1",
+   "systables-oss-268"
+  ],
+  "others_cpu": {
+   "langfuse-hols-v4audit-langfuse-web-1": 0.12,
+   "langfuse-hols-v4audit-langfuse-worker-1": 1.63,
+   "langfuse-hols-v4audit-postgres-1": 0.06,
+   "langfuse-hols-v4audit-redis-1": 0.35,
+   "langfuse-hols-v4audit-clickhouse-1": 6.65,
+   "langfuse-hols-v4audit-minio-1": 3.46,
+   "systables-oss-268": 6.91,
+   "prompt-enc-openbao-1": 0.74
+  }
+ },
+ "elapsed_s": 82
+}

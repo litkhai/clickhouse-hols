@@ -89,6 +89,7 @@ and [MOVED.md](MOVED.md).
 | [workload/json-stress-test](workload/json-stress-test/) | `JSON` type path limits: dynamic vs shared path cost |
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka partitioning aligned to the ClickHouse sort key |
 | [workload/rbac-workloadmanagement](workload/rbac-workloadmanagement/) | RBAC and workload management |
+| [workload/join-across-versions](workload/join-across-versions/) | The same JOIN SQL on six ClickHouse versions: algorithm, memory, syntax and errors per version |
 
 ### 🔗 Related repositories
 
@@ -304,6 +305,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [workload/json-stress-test](workload/json-stress-test/) | `JSON` 타입 경로 한계: dynamic vs shared path 비용 |
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka 파티셔닝과 ClickHouse 정렬 키 정합 |
 | [workload/rbac-workloadmanagement](workload/rbac-workloadmanagement/) | RBAC 및 워크로드 관리 |
+| [workload/join-across-versions](workload/join-across-versions/) | 같은 JOIN SQL을 ClickHouse 여섯 버전에서 실행: 버전별 알고리즘, 메모리, 문법, 오류 |
 
 ### 🔗 관련 저장소
 

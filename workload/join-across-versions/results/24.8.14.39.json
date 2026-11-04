@@ -1,0 +1,3425 @@
+{
+ "files": {
+  "00-data.sql": {
+   "setup": [
+    {
+     "id": "00-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.12,
+     "sql": "DROP DATABASE IF EXISTS join_lab;"
+    },
+    {
+     "id": "00-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE DATABASE join_lab;"
+    },
+    {
+     "id": "00-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.facts\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
+    },
+    {
+     "id": "00-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.54,
+     "sql": "INSERT INTO join_lab.facts\nSELECT\n    number,\n    cityHash64(number, 1) % 500000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(5000000);"
+    },
+    {
+     "id": "00-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.11,
+     "sql": "CREATE TABLE join_lab.customers\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.39,
+     "sql": "INSERT INTO join_lab.customers\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(500000);"
+    },
+    {
+     "id": "00-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE join_lab.regions\n(\n    id   UInt8,\n    name String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "INSERT INTO join_lab.regions\nSELECT number, concat('region-', toString(number)) FROM numbers(20);"
+    },
+    {
+     "id": "00-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE join_lab.bands\n(\n    lo UInt32,\n    hi UInt32\n)\nENGINE = MergeTree\nORDER BY lo;"
+    },
+    {
+     "id": "00-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "INSERT INTO join_lab.bands\nSELECT number * 100, (number + 1) * 100 FROM numbers(100);"
+    },
+    {
+     "id": "00-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "CREATE TABLE join_lab.prices\n(\n    customer_id UInt32,\n    ts          DateTime,\n    price       UInt32\n)\nENGINE = MergeTree\nORDER BY (customer_id, ts);"
+    },
+    {
+     "id": "00-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "INSERT INTO join_lab.prices\nSELECT\n    number % 2000,\n    toDateTime('2026-01-01 00:00:00') + intDiv(number, 2000) * 86400,\n    cityHash64(number, 7) % 1000\nFROM numbers(20000);"
+    },
+    {
+     "id": "00-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE join_lab.contacts\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
+    },
+    {
+     "id": "00-setup14",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.53,
+     "sql": "INSERT INTO join_lab.contacts\nSELECT\n    cityHash64(number, 8) % 100000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(1000000);"
+    },
+    {
+     "id": "00-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE join_lab.facts_big\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
+    },
+    {
+     "id": "00-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 9.33,
+     "sql": "INSERT INTO join_lab.facts_big\nSELECT\n    number,\n    cityHash64(number, 1) % 5000000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(50000000);"
+    },
+    {
+     "id": "00-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.72,
+     "sql": "CREATE TABLE join_lab.customers_big\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "00-setup18",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 7.08,
+     "sql": "INSERT INTO join_lab.customers_big\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(5000000);"
+    },
+    {
+     "id": "00-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.29,
+     "sql": "CREATE TABLE join_lab.contacts_big\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
+    },
+    {
+     "id": "00-setup20",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 7.44,
+     "sql": "INSERT INTO join_lab.contacts_big\nSELECT\n    cityHash64(number, 8) % 1000000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(5000000);"
+    }
+   ],
+   "probes": []
+  },
+  "01-hash-baseline.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "01-default",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "01-default.1",
+       "wall_s": 0.176,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 85,
+        "memory_usage": 40756783,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "01-default.2",
+       "wall_s": 0.141,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 48,
+        "memory_usage": 42074758,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "01-default.3",
+       "wall_s": 0.128,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 48,
+        "memory_usage": 44231441,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-default.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      85,
+      48,
+      48
+     ],
+     "duration_ms": 48,
+     "memory_usage": 44231441,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "01-hash",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "01-hash.1",
+       "wall_s": 0.175,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 69,
+        "memory_usage": 41173744,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "01-hash.2",
+       "wall_s": 0.169,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 72,
+        "memory_usage": 41173542,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "01-hash.3",
+       "wall_s": 0.178,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 73,
+        "memory_usage": 44227094,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-hash.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      69,
+      72,
+      73
+     ],
+     "duration_ms": 72,
+     "memory_usage": 44227094,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "01-parallel-hash",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'parallel_hash';",
+     "runs": [
+      {
+       "query_id": "01-parallel-hash.1",
+       "wall_s": 0.147,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 54,
+        "memory_usage": 37971030,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "01-parallel-hash.2",
+       "wall_s": 0.191,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 88,
+        "memory_usage": 34353207,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.2",
+        "type": "QueryFinish",
+        "events": {
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      },
+      {
+       "query_id": "01-parallel-hash.3",
+       "wall_s": 0.162,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "5000000\t25002447488\t20"
+       ],
+       "log": {
+        "query_duration_ms": 54,
+        "memory_usage": 34684941,
+        "read_rows": 5500000,
+        "read_bytes": 42500000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-parallel-hash.3",
+        "type": "QueryFinish",
+        "events": {
+         "HashJoinPreallocatedElementsInHashTables": 500000
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      54,
+      88,
+      54
+     ],
+     "duration_ms": 54,
+     "memory_usage": 37971030,
+     "read_rows": 5500000,
+     "read_bytes": 42500000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "HashJoinPreallocatedElementsInHashTables": 500000
+     },
+     "rows": [
+      "rows\ttotal\tregions",
+      "5000000\t25002447488\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    }
+   ]
+  },
+  "02-join-side.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "02-big-left-control",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "02-big-left-control.1",
+       "wall_s": 0.197,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 75,
+        "memory_usage": 41441705,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-left-control.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "02-big-left-control.2",
+       "wall_s": 0.14,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 55,
+        "memory_usage": 42013175,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-left-control.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      75,
+      55
+     ],
+     "duration_ms": 65.0,
+     "memory_usage": 42013175,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal",
+      "5000000\t25002447488"
+     ],
+     "stdout": "rows\ttotal\n5000000\t25002447488\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "02-big-right-default",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.customers AS c\nINNER JOIN join_lab.facts AS f ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "02-big-right-default.1",
+       "wall_s": 0.417,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 312,
+        "memory_usage": 190924906,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-default.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "02-big-right-default.2",
+       "wall_s": 0.273,
+       "rc": 0,
+       "stdout": "rows\ttotal\n5000000\t25002447488\n",
+       "rows": [
+        "rows\ttotal",
+        "5000000\t25002447488"
+       ],
+       "log": {
+        "query_duration_ms": 172,
+        "memory_usage": 191569950,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-big-right-default.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      312,
+      172
+     ],
+     "duration_ms": 242.0,
+     "memory_usage": 191569950,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal",
+      "5000000\t25002447488"
+     ],
+     "stdout": "rows\ttotal\n5000000\t25002447488\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "02-big-right-no-swap",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.customers AS c\nINNER JOIN join_lab.facts AS f ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash', query_plan_join_swap_table = 'false';",
+     "runs": [
+      {
+       "query_id": "02-big-right-no-swap.1",
+       "wall_s": 0.107,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting query_plan_join_swap_table is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting query_plan_join_swap_table is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS rows, sum(f.amount) AS total\nFROM join_lab.customers AS c\nINNER JOIN join_lab.facts AS f ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash', query_plan_join_swap_table = 'false';)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting query_plan_join_swap_table is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "03-non-equi-on.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "03-range-inner",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT b.lo, count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON f.amount >= b.lo AND f.amount < b.hi\nGROUP BY b.lo ORDER BY b.lo LIMIT 5;",
+     "runs": [
+      {
+       "query_id": "03-range-inner",
+       "wall_s": 0.112,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.amount >= b.lo) AND (f.amount < b.hi) join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experime",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.amount >= b.lo) AND (f.amount < b.hi) join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT b.lo, count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON f.amount >= b.lo AND f.amount < b.hi\nGROUP BY b.lo ORDER BY b.lo LIMIT 5;)\n",
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-range-inner",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.amount >= b.lo) AND (f.amount < b.hi) join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experime",
+     "memory_usage": 0,
+     "duration_ms": 1,
+     "events": {}
+    },
+    {
+     "id": "03-arbitrary-inner",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-inner",
+       "wall_s": 0.085,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condi",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nINNER JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-arbitrary-inner",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condi",
+     "memory_usage": 0,
+     "duration_ms": 1,
+     "events": {}
+    },
+    {
+     "id": "03-arbitrary-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-left",
+       "wall_s": 0.258,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condit",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-arbitrary-left",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condit",
+     "memory_usage": 0,
+     "duration_ms": 2,
+     "events": {}
+    },
+    {
+     "id": "03-arbitrary-left-flag",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10\nSETTINGS allow_experimental_join_condition = 1;",
+     "runs": [
+      {
+       "query_id": "03-arbitrary-left-flag",
+       "wall_s": 0.213,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in  LEFT JOIN ... ON abs(f.amount - b.lo) < 10. (INVALID_JOIN_ON_EXPRESSION)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: Cannot determine join keys in  LEFT JOIN ... ON abs(f.amount - b.lo) < 10. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10\nSETTINGS allow_experimental_join_condition = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-arbitrary-left-flag",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in  LEFT JOIN ... ON abs(f.amount - b.lo) < 10. (INVALID_JOIN_ON_EXPRESSION)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "03-equi-ineq-inner",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-inner",
+       "wall_s": 0.114,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET ",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-equi-ineq-inner",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  INNER JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET ",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "03-equi-ineq-inner-flag",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit\nSETTINGS allow_experimental_join_condition = 1;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-inner-flag",
+       "wall_s": 0.38,
+       "rc": 0,
+       "stdout": "n\ttotal\n2502540\t16685903732\n",
+       "rows": [
+        "n\ttotal",
+        "2502540\t16685903732"
+       ],
+       "log": {
+        "query_duration_ms": 250,
+        "memory_usage": 89434728,
+        "read_rows": 5500000,
+        "read_bytes": 44000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "03-equi-ineq-inner-flag",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      250
+     ],
+     "duration_ms": 250,
+     "memory_usage": 89434728,
+     "read_rows": 5500000,
+     "read_bytes": 44000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "2502540\t16685903732"
+     ],
+     "stdout": "n\ttotal\n2502540\t16685903732\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "03-equi-ineq-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(c.credit_limit = 0) AS no_match_or_zero\nFROM join_lab.facts AS f\nLEFT JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;",
+     "runs": [
+      {
+       "query_id": "03-equi-ineq-left",
+       "wall_s": 0.186,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET a",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: SELECT count() AS n, countIf(c.credit_limit = 0) AS no_match_or_zero\nFROM join_lab.facts AS f\nLEFT JOIN join_lab.customers AS c ON f.customer_id = c.id AND f.amount > c.credit_limit;)\n",
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "03-equi-ineq-left",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON (f.customer_id = c.id) AND (f.amount > c.credit_limit) join expression contains column from left and right table, you may try experimental support of this feature by `SET a",
+     "memory_usage": 0,
+     "duration_ms": 1,
+     "events": {}
+    }
+   ]
+  },
+  "04-correlated-subquery.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "04-exists",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5;",
+     "runs": [
+      {
+       "query_id": "04-exists",
+       "wall_s": 0.176,
+       "rc": 1,
+       "code": 1,
+       "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amo",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 1. DB::Exception: Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amount > 9990)). (UNSUPPORTED_METHOD)\n(query: SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5;)\n",
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 1,
+        "query_id": "04-exists",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 1,
+     "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amo",
+     "memory_usage": 0,
+     "duration_ms": 2,
+     "events": {}
+    },
+    {
+     "id": "04-exists-no-substitution",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5\nSETTINGS correlated_subqueries_substitute_equivalent_expressions = 0;",
+     "runs": [
+      {
+       "query_id": "04-exists-no-substitution",
+       "wall_s": 0.126,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting correlated_subqueries_substitute_equivalent_expressions is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting correlated_subqueries_substitute_equivalent_expressions is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT c.region, count() AS n\nFROM join_lab.customers AS c\nWHERE EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990)\nGROUP BY c.region ORDER BY c.region LIMIT 5\nSETTINGS correlated_subqueries_substitute_equivalent_expressions = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting correlated_subqueries_substitute_equivalent_expressions is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "04-not-exists",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.customers AS c\nWHERE NOT EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990);",
+     "runs": [
+      {
+       "query_id": "04-not-exists",
+       "wall_s": 0.177,
+       "rc": 1,
+       "code": 1,
+       "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amo",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 1. DB::Exception: Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amount > 9990)). (UNSUPPORTED_METHOD)\n(query: SELECT count() AS n\nFROM join_lab.customers AS c\nWHERE NOT EXISTS (SELECT 1 FROM join_lab.facts AS f WHERE f.customer_id = c.id AND f.amount > 9990);)\n",
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 1,
+        "query_id": "04-not-exists",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 1,
+     "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.id) AND (f.amo",
+     "memory_usage": 0,
+     "duration_ms": 1,
+     "events": {}
+    },
+    {
+     "id": "04-scalar-select-list",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT count() AS n, sum(mx) AS total\nFROM\n(\n    SELECT c.id, (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx\n    FROM join_lab.customers AS c\n    WHERE c.id < 1000\n);",
+     "runs": [
+      {
+       "query_id": "04-scalar-select-list",
+       "wall_s": 0.104,
+       "rc": 1,
+       "code": 1,
+       "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 1. DB::Exception: Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx. (UNSUPPORTED_METHOD)\n(query: SELECT count() AS n, sum(mx) AS total\nFROM\n(\n    SELECT c.id, (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx\n    FROM join_lab.customers AS c\n    WHERE c.id < 1000\n);)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 1,
+        "query_id": "04-scalar-select-list",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 1,
+     "message": "Received from localhost:9000. DB::Exception: Resolve identifier 'c.id' from parent scope only supported for constants and CTE. Actual c.id node type COLUMN. In scope (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    }
+   ]
+  },
+  "05-runtime-filter.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "05-star-default",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3';",
+     "runs": [
+      {
+       "query_id": "05-star-default",
+       "wall_s": 0.23,
+       "rc": 0,
+       "stdout": "n\ttotal\n249471\t1245583791\n",
+       "rows": [
+        "n\ttotal",
+        "249471\t1245583791"
+       ],
+       "log": {
+        "query_duration_ms": 126,
+        "memory_usage": 41178008,
+        "read_rows": 5500020,
+        "read_bytes": 42500370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-star-default",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      126
+     ],
+     "duration_ms": 126,
+     "memory_usage": 41178008,
+     "read_rows": 5500020,
+     "read_bytes": 42500370,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "249471\t1245583791"
+     ],
+     "stdout": "n\ttotal\n249471\t1245583791\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-star-on",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "05-star-on",
+       "wall_s": 0.125,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-star-off",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 0;",
+     "runs": [
+      {
+       "query_id": "05-star-off",
+       "wall_s": 0.214,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-direct-default",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "05-direct-default",
+       "wall_s": 0.162,
+       "rc": 0,
+       "stdout": "n\ttotal\n5014\t24939811\n",
+       "rows": [
+        "n\ttotal",
+        "5014\t24939811"
+       ],
+       "log": {
+        "query_duration_ms": 18,
+        "memory_usage": 1878322,
+        "read_rows": 5500000,
+        "read_bytes": 42000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-direct-default",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      18
+     ],
+     "duration_ms": 18,
+     "memory_usage": 1878322,
+     "read_rows": 5500000,
+     "read_bytes": 42000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "5014\t24939811"
+     ],
+     "stdout": "n\ttotal\n5014\t24939811\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "05-direct-on",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "05-direct-on",
+       "wall_s": 0.177,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 1;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-direct-off",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 0;",
+     "runs": [
+      {
+       "query_id": "05-direct-off",
+       "wall_s": 0.156,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN (SELECT id FROM join_lab.customers WHERE id % 1000 = 0) AS c ON f.customer_id = c.id\nSETTINGS enable_join_runtime_filters = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "06-memory-cap.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "06-uncapped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "06-uncapped",
+       "wall_s": 2.437,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 2323,
+        "memory_usage": 1852293750,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2323
+     ],
+     "duration_ms": 2323,
+     "memory_usage": 1852293750,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-hash",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-hash",
+       "wall_s": 1.468,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1184,
+        "memory_usage": 1824188894,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-hash",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1184
+     ],
+     "duration_ms": 1184,
+     "memory_usage": 1824188894,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-partial-merge",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'partial_merge';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-partial-merge",
+       "wall_s": 2.489,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 2185,
+        "memory_usage": 1045436115,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-partial-merge",
+        "type": "QueryFinish",
+        "events": {
+         "ExternalProcessingCompressedBytesTotal": 300755357,
+         "ExternalProcessingUncompressedBytesTotal": 2146903172,
+         "ExternalProcessingFilesTotal": 614,
+         "ExternalJoinWritePart": 614,
+         "ExternalJoinMerge": 1,
+         "ExternalJoinCompressedBytes": 300755357,
+         "ExternalJoinUncompressedBytes": 2146903172
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2185
+     ],
+     "duration_ms": 2185,
+     "memory_usage": 1045436115,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "ExternalProcessingCompressedBytesTotal": 300755357,
+      "ExternalProcessingUncompressedBytesTotal": 2146903172,
+      "ExternalProcessingFilesTotal": 614,
+      "ExternalJoinWritePart": 614,
+      "ExternalJoinMerge": 1,
+      "ExternalJoinCompressedBytes": 300755357,
+      "ExternalJoinUncompressedBytes": 2146903172
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-uncapped-grace-hash",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS join_algorithm = 'grace_hash';",
+     "runs": [
+      {
+       "query_id": "06-uncapped-grace-hash",
+       "wall_s": 1.973,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1481,
+        "memory_usage": 2299590268,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-uncapped-grace-hash",
+        "type": "QueryFinish",
+        "events": {
+         "ExternalProcessingFilesTotal": 2
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1481
+     ],
+     "duration_ms": 1481,
+     "memory_usage": 2299590268,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "ExternalProcessingFilesTotal": 2
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-grace-hash-8-buckets-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash', grace_hash_join_initial_buckets = 8;",
+     "runs": [
+      {
+       "query_id": "06-grace-hash-8-buckets-capped",
+       "wall_s": 1.997,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1871,
+        "memory_usage": 438919596,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-grace-hash-8-buckets-capped",
+        "type": "QueryFinish",
+        "events": {
+         "ExternalProcessingFilesTotal": 16
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1871
+     ],
+     "duration_ms": 1871,
+     "memory_usage": 438919596,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "ExternalProcessingFilesTotal": 16
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-grace-hash-16-buckets-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash', grace_hash_join_initial_buckets = 16;",
+     "runs": [
+      {
+       "query_id": "06-grace-hash-16-buckets-capped",
+       "wall_s": 1.581,
+       "rc": 0,
+       "stdout": "n\th\n5000000\t13815302554278746036\n",
+       "rows": [
+        "n\th",
+        "5000000\t13815302554278746036"
+       ],
+       "log": {
+        "query_duration_ms": 1460,
+        "memory_usage": 288806534,
+        "read_rows": 10000000,
+        "read_bytes": 1128423434,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-grace-hash-16-buckets-capped",
+        "type": "QueryFinish",
+        "events": {
+         "ExternalProcessingFilesTotal": 32
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1460
+     ],
+     "duration_ms": 1460,
+     "memory_usage": 288806534,
+     "read_rows": 10000000,
+     "read_bytes": 1128423434,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {
+      "ExternalProcessingFilesTotal": 32
+     },
+     "rows": [
+      "n\th",
+      "5000000\t13815302554278746036"
+     ],
+     "stdout": "n\th\n5000000\t13815302554278746036\n",
+     "pipeline_join": [
+      "DelayedJoinedBlocksTransform",
+      "DelayedJoinedBlocksWorkerTransform",
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "06-default-spill-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_before_external_join = 200000000;",
+     "runs": [
+      {
+       "query_id": "06-default-spill-capped",
+       "wall_s": 0.103,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max_bytes_before_external_group_by']. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_before_external_join = 200000000;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "07-lazy-replication.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "07-lazy-default",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id;",
+     "runs": [
+      {
+       "query_id": "07-lazy-default.1",
+       "wall_s": 0.176,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 94,
+        "memory_usage": 74626165,
+        "read_rows": 2032192,
+        "read_bytes": 229179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-default.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-lazy-default.2",
+       "wall_s": 0.122,
+       "rc": 0,
+       "stdout": "n\th\n2001816\t2735429605406549434\n",
+       "rows": [
+        "n\th",
+        "2001816\t2735429605406549434"
+       ],
+       "log": {
+        "query_duration_ms": 39,
+        "memory_usage": 69482593,
+        "read_rows": 2032192,
+        "read_bytes": 229179338,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-lazy-default.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      94,
+      39
+     ],
+     "duration_ms": 66.5,
+     "memory_usage": 74626165,
+     "read_rows": 2032192,
+     "read_bytes": 229179338,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\th",
+      "2001816\t2735429605406549434"
+     ],
+     "stdout": "n\th\n2001816\t2735429605406549434\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "07-lazy-on",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 1;",
+     "runs": [
+      {
+       "query_id": "07-lazy-on.1",
+       "wall_s": 0.08,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 1;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-lazy-off",
+     "repeat": 2,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;",
+     "runs": [
+      {
+       "query_id": "07-lazy-off.1",
+       "wall_s": 0.081,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts WHERE customer_id < 100000 AND id % 5 = 0) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "08-syntax.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "08-asof-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(p.price) AS total\nFROM (SELECT customer_id, ts FROM join_lab.facts WHERE id < 1000000 AND customer_id < 2000) AS f\nASOF LEFT JOIN join_lab.prices AS p ON f.customer_id = p.customer_id AND f.ts >= p.ts;",
+     "runs": [
+      {
+       "query_id": "08-asof-left",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "n\ttotal\n4049\t2031692\n",
+       "rows": [
+        "n\ttotal",
+        "4049\t2031692"
+       ],
+       "log": {
+        "query_duration_ms": 7,
+        "memory_usage": 1535992,
+        "read_rows": 60960,
+        "read_bytes": 633216,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-asof-left",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      7
+     ],
+     "duration_ms": 7,
+     "memory_usage": 1535992,
+     "read_rows": 60960,
+     "read_bytes": 633216,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "4049\t2031692"
+     ],
+     "stdout": "n\ttotal\n4049\t2031692\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-left-semi",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n FROM join_lab.regions AS r LEFT SEMI JOIN join_lab.customers AS c ON r.id = c.region;",
+     "runs": [
+      {
+       "query_id": "08-left-semi",
+       "wall_s": 0.109,
+       "rc": 0,
+       "stdout": "n\n20\n",
+       "rows": [
+        "n",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 998513,
+        "read_rows": 500020,
+        "read_bytes": 500020,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-left-semi",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 998513,
+     "read_rows": 500020,
+     "read_bytes": 500020,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n",
+      "20"
+     ],
+     "stdout": "n\n20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-left-anti",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n FROM join_lab.regions AS r LEFT ANTI JOIN (SELECT region FROM join_lab.customers WHERE region < 10) AS c ON r.id = c.region;",
+     "runs": [
+      {
+       "query_id": "08-left-anti",
+       "wall_s": 0.089,
+       "rc": 0,
+       "stdout": "n\n10\n",
+       "rows": [
+        "n",
+        "10"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 727432,
+        "read_rows": 500020,
+        "read_bytes": 500020,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-left-anti",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 727432,
+     "read_rows": 500020,
+     "read_bytes": 500020,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n",
+      "10"
+     ],
+     "stdout": "n\n10\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-paste",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(a.x + b.y) AS total\nFROM (SELECT number AS x FROM numbers(5)) AS a\nPASTE JOIN (SELECT number * 10 AS y FROM numbers(5)) AS b;",
+     "runs": [
+      {
+       "query_id": "08-paste",
+       "wall_s": 0.094,
+       "rc": 0,
+       "stdout": "n\ttotal\n5\t110\n",
+       "rows": [
+        "n\ttotal",
+        "5\t110"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 149896,
+        "read_rows": 10,
+        "read_bytes": 80,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-paste",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 149896,
+     "read_rows": 10,
+     "read_bytes": 80,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "5\t110"
+     ],
+     "stdout": "n\ttotal\n5\t110\n",
+     "pipeline_join": [
+      "Join",
+      "PasteJoinTransform"
+     ]
+    },
+    {
+     "id": "08-natural",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT number AS id, number * 2 AS a FROM numbers(5)) AS l\nNATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;",
+     "runs": [
+      {
+       "query_id": "08-natural",
+       "wall_s": 0.085,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 86 ('NATURAL') (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 86 ('NATURAL') (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join, LEFT ARRAY JOIN, INNER, ARRAY JOIN, GLOBAL, LOCAL, ANY, ALL, ASOF, SEMI, ANTI, ONLY, LEFT, RIGHT, FULL, CROSS, PASTE, JOIN, PREWHERE, WHERE, GROUP BY, WITH, HAVING, WINDOW, QUALIFY, ORDER BY, LIMIT, OFFSET, FETCH, SETTINGS, UNION, EXCEPT, INTERSECT, INTO OUTFILE, FORMAT, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 86 ('NATURAL') (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "08-using",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM (SELECT number AS id FROM numbers(5)) AS l\nINNER JOIN (SELECT number AS id FROM numbers(3)) AS r USING (id);",
+     "runs": [
+      {
+       "query_id": "08-using",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "n\n3\n",
+       "rows": [
+        "n",
+        "3"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 69312,
+        "read_rows": 8,
+        "read_bytes": 64,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-using",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 69312,
+     "read_rows": 8,
+     "read_bytes": 64,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n",
+      "3"
+     ],
+     "stdout": "n\n3\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-full-join-use-nulls",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, countIf(l.id IS NULL) AS left_nulls, countIf(r.id IS NULL) AS right_nulls\nFROM (SELECT number AS id FROM numbers(5)) AS l\nFULL JOIN (SELECT number + 3 AS id FROM numbers(5)) AS r ON l.id = r.id\nSETTINGS join_use_nulls = 1;",
+     "runs": [
+      {
+       "query_id": "08-full-join-use-nulls",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "n\tleft_nulls\tright_nulls\n8\t3\t3\n",
+       "rows": [
+        "n\tleft_nulls\tright_nulls",
+        "8\t3\t3"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 76992,
+        "read_rows": 10,
+        "read_bytes": 80,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "08-full-join-use-nulls",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 76992,
+     "read_rows": 10,
+     "read_bytes": 80,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\tleft_nulls\tright_nulls",
+      "8\t3\t3"
+     ],
+     "stdout": "n\tleft_nulls\tright_nulls\n8\t3\t3\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "08-lateral-left",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(l.id) AS total\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "08-lateral-left",
+       "wall_s": 0.07,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 94 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 94 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 94 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "09-explain.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "09-explain-runtime-filter",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;",
+     "runs": [
+      {
+       "query_id": "09-explain-runtime-filter",
+       "wall_s": 0.072,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: EXPLAIN actions = 1\nSELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3'\nSETTINGS enable_join_runtime_filters = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 115,
+        "query_id": "09-explain-runtime-filter",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "09-explain-lateral",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, sum(l.id) AS total\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "09-explain-lateral",
+       "wall_s": 0.063,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 114 ('c') (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 114 ('c') (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 114 ('c') (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "09-explain-left-arbitrary",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN actions = 1\nSELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;",
+     "runs": [
+      {
+       "query_id": "09-explain-left-arbitrary",
+       "wall_s": 0.069,
+       "rc": 147,
+       "code": 403,
+       "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condit",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condition = 1`. (INVALID_JOIN_ON_EXPRESSION)\n(query: EXPLAIN actions = 1\nSELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 403,
+        "query_id": "09-explain-left-arbitrary",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 403,
+     "message": "Received from localhost:9000. DB::Exception: JOIN  LEFT JOIN ... ON abs(f.amount - b.lo) < 10 join expression contains column from left and right table, you may try experimental support of this feature by `SET allow_experimental_join_condit",
+     "memory_usage": 0,
+     "duration_ms": 2,
+     "events": {}
+    }
+   ]
+  },
+  "10-scale.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "10-big-left",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.facts_big AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "10-big-left.1",
+       "wall_s": 0.806,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 714,
+        "memory_usage": 676814896,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-left.2",
+       "wall_s": 0.869,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 775,
+        "memory_usage": 672635796,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-left.3",
+       "wall_s": 0.382,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 307,
+        "memory_usage": 672546844,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-left.4",
+       "wall_s": 0.602,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 490,
+        "memory_usage": 674014256,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-left.5",
+       "wall_s": 0.762,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 660,
+        "memory_usage": 674014256,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-left.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      714,
+      775,
+      307,
+      490,
+      660
+     ],
+     "duration_ms": 660,
+     "memory_usage": 676814896,
+     "read_rows": 55000000,
+     "read_bytes": 425000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal\tregions",
+      "50000000\t249969458420\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-big-right",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS rows, sum(f.amount) AS total, uniqExact(c.region) AS regions\nFROM join_lab.customers_big AS c\nINNER JOIN join_lab.facts_big AS f ON f.customer_id = c.id;",
+     "runs": [
+      {
+       "query_id": "10-big-right.1",
+       "wall_s": 2.665,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 2495,
+        "memory_usage": 1967782302,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-right.2",
+       "wall_s": 2.877,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 2695,
+        "memory_usage": 1973814324,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-right.3",
+       "wall_s": 3.039,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 2819,
+        "memory_usage": 1973010480,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-right.4",
+       "wall_s": 2.642,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 2484,
+        "memory_usage": 1961725547,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-big-right.5",
+       "wall_s": 4.124,
+       "rc": 0,
+       "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+       "rows": [
+        "rows\ttotal\tregions",
+        "50000000\t249969458420\t20"
+       ],
+       "log": {
+        "query_duration_ms": 3967,
+        "memory_usage": 1971780020,
+        "read_rows": 55000000,
+        "read_bytes": 425000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-big-right.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2495,
+      2695,
+      2819,
+      2484,
+      3967
+     ],
+     "duration_ms": 2695,
+     "memory_usage": 1973814324,
+     "read_rows": 55000000,
+     "read_bytes": 425000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "rows\ttotal\tregions",
+      "50000000\t249969458420\t20"
+     ],
+     "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-star",
+     "repeat": 5,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(f.amount) AS total\nFROM join_lab.facts_big AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nINNER JOIN join_lab.regions AS r ON c.region = r.id\nWHERE r.name = 'region-3';",
+     "runs": [
+      {
+       "query_id": "10-star.1",
+       "wall_s": 0.853,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 749,
+        "memory_usage": 672553947,
+        "read_rows": 55000020,
+        "read_bytes": 425000370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-star.2",
+       "wall_s": 0.477,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 395,
+        "memory_usage": 673562968,
+        "read_rows": 55000020,
+        "read_bytes": 425000370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-star.3",
+       "wall_s": 0.853,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 703,
+        "memory_usage": 671339880,
+        "read_rows": 55000020,
+        "read_bytes": 425000370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-star.4",
+       "wall_s": 0.599,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 513,
+        "memory_usage": 672553947,
+        "read_rows": 55000020,
+        "read_bytes": 425000370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-star.5",
+       "wall_s": 0.577,
+       "rc": 0,
+       "stdout": "n\ttotal\n2498193\t12493613699\n",
+       "rows": [
+        "n\ttotal",
+        "2498193\t12493613699"
+       ],
+       "log": {
+        "query_duration_ms": 507,
+        "memory_usage": 672913071,
+        "read_rows": 55000020,
+        "read_bytes": 425000370,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-star.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      749,
+      395,
+      703,
+      513,
+      507
+     ],
+     "duration_ms": 513,
+     "memory_usage": 673562968,
+     "read_rows": 55000020,
+     "read_bytes": 425000370,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\ttotal",
+      "2498193\t12493613699"
+     ],
+     "stdout": "n\ttotal\n2498193\t12493613699\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-many-to-many-wide",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts_big AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f\n    ON c.customer_id = f.customer_id;",
+     "runs": [
+      {
+       "query_id": "10-many-to-many-wide.1",
+       "wall_s": 0.828,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 727,
+        "memory_usage": 615385949,
+        "read_rows": 15027008,
+        "read_bytes": 1128524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.2",
+       "wall_s": 0.722,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 639,
+        "memory_usage": 614987793,
+        "read_rows": 15027008,
+        "read_bytes": 1128524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.3",
+       "wall_s": 0.718,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 643,
+        "memory_usage": 631194025,
+        "read_rows": 15027008,
+        "read_bytes": 1128524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.4",
+       "wall_s": 0.612,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 520,
+        "memory_usage": 631899483,
+        "read_rows": 15027008,
+        "read_bytes": 1128524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "10-many-to-many-wide.5",
+       "wall_s": 0.741,
+       "rc": 0,
+       "stdout": "n\th\n50010956\t1549438289860116752\n",
+       "rows": [
+        "n\th",
+        "50010956\t1549438289860116752"
+       ],
+       "log": {
+        "query_duration_ms": 665,
+        "memory_usage": 614931333,
+        "read_rows": 15027008,
+        "read_bytes": 1128524626,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-many-to-many-wide.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      727,
+      639,
+      643,
+      520,
+      665
+     ],
+     "duration_ms": 643,
+     "memory_usage": 631899483,
+     "read_rows": 15027008,
+     "read_bytes": 1128524626,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "n\th",
+      "50010956\t1549438289860116752"
+     ],
+     "stdout": "n\th\n50010956\t1549438289860116752\n",
+     "pipeline_join": [
+      "FillingRightJoinSide",
+      "Join",
+      "JoiningTransform"
+     ]
+    },
+    {
+     "id": "10-many-to-many-wide-lazy-off",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts_big AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;",
+     "runs": [
+      {
+       "query_id": "10-many-to-many-wide-lazy-off.1",
+       "wall_s": 0.087,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.note)) AS h\nFROM join_lab.contacts_big AS c\nINNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f\n    ON c.customer_id = f.customer_id\nSETTINGS enable_lazy_columns_replication = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  },
+  "errors/01-memory-cap-defaults.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "e01-default-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;",
+     "runs": [
+      {
+       "query_id": "e01-default-capped",
+       "wall_s": 0.278,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 540041708 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 540041708 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;)\n",
+       "log": {
+        "query_duration_ms": 203,
+        "memory_usage": 635279255,
+        "read_rows": 2203648,
+        "read_bytes": 488360202,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-default-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 540041708 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+     "memory_usage": 635279255,
+     "duration_ms": 203,
+     "events": {}
+    },
+    {
+     "id": "e01-default-ratio-explicit",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_ratio_before_external_join = 0.5;",
+     "runs": [
+      {
+       "query_id": "e01-default-ratio-explicit",
+       "wall_s": 0.083,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort']. (UNKNOWN_SETTING)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, max_bytes_ratio_before_external_join = 0.5;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e01-hash-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'hash';",
+     "runs": [
+      {
+       "query_id": "e01-hash-capped",
+       "wall_s": 0.39,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 538255901 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 538255901 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'hash';)\n",
+       "log": {
+        "query_duration_ms": 310,
+        "memory_usage": 636655461,
+        "read_rows": 2203648,
+        "read_bytes": 488360202,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-hash-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.09 GiB (attempt to allocate chunk of 538255901 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+     "memory_usage": 636655461,
+     "duration_ms": 310,
+     "events": {}
+    },
+    {
+     "id": "e01-partial-merge-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';",
+     "runs": [
+      {
+       "query_id": "e01-partial-merge-capped",
+       "wall_s": 0.261,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 767.86 MiB (attempt to allocate chunk of 5455797 bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (ME",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 767.86 MiB (attempt to allocate chunk of 5455797 bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';)\n",
+       "log": {
+        "query_duration_ms": 177,
+        "memory_usage": 799706098,
+        "read_rows": 3547136,
+        "read_bytes": 786233602,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-partial-merge-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 767.86 MiB (attempt to allocate chunk of 5455797 bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (ME",
+     "memory_usage": 799706098,
+     "duration_ms": 177,
+     "events": {}
+    },
+    {
+     "id": "e01-grace-hash-1-bucket-capped",
+     "repeat": 1,
+     "flags": [
+      "events"
+     ],
+     "sql": "SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';",
+     "runs": [
+      {
+       "query_id": "e01-grace-hash-1-bucket-capped",
+       "wall_s": 0.228,
+       "rc": 241,
+       "code": 241,
+       "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.20 GiB (attempt to allocate chunk of 537938675 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.20 GiB (attempt to allocate chunk of 537938675 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';)\n",
+       "log": {
+        "query_duration_ms": 107,
+        "memory_usage": 760607040,
+        "read_rows": 2195456,
+        "read_bytes": 486518634,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 241,
+        "query_id": "e01-grace-hash-1-bucket-capped",
+        "type": "ExceptionWhileProcessing",
+        "events": {
+         "ExternalProcessingFilesTotal": 2
+        }
+       }
+      }
+     ],
+     "status": "error",
+     "code": 241,
+     "message": "Received from localhost:9000. DB::Exception: Memory limit (for query) exceeded: would use 1.20 GiB (attempt to allocate chunk of 537938675 bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
+     "memory_usage": 760607040,
+     "duration_ms": 107,
+     "events": {
+      "ExternalProcessingFilesTotal": 2
+     }
+    }
+   ]
+  },
+  "errors/02-lateral-forms.sql": {
+   "setup": [],
+   "probes": [
+    {
+     "id": "e02-lateral-comma",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r, LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-comma",
+       "wall_s": 0.074,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 65 ('c') (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 65 ('c') (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 65 ('c') (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-cross-join",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nCROSS JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-cross-join",
+       "wall_s": 0.075,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 75 ('c') (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 75 ('c') (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 75 ('c') (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-uncorrelated",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-uncorrelated",
+       "wall_s": 0.065,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "e02-lateral-with-ties",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() AS n\nFROM join_lab.regions AS r\nLEFT JOIN LATERAL (SELECT c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;",
+     "runs": [
+      {
+       "query_id": "e02-lateral-with-ties",
+       "wall_s": 0.088,
+       "rc": 62,
+       "code": 62,
+       "message": "Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true",
+       "stderr": "Code: 62. DB::Exception: Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true\nSETTINGS allow_experimental_lateral_join = 1;. Expected one of: token sequence, Dot, token, Comma, ClosingRoundBracket, OR, AND, IS NOT DISTINCT FROM, IS NULL, IS NOT NULL, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, REGEXP, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, alias, AS, end of query. (SYNTAX_ERROR)\n\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 62,
+     "message": "Syntax error: failed at position 74 ('c') (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    }
+   ]
+  }
+ },
+ "settings": {
+  "00-data.sql": [],
+  "01-hash-baseline.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   }
+  ],
+  "02-join-side.sql": [
+   {
+    "name": "query_plan_join_swap_table",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   }
+  ],
+  "03-non-equi-on.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_join_condition",
+    "exists": true,
+    "value": "0",
+    "tier": null
+   },
+   {
+    "name": "allow_block_nested_loop_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "04-correlated-subquery.sql": [
+   {
+    "name": "allow_correlated_subqueries",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_correlated_subqueries",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "correlated_subqueries_substitute_equivalent_expressions",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "05-runtime-filter.sql": [
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "enable_join_runtime_filters_index_analysis",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "06-memory-cap.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   },
+   {
+    "name": "max_bytes_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "max_bytes_ratio_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "grace_hash_join_initial_buckets",
+    "exists": true,
+    "value": "1",
+    "tier": null
+   }
+  ],
+  "07-lazy-replication.sql": [
+   {
+    "name": "enable_lazy_columns_replication",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "08-syntax.sql": [
+   {
+    "name": "join_use_nulls",
+    "exists": true,
+    "value": "0",
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "09-explain.sql": [
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "10-scale.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   },
+   {
+    "name": "query_plan_join_swap_table",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "enable_join_runtime_filters",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "enable_lazy_columns_replication",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "errors/01-memory-cap-defaults.sql": [
+   {
+    "name": "join_algorithm",
+    "exists": true,
+    "value": "default",
+    "tier": null
+   },
+   {
+    "name": "max_bytes_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "max_bytes_ratio_before_external_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "grace_hash_join_initial_buckets",
+    "exists": true,
+    "value": "1",
+    "tier": null
+   }
+  ],
+  "errors/02-lateral-forms.sql": [
+   {
+    "name": "allow_experimental_lateral_join",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ]
+ },
+ "tag": "24.8.14.39",
+ "version": "24.8.14.39",
+ "date": "2026-11-04",
+ "machine": {
+  "ncpu": 12,
+  "mem_bytes": 16745496576,
+  "others": [
+   "dlfix-clickhouse",
+   "langfuse-hols-v4-clickhouse-1",
+   "langfuse-hols-v4-langfuse-web-1",
+   "langfuse-hols-v4-langfuse-worker-1",
+   "langfuse-hols-v4-lf-a-web-1",
+   "langfuse-hols-v4-lf-a-worker-1",
+   "langfuse-hols-v4-lf-b-web-1",
+   "langfuse-hols-v4-lf-b-worker-1",
+   "langfuse-hols-v4-minio-1",
+   "langfuse-hols-v4-postgres-1",
+   "langfuse-hols-v4-redis-1",
+   "minio",
+   "postgres-hive",
+   "prompt-enc-openbao-1"
+  ],
+  "others_cpu": {
+   "langfuse-hols-v4-lf-b-web-1": 1.85,
+   "langfuse-hols-v4-lf-a-web-1": 1.26,
+   "langfuse-hols-v4-lf-a-worker-1": 34.42,
+   "langfuse-hols-v4-lf-b-worker-1": 6.61,
+   "dlfix-clickhouse": 6.55,
+   "postgres-hive": 0.03,
+   "minio": 0.05,
+   "prompt-enc-openbao-1": 0.44,
+   "langfuse-hols-v4-clickhouse-1": 48.41,
+   "langfuse-hols-v4-postgres-1": 4.07,
+   "langfuse-hols-v4-redis-1": 0.91,
+   "langfuse-hols-v4-minio-1": 15.6
+  }
+ },
+ "elapsed_s": 88
+}
