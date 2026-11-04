@@ -1,0 +1,11 @@
+# Runs against a ClickHouse Cloud service with run.sh; tools/hol does not run it (no `clickhouse` key).
+target: cloud
+verified_on: "26.8.1.608"   # ClickHouse Cloud, 2 replicas, 2026-11-04, run.sh 01 → 99
+# Publishing keys (tools/lab.schema.md)
+web: true
+title_ko: "ClickHouse Cloud system 테이블 깊이 보기"
+summary_ko: "레플리카마다 다른 system 테이블, 교체된 레플리카의 로그 이력, query_log·part_log·KILL QUERY를 Cloud 26.8에서 직접 확인"
+title_en: "ClickHouse Cloud system tables in depth"
+summary_en: "Per-replica system tables, log history from replaced replicas, query_log, part_log and KILL QUERY, run on Cloud 26.8."
+category: cloud
+tags: [cloud-operations, observability, performance]
