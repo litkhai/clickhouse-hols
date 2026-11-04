@@ -1,0 +1,28 @@
+# Overlay on the langfuse-hols v4 stack (project langfuse-hols-v4), used by 07-langfuse-e2e.sh:
+#   - Langfuse's ClickHouse gets the AES_256_GCM_SIV codec key (so its columns can use the codec)
+#   - enc-callback: an ingestion "masking" callback that encrypts input/output (needs Langfuse EE)
+# The worker is pointed at the callback only by docker-compose.langfuse-callback.yml.
+services:
+  clickhouse:
+    environment:
+      CH_CODEC_KEY_HEX: ${CH_CODEC_KEY_HEX:?run 01-up.sh in the lab first}
+    volumes:
+      - ${PROMPT_ENC_LAB_DIR:?}/clickhouse/config.d/codec-only.xml:/etc/clickhouse-server/config.d/prompt-enc-codec.xml:ro
+
+  enc-callback:
+    image: prompt-enc/clickhouse-server:26.8.22.13-py   # built by 01-up.sh; has python3 + cryptography
+    entrypoint: ["python3", "/app/enc_callback.py"]
+    user: "101:101"
+    volumes:
+      - ${PROMPT_ENC_LAB_DIR:?}/bench/enc_callback.py:/app/enc_callback.py:ro
+      - ${PROMPT_ENC_LAB_DIR:?}/.secrets:/etc/prompt-enc:ro
+    networks: [default, bench]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3100/health')"]
+      interval: 3s
+      retries: 20
+
+networks:
+  bench:
+    name: prompt-enc_default
+    external: true

@@ -1,0 +1,10 @@
+# Points the Langfuse worker at the encrypting callback. ENC_MODE: local | kms_batch | kms_row | kms_row5
+services:
+  langfuse-worker:
+    depends_on:
+      enc-callback:
+        condition: service_healthy
+    environment:
+      LANGFUSE_INGESTION_MASKING_CALLBACK_URL: http://enc-callback:3100/${ENC_MODE:-local}
+      LANGFUSE_INGESTION_MASKING_CALLBACK_TIMEOUT_MS: ${ENC_TIMEOUT_MS:-500}
+      LANGFUSE_INGESTION_MASKING_CALLBACK_FAIL_CLOSED: "true"

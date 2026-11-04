@@ -1,0 +1,11 @@
+method	rows	input_MiB	output_MiB	all_columns_MiB	skip_indexes_MiB
+plain	400000	876	150	1061	17
+plain_nofts	400000	876	150	1061	2
+codec	400000	876	150	1061	17
+sql_fts	400000	3529	606	4170	5718
+sql	400000	3529	606	4170	2
+local	400000	3529	606	4170	2
+kms_batch	400000	3531	607	4173	2
+kms_batch5	400000	3531	607	4173	2
+kms_row	20000	179	30	212	0
+kms_row5	4000	35	6	42	0

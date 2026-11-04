@@ -50,6 +50,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/korean-rag-tokenizers/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-decryption-audit/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-on-clickhouse/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/langfuse-prompt-encryption-perf/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-prewhere/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/mysql-protocol-benchmark/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/oss-network-quality-lake/</loc></url>
