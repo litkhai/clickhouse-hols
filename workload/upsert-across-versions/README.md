@@ -180,6 +180,16 @@ What changes between builds, from the same file:
 - **Not available.** Patch parts are Code 62 on 24.8 and 25.3, as in file 04; their classic and
   re-insert tables ran.
 
+### Screens
+
+Captured 2026-11-04 from ClickHouse's `/play` UI on local throwaway containers, for the notes article
+`core-architecture/clickhouse-upsert`:
+
+- [`images/01-patch-parts-26-10.png`](images/01-patch-parts-26-10.png) — `system.parts` of `pu_1p` on 26.10.3.7: the base part and one `patch-` part
+- [`images/02-update-bytes-written-26-10.png`](images/02-update-bytes-written-26-10.png) — bytes written for the 1% change per mechanism, from `system.part_log`, 26.10.3.7
+- [`images/03-collapsing-cancel-first-26-10.png`](images/03-collapsing-cancel-first-26-10.png) — after `OPTIMIZE … FINAL`: CollapsingMergeTree (cancel row first) vs VersionedCollapsingMergeTree, 26.10.3.7
+- [`images/04-update-25-3-syntax-error.png`](images/04-update-25-3-syntax-error.png) — `UPDATE` on 25.3.14.14: Code 62
+
 ### Not verified here
 
 - Distributed or replicated tables, `SharedMergeTree` and ClickHouse Cloud.
@@ -355,6 +365,15 @@ tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10�
   200만 행(파일 04)에서는 여섯 빌드 모두 7~8 MB였습니다. 이유는 이 실습에서 조사하지 않았습니다.
 - **불가.** 패치 파트는 파일 04처럼 24.8과 25.3에서 Code 62이고, 그 빌드의 기존 방식과 재삽입
   테이블은 실행됐습니다.
+
+### 화면
+
+2026-11-04, 로컬 일회용 컨테이너의 ClickHouse `/play` 화면에서 노트 글 `core-architecture/clickhouse-upsert`용으로 찍었습니다.
+
+- [`images/01-patch-parts-26-10.png`](images/01-patch-parts-26-10.png) — 26.10.3.7의 `pu_1p` `system.parts`: 원본 파트와 `patch-` 파트 하나
+- [`images/02-update-bytes-written-26-10.png`](images/02-update-bytes-written-26-10.png) — 1% 수정의 방식별 쓴 바이트(`system.part_log`, 26.10.3.7)
+- [`images/03-collapsing-cancel-first-26-10.png`](images/03-collapsing-cancel-first-26-10.png) — `OPTIMIZE … FINAL` 뒤 CollapsingMergeTree(취소 행 먼저)와 VersionedCollapsingMergeTree, 26.10.3.7
+- [`images/04-update-25-3-syntax-error.png`](images/04-update-25-3-syntax-error.png) — 25.3.14.14의 `UPDATE`: Code 62
 
 ### 검증하지 않은 것
 

@@ -233,6 +233,15 @@ containers were running on the machine, so absolute times are noisy and are not 
 failures on 26.10 itself. <code>run_matrix.py</code> runs them after the top-level files and RESULTS.md has a section for each.
 <code>errors/01-memory-cap-defaults.sql</code> runs the <code>06</code> join under the same cap on the paths that do not spill (default, ratio written out, <code>hash</code>, <code>partial_merge</code>, one-bucket <code>grace_hash</code>);
 <code>errors/02-lateral-forms.sql</code> has the LATERAL forms that do not parse or are not implemented.</p>
+<h3>Screens</h3>
+<p>Captured 2026-11-04 from ClickHouse's <code>/play</code> UI on local throwaway containers, for the notes article
+<code>core-architecture/clickhouse-join</code>:</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/01-left-arbitrary-on-26-8.png"><code>images/01-left-arbitrary-on-26-8.png</code></a> — <code>03-arbitrary-left</code> on 26.8.36.3: Code 403</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/02-left-arbitrary-on-26-10.png"><code>images/02-left-arbitrary-on-26-10.png</code></a> — the same query on 26.10.3.7: the result row</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/03-runtime-filter-explain-26-10.png"><code>images/03-runtime-filter-explain-26-10.png</code></a> — <code>EXPLAIN actions = 1</code> of <code>05-star-default</code> on 26.10.3.7, lines 1–25 (<code>Runtime filters: RF2(customer_id, id)</code>; the <code>Extremes</code> node comes from <code>/play</code>)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/04-used-join-algorithms-26-10.png"><code>images/04-used-join-algorithms-26-10.png</code></a> — <code>query_log.used_join_algorithms</code> for 11 probes on 26.10.3.7 (<code>03-arbitrary-left</code> empty)</li>
+</ul>
 <h3>Verified</h3>
 <p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-04
 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p>
@@ -426,6 +435,14 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 <p><code>errors/NN-*.sql</code>은 프로브 규칙이 같지만 <code>tools/hol</code>은 최상위만 읽으므로 실행하지 않습니다. 26.10에서도 실패하는 결과를 담습니다.
 <code>run_matrix.py</code>가 최상위 파일 뒤에 실행하고 RESULTS.md에 각각 절이 생깁니다. <code>errors/01-memory-cap-defaults.sql</code>은 <code>06</code>의 조인을 같은 상한에서 스필하지 않는 경로(기본, 비율 명시, <code>hash</code>, <code>partial_merge</code>, 버킷 1개 <code>grace_hash</code>)로 실행하고,
 <code>errors/02-lateral-forms.sql</code>은 파싱되지 않거나 구현되지 않은 LATERAL 형태입니다.</p>
+<h3>화면</h3>
+<p>2026-11-04, 로컬 일회용 컨테이너의 ClickHouse <code>/play</code> 화면에서 노트 글 <code>core-architecture/clickhouse-join</code>용으로 찍었습니다.</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/01-left-arbitrary-on-26-8.png"><code>images/01-left-arbitrary-on-26-8.png</code></a> — 26.8.36.3의 <code>03-arbitrary-left</code>: Code 403</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/02-left-arbitrary-on-26-10.png"><code>images/02-left-arbitrary-on-26-10.png</code></a> — 같은 쿼리, 26.10.3.7: 결과 행</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/03-runtime-filter-explain-26-10.png"><code>images/03-runtime-filter-explain-26-10.png</code></a> — 26.10.3.7의 <code>05-star-default</code> <code>EXPLAIN actions = 1</code> 1–25행(<code>Runtime filters: RF2(customer_id, id)</code>, <code>Extremes</code> 노드는 <code>/play</code>가 붙인 것)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/04-used-join-algorithms-26-10.png"><code>images/04-used-join-algorithms-26-10.png</code></a> — 26.10.3.7에서 프로브 11개의 <code>query_log.used_join_algorithms</code>(<code>03-arbitrary-left</code>만 비어 있음)</li>
+</ul>
 <h3>검증</h3>
 <p>24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3, 26.10.3.7에서 2026-11-04에 검증
 (<code>./run_matrix.py</code> 여섯 버전 전부, <code>tools/hol run</code>은 26.10.3.7).</p></div>
