@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Hadoop config for the Hive Metastore container: lets it resolve s3a:// table locations on MinIO.
+     Credentials come from the container environment (docker-compose.yml). -->
+<configuration>
+  <property><name>fs.s3a.endpoint</name><value>http://minio:9000</value></property>
+  <property><name>fs.s3a.path.style.access</name><value>true</value></property>
+  <property><name>fs.s3a.connection.ssl.enabled</name><value>false</value></property>
+  <property><name>fs.s3a.access.key</name><value>${env.S3_ACCESS_KEY}</value></property>
+  <property><name>fs.s3a.secret.key</name><value>${env.S3_SECRET_KEY}</value></property>
+</configuration>

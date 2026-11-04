@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+#
+# Health / storage check. NOT a catalog-integration test.
+#   - MinIO: ClickHouse writes and reads a Parquet file with the s3() table function.
+#   - Each catalog: only the catalog's own health endpoint (or, for Hive, an open port 9083),
+#     plus a ClickHouse ENGINE=Memory table. ClickHouse never connects to a catalog here.
+# For the real check (DataLakeCatalog engine reading seeded tables) run test-datalakecatalog.sh.
 
 set -e
 
@@ -14,8 +20,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-CONFIG_FILE="config.env"
-source "$CONFIG_FILE"
+CONFIG_FILE="../config.env"
+# config.env supplies defaults; anything already in the environment wins
+# (CATALOG_TYPE, CLICKHOUSE_CONTAINER, MINIO_PORT, ...).
+_CH_OVERRIDE="${CLICKHOUSE_CONTAINER:-}"
+while IFS='=' read -r _k _v; do
+    [[ "$_k" =~ ^[A-Z_0-9]+$ ]] || continue
+    [ -z "${!_k+x}" ] && export "$_k=$_v"
+done < <(grep -E '^[A-Z_0-9]+=' "$CONFIG_FILE")
 
 # Test results
 PASSED=0
@@ -24,21 +36,24 @@ TEST_RESULTS_FILE="/tmp/clickhouse_catalog_test_results_$$.txt"
 > "$TEST_RESULTS_FILE"
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  ClickHouse 25.11 Catalog Integration Test${NC}"
+echo -e "${BLUE}  Lab health / storage check (not a catalog-integration test)${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Function to check if ClickHouse is available
 check_clickhouse() {
-    # Try both 25.11 and 25.10
-    if docker ps | grep -q clickhouse-25-11; then
+    # CLICKHOUSE_CONTAINER from the environment, else the oss-docker 25.11 / 25.10 containers
+    if [ -n "$_CH_OVERRIDE" ]; then
+        CLICKHOUSE_CONTAINER="$_CH_OVERRIDE"
+        echo -e "${BLUE}Checking ClickHouse container $CLICKHOUSE_CONTAINER...${NC}"
+    elif docker ps | grep -q clickhouse-25-11; then
         CLICKHOUSE_CONTAINER="clickhouse-25-11"
         echo -e "${BLUE}Checking ClickHouse 25.11...${NC}"
     elif docker ps | grep -q clickhouse-25-10; then
         CLICKHOUSE_CONTAINER="clickhouse-25-10"
         echo -e "${BLUE}Checking ClickHouse 25.10...${NC}"
     else
-        echo -e "${RED}ClickHouse 25.10 or 25.11 container not found${NC}"
+        echo -e "${RED}ClickHouse container not found (set CLICKHOUSE_CONTAINER, or start clickhouse-25-10/25-11)${NC}"
         echo "Please start ClickHouse first:"
         echo "  cd ../oss-docker && ./set.sh 25.10 && ./start.sh"
         echo "  OR"
@@ -153,7 +168,7 @@ test_nessie() {
     echo -e "${GREEN}✓ Nessie is healthy${NC}"
 
     # Test Iceberg table with Nessie
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DROP TABLE IF EXISTS test_nessie;
     CREATE TABLE test_nessie (
         id UInt32,
@@ -205,7 +220,7 @@ test_hive() {
     echo -e "${GREEN}✓ Hive Metastore is listening${NC}"
 
     # Test basic connectivity
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DROP TABLE IF EXISTS test_hive;
     CREATE TABLE test_hive (
         id UInt32,
@@ -257,7 +272,7 @@ test_iceberg_rest() {
     echo -e "${GREEN}✓ Iceberg REST is healthy${NC}"
 
     # Test basic connectivity
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DROP TABLE IF EXISTS test_iceberg_rest;
     CREATE TABLE test_iceberg_rest (
         order_id UInt32,
@@ -309,7 +324,7 @@ test_polaris() {
     echo -e "${GREEN}✓ Polaris is healthy${NC}"
 
     # Test basic connectivity
-    docker exec clickhouse-25-11 clickhouse-client --query "
+    docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DROP TABLE IF EXISTS test_polaris;
     CREATE TABLE test_polaris (
         event_id UInt32,
@@ -395,7 +410,7 @@ test_unity() {
 main() {
     check_clickhouse
 
-    echo -e "${BLUE}Running integration tests...${NC}"
+    echo -e "${BLUE}Running health checks...${NC}"
     echo ""
 
     test_minio
