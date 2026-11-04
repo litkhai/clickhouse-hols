@@ -58,6 +58,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/dedup-engine/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/index-granularity-point-query/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/join-across-versions/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/json-stress-test/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/kafka-partitioning-ingestion/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/mv-vs-rmv/</loc></url>
