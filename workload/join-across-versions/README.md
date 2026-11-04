@@ -59,8 +59,9 @@ containers were running on the machine, so absolute times are noisy and are not 
   `allow_experimental_join_condition = 1` is set (`03-equi-ineq-inner-flag` runs, `03-equi-ineq-inner` does not). From 25.3.14.14 the
   range, arbitrary INNER and equality-plus-inequality forms run without the flag. The LEFT join with an arbitrary expression
   (`03-arbitrary-left`) still fails with Code 403 on 25.3 through 26.8.36.3, with or without the flag, and runs only on 26.10.3.7.
-- **Range joins.** On 26.8.36.3 and 26.10.3.7 `03-range-inner` uses IE join (`ie_join` is in the default `join_algorithm` list of both; it is
-  not in the list of 25.3 to 26.3) and `read_rows` drops from 5,000,100 to 1,112,053.
+- **Range joins.** On 26.10.3.7 `03-range-inner` is logged as `IE_JOIN`; `ie_join` is in the default `join_algorithm` list of 26.8.36.3
+  and 26.10.3.7 and not in that of 25.3 to 26.3. `read_rows` of the 03 probes is 1,112,053 or 5,000,100 depending on version and probe
+  (25.8.33.6 reads 1,112,053 for the arbitrary INNER join, which is not an IE join), so the difference is not attributed to IE join here.
 - **Correlated subqueries.** `EXISTS` and `NOT EXISTS` fail with Code 1 on 24.8 and 25.3 and run from 25.8.33.6 (where
   `allow_experimental_correlated_subqueries` exists, default 1). The correlated scalar subquery in the select list fails with Code 48 on 25.8, 26.3 and 26.8 and runs on 26.10.
 - **Runtime filters.** `enable_join_runtime_filters` exists from 26.3.62.3 (default 1). The setting does not change `read_rows`; it changes how many rows reach
@@ -168,8 +169,9 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 - **비동등 `ON`.** 24.8.14.39에서는 `allow_experimental_join_condition = 1`이 없으면 모든 비동등 형태가 Code 403으로 실패합니다
   (`03-equi-ineq-inner-flag`는 실행되고 `03-equi-ineq-inner`는 안 됩니다). 25.3.14.14부터 범위, 임의 식 INNER, 동등+부등 형태는 플래그 없이 실행됩니다.
   임의 식 LEFT JOIN(`03-arbitrary-left`)은 25.3부터 26.8.36.3까지 플래그 유무와 상관없이 Code 403이고 26.10.3.7에서만 실행됩니다.
-- **범위 조인.** 26.8.36.3과 26.10.3.7에서 `03-range-inner`는 IE join을 쓰고(두 버전의 기본 `join_algorithm` 목록에 `ie_join`이 있고 25.3~26.3에는 없음),
-  `read_rows`가 5,000,100에서 1,112,053으로 줄어듭니다.
+- **범위 조인.** 26.10.3.7에서 `03-range-inner`는 `IE_JOIN`으로 기록됩니다. 기본 `join_algorithm` 목록에 `ie_join`이 있는 것은 26.8.36.3과
+  26.10.3.7이고 25.3~26.3에는 없습니다. 03 프로브의 `read_rows`는 버전과 프로브에 따라 1,112,053 또는 5,000,100이어서(25.8.33.6은 IE join이 아닌
+  임의 식 INNER 조인에서도 1,112,053), 이 차이를 IE join 때문이라고 보지 않습니다.
 - **상관 서브쿼리.** `EXISTS`, `NOT EXISTS`는 24.8과 25.3에서 Code 1로 실패하고 25.8.33.6부터 실행됩니다(`allow_experimental_correlated_subqueries`가 있고 기본값 1).
   select 목록의 상관 스칼라 서브쿼리는 25.8, 26.3, 26.8에서 Code 48이고 26.10에서 실행됩니다.
 - **런타임 필터.** `enable_join_runtime_filters`는 26.3.62.3부터 있습니다(기본 1). 이 설정은 `read_rows`를 바꾸지 않고 조인에 들어오는 행 수를 바꿉니다:
