@@ -1,0 +1,48 @@
+# Bench stack: its own ClickHouse (same version as Langfuse's, plus Python for executable UDFs)
+# and OpenBao as the KMS stand-in. The Langfuse stack (langfuse-hols v4) is used only by
+# 07-langfuse-e2e.sh, which adds docker-compose.langfuse.yml to that stack.
+name: prompt-enc
+
+services:
+  openbao:
+    image: docker.io/openbao/openbao:2.7.2
+    command: server -dev -dev-listen-address=0.0.0.0:8200
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${BAO_ROOT_TOKEN:?run 01-up.sh, it writes .env}
+    ports:
+      - 127.0.0.1:8210:8200
+    cpus: 2
+
+  ch:
+    build:
+      context: ./docker
+      args:
+        CLICKHOUSE_VERSION: ${CLICKHOUSE_VERSION:-26.8.22.13}
+    image: prompt-enc/clickhouse-server:${CLICKHOUSE_VERSION:-26.8.22.13}-py
+    user: "101:101"
+    environment:
+      CLICKHOUSE_USER: bench
+      CLICKHOUSE_PASSWORD: ${CH_PASSWORD:?run 01-up.sh}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CH_CODEC_KEY_HEX: ${CH_CODEC_KEY_HEX:?run 01-up.sh}
+    volumes:
+      - ch_data:/var/lib/clickhouse
+      - ./clickhouse/config.d/prompt-enc.xml:/etc/clickhouse-server/config.d/prompt-enc.xml:ro
+      - ./clickhouse/udf:/etc/clickhouse-server/udf:ro
+      - ./clickhouse/user_scripts:/var/lib/clickhouse/user_scripts:ro
+      - ./.secrets:/etc/prompt-enc:ro
+    ports:
+      - 127.0.0.1:18124:8123
+      - 127.0.0.1:19001:9000
+    cpus: ${CH_CPUS:-8}
+    mem_limit: ${CH_MEM:-8g}
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    depends_on: [openbao]
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 3s
+      retries: 30
+
+volumes:
+  ch_data:

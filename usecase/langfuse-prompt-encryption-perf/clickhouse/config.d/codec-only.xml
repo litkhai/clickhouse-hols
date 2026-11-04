@@ -1,0 +1,8 @@
+<clickhouse>
+    <!-- For Langfuse's ClickHouse (07-langfuse-e2e.sh): only the AES_256_GCM_SIV codec key. -->
+    <encryption_codecs>
+        <aes_256_gcm_siv>
+            <key_hex from_env="CH_CODEC_KEY_HEX"/>
+        </aes_256_gcm_siv>
+    </encryption_codecs>
+</clickhouse>

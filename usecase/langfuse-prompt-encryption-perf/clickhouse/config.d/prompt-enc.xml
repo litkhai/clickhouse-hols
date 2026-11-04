@@ -1,0 +1,24 @@
+<clickhouse>
+    <!-- Column encryption codec key (AES_256_GCM_SIV). Read from the environment, not written here. -->
+    <encryption_codecs>
+        <aes_256_gcm_siv>
+            <key_hex from_env="CH_CODEC_KEY_HEX"/>
+        </aes_256_gcm_siv>
+    </encryption_codecs>
+
+    <!-- Executable UDFs: one XML per function family, scripts under /var/lib/clickhouse/user_scripts -->
+    <user_defined_executable_functions_config>/etc/clickhouse-server/udf/*.xml</user_defined_executable_functions_config>
+
+    <!-- Remove merged-away parts after 10 s instead of 8 min: with several multi-GB copies of the
+         prompts, the default kept twice the data on disk during merges (the first run filled the disk). -->
+    <merge_tree>
+        <old_parts_lifetime>10</old_parts_lifetime>
+    </merge_tree>
+
+    <!-- Keep the query log: the bench reads timings and ProfileEvents from it. -->
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <flush_interval_milliseconds>2000</flush_interval_milliseconds>
+    </query_log>
+</clickhouse>

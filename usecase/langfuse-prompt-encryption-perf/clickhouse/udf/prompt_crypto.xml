@@ -1,0 +1,143 @@
+<!-- Generated list of executable UDFs; see clickhouse/user_scripts/prompt_crypto.py. -->
+<functions>
+    <function>
+        <type>executable_pool</type>
+        <name>enc_local</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py enc local</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>enc_kms_batch</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py enc kms_batch 0</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>enc_kms_batch_rtt5</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py enc kms_batch 5</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>enc_kms_row</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py enc kms_row 0</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>enc_kms_row_rtt5</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py enc kms_row 5</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>dec_local</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py dec local</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>dec_kms_batch</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py dec kms_batch 0</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>dec_kms_batch_rtt5</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py dec kms_batch 5</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>dec_kms_row</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py dec kms_row 0</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+    <function>
+        <type>executable_pool</type>
+        <name>dec_kms_row_rtt5</name>
+        <return_type>String</return_type>
+        <argument><type>String</type><name>value</name></argument>
+        <format>TabSeparated</format>
+        <command>prompt_crypto.py dec kms_row 5</command>
+        <send_chunk_header>true</send_chunk_header>
+        <pool_size>16</pool_size>
+        <max_command_execution_time>3600</max_command_execution_time>
+        <command_read_timeout>3600000</command_read_timeout>
+        <command_write_timeout>3600000</command_write_timeout>
+        <deterministic>false</deterministic>
+    </function>
+</functions>
