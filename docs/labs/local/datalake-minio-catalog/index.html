@@ -370,6 +370,11 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 <td><code>sha256:5d2aa4a7...</code></td>
 </tr>
 <tr>
+<td>Jupyter base (<code>Dockerfile.jupyter</code>)</td>
+<td><code>jupyter/pyspark-notebook@sha256:58377aaa...</code></td>
+<td>last published to Docker Hub 2023-10-20 (what <code>latest</code> pointed to on 2026-11-04); <code>boto3==1.43.117</code> and <code>pyarrow&lt;26</code> pinned so the image builds and <code>pyarrow</code> imports</td>
+</tr>
+<tr>
 <td>Seed writer</td>
 <td><code>python@sha256:b18b261e...</code> (<code>python:3.12-slim</code>)</td>
 <td><code>tests/requirements-seed.txt</code></td>
@@ -384,7 +389,7 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 <p><strong>Verified on ClickHouse 26.10.3.7, 2026-11-04</strong> (Docker Desktop, arm64 host): <code>tests/test-datalakecatalog.sh</code> end to end for all five catalogs read all five seeded rows (<code>count()</code>, sums, a filtered query and a timestamp value matched) through every catalog; with each catalog container stopped after seeding the same test failed for all five (0 passed, 5 failed); Unity without <code>storage_endpoint</code> failed (above). The raw output of these runs is not committed. Only the <code>DataLakeCatalog</code> read path was verified, not writes through ClickHouse, ClickPipes or other versions.</p>
 <h3>Health and storage checks (not catalog integration)</h3>
 <p><code>tests/test-catalogs.sh</code> checks MinIO (an <code>s3()</code> Parquet write and read) and, for the active catalog, only that its health endpoint answers (Hive: port 9083 open) plus a ClickHouse <code>ENGINE = Memory</code> table; ClickHouse never connects to a catalog. <code>tests/test-unity-deltalake.sh</code> does the same for Unity (API answers, <code>s3()</code> Parquet), with no Delta engine and no <code>DataLakeCatalog</code>. <code>CATALOG_TYPE</code> and <code>CLICKHOUSE_CONTAINER</code> can be set in the environment. The earlier "25.11 all tests passed / 25.10 80% passed" table came from these checks, was not re-run, and is not evidence of catalog support, so it was removed. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a> predates the new test and was not re-checked.</p>
-<h3>Unity Catalog + Delta Lake Testing</h3>
+<h3>Unity Catalog health / storage check</h3>
 <pre><code class="language-bash"># 1. Start Unity Catalog
 ./setup.sh --configure  # Select Unity
 ./setup.sh --start
@@ -394,13 +399,13 @@ cd ../oss-docker
 ./set.sh 25.11 &amp;&amp; ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Run integration test
+# 3. Run the Unity health / storage check (not the catalog read test)
 ./tests/test-unity-deltalake.sh
 
 # 4. View results
-cat docs/test-results/test-results-*.md
+cat tests/test-results-*.md   # report written next to the script (git-ignored)
 </code></pre>
-<p>Detailed comparison: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
+<p>Historical comparison (2025-12-13, not re-run): <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
 <hr />
 <h2>📊 Catalog Comparison</h2>
 <table>
@@ -967,6 +972,11 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 <td><code>sha256:5d2aa4a7...</code></td>
 </tr>
 <tr>
+<td>Jupyter base (<code>Dockerfile.jupyter</code>)</td>
+<td><code>jupyter/pyspark-notebook@sha256:58377aaa...</code></td>
+<td>last published to Docker Hub 2023-10-20 (what <code>latest</code> pointed to on 2026-11-04); <code>boto3==1.43.117</code> and <code>pyarrow&lt;26</code> pinned so the image builds and <code>pyarrow</code> imports</td>
+</tr>
+<tr>
 <td>Seed writer</td>
 <td><code>python@sha256:b18b261e...</code> (<code>python:3.12-slim</code>)</td>
 <td><code>tests/requirements-seed.txt</code></td>
@@ -981,7 +991,7 @@ CH_IMAGE=clickhouse/clickhouse-server:26.10.3.7 tests/test-datalakecatalog.sh
 <p><strong>Verified on ClickHouse 26.10.3.7, 2026-11-04</strong> (Docker Desktop, arm64 host): <code>tests/test-datalakecatalog.sh</code> end to end for all five catalogs read all five seeded rows (<code>count()</code>, sums, a filtered query and a timestamp value matched) through every catalog; with each catalog container stopped after seeding the same test failed for all five (0 passed, 5 failed); Unity without <code>storage_endpoint</code> failed (above). The raw output of these runs is not committed. Only the <code>DataLakeCatalog</code> read path was verified, not writes through ClickHouse, ClickPipes or other versions.</p>
 <h3>Health and storage checks (not catalog integration)</h3>
 <p><code>tests/test-catalogs.sh</code> checks MinIO (an <code>s3()</code> Parquet write and read) and, for the active catalog, only that its health endpoint answers (Hive: port 9083 open) plus a ClickHouse <code>ENGINE = Memory</code> table; ClickHouse never connects to a catalog. <code>tests/test-unity-deltalake.sh</code> does the same for Unity (API answers, <code>s3()</code> Parquet), with no Delta engine and no <code>DataLakeCatalog</code>. <code>CATALOG_TYPE</code> and <code>CLICKHOUSE_CONTAINER</code> can be set in the environment. The earlier "25.11 all tests passed / 25.10 80% passed" table came from these checks, was not re-run, and is not evidence of catalog support, so it was removed. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a> predates the new test and was not re-checked.</p>
-<h3>Unity Catalog + Delta Lake Testing</h3>
+<h3>Unity Catalog health / storage check</h3>
 <pre><code class="language-bash"># 1. Start Unity Catalog
 ./setup.sh --configure  # Select Unity
 ./setup.sh --start
@@ -991,13 +1001,13 @@ cd ../oss-docker
 ./set.sh 25.11 &amp;&amp; ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Run integration test
+# 3. Run the Unity health / storage check (not the catalog read test)
 ./tests/test-unity-deltalake.sh
 
 # 4. View results
-cat docs/test-results/test-results-*.md
+cat tests/test-results-*.md   # report written next to the script (git-ignored)
 </code></pre>
-<p>Detailed comparison: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
+<p>Historical comparison (2025-12-13, not re-run): <a href="https://github.com/litkhai/clickhouse-hols/blob/main/local/datalake-minio-catalog/docs/COMPARISON-25.10-vs-25.11.md">docs/COMPARISON-25.10-vs-25.11.md</a></p>
 <hr />
 <h2>📊 Catalog Comparison</h2>
 <table>

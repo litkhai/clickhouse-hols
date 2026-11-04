@@ -5,7 +5,7 @@
 ### Step 1: Configure (Optional - uses defaults if skipped)
 
 ```bash
-./setup-simple.sh --configure
+./setup-multi-catalog.sh --configure
 ```
 
 This sets:
@@ -25,11 +25,11 @@ This sets:
 
 ```bash
 # Start ALL catalogs (recommended for testing)
-./setup-simple.sh --start
+./setup-multi-catalog.sh --start
 
 # Or start specific catalogs only
-./setup-simple.sh --start nessie unity
-./setup-simple.sh --start hive iceberg
+./setup-multi-catalog.sh --start nessie unity
+./setup-multi-catalog.sh --start hive iceberg
 ```
 
 ### Step 3: Try It!
@@ -38,8 +38,11 @@ This sets:
 # Run basic example
 ./examples/basic-s3-read-write.sh
 
-# Or test catalogs
+# Or the health / storage check of the active catalog
 ./tests/test-catalogs.sh
+
+# ClickHouse reads through each catalog (starts its own stack and ClickHouse 26.10.3.7)
+./tests/test-datalakecatalog.sh
 ```
 
 ---
@@ -48,22 +51,22 @@ This sets:
 
 ### Configuration
 ```bash
-./setup-simple.sh --configure    # Interactive configuration
+./setup-multi-catalog.sh --configure    # Interactive configuration
 ```
 
 ### Starting Services
 ```bash
-./setup-simple.sh --start                    # Start ALL catalogs
-./setup-simple.sh --start nessie unity       # Start specific catalogs
-./setup-simple.sh --start all                # Same as no arguments
+./setup-multi-catalog.sh --start                    # Start ALL catalogs
+./setup-multi-catalog.sh --start nessie unity       # Start specific catalogs
+./setup-multi-catalog.sh --start all                # Same as no arguments
 ```
 
 ### Managing Services
 ```bash
-./setup-simple.sh --stop      # Stop all services
-./setup-simple.sh --status    # Check status
-./setup-simple.sh --clean     # Remove all data
-./setup-simple.sh --help      # Show help
+./setup-multi-catalog.sh --stop      # Stop all services
+./setup-multi-catalog.sh --status    # Check status
+./setup-multi-catalog.sh --clean     # Remove all data
+./setup-multi-catalog.sh --help      # Show help
 ```
 
 ---
@@ -83,14 +86,14 @@ You can run **one or more catalogs simultaneously**:
 ### Examples:
 
 ```bash
-# Test all catalogs
-./setup-simple.sh --start
+# Start all catalogs
+./setup-multi-catalog.sh --start
 
 # Just Unity and Nessie
-./setup-simple.sh --start unity nessie
+./setup-multi-catalog.sh --start unity nessie
 
 # Only Hive
-./setup-simple.sh --start hive
+./setup-multi-catalog.sh --start hive
 ```
 
 ---
@@ -119,27 +122,28 @@ After starting, access:
 
 ```bash
 # 1. Start everything
-./setup-simple.sh --start
+./setup-multi-catalog.sh --start
 
 # 2. Try basic example
 ./examples/basic-s3-read-write.sh
 
 # 3. Check status
-./setup-simple.sh --status
+./setup-multi-catalog.sh --status
 ```
 
 ### Workflow 2: Unity Catalog Testing
 
 ```bash
 # 1. Start MinIO + Unity
-./setup-simple.sh --start unity
+./setup-multi-catalog.sh --start unity
 
 # 2. Start ClickHouse 25.11
 cd ../oss-docker
 ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Run Unity test
+# 3. Run the Unity health / storage check (Unity API + s3() Parquet; not a catalog read)
+#    For ClickHouse reading through Unity: ./tests/test-datalakecatalog.sh unity
 ./tests/test-unity-deltalake.sh
 ```
 
@@ -147,21 +151,21 @@ cd ../datalake-minio-catalog
 
 ```bash
 # 1. Start all catalogs
-./setup-simple.sh --start
+./setup-multi-catalog.sh --start
 
 # 2. Start ClickHouse
 cd ../oss-docker && ./set.sh 25.11 && ./start.sh
 cd ../datalake-minio-catalog
 
-# 3. Test all catalogs
+# 3. Health / storage check (CATALOG_TYPE selects the catalog; not a catalog read)
 ./tests/test-catalogs.sh
 ```
 
 ---
 
-## 🆚 setup.sh vs setup-simple.sh
+## 🆚 setup.sh vs setup-multi-catalog.sh
 
-| Feature | setup.sh (Old) | setup-simple.sh (New) |
+| Feature | setup.sh (Old) | setup-multi-catalog.sh (New) |
 |---------|----------------|----------------------|
 | **Catalogs** | One at a time | Multiple simultaneously |
 | **Configuration** | Must configure | Optional (has defaults) |
@@ -178,23 +182,23 @@ If you're using the old `setup.sh`:
 ./setup.sh --start
 
 # New way (multiple catalogs)
-./setup-simple.sh --start nessie unity  # Start multiple
+./setup-multi-catalog.sh --start nessie unity  # Start multiple
 ```
 
 ---
 
 ## 🔧 Configuration File
 
-Config is stored in: `config-simple.env`
+Config is stored in: `config-multi-catalog.env`
 
 You can edit manually:
 ```bash
-nano config-simple.env
+nano config-multi-catalog.env
 ```
 
 Or use interactive mode:
 ```bash
-./setup-simple.sh --configure
+./setup-multi-catalog.sh --configure
 ```
 
 ---
@@ -203,12 +207,12 @@ Or use interactive mode:
 
 ### Stop services (keep data)
 ```bash
-./setup-simple.sh --stop
+./setup-multi-catalog.sh --stop
 ```
 
 ### Remove all data
 ```bash
-./setup-simple.sh --clean
+./setup-multi-catalog.sh --clean
 ```
 
 ---
@@ -216,7 +220,7 @@ Or use interactive mode:
 ## 📊 Check What's Running
 
 ```bash
-./setup-simple.sh --status
+./setup-multi-catalog.sh --status
 ```
 
 Shows all running services with ports.
@@ -228,7 +232,7 @@ Shows all running services with ports.
 ### Services won't start
 ```bash
 # Check what's running
-./setup-simple.sh --status
+./setup-multi-catalog.sh --status
 
 # Check Docker
 docker ps
@@ -244,7 +248,7 @@ docker logs unity-catalog
 lsof -i :19000
 
 # Reconfigure with different ports
-./setup-simple.sh --configure
+./setup-multi-catalog.sh --configure
 ```
 
 ### Can't connect to MinIO
@@ -269,7 +273,7 @@ docker logs minio
 
 ## 🆘 Need Help?
 
-- **Quick reference**: `./setup-simple.sh --help`
+- **Quick reference**: `./setup-multi-catalog.sh --help`
 - **Full docs**: [README.md](README.md)
 - **Navigation**: [docs/NAVIGATION_GUIDE.md](docs/NAVIGATION_GUIDE.md)
 - **Testing**: [docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Simple Delta Lake Example
-# This script demonstrates basic Delta Lake operations
+# Simple Parquet-on-MinIO example (the file name is historical)
+# It writes and reads plain Parquet with s3(); no Delta log and no Delta Lake engine are involved.
 
 set -e
 
@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}====================================${NC}"
-echo -e "${BLUE}  Simple Delta Lake Example${NC}"
+echo -e "${BLUE}  Simple Parquet Example (no Delta Lake engine)${NC}"
 echo -e "${BLUE}====================================${NC}"
 echo ""
 
@@ -54,7 +54,7 @@ SELECT 'Created orders table with ' || toString(count()) || ' rows' FROM orders;
 "
 
 echo ""
-echo -e "${YELLOW}Step 2: Export to Delta Lake format (Parquet)${NC}"
+echo -e "${YELLOW}Step 2: Export to Parquet on MinIO${NC}"
 
 docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
 SET s3_truncate_on_insert = 1;
@@ -67,11 +67,11 @@ INSERT INTO FUNCTION s3(
 )
 SELECT * FROM orders;
 
-SELECT 'Orders exported to Delta Lake';
+SELECT 'Orders exported to MinIO as Parquet';
 "
 
 echo ""
-echo -e "${YELLOW}Step 3: Query Delta Lake data${NC}"
+echo -e "${YELLOW}Step 3: Query the Parquet data${NC}"
 
 docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
 SELECT
@@ -142,7 +142,7 @@ SELECT 'Cleanup completed';
 echo ""
 echo -e "${GREEN}Example completed successfully!${NC}"
 echo ""
-echo "Delta Lake data location:"
+echo "Parquet data location:"
 echo "  MinIO Console: http://localhost:${MINIO_CONSOLE_PORT:-19001}"
 echo "  Path: warehouse/delta-lake/orders.parquet"
 echo ""

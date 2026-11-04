@@ -1,5 +1,7 @@
 # Unity Catalog + Delta Lake: ClickHouse 25.10 vs 25.11 비교
 
+> **참고 (2026-11-04) / Note:** 이 문서는 2025-12-13에 실행한 결과의 기록이며 다시 실행하지 않았습니다. 당시 `tests/test-unity-deltalake.sh`는 Unity API 응답과 ClickHouse `s3()`의 Parquet 읽기/쓰기만 확인했습니다. ClickHouse가 Unity Catalog(또는 Delta Lake 엔진)를 통해 읽은 것이 아니므로, 아래 "Unity Catalog"/"Delta Lake" 항목은 그 범위로 읽어야 하며 테스트 이름은 이후 "MinIO - … Parquet"으로 바뀌었습니다. 카탈로그를 통한 읽기는 `tests/test-datalakecatalog.sh`(ClickHouse 26.10.3.7)가 확인합니다. / Historical record of the 2025-12-13 run, not re-run. That script only checked the Unity API and `s3()` Parquet read/write, not reads through Unity or the Delta engine; the test names have since been renamed. Reads through a catalog are checked by `tests/test-datalakecatalog.sh`.
+
 **테스트 날짜:** 2025-12-13
 **테스트 환경:** macOS, Docker
 

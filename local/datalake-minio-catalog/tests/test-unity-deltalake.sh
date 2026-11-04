@@ -18,8 +18,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-CONFIG_FILE="config.env"
-source "$CONFIG_FILE"
+CONFIG_FILE="../config.env"
+# config.env supplies defaults; anything already in the environment wins
+# (CATALOG_TYPE, CLICKHOUSE_CONTAINER, MINIO_PORT, UNITY_PORT, ...).
+_CH_OVERRIDE="${CLICKHOUSE_CONTAINER:-}"
+while IFS='=' read -r _k _v; do
+    [[ "$_k" =~ ^[A-Z_0-9]+$ ]] || continue
+    [ -z "${!_k+x}" ] && export "$_k=$_v"
+done < <(grep -E '^[A-Z_0-9]+=' "$CONFIG_FILE")
 
 # Test results
 PASSED=0
@@ -33,8 +39,8 @@ START_TIME=$(date +%s)
 MD_OUTPUT="test-results-unity-deltalake-$(date +%Y%m%d-%H%M%S).md"
 
 echo -e "${BLUE}============================================================${NC}"
-echo -e "${BLUE}  Unity Catalog + Delta Lake Integration Test${NC}"
-echo -e "${BLUE}  ClickHouse 25.10 / 25.11${NC}"
+echo -e "${BLUE}  Unity API + MinIO Parquet health / storage check${NC}"
+echo -e "${BLUE}  (not a catalog-integration test: no DataLakeCatalog, no Delta engine)${NC}"
 echo -e "${BLUE}============================================================${NC}"
 echo ""
 
@@ -68,15 +74,18 @@ add_test_result() {
 check_clickhouse() {
     echo -e "${BLUE}Checking ClickHouse availability...${NC}"
 
-    # Try both 25.11 and 25.10
-    if docker ps | grep -q "clickhouse-25-11"; then
+    # CLICKHOUSE_CONTAINER from the environment, else the oss-docker 25.11 / 25.10 containers
+    if [ -n "$_CH_OVERRIDE" ]; then
+        CLICKHOUSE_CONTAINER="$_CH_OVERRIDE"
+        echo -e "${GREEN}Using ClickHouse container $CLICKHOUSE_CONTAINER${NC}"
+    elif docker ps | grep -q "clickhouse-25-11"; then
         CLICKHOUSE_CONTAINER="clickhouse-25-11"
         echo -e "${GREEN}Found ClickHouse 25.11 container${NC}"
     elif docker ps | grep -q "clickhouse-25-10"; then
         CLICKHOUSE_CONTAINER="clickhouse-25-10"
         echo -e "${GREEN}Found ClickHouse 25.10 container${NC}"
     else
-        echo -e "${RED}ClickHouse 25.10 or 25.11 container not found${NC}"
+        echo -e "${RED}ClickHouse container not found (set CLICKHOUSE_CONTAINER, or start clickhouse-25-10/25-11)${NC}"
         echo "Please start ClickHouse first:"
         echo "  cd ../oss-docker && ./set.sh 25.11 && ./start.sh"
         echo "  OR"
@@ -159,9 +168,9 @@ test_unity_basic_connectivity() {
     echo ""
 }
 
-# Test 2: Create Delta Lake Table via Unity Catalog
+# Test 2: Create a source table in ClickHouse (Unity is not involved)
 test_create_delta_table() {
-    local test_name="Unity Catalog - Create Delta Lake Table"
+    local test_name="ClickHouse - Create source table"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
@@ -199,14 +208,14 @@ test_create_delta_table() {
     echo ""
 }
 
-# Test 3: Write Delta Lake format to MinIO (Parquet-based)
+# Test 3: Write plain Parquet to MinIO (no Delta log is written)
 test_write_delta_to_minio() {
-    local test_name="Delta Lake - Write to MinIO (Parquet format)"
+    local test_name="MinIO - Write Parquet with s3()"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
 
-    # Write data to MinIO in Parquet format (Delta Lake compatible)
+    # Write data to MinIO as Parquet
     local output=$(docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     SET s3_truncate_on_insert = 1;
 
@@ -220,14 +229,14 @@ test_write_delta_to_minio() {
     SELECT id, name, value, created_at, updated_at
     FROM test_unity_delta_source;
 
-    SELECT 'Written ' || toString(count()) || ' rows to Delta Lake'
+    SELECT 'Written ' || toString(count()) || ' rows to MinIO'
     FROM test_unity_delta_source;
     " 2>&1)
 
     local end=$(date +%s)
     local duration=$((end - start))
 
-    if echo "$output" | grep -q "Written 5 rows to Delta Lake"; then
+    if echo "$output" | grep -q "Written 5 rows to MinIO"; then
         add_test_result "$test_name" "PASSED" "Successfully wrote 5 rows to MinIO in Parquet format" "${duration}s"
     else
         add_test_result "$test_name" "FAILED" "Failed to write to MinIO: $output" "${duration}s"
@@ -236,9 +245,9 @@ test_write_delta_to_minio() {
     echo ""
 }
 
-# Test 4: Read Delta Lake format from MinIO
+# Test 4: Read the Parquet file back from MinIO
 test_read_delta_from_minio() {
-    local test_name="Delta Lake - Read from MinIO (Parquet format)"
+    local test_name="MinIO - Read Parquet with s3()"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
@@ -272,9 +281,9 @@ test_read_delta_from_minio() {
     echo ""
 }
 
-# Test 5: Update Delta Lake data (Append mode)
+# Test 5: Append a second Parquet file
 test_update_delta_append() {
-    local test_name="Delta Lake - Append New Data"
+    local test_name="MinIO - Append a second Parquet file"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
@@ -286,7 +295,9 @@ test_update_delta_append() {
         (6, 'Frank', 175.4, '2025-12-06 10:30:00'),
         (7, 'Grace', 225.8, '2025-12-07 12:00:00');
 
-    -- Append to Delta Lake (new partition)
+    -- Append: write a second Parquet file (truncate: a re-run overwrites the file from the last run)
+    SET s3_truncate_on_insert = 1;
+
     INSERT INTO FUNCTION s3(
         'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/unity-catalog/delta-test/data-append.parquet',
         '${MINIO_ROOT_USER:-admin}',
@@ -315,18 +326,18 @@ test_update_delta_append() {
     echo ""
 }
 
-# Test 6: Query Delta Lake with filters
+# Test 6: Query the Parquet files with filters
 test_query_delta_with_filters() {
-    local test_name="Delta Lake - Query with Filters"
+    local test_name="MinIO - Query Parquet with filters"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
 
     # Query with various filters
     local output=$(docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
-    WITH delta_data AS (
+    WITH parquet_data AS (
         SELECT * FROM s3(
-            'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/unity-catalog/delta-test/*.parquet',
+            'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/unity-catalog/delta-test/{data,data-append}.parquet',
             '${MINIO_ROOT_USER:-admin}',
             '${MINIO_ROOT_PASSWORD:-password123}',
             'Parquet'
@@ -334,16 +345,16 @@ test_query_delta_with_filters() {
     )
     SELECT
         'Total rows: ' || toString(count()) as metric
-    FROM delta_data
+    FROM parquet_data
     UNION ALL
     SELECT
         'Rows with value > 200: ' || toString(count())
-    FROM delta_data
+    FROM parquet_data
     WHERE value > 200
     UNION ALL
     SELECT
         'Average value: ' || toString(round(avg(value), 2))
-    FROM delta_data;
+    FROM parquet_data;
     " 2>&1)
 
     local end=$(date +%s)
@@ -360,12 +371,12 @@ test_query_delta_with_filters() {
 
 # Test 7: Schema validation
 test_schema_validation() {
-    local test_name="Delta Lake - Schema Validation"
+    local test_name="MinIO - Parquet schema"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
 
-    # Read schema from Delta Lake
+    # Read the schema from the Parquet file
     local output=$(docker exec $CLICKHOUSE_CONTAINER clickhouse-client --query "
     DESCRIBE TABLE s3(
         'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/unity-catalog/delta-test/data.parquet',
@@ -390,7 +401,7 @@ test_schema_validation() {
 
 # Test 8: Performance test - Large dataset
 test_performance_large_dataset() {
-    local test_name="Delta Lake - Performance Test (Large Dataset)"
+    local test_name="MinIO - Large Parquet dataset"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
@@ -458,7 +469,7 @@ test_performance_large_dataset() {
 
 # Test 9: Data type compatibility
 test_data_types() {
-    local test_name="Delta Lake - Data Type Compatibility"
+    local test_name="MinIO - Parquet data types"
     local start=$(date +%s)
 
     echo -e "${YELLOW}Running: $test_name${NC}"
@@ -492,14 +503,21 @@ test_data_types() {
     )
     SELECT * FROM test_data_types;
 
-    SELECT count() FROM test_data_types;
+    -- read the file back from MinIO: the check is on what s3() returns, not on the local table
+    SELECT 'read back rows: ' || toString(count()) || ', int64 max: ' || toString(max(int64_col))
+    FROM s3(
+        'http://host.docker.internal:${MINIO_PORT:-19000}/warehouse/unity-catalog/delta-test/data-types.parquet',
+        '${MINIO_ROOT_USER:-admin}',
+        '${MINIO_ROOT_PASSWORD:-password123}',
+        'Parquet'
+    );
     " 2>&1)
 
     local end=$(date +%s)
     local duration=$((end - start))
 
-    if echo "$output" | grep -q "2"; then
-        add_test_result "$test_name" "PASSED" "All data types written and validated" "${duration}s"
+    if echo "$output" | grep -q "read back rows: 2, int64 max: 9223372036854775807"; then
+        add_test_result "$test_name" "PASSED" "All data types written to MinIO and read back" "${duration}s"
     else
         add_test_result "$test_name" "FAILED" "Data type test failed: $output" "${duration}s"
     fi
@@ -538,7 +556,7 @@ generate_markdown_report() {
     local end_time=$(date +%s)
     local total_time=$((end_time - START_TIME))
 
-    echo "# Unity Catalog + Delta Lake Integration Test Report" > "$MD_OUTPUT"
+    echo "# Unity API + MinIO Parquet Health / Storage Check Report" > "$MD_OUTPUT"
     echo "" >> "$MD_OUTPUT"
     echo "**Test Date:** $(date '+%Y-%m-%d %H:%M:%S')" >> "$MD_OUTPUT"
     echo "" >> "$MD_OUTPUT"
@@ -591,10 +609,9 @@ generate_markdown_report() {
     if [ $FAILED -eq 0 ]; then
         echo "### ✅ All Tests Passed" >> "$MD_OUTPUT"
         echo "" >> "$MD_OUTPUT"
-        echo "- Unity Catalog integration is working correctly" >> "$MD_OUTPUT"
-        echo "- Delta Lake read/write operations are functional" >> "$MD_OUTPUT"
-        echo "- Performance is within acceptable range" >> "$MD_OUTPUT"
-        echo "- All data types are properly supported" >> "$MD_OUTPUT"
+        echo "- The Unity Catalog API answers (ClickHouse does not read through it in this script)" >> "$MD_OUTPUT"
+        echo "- ClickHouse s3() can write and read Parquet on MinIO" >> "$MD_OUTPUT"
+        echo "- The listed data types round-trip through Parquet" >> "$MD_OUTPUT"
     else
         echo "### ❌ Issues Found" >> "$MD_OUTPUT"
         echo "" >> "$MD_OUTPUT"
@@ -604,19 +621,15 @@ generate_markdown_report() {
 
     echo "" >> "$MD_OUTPUT"
 
-    echo "## Recommendations" >> "$MD_OUTPUT"
+    echo "## Scope" >> "$MD_OUTPUT"
     echo "" >> "$MD_OUTPUT"
 
-    if [[ "$CLICKHOUSE_VERSION" =~ ^25\.1[01] ]]; then
-        echo "✅ Using ClickHouse $CLICKHOUSE_VERSION - Unity Catalog and Delta Lake support is available" >> "$MD_OUTPUT"
-    else
-        echo "⚠️ ClickHouse version $CLICKHOUSE_VERSION detected - Please verify Unity Catalog support" >> "$MD_OUTPUT"
-    fi
+    echo "ClickHouse $CLICKHOUSE_VERSION. This script checks the Unity API and s3() Parquet on MinIO only; the ClickHouse-reads-through-Unity check is \`tests/test-datalakecatalog.sh unity\`." >> "$MD_OUTPUT"
 
     echo "" >> "$MD_OUTPUT"
     echo "---" >> "$MD_OUTPUT"
     echo "" >> "$MD_OUTPUT"
-    echo "*Generated by Unity Catalog + Delta Lake Integration Test Script*" >> "$MD_OUTPUT"
+    echo "*Generated by tests/test-unity-deltalake.sh (health / storage check)*" >> "$MD_OUTPUT"
 
     echo -e "${GREEN}Markdown report saved to: $MD_OUTPUT${NC}"
 }
@@ -627,7 +640,7 @@ main() {
     check_unity_catalog
     check_minio
 
-    echo -e "${BLUE}Starting integration tests...${NC}"
+    echo -e "${BLUE}Starting health / storage checks...${NC}"
     echo ""
 
     test_unity_basic_connectivity

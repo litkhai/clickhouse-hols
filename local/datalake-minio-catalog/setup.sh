@@ -145,7 +145,6 @@ configure_setup() {
 # Function to create directory structure
 create_directories() {
     echo -e "${BLUE}Creating directory structure...${NC}"
-    mkdir -p minio-storage
     mkdir -p notebooks
     mkdir -p sample-data
     echo -e "${GREEN}Directories created!${NC}"
@@ -202,7 +201,7 @@ wait_for_services() {
     # Wait for MinIO
     echo -n "Waiting for MinIO..."
     for i in {1..30}; do
-        if curl -s http://localhost:${MINIO_PORT:-9000}/minio/health/live > /dev/null 2>&1; then
+        if curl -s http://localhost:${MINIO_PORT:-19000}/minio/health/live > /dev/null 2>&1; then
             echo -e " ${GREEN}Ready!${NC}"
             break
         fi
@@ -276,8 +275,8 @@ show_endpoints() {
     echo ""
 
     echo -e "${YELLOW}MinIO Object Storage:${NC}"
-    echo "  Console UI: http://localhost:${MINIO_CONSOLE_PORT:-9001}"
-    echo "  API Endpoint: http://localhost:${MINIO_PORT:-9000}"
+    echo "  Console UI: http://localhost:${MINIO_CONSOLE_PORT:-19001}"
+    echo "  API Endpoint: http://localhost:${MINIO_PORT:-19000}"
     echo "  Access Key: ${MINIO_ROOT_USER:-admin}"
     echo "  Secret Key: ${MINIO_ROOT_PASSWORD:-password123}"
     echo ""
@@ -303,7 +302,7 @@ show_endpoints() {
             echo -e "${YELLOW}Polaris Catalog:${NC}"
             echo "  API Endpoint: http://localhost:${POLARIS_PORT:-8182}"
             echo "  Management API: http://localhost:${POLARIS_MGMT_PORT:-8183}"
-            echo "  Admin Credentials: realm=default-realm, client-id=admin, client-secret=polaris"
+            echo "  Bootstrap credentials: realm=POLARIS, client-id=root, client-secret=s3cr3t (docker-compose.yml)"
             ;;
         unity)
             echo -e "${YELLOW}Unity Catalog:${NC}"
@@ -356,12 +355,10 @@ main() {
             else
                 docker-compose --profile "$CATALOG_TYPE" down -v
             fi
-            echo -e "${YELLOW}Cleaning up data directories...${NC}"
-            rm -rf minio-storage/*
-            echo -e "${GREEN}Cleanup complete!${NC}"
+            echo -e "${GREEN}Cleanup complete (named volumes removed)!${NC}"
             ;;
         --status)
-            docker ps --filter "name=minio" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity" --filter "name=jupyter"
+            docker ps --filter "name=^minio$" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity" --filter "name=jupyter"
             ;;
         --endpoints)
             show_endpoints

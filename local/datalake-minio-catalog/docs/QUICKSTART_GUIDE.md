@@ -22,7 +22,7 @@ This single command will:
 ```
 Choose:
 - MinIO storage size (default: 20GB)
-- Catalog type: Nessie, Hive, or Iceberg REST
+- Catalog type: Nessie, Hive, Iceberg REST, Polaris or Unity Catalog
 
 ### Step 2: Generate Sample Data
 ```bash
@@ -47,7 +47,7 @@ After setup completes, open these URLs:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| MinIO Console | http://localhost:9001 | admin / password123 |
+| MinIO Console | http://localhost:19001 | admin / password123 |
 | Jupyter Notebook | http://localhost:8888 | No password |
 | Nessie UI | http://localhost:19120 | N/A |
 
@@ -84,7 +84,7 @@ After setup completes, open these URLs:
 ## First Steps After Setup
 
 ### 1. Explore MinIO Console
-- Open http://localhost:9001
+- Open http://localhost:19001
 - Login with admin / password123
 - Browse the `warehouse` bucket
 - View your data files
@@ -101,7 +101,7 @@ After setup completes, open these URLs:
 from minio import Minio
 
 client = Minio(
-    "localhost:9000",
+    "localhost:19000",
     access_key="admin",
     secret_key="password123",
     secure=False
@@ -128,10 +128,10 @@ docker logs nessie
 ### Can't connect to MinIO
 ```bash
 # Test connection
-curl http://localhost:9000/minio/health/live
+curl http://localhost:19000/minio/health/live
 
 # Check if port is in use
-lsof -i :9000
+lsof -i :19000
 ```
 
 ### Port conflicts

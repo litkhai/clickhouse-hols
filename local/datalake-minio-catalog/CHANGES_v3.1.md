@@ -1,5 +1,7 @@
 # Changes in Version 3.1 - Simplified Setup
 
+> **Note (2026-11-04):** historical changelog for v3.1. Corrected since: the script is named `setup-multi-catalog.sh` (config `config-multi-catalog.env`), not `setup-simple.sh`; `generate_parquet.py`, `register_data.py` and `quickstart.sh` were never moved to `scripts-legacy/` and are still in the lab root; the lab no longer uses `minio/minio`/`minio/mc` or `:latest` for MinIO and the catalogs (see the README "Pinned versions"). `tests/test-datalakecatalog.sh` is the ClickHouse-through-catalog test; `tests/test-catalogs.sh` and `tests/test-unity-deltalake.sh` are health/storage checks.
+
 **Date**: 2025-12-13
 **Status**: ✅ Complete
 
@@ -12,17 +14,15 @@
 1. **✨ Multiple Catalogs Simultaneously**
    - Before: Only 1 catalog at a time
    - After: Run any combination of catalogs together
-   - Example: `./setup-simple.sh --start nessie unity hive`
+   - Example: `./setup-multi-catalog.sh --start nessie unity hive`
 
 2. **🚀 Simplified Setup**
    - Before: Must configure before starting
    - After: Sensible defaults, configuration optional
-   - Example: `./setup-simple.sh --start` (just works!)
+   - Example: `./setup-multi-catalog.sh --start` (just works!)
 
 3. **📦 Cleaner Project Structure**
-   - Legacy scripts moved to `scripts-legacy/`
-   - Confusing scripts (generate_parquet, register_data, quickstart) removed from root
-   - Clear separation of core vs legacy
+   - Helper scripts (`generate_parquet.py`, `register_data.py`, `quickstart.sh`) stay in the lab root
 
 ---
 
@@ -44,18 +44,18 @@
 ./setup.sh --start      # Restart everything
 ```
 
-### New Flow (setup-simple.sh)
+### New Flow (setup-multi-catalog.sh)
 
 ```bash
 # One command, multiple catalogs!
-./setup-simple.sh --start nessie unity hive
+./setup-multi-catalog.sh --start nessie unity hive
 
 # Or start everything with defaults
-./setup-simple.sh --start
+./setup-multi-catalog.sh --start
 
 # Want to test different combinations?
-./setup-simple.sh --stop
-./setup-simple.sh --start polaris iceberg  # Different catalogs
+./setup-multi-catalog.sh --stop
+./setup-multi-catalog.sh --start polaris iceberg  # Different catalogs
 ```
 
 ---
@@ -64,8 +64,8 @@
 
 | File | Purpose | Usage |
 |------|---------|-------|
-| `setup-simple.sh` | **Main setup script** | `./setup-simple.sh --start` |
-| `config-simple.env` | New configuration | Auto-created with defaults |
+| `setup-multi-catalog.sh` | **Main setup script** | `./setup-multi-catalog.sh --start` |
+| `config-multi-catalog.env` | New configuration | Auto-created with defaults |
 | `GETTING_STARTED.md` | Quick start guide | Read first! |
 | `README-SIMPLE.md` | Simplified readme | Full guide for v3.1 |
 | `CHANGES_v3.1.md` | This file | What changed |
@@ -74,13 +74,7 @@
 
 ## 🗑️ Cleaned Up
 
-| File | Action | New Location |
-|------|--------|--------------|
-| `generate_parquet.py` | Moved | `scripts-legacy/` |
-| `register_data.py` | Moved | `scripts-legacy/` |
-| `quickstart.sh` | Moved | `scripts-legacy/` |
-
-**Reason**: These scripts were confusing and not essential for core functionality.
+Nothing was moved: `generate_parquet.py`, `register_data.py` and `quickstart.sh` are still in the lab root (the v3.1 text planned a `scripts-legacy/` directory that was never created).
 
 ---
 
@@ -92,8 +86,8 @@
 
 | Old | New | Why |
 |-----|-----|-----|
-| `./setup.sh --configure` + `./setup.sh --start` | `./setup-simple.sh --start` | Simpler, has defaults |
-| Multiple configure/start cycles for different catalogs | `./setup-simple.sh --start catalog1 catalog2` | Start multiple at once |
+| `./setup.sh --configure` + `./setup.sh --start` | `./setup-multi-catalog.sh --start` | Simpler, has defaults |
+| Multiple configure/start cycles for different catalogs | `./setup-multi-catalog.sh --start catalog1 catalog2` | Start multiple at once |
 | One catalog at a time | Any combination | More flexible |
 
 ### Migration Steps
@@ -106,10 +100,10 @@
 2. **Use new setup**
    ```bash
    # Start what you need
-   ./setup-simple.sh --start nessie unity
+   ./setup-multi-catalog.sh --start nessie unity
 
    # Or start everything
-   ./setup-simple.sh --start
+   ./setup-multi-catalog.sh --start
    ```
 
 3. **Clean up (optional)**
@@ -118,7 +112,7 @@
    ./setup.sh --clean
 
    # Or use new clean
-   ./setup-simple.sh --clean
+   ./setup-multi-catalog.sh --clean
    ```
 
 ---
@@ -129,24 +123,24 @@
 
 ```bash
 # All catalogs (default)
-./setup-simple.sh --start
+./setup-multi-catalog.sh --start
 
 # Specific catalogs
-./setup-simple.sh --start nessie unity
-./setup-simple.sh --start hive iceberg polaris
+./setup-multi-catalog.sh --start nessie unity
+./setup-multi-catalog.sh --start hive iceberg polaris
 
 # Just one catalog
-./setup-simple.sh --start unity
+./setup-multi-catalog.sh --start unity
 ```
 
 ### Manage Services
 
 ```bash
-./setup-simple.sh --stop        # Stop all
-./setup-simple.sh --status      # Check status
-./setup-simple.sh --clean       # Remove data
-./setup-simple.sh --configure   # Interactive config
-./setup-simple.sh --help        # Show help
+./setup-multi-catalog.sh --stop        # Stop all
+./setup-multi-catalog.sh --status      # Check status
+./setup-multi-catalog.sh --clean       # Remove data
+./setup-multi-catalog.sh --configure   # Interactive config
+./setup-multi-catalog.sh --help        # Show help
 ```
 
 ---
@@ -191,9 +185,9 @@ Example workflow to test 3 catalogs:
 Example workflow to test 3 catalogs:
 ```bash
 # Total time: ~2 minutes
-./setup-simple.sh --start catalog1 catalog2 catalog3
+./setup-multi-catalog.sh --start catalog1 catalog2 catalog3
 # ... test all three ...
-./setup-simple.sh --stop
+./setup-multi-catalog.sh --stop
 ```
 
 ---
@@ -211,7 +205,7 @@ Example workflow to test 3 catalogs:
 
 ### Unchanged Docs
 - **[docs/NAVIGATION_GUIDE.md](docs/NAVIGATION_GUIDE.md)** - Still accurate
-- **[docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)** - Still accurate
+- **[docs/UNITY_DELTALAKE_TEST_GUIDE.md](docs/UNITY_DELTALAKE_TEST_GUIDE.md)** - Updated 2026-11-04 (health/storage check)
 - **[docs/COMPARISON-25.10-vs-25.11.md](docs/COMPARISON-25.10-vs-25.11.md)** - Still accurate
 
 ---
@@ -242,7 +236,7 @@ All existing tests still work:
 - Single catalog selection via `CATALOG_TYPE`
 - Must configure before starting
 
-**New**: `config-simple.env`
+**New**: `config-multi-catalog.env`
 - All catalog ports defined
 - No catalog selection (all available)
 - Auto-created with defaults
@@ -282,7 +276,7 @@ docker-compose --profile nessie --profile unity --profile hive up -d
 ✅ Better defaults
 
 ### What to Update
-📝 Update scripts that use `./setup.sh` to use `./setup-simple.sh`
+📝 Update scripts that use `./setup.sh` to use `./setup-multi-catalog.sh`
 📝 Update documentation references
 📝 Update user workflows
 
@@ -295,7 +289,7 @@ docker-compose --profile nessie --profile unity --profile hive up -d
 ```
 1. GETTING_STARTED.md (new!)
    ↓
-2. ./setup-simple.sh --start (simplified!)
+2. ./setup-multi-catalog.sh --start (simplified!)
    ↓
 3. ./examples/basic-s3-read-write.sh
    ↓
@@ -330,20 +324,19 @@ Potential enhancements:
 ## 📝 Changelog Summary
 
 ### Added
-- ✨ `setup-simple.sh` - New simplified setup script
-- ✨ `config-simple.env` - Auto-created configuration
+- ✨ `setup-multi-catalog.sh` - New simplified setup script
+- ✨ `config-multi-catalog.env` - Auto-created configuration
 - 📚 `GETTING_STARTED.md` - Quick start guide
 - 📚 `README-SIMPLE.md` - Simplified documentation
 - 📚 `CHANGES_v3.1.md` - This changelog
 
 ### Changed
-- 📦 Moved legacy scripts to `scripts-legacy/`
 - 📖 Updated README.md with v3.1 info
 - 🏗️ Updated STRUCTURE_SUMMARY.md
 
 ### Deprecated
-- ⚠️ `setup.sh` - Still works but `setup-simple.sh` recommended
-- ⚠️ `config.env` - Still works but `config-simple.env` is new default
+- ⚠️ `setup.sh` - Still works but `setup-multi-catalog.sh` recommended
+- ⚠️ `config.env` - Still works but `config-multi-catalog.env` is new default
 
 ### Removed
 - ❌ Nothing removed (backward compatible)
@@ -353,10 +346,10 @@ Potential enhancements:
 ## ✅ Checklist for Users
 
 - [ ] Read [GETTING_STARTED.md](GETTING_STARTED.md)
-- [ ] Try `./setup-simple.sh --start`
+- [ ] Try `./setup-multi-catalog.sh --start`
 - [ ] Test with examples: `./examples/basic-s3-read-write.sh`
 - [ ] Run tests: `./tests/test-catalogs.sh`
-- [ ] Update your workflows to use `setup-simple.sh`
+- [ ] Update your workflows to use `setup-multi-catalog.sh`
 
 ---
 
@@ -364,7 +357,7 @@ Potential enhancements:
 
 - **Quick Start**: [GETTING_STARTED.md](GETTING_STARTED.md)
 - **Full Guide**: [README-SIMPLE.md](README-SIMPLE.md)
-- **Commands**: `./setup-simple.sh --help`
+- **Commands**: `./setup-multi-catalog.sh --help`
 - **Navigation**: [docs/NAVIGATION_GUIDE.md](docs/NAVIGATION_GUIDE.md)
 
 ---
@@ -372,4 +365,4 @@ Potential enhancements:
 **Version**: 3.1
 **Release Date**: 2025-12-13
 **Status**: ✅ Production Ready
-**Recommendation**: Use `setup-simple.sh` for all new work
+**Recommendation**: Use `setup-multi-catalog.sh` for all new work

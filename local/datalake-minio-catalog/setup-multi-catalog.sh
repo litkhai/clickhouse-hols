@@ -208,7 +208,7 @@ start_services() {
     fi
 
     # Create directories
-    mkdir -p minio-storage sample-data notebooks
+    mkdir -p sample-data notebooks
 
     # Start services
     $DOCKER_COMPOSE --env-file "$CONFIG_FILE" $profile_args up -d
@@ -313,7 +313,6 @@ clean_data() {
         fi
 
         $DOCKER_COMPOSE --profile nessie --profile hive --profile iceberg-rest --profile polaris --profile unity down -v
-        rm -rf minio-storage/*
 
         echo -e "${GREEN}Cleanup complete!${NC}"
     else
@@ -324,7 +323,7 @@ clean_data() {
 show_status() {
     echo -e "${BLUE}Service Status:${NC}"
     echo ""
-    docker ps --filter "name=minio" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity" --filter "name=jupyter" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    docker ps --filter "name=^minio$" --filter "name=nessie" --filter "name=hive" --filter "name=iceberg" --filter "name=polaris" --filter "name=unity" --filter "name=jupyter" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 }
 
 # Main

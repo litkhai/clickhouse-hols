@@ -1,4 +1,5 @@
-FROM jupyter/pyspark-notebook:latest
+# jupyter/pyspark-notebook was last published to Docker Hub on 2023-10-20 (what `latest` pointed to on 2026-11-04); pinned by digest.
+FROM jupyter/pyspark-notebook@sha256:58377aaa152b741e244f201679f96d909a024ea337088cc276b0ee32ab3f076f
 
 USER root
 
@@ -14,11 +15,15 @@ RUN cd /usr/local/spark/jars && \
 USER ${NB_UID}
 
 # Install Python packages
+# boto3 is pinned to the botocore that pyiceberg[s3fs] (aiobotocore) resolves to on 2026-11-04;
+# with 'boto3>=1.28.0' pip backtracked for more than 15 minutes and the image did not build.
+# pyarrow 26 refuses to import with the NumPy 1.24 of this base image; <26 imports (checked 2026-11-04).
 RUN pip install --no-cache-dir \
     'pyiceberg[s3fs,pyarrow]>=0.5.0' \
+    'pyarrow<26' \
     'pynessie>=0.60.0' \
     'minio>=7.2.0' \
-    'boto3>=1.28.0'
+    'boto3==1.43.117'
 
 # Set Spark defaults
 RUN mkdir -p /home/jovyan/.ipython/profile_default/startup && \
