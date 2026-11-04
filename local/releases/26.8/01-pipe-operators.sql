@@ -78,9 +78,10 @@ FROM trips |> WHERE n >= 5 |> AGGREGATE sum(n) AS total GROUP BY city |> ORDER B
 
 SELECT '════════ 4. It is the same query to the planner ════════' AS section;
 
--- Pipe syntax is parsed into the same AST as the classic form. It is sugar,
--- not a different execution path — so nothing about performance changes, and
--- EXPLAIN shows you the plan you already know how to read.
+-- Pipe syntax is rewritten as nested subqueries, one per step (EXPLAIN SYNTAX
+-- below). The planner flattens them: EXPLAIN indexes = 1 shows the same steps
+-- and the same granules as the classic form, and the same rows are read.
+-- Planning the nesting adds a few milliseconds (README, "It is sugar").
 
 EXPLAIN SYNTAX
 FROM trips |> WHERE n > 2 |> AGGREGATE sum(n) AS total GROUP BY city;
