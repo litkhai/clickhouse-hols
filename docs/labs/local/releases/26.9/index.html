@@ -38,7 +38,7 @@
   </nav>
   <div class="readme en"><h1>ClickHouse 26.9</h1>
 <hr />
-<p><strong>Released 2026-09-21 · verified here against 26.9.1.1629</strong></p>
+<p><strong>Released 2026-09-21 · verified here against 26.9.27.3</strong></p>
 <p>26.9 is the release after an LTS, and it spends that position on cleanup: the
 changelog has 17 backward incompatible changes against 27 new features, and
 several of the removals are things that had been deprecated for years. The
@@ -237,6 +237,17 @@ and prunes nothing, so a fast query gets slow the day somebody tidies it into
 an <code>IN</code> list. That is worth a comment in the schema.</p>
 <p>There is also no way past the <code>map['key'] = 'value'</code> form — <code>hasToken(attrs,
 …)</code> rejects a <code>Map</code> argument outright. The equality is the whole interface.</p>
+<p><strong>ClickStack's attribute type works too.</strong> ClickStack (HyperDX) declares
+<code>LogAttributes</code>, <code>ResourceAttributes</code> and <code>SpanAttributes</code> as
+<code>Map(LowCardinality(String), String)</code>. The same <code>CREATE TABLE</code> with that type
+and the same <code>keyValuePairs</code> index is accepted as written — no cast, no
+workaround. On 1M rows (<code>service.name</code> clustered 100k rows to a value, four
+services), <code>LogAttributes['service.name'] = 'checkout'</code> shows
+<code>Skip idx_attrs ... Granules: 40/123</code> with <code>tokens: ["service.namecheckout"]</code>,
+and the indexed <code>count()</code> reads 1 row (16 B). A <code>SELECT ... LIMIT 3</code> reads
+16,384 rows (80 KiB). The same rule as above applies: <code>IN ('checkout',
+'payment')</code> on 26.9 has no <code>Skip</code> entry and reads all 1,000,000 rows
+(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL).</p>
 <p>This is the third release running to extend text indexes: 26.8 added the
 <code>japanese</code>, <code>chinese</code> and <code>icu</code> tokenizers, and 26.9 also gives
 <code>splitByRegexp</code> an <code>extract</code> argument, so <code>tokens(s, 'splitByRegexp',
@@ -607,7 +618,7 @@ fails with <code>NUMBER_OF_ARGUMENTS_DOESNT_MATCH</code>. Expect it in a later b
 </tbody>
 </table>
 <h3>Verified</h3>
-<p>Every query in the four <code>.sql</code> files was run against <strong>26.9.1.1629</strong> in the
+<p>Every query in the four <code>.sql</code> files was run against <strong>26.9.27.3</strong> in the
 container this lab sets up, and every number, plan fragment and error code
 quoted above is from those runs. <code>04-create-token.sh</code> was run end to end too.</p>
 <p>Two things were worked around while writing, both noted in the SQL:</p>
@@ -623,7 +634,7 @@ quoted above is from those runs. <code>04-create-token.sh</code> was run end to 
 <p>One changelog claim did not hold on this build and is flagged above: the
 zero-argument <code>year()</code>.</p>
 <hr /></div>
-  <div class="readme ko"><p><strong>2026-09-21 릴리스 · 여기서는 26.9.1.1629로 검증</strong></p>
+  <div class="readme ko"><p><strong>2026-09-21 릴리스 · 여기서는 26.9.27.3로 검증</strong></p>
 <p>26.9는 LTS 다음 릴리스이고, 그 자리를 정리에 씁니다 — changelog에 하위 호환성
 변경 17개에 신기능 27개입니다. 제거된 것 중 상당수는 수년간 deprecated 상태였던
 것들입니다. 애널라이저를 더 이상 끌 수 없고, CatBoost·<code>WINDOW VIEW</code>·WasmEdge가
@@ -821,6 +832,17 @@ LIMIT UNTIL lvl = 'error'    → [1, 2]
 느려집니다. 스키마에 주석을 남겨 둘 만합니다.</p>
 <p><code>map['key'] = 'value'</code> 형태를 우회할 방법도 없습니다 — <code>hasToken(attrs, …)</code>은
 <code>Map</code> 인자를 아예 거부합니다. 이 동등 비교가 인터페이스의 전부입니다.</p>
+<p><strong>ClickStack의 속성 타입도 동작합니다.</strong> ClickStack(HyperDX)은
+<code>LogAttributes</code>·<code>ResourceAttributes</code>·<code>SpanAttributes</code>를
+<code>Map(LowCardinality(String), String)</code>으로 선언합니다. 이 타입으로 같은
+<code>keyValuePairs</code> 인덱스를 건 <code>CREATE TABLE</code>이 캐스트나 우회 없이 그대로
+받아들여집니다. 100만 행(<code>service.name</code>이 값 하나당 10만 행씩 묶인 서비스
+4개)에서 <code>LogAttributes['service.name'] = 'checkout'</code>은
+<code>tokens: ["service.namecheckout"]</code>와 <code>Skip idx_attrs ... Granules: 40/123</code>을
+보이고, 인덱스를 쓰는 <code>count()</code>는 1행(16 B)을 읽습니다. <code>SELECT ... LIMIT 3</code>은
+16,384행(80 KiB)을 읽습니다. 위와 같은 규칙이 적용됩니다 — 26.9에서
+<code>IN ('checkout', 'payment')</code>는 <code>Skip</code> 항목이 없고 100만 행 전부(8.96 MiB)를
+읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절).</p>
 <p>텍스트 인덱스 확장은 이번이 세 번째 릴리스 연속입니다. 26.8이
 <code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저를 추가했고, 26.9는 <code>splitByRegexp</code>에
 <code>extract</code> 인자도 줍니다 — <code>tokens(s, 'splitByRegexp', '[a-z]=([0-9]+)', 1)</code>은
@@ -1188,7 +1210,7 @@ valid_until: 2026-10-23 11:01:32
 </tbody>
 </table>
 <h3>검증</h3>
-<p>네 개 <code>.sql</code> 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 <strong>26.9.1.1629</strong>에서
+<p>네 개 <code>.sql</code> 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 <strong>26.9.27.3</strong>에서
 실행했고, 위에 인용한 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
 <code>04-create-token.sh</code>도 끝까지 실행했습니다.</p>
 <p>작성 중 우회한 것이 둘 있고, 모두 SQL에 주석으로 남겼습니다.</p>
