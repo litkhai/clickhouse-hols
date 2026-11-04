@@ -247,7 +247,9 @@ services), <code>LogAttributes['service.name'] = 'checkout'</code> shows
 and the indexed <code>count()</code> reads 1 row (16 B). A <code>SELECT ... LIMIT 3</code> reads
 16,384 rows (80 KiB). The same rule as above applies: <code>IN ('checkout',
 'payment')</code> on 26.9 has no <code>Skip</code> entry and reads all 1,000,000 rows
-(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL).</p>
+(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL). 26.10 answers the
+<code>IN</code> from the index too (26.10 changelog): on 26.10.3.7 the same table shows
+<code>Skip idx_attrs (mode: Any …) Granules: 40/123</code> for it.</p>
 <p>This is the third release running to extend text indexes: 26.8 added the
 <code>japanese</code>, <code>chinese</code> and <code>icu</code> tokenizers, and 26.9 also gives
 <code>splitByRegexp</code> an <code>extract</code> argument, so <code>tokens(s, 'splitByRegexp',
@@ -842,7 +844,9 @@ LIMIT UNTIL lvl = 'error'    → [1, 2]
 보이고, 인덱스를 쓰는 <code>count()</code>는 1행(16 B)을 읽습니다. <code>SELECT ... LIMIT 3</code>은
 16,384행(80 KiB)을 읽습니다. 위와 같은 규칙이 적용됩니다 — 26.9에서
 <code>IN ('checkout', 'payment')</code>는 <code>Skip</code> 항목이 없고 100만 행 전부(8.96 MiB)를
-읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절).</p>
+읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절). 26.10부터는 <code>IN</code>도
+인덱스로 답합니다(26.10 changelog). 26.10.3.7에서 같은 표는
+<code>Skip idx_attrs (mode: Any …) Granules: 40/123</code>을 보입니다.</p>
 <p>텍스트 인덱스 확장은 이번이 세 번째 릴리스 연속입니다. 26.8이
 <code>japanese</code>·<code>chinese</code>·<code>icu</code> 토크나이저를 추가했고, 26.9는 <code>splitByRegexp</code>에
 <code>extract</code> 인자도 줍니다 — <code>tokens(s, 'splitByRegexp', '[a-z]=([0-9]+)', 1)</code>은

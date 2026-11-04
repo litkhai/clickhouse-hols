@@ -154,7 +154,9 @@ services), `LogAttributes['service.name'] = 'checkout'` shows
 and the indexed `count()` reads 1 row (16 B). A `SELECT ... LIMIT 3` reads
 16,384 rows (80 KiB). The same rule as above applies: `IN ('checkout',
 'payment')` on 26.9 has no `Skip` entry and reads all 1,000,000 rows
-(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL).
+(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL). 26.10 answers the
+`IN` from the index too (26.10 changelog): on 26.10.3.7 the same table shows
+`Skip idx_attrs (mode: Any …) Granules: 40/123` for it.
 
 This is the third release running to extend text indexes: 26.8 added the
 `japanese`, `chinese` and `icu` tokenizers, and 26.9 also gives
@@ -525,7 +527,9 @@ CREATE TABLE kvp (
 보이고, 인덱스를 쓰는 `count()`는 1행(16 B)을 읽습니다. `SELECT ... LIMIT 3`은
 16,384행(80 KiB)을 읽습니다. 위와 같은 규칙이 적용됩니다 — 26.9에서
 `IN ('checkout', 'payment')`는 `Skip` 항목이 없고 100만 행 전부(8.96 MiB)를
-읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절).
+읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절). 26.10부터는 `IN`도
+인덱스로 답합니다(26.10 changelog). 26.10.3.7에서 같은 표는
+`Skip idx_attrs (mode: Any …) Granules: 40/123`을 보입니다.
 
 텍스트 인덱스 확장은 이번이 세 번째 릴리스 연속입니다. 26.8이
 `japanese`·`chinese`·`icu` 토크나이저를 추가했고, 26.9는 `splitByRegexp`에
