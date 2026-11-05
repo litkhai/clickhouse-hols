@@ -102,13 +102,16 @@ FROM numbers(1000000);
 
 -- The big tables: ten times the rows of facts / customers / contacts. Used by 06-memory-cap.sql,
 -- 10-scale.sql and errors/. Same column shapes, deterministic.
+-- Every column is pinned to CODEC(LZ4): from 26.9 a merged part of 100 MiB or more defaults to ZSTD(3)
+-- (ClickHouse#108786) while older builds use LZ4, which would make 10-scale timings compare codecs as
+-- well as builds. Builds before 26.9 store LZ4 either way; the 10-codec probe records what was read.
 
 CREATE TABLE join_lab.facts_big
 (
-    id          UInt64,
-    customer_id UInt32,
-    amount      UInt32,
-    ts          DateTime
+    id          UInt64 CODEC(LZ4),
+    customer_id UInt32 CODEC(LZ4),
+    amount      UInt32 CODEC(LZ4),
+    ts          DateTime CODEC(LZ4)
 )
 ENGINE = MergeTree
 ORDER BY (customer_id, id);
@@ -123,10 +126,10 @@ FROM numbers(50000000);
 
 CREATE TABLE join_lab.customers_big
 (
-    id           UInt32,
-    region       UInt8,
-    credit_limit UInt32,
-    comment      String
+    id           UInt32 CODEC(LZ4),
+    region       UInt8 CODEC(LZ4),
+    credit_limit UInt32 CODEC(LZ4),
+    comment      String CODEC(LZ4)
 )
 ENGINE = MergeTree
 ORDER BY id;
@@ -141,8 +144,8 @@ FROM numbers(5000000);
 
 CREATE TABLE join_lab.contacts_big
 (
-    customer_id UInt32,
-    note        String
+    customer_id UInt32 CODEC(LZ4),
+    note        String CODEC(LZ4)
 )
 ENGINE = MergeTree
 ORDER BY customer_id;
