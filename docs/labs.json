@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-11-05T03:57:27Z",
+  "generated": "2026-11-05T06:58:09Z",
   "labs": [
     {
       "path": "chc/api/chc-api-test",
@@ -826,6 +826,25 @@
       ],
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-chain-failure/README.md#english"
+    },
+    {
+      "path": "workload/mv-uniq-state-size",
+      "title_ko": "MV 롤업의 고유 수 상태 크기",
+      "summary_ko": "1분 롤업과 거기서 이어 만든 10분 롤업에서 uniq · uniqCombined · uniqHLL12 · uniqExact 상태의 크기와 오차, 최근 1시간 Top/Bottom 10 조회를 합성 데이터로 잽니다.",
+      "title_en": "Distinct-count state size in MV rollups",
+      "summary_en": "Size and error of uniq, uniqCombined, uniqHLL12 and uniqExact states in a 1-minute rollup and a cascading 10-minute rollup, and a last-hour Top/Bottom 10.",
+      "category": "core-architecture",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.10.3.7",
+      "verified_on": "26.10.3.7",
+      "tags": [
+        "materialized-view",
+        "performance"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-uniq-state-size/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-uniq-state-size/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/mv-uniq-state-size/"
     },
     {
       "path": "workload/mv-vs-rmv",
