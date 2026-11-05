@@ -3,3 +3,12 @@ tier: T0
 clickhouse: "26.10.3.7"
 services: [clickhouse]
 verified_on: "26.10.3.7"
+
+# Publishing keys (tools/lab.schema.md) — owner's choice, 2026-11-05
+web: true
+title_ko: "FINAL, 버전마다 무엇이 바뀌었나"
+summary_ko: "같은 SELECT … FINAL을 여섯 빌드에서 실행해 엔진별 결과, 파티션 · PREWHERE · skip index · JOIN · 뷰에서 틀린 답이 나오는 경우, 2,000만 행 읽기 비용을 잽니다."
+title_en: "FINAL across ClickHouse versions"
+summary_en: "SELECT … FINAL on six ClickHouse builds: results per engine, wrong answers with partitions, PREWHERE, skip indexes, JOIN and views, read cost at 20M rows."
+category: core-architecture
+tags: [mergetree, updates-deletes, roadmap]

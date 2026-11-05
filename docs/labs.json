@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-11-04T13:40:04Z",
+  "generated": "2026-11-05T03:51:58Z",
   "labs": [
     {
       "path": "chc/api/chc-api-test",
@@ -743,6 +743,26 @@
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/"
     },
     {
+      "path": "workload/final-across-versions",
+      "title_ko": "FINAL, 버전마다 무엇이 바뀌었나",
+      "summary_ko": "같은 SELECT … FINAL을 여섯 빌드에서 실행해 엔진별 결과, 파티션 · PREWHERE · skip index · JOIN · 뷰에서 틀린 답이 나오는 경우, 2,000만 행 읽기 비용을 잽니다.",
+      "title_en": "FINAL across ClickHouse versions",
+      "summary_en": "SELECT … FINAL on six ClickHouse builds: results per engine, wrong answers with partitions, PREWHERE, skip indexes, JOIN and views, read cost at 20M rows.",
+      "category": "core-architecture",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.10.3.7",
+      "verified_on": "26.10.3.7",
+      "tags": [
+        "mergetree",
+        "updates-deletes",
+        "roadmap"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/final-across-versions/"
+    },
+    {
       "path": "workload/index-granularity-point-query",
       "title_ko": "Index Granularity에 따른 Point Query 성능 비교",
       "summary_ko": "index_granularity를 256, 1024, 4096, 8192로 둔 테이블에 200만 행을 넣고 메타데이터와 Point Query 성능을 단계별 SQL로 비교합니다.",
@@ -757,6 +777,26 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-granularity-point-query/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-granularity-point-query/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/index-granularity-point-query/"
+    },
+    {
+      "path": "workload/join-across-versions",
+      "title_ko": "JOIN, 버전마다 무엇이 바뀌었나",
+      "summary_ko": "같은 JOIN SQL을 ClickHouse 24.8–26.8 LTS와 26.10에서 실행해 등호가 아닌 ON, 상관 서브쿼리, runtime filter, 메모리 상한과 스필, 문법이 어느 버전부터 되는지 잽니다.",
+      "title_en": "JOIN across ClickHouse versions",
+      "summary_en": "The same JOIN SQL on ClickHouse 24.8–26.8 LTS and 26.10: non-equi ON, correlated subqueries, runtime filters, memory caps and spilling, per build.",
+      "category": "core-architecture",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.10.3.7",
+      "verified_on": "26.10.3.7",
+      "tags": [
+        "join",
+        "performance",
+        "roadmap"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/join-across-versions/"
     },
     {
       "path": "workload/kafka-partitioning-ingestion",
@@ -863,6 +903,26 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/replacingmergetree/"
+    },
+    {
+      "path": "workload/upsert-across-versions",
+      "title_ko": "Upsert·UPDATE, 버전마다 무엇이 바뀌었나",
+      "summary_ko": "ReplacingMergeTree, Collapsing·Coalescing, ALTER UPDATE, 패치 파트 UPDATE, DELETE를 여섯 빌드에서 같은 SQL로 돌려 되는 버전, 쓰는 양, 읽기 비용을 잽니다.",
+      "title_en": "Upserts across ClickHouse versions",
+      "summary_en": "ReplacingMergeTree, Collapsing, Coalescing, ALTER UPDATE, patch-part UPDATE and DELETE on six ClickHouse builds: versions, bytes written, read cost.",
+      "category": "core-architecture",
+      "target": "oss",
+      "tier": "T0",
+      "clickhouse": "26.10.3.7",
+      "verified_on": "26.10.3.7",
+      "tags": [
+        "updates-deletes",
+        "mergetree",
+        "roadmap"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/upsert-across-versions/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/upsert-across-versions/"
     }
   ]
 }

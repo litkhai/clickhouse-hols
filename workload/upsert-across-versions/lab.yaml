@@ -3,3 +3,12 @@ tier: T0
 clickhouse: "26.10.3.7"
 services: [clickhouse]
 verified_on: "26.10.3.7"
+
+# Publishing keys (tools/lab.schema.md) — owner's choice, 2026-11-05
+web: true
+title_ko: "Upsert·UPDATE, 버전마다 무엇이 바뀌었나"
+summary_ko: "ReplacingMergeTree, Collapsing·Coalescing, ALTER UPDATE, 패치 파트 UPDATE, DELETE를 여섯 빌드에서 같은 SQL로 돌려 되는 버전, 쓰는 양, 읽기 비용을 잽니다."
+title_en: "Upserts across ClickHouse versions"
+summary_en: "ReplacingMergeTree, Collapsing, Coalescing, ALTER UPDATE, patch-part UPDATE and DELETE on six ClickHouse builds: versions, bytes written, read cost."
+category: core-architecture
+tags: [updates-deletes, mergetree, roadmap]
