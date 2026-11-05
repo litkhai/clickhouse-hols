@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SELECT … FINAL across ClickHouse versions · ClickHouse HOLs</title>
+<meta name="description" content="SELECT … FINAL across ClickHouse versions — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/final-across-versions</code>
+    
+  </nav>
+  <div class="readme en"><h1>SELECT … FINAL across ClickHouse versions</h1>
+<hr />
+<p>The same <code>SELECT … FINAL</code> SQL run on six builds (the LTS lines 24.8, 25.3, 25.8, 26.3, 26.8 and the latest
+stable 26.10). For each probe the runner records the answer (and whether it is the correct one), the time,
+the rows read and, where it matters, the bytes read. Every cell in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/RESULTS.md">RESULTS.md</a> comes from a
+run; the raw per-probe data (including <code>query_log</code> rows) is in <code>results/&lt;version&gt;.json</code>.</p>
+<p>What is probed: <code>FINAL</code> on <code>ReplacingMergeTree</code> (with and without <code>is_deleted</code>), <code>CollapsingMergeTree</code>,
+<code>SummingMergeTree</code> and <code>AggregatingMergeTree</code>; the setting <code>final</code>; <code>FINAL</code> on a view; keys that cross
+partitions; <code>PREWHERE</code> under <code>FINAL</code>; skip indexes under <code>FINAL</code>; <code>FINAL</code> in a <code>JOIN</code>; and the read cost of
+<code>FINAL</code>, <code>argMax … GROUP BY</code> and <code>LIMIT 1 BY</code> at 20M rows.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/final-across-versions
+./run_matrix.py                      # all six versions, about 10 minutes; pulls nothing, images must exist
+./run_matrix.py --versions 26.10     # one version (prefix of a line in versions.txt)
+./run_matrix.py --only 03            # one file or probe-id prefix (a file's results replace that file in the JSON)
+./run_matrix.py --report-only        # rebuild RESULTS.md from results/*.json
+tools/hol run workload/final-across-versions   # from the repository root: the SQL on 26.10 only, must not raise
+</code></pre>
+<p><code>versions.txt</code> pins the exact tags, oldest first. <code>run_matrix.py</code> is the same file as in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> and <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>;
+it removes each container with <code>docker rm -f -v</code>, so the image's anonymous <code>/var/lib/clickhouse</code> volume goes
+with it (without <code>-v</code> every version left about 5 GB behind; #117). Containers are named <code>fav-&lt;tag&gt;</code>. A statement preceded by
+<code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code> is a probe, the others are setup; <code>value</code> puts the first result
+row in the table cell, <code>show</code> prints the newest version's rows. <code>-- settings: a, b</code> lists settings to look
+up in <code>system.settings</code>. Each statement runs in its own <code>clickhouse-client</code> call, so there is no bare <code>SET</code>.
+Each probe's comment states the correct answer computed from the data.</p>
+<h3>Probes</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-replacing.sql</code></td>
+<td><code>ReplacingMergeTree(ver)</code> and <code>(ver, is_deleted)</code>, 1M keys, 1% re-written with a higher <code>ver</code>, 1,000 marked deleted: <code>count()</code> without and with <code>FINAL</code>, <code>SETTINGS final = 1</code> (also through a subquery), a view with <code>FINAL</code> inside and <code>FINAL</code> on a view without it, <code>FINAL</code> vs <code>argMax … GROUP BY</code> vs <code>LIMIT 1 BY</code>, <code>enable_vertical_final = 0</code>, and the FINAL-related rows of <code>system.settings_changes</code></td>
+</tr>
+<tr>
+<td><code>02-engines.sql</code></td>
+<td><code>CollapsingMergeTree</code> (state, then cancel + new state), <code>SummingMergeTree((a, b))</code> with 100 keys whose sums are all zero and 100 where only <code>a</code> is zero, <code>AggregatingMergeTree</code> with <code>SimpleAggregateFunction</code> and <code>AggregateFunction</code>, before and after <code>OPTIMIZE … FINAL</code></td>
+</tr>
+<tr>
+<td><code>03-partitions.sql</code></td>
+<td>a partition key inside the sorting key vs a key that crosses partitions (January row, newer February row): <code>FINAL</code>, <code>do_not_merge_across_partitions_select_final = 1</code>, <code>WHERE</code> on the partition column, <code>defer_partition_pruning_after_final = 0</code></td>
+</tr>
+<tr>
+<td><code>04-prewhere.sql</code></td>
+<td><code>WHERE</code> vs explicit <code>PREWHERE</code> on a non-key column under <code>FINAL</code>, <code>apply_prewhere_after_final = 1</code>; then 10M rows with a 100-character column and a sorting-key condition the primary key cannot use (<code>toUInt32(ts) % 86400 &lt; 3600</code>): time and bytes read with <code>optimize_move_to_prewhere_if_final</code> default, 1 and 0, against a <code>MergeTree</code> control; whether the plan has a <code>PREWHERE</code></td>
+</tr>
+<tr>
+<td><code>05-skip-index.sql</code></td>
+<td>20M rows, a <code>bloom_filter</code> index on a non-key column whose value changed for 1% of keys: looking up an <strong>old</strong> value under <code>FINAL</code> with <code>use_skip_indexes_if_final</code> 0 / 1 and exact mode 0 / 1 (correct answer 0), and a value that did not change</td>
+</tr>
+<tr>
+<td><code>06-join.sql</code></td>
+<td>a fact table joined to a <code>ReplacingMergeTree</code> dimension without <code>FINAL</code>, with <code>FINAL</code> on the dimension, with <code>SETTINGS final = 1</code>; <code>d1 FINAL JOIN d2</code> (FINAL on the left table only) and <code>analyzer_compatibility_apply_final_to_all_joined_tables = 1</code></td>
+</tr>
+<tr>
+<td><code>07-scale.sql</code></td>
+<td>20M rows, every column <code>CODEC(LZ4)</code>: <code>MergeTree</code> control, a one-part <code>ReplacingMergeTree</code>, 1% and 10% re-written keys, a 16-partition table: <code>FINAL</code>, <code>enable_vertical_final = 0</code>, <code>max_final_threads = 1</code>, <code>argMax … GROUP BY</code>, <code>LIMIT 1 BY</code>, a 100,000-row range, <code>do_not_merge_across_partitions_select_final = 1</code>, <code>enable_automatic_decision_for_merging_across_partitions_for_final = 0</code> (5 repeats each)</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td>statements that fail on every build: <code>FINAL</code> on a plain <code>MergeTree</code> and on a <code>Memory</code> table (Code 181), <code>FINAL SAMPLE</code> without <code>SAMPLE BY</code> (Code 141), <code>JOIN t FINAL AS d</code> (Code 62; <code>JOIN t AS d FINAL</code> is the form that parses). <code>tools/hol</code> does not run this directory; the runner does</td>
+</tr>
+</tbody>
+</table>
+<p>Every probe in the top-level files succeeds on 26.10 (<code>tools/hol run</code> stops at the first exception).
+Failures on older versions are the result, shown as <code>✗ Code N</code>; all of them are Code 115
+(UNKNOWN_SETTING), a setting that build does not have yet.</p>
+<h3>What changed between versions</h3>
+<p>Written only from <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/RESULTS.md">RESULTS.md</a> (run on 2026-11-05, 12 CPUs, 15.6 GiB Docker VM, no other
+container running). The correct answer is in brackets.</p>
+<ul>
+<li><strong>SummingMergeTree, rows whose sums are all zero.</strong> On 24.8 to 26.8 the row count under <code>FINAL</code>
+  depended on the columns the query read: <code>count()</code> 1,000, <code>count(), sum(a)</code> 800, <code>count(), sum(b)</code> 900,
+  <code>count(), sum(a), sum(b)</code> 900 (1,000 rows before the merge). On 26.10.3.7 every form returns 1,000 and
+  <code>countIf(a = 0 AND b = 0)</code> finds the 100 all-zero keys. <code>OPTIMIZE … FINAL</code> drops those 100 rows on every
+  build (900 after the merge).</li>
+<li><strong>A key that crosses partitions, filtered on the partition column.</strong> <code>FINAL WHERE d &lt; '2026-02-01'</code>
+  returns 1,000,000 on 24.8, 25.3 and 25.8 [990,000]: the February partition, which holds the newer rows of
+  10,000 keys, is pruned before <code>FINAL</code>, so their January rows win. For key 500 alone the same query returns
+  1 row [0]. From 26.3.62.3 the answer is right, at the price of reading the pruned partition too: 1,191,920
+  to 1,210,112 rows instead of 1,000,000, and <code>WHERE d &gt;= '2026-02-01'</code> reads the same instead of 10,000.
+  <code>defer_partition_pruning_after_final</code> exists from 26.3 (default 1); setting it to 0 brings back
+  1,000,000.</li>
+<li><strong><code>do_not_merge_across_partitions_select_final = 1</code> on such a table</strong> returns 1,010,000 [1,000,000] on
+  every build: the setting is a promise that no key crosses partitions. Where the partition key is a
+  function of the sorting key, it returns the right answer on every build.</li>
+<li><strong>Explicit <code>PREWHERE</code> under <code>FINAL</code>.</strong> <code>FINAL PREWHERE v = 1</code> returns 100,000 on every build [99,000]: the
+  filter runs before the merge, so superseded rows pass. <code>WHERE v = 1</code> is right on every build with
+  <code>optimize_move_to_prewhere_if_final</code> 0 or 1 (a non-key condition is not moved). From 26.3,
+  <code>apply_prewhere_after_final = 1</code> (default 0) makes the explicit <code>PREWHERE</code> right.</li>
+<li><strong><code>WHERE</code> moved to <code>PREWHERE</code> under <code>FINAL</code>.</strong> <code>optimize_move_to_prewhere_if_final</code> is 0 on 24.8 to 26.8
+  and 1 on 26.10.3.7. For the sorting-key condition on 10M rows, the default read 1,243,425,772 bytes in
+  93 ms on 24.8 and 1,181,744,428 bytes in 82 ms on 26.8; 26.10 read 174,293,428 bytes in 17 ms (median
+  of 5). Setting it to 1 on 24.8 already gave 180,606,220 bytes and 23 ms: the optimization existed, the
+  default changed. The <code>MergeTree</code> control without <code>FINAL</code> read 16,416,768 bytes on 26.10.</li>
+<li><strong>Skip indexes under <code>FINAL</code>.</strong> <code>use_skip_indexes_if_final</code> is 0 on 24.8 and 25.3 and 1 from 25.8, and
+  <code>use_skip_indexes_if_final_exact_mode</code> exists from 25.8 (default 1). Looking up a value that only an
+  old row version has: with defaults, every build is right (0); 24.8 and 25.3 read 20,380,224 rows, 25.8 to
+  26.10 about 4.1M. With <code>use_skip_indexes_if_final = 1</code> on 24.8 and 25.3, the answer is wrong (1 [0],
+  524,288 rows read); with exact mode 0 on 25.8 to 26.10 it is wrong the same way. Exact mode reads the
+  newer parts' ranges again and gets 0.</li>
+<li><strong><code>FINAL</code> in a <code>JOIN</code>.</strong> <code>dim AS d1 FINAL JOIN dim AS d2</code> returns 1,000 on 24.8 to 26.3 and 2,000 on 26.8
+  and 26.10 [2,000]: on the older builds <code>FINAL</code> on the left table was applied to the right one too.
+  <code>analyzer_compatibility_apply_final_to_all_joined_tables = 1</code> (from 26.8, default 0) gives 1,000 again;
+  <code>system.settings_changes</code> lists the default change under 26.6. <code>JOIN dim AS d FINAL</code> and
+  <code>SETTINGS final = 1</code> deduplicate the joined table on every build (100,000).</li>
+<li><strong><code>FINAL</code> on a view.</strong> <code>SELECT … FROM view FINAL</code> over a view without <code>FINAL</code> runs without error and
+  returns the physical 1,010,000 rows on every build [1,000,000]; a view with <code>FINAL</code> inside returns
+  1,000,000.</li>
+<li><strong>Unchanged on all six builds:</strong> <code>ReplacingMergeTree</code> with and without <code>is_deleted</code>, <code>SETTINGS final = 1</code>
+  (also through a subquery), <code>CollapsingMergeTree</code> (state first), <code>AggregatingMergeTree</code>, and
+  <code>enable_vertical_final = 0</code> all give the same answers.</li>
+</ul>
+<h3>Read cost at 20M rows (<code>07-scale.sql</code>)</h3>
+<p>Every column is <code>CODEC(LZ4)</code>: from 26.9 a part of 100 MB or more defaults to <code>ZSTD(3)</code> (the <code>07-codec</code>
+probe shows <code>['LZ4','ZSTD(3)']</code> as part defaults on 26.10.3.7 and <code>CODEC(LZ4)</code> as the column codec), so
+without the pin the times would compare codecs as well as builds. Median (fastest) of 5 repeats in ms
+(<code>durations_ms</code> in <code>results/*.json</code>); no other container was running.</p>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>24.8</th>
+<th>25.3</th>
+<th>25.8</th>
+<th>26.3</th>
+<th>26.8</th>
+<th>26.10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MergeTree</code>, no <code>FINAL</code></td>
+<td>21 (20)</td>
+<td>38 (29)</td>
+<td>29 (26)</td>
+<td>22 (19)</td>
+<td>38 (24)</td>
+<td>18 (18)</td>
+</tr>
+<tr>
+<td>one part, <code>FINAL</code></td>
+<td>19 (18)</td>
+<td>24 (23)</td>
+<td>27 (25)</td>
+<td>20 (18)</td>
+<td>21 (18)</td>
+<td>19 (18)</td>
+</tr>
+<tr>
+<td>1% re-written, no <code>FINAL</code> (wrong answer)</td>
+<td>22 (20)</td>
+<td>27 (24)</td>
+<td>26 (24)</td>
+<td>24 (21)</td>
+<td>24 (23)</td>
+<td>23 (18)</td>
+</tr>
+<tr>
+<td>1% re-written, <code>FINAL</code></td>
+<td>82 (73)</td>
+<td>134 (108)</td>
+<td>98 (90)</td>
+<td>101 (90)</td>
+<td>107 (94)</td>
+<td>124 (95)</td>
+</tr>
+<tr>
+<td>1%, <code>FINAL</code>, <code>enable_vertical_final = 0</code></td>
+<td>113 (98)</td>
+<td>126 (113)</td>
+<td>114 (104)</td>
+<td>92 (85)</td>
+<td>94 (88)</td>
+<td>115 (106)</td>
+</tr>
+<tr>
+<td>1%, <code>FINAL</code>, <code>max_final_threads = 1</code></td>
+<td>319 (293)</td>
+<td>358 (305)</td>
+<td>305 (298)</td>
+<td>283 (281)</td>
+<td>283 (279)</td>
+<td>391 (350)</td>
+</tr>
+<tr>
+<td>1%, <code>argMax … GROUP BY</code></td>
+<td>750 (627)</td>
+<td>861 (376)</td>
+<td>347 (182)</td>
+<td>383 (311)</td>
+<td>203 (163)</td>
+<td>187 (159)</td>
+</tr>
+<tr>
+<td>1%, <code>LIMIT 1 BY</code></td>
+<td>4,827 (4,023)</td>
+<td>4,623 (4,279)</td>
+<td>4,321 (4,109)</td>
+<td>514 (454)</td>
+<td>284 (280)</td>
+<td>213 (199)</td>
+</tr>
+<tr>
+<td>10% re-written, <code>FINAL</code></td>
+<td>125 (101)</td>
+<td>238 (128)</td>
+<td>114 (97)</td>
+<td>86 (79)</td>
+<td>107 (88)</td>
+<td>88 (85)</td>
+</tr>
+<tr>
+<td>10%, <code>argMax … GROUP BY</code></td>
+<td>1,041 (727)</td>
+<td>796 (685)</td>
+<td>349 (309)</td>
+<td>300 (232)</td>
+<td>203 (159)</td>
+<td>167 (159)</td>
+</tr>
+<tr>
+<td>1%, 100,000-row range, <code>FINAL</code></td>
+<td>6 (4)</td>
+<td>10 (6)</td>
+<td>5 (4)</td>
+<td>4 (4)</td>
+<td>4 (4)</td>
+<td>4 (4)</td>
+</tr>
+<tr>
+<td>16 partitions, <code>FINAL</code></td>
+<td>64 (60)</td>
+<td>84 (68)</td>
+<td>65 (53)</td>
+<td>41 (38)</td>
+<td>40 (38)</td>
+<td>44 (36)</td>
+</tr>
+<tr>
+<td>same, automatic decision off</td>
+<td>✗ 115</td>
+<td>✗ 115</td>
+<td>✗ 115</td>
+<td>189 (180)</td>
+<td>192 (179)</td>
+<td>198 (185)</td>
+</tr>
+</tbody>
+</table>
+<p>Peak memory: <code>argMax</code> at 20M keys 3,970 MiB on 24.8, 2,529 MiB on 25.8, 785 MiB on 26.8, 745 MiB on 26.10;
+<code>LIMIT 1 BY</code> 2,339 MiB on 24.8 to 25.8 and about 210 MiB from 26.3; <code>FINAL</code> 71 to 79 MiB everywhere.</p>
+<p>Reading the table: on this data (keys in insert order, two parts) <code>FINAL</code> costs about 4x to 5x a plain scan of
+the same table on every build and did not get faster between 24.8 and 26.10; it is the cheapest of the three ways to get
+the newest row per key on every build. <code>argMax … GROUP BY</code> became about 4x faster and 5x leaner, <code>LIMIT 1 BY</code>
+about 22x faster (the drop is between 25.8 and 26.3). With the partition key a function of the sorting key,
+<code>FINAL</code> handles partitions separately by default (from 23.12 automatically, from 26.2 through
+<code>enable_automatic_decision_for_merging_across_partitions_for_final</code>); switching that off made it about 4.5x
+slower. A 100,000-row range read on the sorting key takes 10 ms or less with or without <code>FINAL</code> on every
+build. <code>max_final_threads = 1</code> is about 2.6x to 3.9x slower than the default (12 threads).</p>
+<h3>Screens</h3>
+<p>Captured 2026-11-05 from ClickHouse's <code>/play</code> UI on local throwaway containers loaded with this lab's files, for
+the notes article <code>core-architecture/clickhouse-final</code>:</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/01-summing-final-26-8.png"><code>images/01-summing-final-26-8.png</code></a> — <code>SummingMergeTree</code> <code>FINAL</code> on 26.8.36.3: the row count changes with the columns read (1000, 800, 900, 900)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/02-summing-final-26-10.png"><code>images/02-summing-final-26-10.png</code></a> — the same query on 26.10.3.7: 1000 in every row</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/03-partition-stale-row-25-8.png"><code>images/03-partition-stale-row-25-8.png</code></a> — <code>FINAL WHERE d &lt; '2026-02-01'</code> on 25.8.33.6 returns key 500's superseded January row (<code>ver</code> 1)</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/04-prewhere-read-bytes-26-10.png"><code>images/04-prewhere-read-bytes-26-10.png</code></a> — <code>system.query_log</code> on 26.10.3.7: the same <code>FINAL</code> query read 163.95 MiB by default and 1.10 GiB with <code>optimize_move_to_prewhere_if_final = 0</code></li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/05-join-final-left-25-8.png"><code>images/05-join-final-left-25-8.png</code></a> — <code>d1 FINAL JOIN d2</code> on 25.8.33.6: 1000, the same as <code>FINAL</code> on both sides (26.8 and later: 2000)</li>
+</ul>
+<h3>Not verified here</h3>
+<ul>
+<li>Distributed or replicated tables, <code>SharedMergeTree</code>, parallel replicas and ClickHouse Cloud.</li>
+<li>Keys spread over many parts, many overlapping parts, or tables larger than 20M rows; row policies.</li>
+<li><code>query_plan_optimize_lazy_final</code> (26.8 and 26.10 have it, default 0) and the 26.9 reverse-order read.</li>
+</ul>
+<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-05 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p>
+<hr /></div>
+  <div class="readme ko"><p>같은 <code>SELECT … FINAL</code> SQL을 여섯 빌드(LTS 24.8, 25.3, 25.8, 26.3, 26.8과 최신 stable 26.10)에서
+실행합니다. probe마다 결과(정답인지), 시간, 읽은 행, 필요한 곳에서는 읽은 바이트를 기록합니다.
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/RESULTS.md">RESULTS.md</a>의 모든 셀은 실행 결과이고, 원시 데이터(<code>query_log</code> 행 포함)는
+<code>results/&lt;버전&gt;.json</code>에 있습니다.</p>
+<p>대상: <code>ReplacingMergeTree</code>(<code>is_deleted</code> 유무), <code>CollapsingMergeTree</code>, <code>SummingMergeTree</code>,
+<code>AggregatingMergeTree</code>의 <code>FINAL</code>, 설정 <code>final</code>, 뷰에 붙인 <code>FINAL</code>, 파티션을 넘는 키, <code>FINAL</code> 아래의
+<code>PREWHERE</code>, <code>FINAL</code> 아래의 skip index, <code>JOIN</code> 속 <code>FINAL</code>, 2,000만 행에서 <code>FINAL</code> · <code>argMax … GROUP BY</code> ·
+<code>LIMIT 1 BY</code>의 읽기 비용.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/final-across-versions
+./run_matrix.py                      # 여섯 버전 전부, 약 10분. 이미지는 미리 받아 둬야 함
+./run_matrix.py --versions 26.10     # 한 버전(versions.txt 줄의 접두사)
+./run_matrix.py --only 03            # 파일 또는 probe id 접두사(그 파일의 결과가 JSON에서 통째로 바뀜)
+./run_matrix.py --report-only        # results/*.json으로 RESULTS.md 재생성
+tools/hol run workload/final-across-versions   # 저장소 루트에서: 26.10에서만 실행, 예외가 없어야 함
+</code></pre>
+<p><code>versions.txt</code>는 정확한 태그를 오래된 순으로 고정합니다. <code>run_matrix.py</code>는
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> · <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>와
+같은 파일입니다. 컨테이너를 <code>docker rm -f -v</code>로 지워 이미지의 익명 볼륨 <code>/var/lib/clickhouse</code>도 함께
+지웁니다(<code>-v</code>가 없으면 버전마다 약 5 GB가 남았습니다, #117). 컨테이너 이름은 <code>fav-&lt;태그&gt;</code>입니다. <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code>가
+앞에 붙은 문장이 probe이고 나머지는 준비 문장입니다. <code>value</code>는 첫 결과 행을 표 셀에, <code>show</code>는 최신
+버전의 결과 행을 그대로 넣습니다. <code>-- settings: a, b</code>는 <code>system.settings</code>에서 찾을 설정입니다. 문장마다
+<code>clickhouse-client</code>를 따로 호출하므로 단독 <code>SET</code>은 쓰지 않습니다. probe마다 주석에 데이터로 계산한
+정답을 적었습니다.</p>
+<h3>Probe</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-replacing.sql</code></td>
+<td><code>ReplacingMergeTree(ver)</code>, <code>(ver, is_deleted)</code>. 키 100만 개, 1%를 더 높은 <code>ver</code>로 다시 쓰고 1,000개를 삭제 표시: <code>FINAL</code> 유무의 <code>count()</code>, <code>SETTINGS final = 1</code>(서브쿼리 포함), 안에 <code>FINAL</code>이 있는 뷰와 없는 뷰에 붙인 <code>FINAL</code>, <code>FINAL</code> 대 <code>argMax … GROUP BY</code> 대 <code>LIMIT 1 BY</code>, <code>enable_vertical_final = 0</code>, <code>system.settings_changes</code>의 FINAL 관련 행</td>
+</tr>
+<tr>
+<td><code>02-engines.sql</code></td>
+<td><code>CollapsingMergeTree</code>(상태 행 뒤 취소 행 + 새 상태 행), 합이 모두 0인 키 100개와 <code>a</code>만 0인 키 100개를 둔 <code>SummingMergeTree((a, b))</code>, <code>SimpleAggregateFunction</code> · <code>AggregateFunction</code>의 <code>AggregatingMergeTree</code>. <code>OPTIMIZE … FINAL</code> 전후</td>
+</tr>
+<tr>
+<td><code>03-partitions.sql</code></td>
+<td>파티션 키가 정렬 키의 함수인 테이블과, 같은 키가 두 파티션에 있는 테이블(1월 행, 더 새로운 2월 행): <code>FINAL</code>, <code>do_not_merge_across_partitions_select_final = 1</code>, 파티션 컬럼 <code>WHERE</code>, <code>defer_partition_pruning_after_final = 0</code></td>
+</tr>
+<tr>
+<td><code>04-prewhere.sql</code></td>
+<td><code>FINAL</code> 아래에서 키가 아닌 컬럼의 <code>WHERE</code> 대 명시적 <code>PREWHERE</code>, <code>apply_prewhere_after_final = 1</code>. 이어서 100자 컬럼이 있는 1,000만 행에 primary key가 쓰지 못하는 정렬 키 조건(<code>toUInt32(ts) % 86400 &lt; 3600</code>): <code>optimize_move_to_prewhere_if_final</code> 기본 · 1 · 0의 시간과 읽은 바이트, <code>MergeTree</code> 대조군, 계획에 <code>PREWHERE</code>가 있는지</td>
+</tr>
+<tr>
+<td><code>05-skip-index.sql</code></td>
+<td>2,000만 행, 키의 1%에서 값이 바뀐 키 아닌 컬럼에 <code>bloom_filter</code> 인덱스: <code>FINAL</code>로 <strong>옛</strong> 값을 찾기(정답 0)를 <code>use_skip_indexes_if_final</code> 0 / 1, exact mode 0 / 1로, 바뀌지 않은 값도</td>
+</tr>
+<tr>
+<td><code>06-join.sql</code></td>
+<td>fact 테이블과 <code>ReplacingMergeTree</code> 차원 테이블의 조인: <code>FINAL</code> 없이, 차원 테이블에 <code>FINAL</code>, <code>SETTINGS final = 1</code>. 왼쪽에만 <code>FINAL</code>을 붙인 <code>d1 FINAL JOIN d2</code>, <code>analyzer_compatibility_apply_final_to_all_joined_tables = 1</code></td>
+</tr>
+<tr>
+<td><code>07-scale.sql</code></td>
+<td>2,000만 행, 모든 컬럼 <code>CODEC(LZ4)</code>: <code>MergeTree</code> 대조군, 파트 하나인 <code>ReplacingMergeTree</code>, 키 1% · 10% 재기록, 16파티션 테이블: <code>FINAL</code>, <code>enable_vertical_final = 0</code>, <code>max_final_threads = 1</code>, <code>argMax … GROUP BY</code>, <code>LIMIT 1 BY</code>, 10만 행 범위, <code>do_not_merge_across_partitions_select_final = 1</code>, <code>enable_automatic_decision_for_merging_across_partitions_for_final = 0</code>(각 5회)</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td>모든 빌드에서 실패하는 문장: 일반 <code>MergeTree</code>와 <code>Memory</code>의 <code>FINAL</code>(Code 181), <code>SAMPLE BY</code> 없는 <code>FINAL SAMPLE</code>(Code 141), <code>JOIN t FINAL AS d</code>(Code 62, 파싱되는 형태는 <code>JOIN t AS d FINAL</code>). <code>tools/hol</code>은 이 디렉터리를 실행하지 않고 러너는 실행합니다</td>
+</tr>
+</tbody>
+</table>
+<p>최상위 파일의 probe는 26.10에서 모두 성공합니다(<code>tools/hol run</code>은 첫 예외에서 멈춥니다). 옛 버전의
+실패도 결과이며 <code>✗ Code N</code>으로 표시합니다. 모두 Code 115(UNKNOWN_SETTING), 그 빌드에 아직 없는
+설정입니다.</p>
+<h3>버전 사이에 바뀐 것</h3>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/RESULTS.md">RESULTS.md</a>만 보고 썼습니다(2026-11-05 실행, 12 CPU, 15.6 GiB Docker VM, 다른 컨테이너 없음).
+대괄호 안이 정답입니다.</p>
+<ul>
+<li><strong>SummingMergeTree, 합이 모두 0인 행.</strong> 24.8–26.8에서는 <code>FINAL</code>의 행 수가 쿼리가 읽는 컬럼에 따라
+  달랐습니다. <code>count()</code> 1,000, <code>count(), sum(a)</code> 800, <code>count(), sum(b)</code> 900, <code>count(), sum(a), sum(b)</code>
+  900(병합 전 1,000행). 26.10.3.7에서는 모든 형태가 1,000이고 <code>countIf(a = 0 AND b = 0)</code>이 합이 0인 키
+  100개를 찾습니다. <code>OPTIMIZE … FINAL</code>은 모든 빌드에서 그 100행을 지웁니다(병합 뒤 900).</li>
+<li><strong>파티션을 넘는 키를 파티션 컬럼으로 거를 때.</strong> <code>FINAL WHERE d &lt; '2026-02-01'</code>이 24.8 · 25.3 · 25.8에서
+  1,000,000을 돌려줍니다[990,000]. 키 1만 개의 새 행이 있는 2월 파티션을 <code>FINAL</code> 전에 잘라내서 1월 행이
+  최신으로 남습니다. 키 500 하나로 물으면 1행[0]입니다. 26.3.62.3부터는 정답이고, 그 대가로 잘라내던
+  파티션도 읽습니다. 1,000,000행 대신 1,191,920–1,210,112행, <code>WHERE d &gt;= '2026-02-01'</code>도 10,000행 대신
+  같은 양을 읽습니다. <code>defer_partition_pruning_after_final</code>은 26.3부터 있고(기본 1) 0으로 두면
+  1,000,000으로 돌아갑니다.</li>
+<li><strong>그런 테이블의 <code>do_not_merge_across_partitions_select_final = 1</code></strong>은 모든 빌드에서
+  1,010,000[1,000,000]입니다. 이 설정은 "키가 파티션을 넘지 않는다"는 사용자의 약속입니다. 파티션 키가
+  정렬 키의 함수인 테이블에서는 모든 빌드에서 정답이었습니다.</li>
+<li><strong><code>FINAL</code> 아래의 명시적 <code>PREWHERE</code>.</strong> <code>FINAL PREWHERE v = 1</code>은 모든 빌드에서 100,000[99,000]입니다.
+  필터가 병합 전에 돌아 대체된 옛 행이 통과합니다. <code>WHERE v = 1</code>은 <code>optimize_move_to_prewhere_if_final</code>
+  0과 1 모두 모든 빌드에서 정답입니다(키가 아닌 조건은 옮기지 않음). 26.3부터
+  <code>apply_prewhere_after_final = 1</code>(기본 0)로 명시적 <code>PREWHERE</code>도 정답이 됩니다.</li>
+<li><strong><code>FINAL</code>에서 <code>WHERE</code>를 <code>PREWHERE</code>로 옮기기.</strong> <code>optimize_move_to_prewhere_if_final</code>은 24.8–26.8에서 0,
+  26.10.3.7에서 1입니다. 1,000만 행의 정렬 키 조건에서 기본값으로 24.8은 1,243,425,772바이트 · 93 ms,
+  26.8은 1,181,744,428바이트 · 82 ms를 읽었고 26.10은 174,293,428바이트 · 17 ms였습니다(5회 중앙값).
+  24.8에서도 1로 두면 180,606,220바이트 · 23 ms였습니다. 최적화는 있었고 기본값이 바뀐 것입니다.
+  <code>FINAL</code> 없는 <code>MergeTree</code> 대조군은 26.10에서 16,416,768바이트였습니다.</li>
+<li><strong><code>FINAL</code> 아래의 skip index.</strong> <code>use_skip_indexes_if_final</code>은 24.8 · 25.3에서 0, 25.8부터 1이고
+  <code>use_skip_indexes_if_final_exact_mode</code>는 25.8부터 있습니다(기본 1). 옛 행 버전에만 있는 값을 찾으면
+  기본값으로는 모든 빌드가 정답(0)이고, 24.8 · 25.3은 20,380,224행, 25.8–26.10은 약 410만 행을 읽었습니다.
+  24.8 · 25.3에서 <code>use_skip_indexes_if_final = 1</code>을 주면 틀립니다(1[0], 524,288행). 25.8–26.10에서 exact
+  mode를 0으로 두면 같은 식으로 틀립니다. exact mode는 더 새로운 파트의 같은 키 범위를 다시 읽어 0을
+  냅니다.</li>
+<li><strong><code>JOIN</code> 속 <code>FINAL</code>.</strong> <code>dim AS d1 FINAL JOIN dim AS d2</code>가 24.8–26.3에서 1,000, 26.8 · 26.10에서
+  2,000입니다[2,000]. 옛 빌드는 왼쪽 테이블의 <code>FINAL</code>을 오른쪽에도 적용했습니다.
+  <code>analyzer_compatibility_apply_final_to_all_joined_tables = 1</code>(26.8부터, 기본 0)이면 다시 1,000이고,
+  <code>system.settings_changes</code>는 기본값 변경을 26.6에 적어 둡니다. <code>JOIN dim AS d FINAL</code>과
+  <code>SETTINGS final = 1</code>은 모든 빌드에서 조인한 테이블의 중복을 없앱니다(100,000).</li>
+<li><strong>뷰에 붙인 <code>FINAL</code>.</strong> <code>FINAL</code>이 없는 뷰에 <code>SELECT … FROM view FINAL</code>을 하면 오류 없이 물리 행
+  1,010,000을 돌려줍니다(모든 빌드, [1,000,000]). 안에 <code>FINAL</code>이 있는 뷰는 1,000,000입니다.</li>
+<li><strong>여섯 빌드에서 같았던 것:</strong> <code>is_deleted</code> 유무의 <code>ReplacingMergeTree</code>, <code>SETTINGS final = 1</code>(서브쿼리
+  포함), <code>CollapsingMergeTree</code>(상태 행 먼저), <code>AggregatingMergeTree</code>, <code>enable_vertical_final = 0</code>의 결과.</li>
+</ul>
+<h3>2,000만 행 읽기 비용(<code>07-scale.sql</code>)</h3>
+<p>모든 컬럼이 <code>CODEC(LZ4)</code>입니다. 26.9부터 100 MB 이상 파트의 기본 코덱이 <code>ZSTD(3)</code>라(26.10.3.7에서
+<code>07-codec</code> probe가 파트 기본값 <code>['LZ4','ZSTD(3)']</code>, 컬럼 코덱 <code>CODEC(LZ4)</code>를 보여 줌), 고정하지 않으면
+빌드와 함께 코덱도 비교하게 됩니다. 셀은 5회 중앙값(최솟값) ms(<code>results/*.json</code>의 <code>durations_ms</code>)이고, 다른 컨테이너는 없었습니다.</p>
+<table>
+<thead>
+<tr>
+<th>쿼리</th>
+<th>24.8</th>
+<th>25.3</th>
+<th>25.8</th>
+<th>26.3</th>
+<th>26.8</th>
+<th>26.10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MergeTree</code>, <code>FINAL</code> 없음</td>
+<td>21 (20)</td>
+<td>38 (29)</td>
+<td>29 (26)</td>
+<td>22 (19)</td>
+<td>38 (24)</td>
+<td>18 (18)</td>
+</tr>
+<tr>
+<td>파트 하나, <code>FINAL</code></td>
+<td>19 (18)</td>
+<td>24 (23)</td>
+<td>27 (25)</td>
+<td>20 (18)</td>
+<td>21 (18)</td>
+<td>19 (18)</td>
+</tr>
+<tr>
+<td>1% 재기록, <code>FINAL</code> 없음(틀린 답)</td>
+<td>22 (20)</td>
+<td>27 (24)</td>
+<td>26 (24)</td>
+<td>24 (21)</td>
+<td>24 (23)</td>
+<td>23 (18)</td>
+</tr>
+<tr>
+<td>1% 재기록, <code>FINAL</code></td>
+<td>82 (73)</td>
+<td>134 (108)</td>
+<td>98 (90)</td>
+<td>101 (90)</td>
+<td>107 (94)</td>
+<td>124 (95)</td>
+</tr>
+<tr>
+<td>1%, <code>FINAL</code>, <code>enable_vertical_final = 0</code></td>
+<td>113 (98)</td>
+<td>126 (113)</td>
+<td>114 (104)</td>
+<td>92 (85)</td>
+<td>94 (88)</td>
+<td>115 (106)</td>
+</tr>
+<tr>
+<td>1%, <code>FINAL</code>, <code>max_final_threads = 1</code></td>
+<td>319 (293)</td>
+<td>358 (305)</td>
+<td>305 (298)</td>
+<td>283 (281)</td>
+<td>283 (279)</td>
+<td>391 (350)</td>
+</tr>
+<tr>
+<td>1%, <code>argMax … GROUP BY</code></td>
+<td>750 (627)</td>
+<td>861 (376)</td>
+<td>347 (182)</td>
+<td>383 (311)</td>
+<td>203 (163)</td>
+<td>187 (159)</td>
+</tr>
+<tr>
+<td>1%, <code>LIMIT 1 BY</code></td>
+<td>4,827 (4,023)</td>
+<td>4,623 (4,279)</td>
+<td>4,321 (4,109)</td>
+<td>514 (454)</td>
+<td>284 (280)</td>
+<td>213 (199)</td>
+</tr>
+<tr>
+<td>10% 재기록, <code>FINAL</code></td>
+<td>125 (101)</td>
+<td>238 (128)</td>
+<td>114 (97)</td>
+<td>86 (79)</td>
+<td>107 (88)</td>
+<td>88 (85)</td>
+</tr>
+<tr>
+<td>10%, <code>argMax … GROUP BY</code></td>
+<td>1,041 (727)</td>
+<td>796 (685)</td>
+<td>349 (309)</td>
+<td>300 (232)</td>
+<td>203 (159)</td>
+<td>167 (159)</td>
+</tr>
+<tr>
+<td>1%, 10만 행 범위, <code>FINAL</code></td>
+<td>6 (4)</td>
+<td>10 (6)</td>
+<td>5 (4)</td>
+<td>4 (4)</td>
+<td>4 (4)</td>
+<td>4 (4)</td>
+</tr>
+<tr>
+<td>16파티션, <code>FINAL</code></td>
+<td>64 (60)</td>
+<td>84 (68)</td>
+<td>65 (53)</td>
+<td>41 (38)</td>
+<td>40 (38)</td>
+<td>44 (36)</td>
+</tr>
+<tr>
+<td>같은 테이블, 자동 판단 끔</td>
+<td>✗ 115</td>
+<td>✗ 115</td>
+<td>✗ 115</td>
+<td>189 (180)</td>
+<td>192 (179)</td>
+<td>198 (185)</td>
+</tr>
+</tbody>
+</table>
+<p>최대 메모리: 키 2,000만 개의 <code>argMax</code>가 24.8 3,970 MiB, 25.8 2,529 MiB, 26.8 785 MiB, 26.10 745 MiB.
+<code>LIMIT 1 BY</code>는 24.8–25.8 2,339 MiB, 26.3부터 약 210 MiB. <code>FINAL</code>은 모든 빌드에서 71–79 MiB.</p>
+<p>읽는 법: 이 데이터(키가 입력 순서, 파트 두 개)에서 <code>FINAL</code>은 모든 빌드에서 같은 테이블 일반 스캔의 약 4–5배였고
+24.8과 26.10 사이에 빨라지지 않았습니다. 그래도 키마다 최신 행을 얻는 세 방법 중 모든 빌드에서 가장
+쌌습니다. <code>argMax … GROUP BY</code>는 약 4배 빨라지고 메모리가 5분의 1이 됐고, <code>LIMIT 1 BY</code>는 약 22배
+빨라졌습니다(25.8과 26.3 사이). 파티션 키가 정렬 키의 함수이면 <code>FINAL</code>은 기본으로 파티션을 따로
+처리하고(23.12부터 자동, 26.2부터 <code>enable_automatic_decision_for_merging_across_partitions_for_final</code>),
+이를 끄면 약 4.5배 느렸습니다. 정렬 키 10만 행 범위 읽기는 <code>FINAL</code> 유무와 관계없이 모든 빌드에서 10 ms
+이하입니다. <code>max_final_threads = 1</code>은 기본값(12 스레드)보다 약 2.6–3.9배 느립니다.</p>
+<h3>화면</h3>
+<p>2026-11-05에 이 실습의 파일을 넣은 로컬 일회용 컨테이너의 ClickHouse <code>/play</code> UI에서 노트 글
+<code>core-architecture/clickhouse-final</code>용으로 찍었습니다.</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/01-summing-final-26-8.png"><code>images/01-summing-final-26-8.png</code></a> — 26.8.36.3의 <code>SummingMergeTree</code> <code>FINAL</code>: 읽는 컬럼에 따라 행 수가 1000, 800, 900, 900</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/02-summing-final-26-10.png"><code>images/02-summing-final-26-10.png</code></a> — 같은 쿼리, 26.10.3.7: 모든 행이 1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/03-partition-stale-row-25-8.png"><code>images/03-partition-stale-row-25-8.png</code></a> — 25.8.33.6의 <code>FINAL WHERE d &lt; '2026-02-01'</code>: 키 500의 대체된 1월 행(<code>ver</code> 1)이 나옴</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/04-prewhere-read-bytes-26-10.png"><code>images/04-prewhere-read-bytes-26-10.png</code></a> — 26.10.3.7의 <code>system.query_log</code>: 같은 <code>FINAL</code> 쿼리가 기본값으로 163.95 MiB, <code>optimize_move_to_prewhere_if_final = 0</code>으로 1.10 GiB를 읽음</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/final-across-versions/images/05-join-final-left-25-8.png"><code>images/05-join-final-left-25-8.png</code></a> — 25.8.33.6의 <code>d1 FINAL JOIN d2</code>: 양쪽에 <code>FINAL</code>을 붙인 것과 같은 1000(26.8 이상은 2000)</li>
+</ul>
+<h3>여기서 확인하지 않은 것</h3>
+<ul>
+<li>Distributed · 복제 테이블, <code>SharedMergeTree</code>, parallel replicas, ClickHouse Cloud.</li>
+<li>키가 많은 파트에 흩어진 경우, 서로 겹치는 파트가 많은 경우, 2,000만 행보다 큰 테이블, row policy.</li>
+<li><code>query_plan_optimize_lazy_final</code>(26.8 · 26.10에 있음, 기본 0)과 26.9의 역순 읽기.</li>
+</ul>
+<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-05 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/replacingmergetree/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ReplacingMergeTree Lab</span></a><a class="step next" href="../../../labs/workload/dedup-engine/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse Deduplication Test Suite</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
