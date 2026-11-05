@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Distinct-count state size in materialized-view rollups · ClickHouse HOLs</title>
+<meta name="description" content="Distinct-count state size in materialized-view rollups — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/mv-uniq-state-size</code>
+    
+  </nav>
+  <div class="readme en"><h1>Distinct-count state size in materialized-view rollups</h1>
+<hr />
+<p>A per-minute rollup fed by a materialized view into an <code>AggregatingMergeTree</code> usually holds a few sums and
+one distinct count (<code>uniqState</code>). This lab measures how much of such a rollup that one column takes, whether a
+narrower input type (<code>UInt32</code> instead of <code>UInt64</code> or <code>String</code>) makes it smaller, what <code>uniqCombined</code>,
+<code>uniqCombined(12)</code>, <code>uniqHLL12</code> and <code>uniqExact</code> cost and how far off they are, how a 10-minute rollup fed
+<strong>from the 1-minute rollup</strong> (cascading materialized view) compares, and what each choice does to a Top 10 /
+Bottom 10 query over the last hour. Synthetic data on one local container; nothing here comes from a
+production system.</p>
+<p>Cascading materialized views with TTL for retention are in <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/cascading-mv-ttl">workload/cascading-mv-ttl</a>;
+this lab does not repeat that.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/mv-uniq-state-size
+./run.sh                                        # fresh container, every NN-*.sql, 06-topn.sql five times
+                                                # -&gt; results/&lt;version&gt;.txt; about 2.5 minutes (2026-11-05, 12 CPUs)
+KEEP=1 ./run.sh                                 # leave the container (musz-&lt;tag&gt;) running afterwards
+tools/hol run workload/mv-uniq-state-size       # from the repository root: every file once, must not raise
+</code></pre>
+<p><code>run.sh</code> needs only Docker. It takes the image tag from <code>lab.yaml</code>, starts the container the way <code>tools/hol up</code>
+does (no published ports), writes the date, <code>version()</code>, host CPU, Docker VM size and the CPU% of every other
+running container at the start and before the timing runs into the results file, runs each file with
+<code>clickhouse-client --echo</code>, and removes the container (and its volume) at the end. <code>99-cleanup.sql</code> is skipped
+by <code>run.sh</code> and run by <code>tools/hol</code>.</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-setup.sql</code></td>
+<td><code>events</code> (raw page views), <code>rollup_1m</code> (<code>AggregatingMergeTree</code>, key <code>(bucket, kind, page)</code>) with the same distinct-user count nine times: <code>uniq</code> over <code>String</code>, <code>UInt64</code> and <code>UInt32</code>, <code>uniqCombined</code>, <code>uniqCombined(12)</code>, <code>uniqHLL12</code>, <code>uniqExact</code> over <code>String</code>, <code>UInt64</code> and <code>UInt32</code>; <code>mv_1m</code> from <code>events</code>; <code>rollup_10m</code> with the same columns and <code>mv_10m</code> <strong>from <code>rollup_1m</code></strong> with <code>-MergeState</code>. Every column is <code>CODEC(LZ4)</code>, rollups use <code>min_bytes_for_wide_part = 0</code> (per-column sizes)</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>36,000,000 rows, 2026-11-01 00:00–02:59 UTC, 200,000 per minute, 12 INSERTs of 15 minutes; 500,000 users, each fixed to one of 2,000 pages with a skewed distribution; then <code>OPTIMIZE … FINAL</code> on all three tables</td>
+</tr>
+<tr>
+<td><code>03-state-size.sql</code></td>
+<td>serialized state bytes (<code>length(CAST(state AS String))</code>) by distinct values per group (1 to 1,000,000) for each function; the same for <code>String</code>, <code>Nullable(String)</code>, <code>UInt64</code>, <code>UInt32</code> input; relative error at 10 to 1,000,000 distinct values (10 groups each, <code>uniqExact</code> as the control)</td>
+</tr>
+<tr>
+<td><code>04-rollup-size.sql</code></td>
+<td>rows and bytes per table, distinct users per group, declared codecs, bytes per column from <code>system.parts_columns</code>, each distinct-count column's share of a rollup that holds only it, 10-minute against 1-minute bytes per column</td>
+</tr>
+<tr>
+<td><code>05-cascade-check.sql</code></td>
+<td>the cascaded 10-minute rollup against 10-minute groups computed from the raw rows (positive check), the sum of per-minute distinct counts against the true 10-minute count (negative control), and the direct computation repeated five times to see which functions give the same answer every time</td>
+</tr>
+<tr>
+<td><code>06-topn.sql</code></td>
+<td>Top 10 and Bottom 10 pages by distinct users over the last hour, the same query on each state column, on the 10-minute rollup and on the raw rows (<code>FORMAT Null</code>, tagged with <code>log_comment</code>)</td>
+</tr>
+<tr>
+<td><code>07-topn-accuracy.sql</code></td>
+<td>the exact Top 10 / Bottom 10; per state column the relative error per page and whether it returns the same Top 10 / Bottom 10 pages in the same order; error per rollup row</td>
+</tr>
+<tr>
+<td><code>08-timing.sql</code></td>
+<td><code>06-topn.sql</code> runs from <code>system.query_log</code>: median and minimum time, rows and bytes read, peak memory</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td>drops the <code>mv_uniq</code> database</td>
+</tr>
+</tbody>
+</table>
+<h3>Results</h3>
+<p>Verified on ClickHouse 26.10.3.7 (<code>clickhouse/clickhouse-server:26.10.3.7</code>), 2026-11-05, Apple M4 Pro host,
+Docker Desktop VM with 12 CPUs and 15.6 GiB, 36,000,000 raw rows. Other containers were running at the same
+time; their CPU% is in the results file. The full output is <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-uniq-state-size/results/26.10.3.7.txt">results/26.10.3.7.txt</a>;
+every number below is copied from it. Sizes are of fully merged parts (one part per table after
+<code>OPTIMIZE … FINAL</code>), all columns <code>CODEC(LZ4)</code>.</p>
+<p><strong>One state, by distinct values per group</strong> (<code>03-state-size.sql</code>, bytes, input <code>UInt64</code>):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">distinct values</th>
+<th style="text-align: right;"><code>uniq</code></th>
+<th style="text-align: right;"><code>uniqCombined</code></th>
+<th style="text-align: right;"><code>uniqCombined(12)</code></th>
+<th style="text-align: right;"><code>uniqHLL12</code></th>
+<th style="text-align: right;"><code>uniqExact</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">42</td>
+<td style="text-align: right;">42</td>
+<td style="text-align: right;">82</td>
+<td style="text-align: right;">81</td>
+</tr>
+<tr>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">123</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">241</td>
+</tr>
+<tr>
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">403</td>
+<td style="text-align: right;">402</td>
+<td style="text-align: right;">402</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">801</td>
+</tr>
+<tr>
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">1,204</td>
+<td style="text-align: right;">1,203</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,402</td>
+</tr>
+<tr>
+<td style="text-align: right;">600</td>
+<td style="text-align: right;">2,404</td>
+<td style="text-align: right;">2,403</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">4,802</td>
+</tr>
+<tr>
+<td style="text-align: right;">700</td>
+<td style="text-align: right;">2,804</td>
+<td style="text-align: right;">2,803</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">5,602</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000</td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,003</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">8,002</td>
+</tr>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: right;">40,004</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">80,002</td>
+</tr>
+<tr>
+<td style="text-align: right;">100,000</td>
+<td style="text-align: right;">199,815</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">800,003</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: right;">251,151</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">8,000,003</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The same values as another type</strong> (bytes at 1,000 distinct values; 100 and 10,000 are in the results file):</p>
+<table>
+<thead>
+<tr>
+<th>function</th>
+<th style="text-align: right;"><code>String</code> (32 hex)</th>
+<th style="text-align: right;"><code>Nullable(String)</code></th>
+<th style="text-align: right;"><code>UInt64</code></th>
+<th style="text-align: right;"><code>UInt32</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniq</code></td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,005</td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,004</td>
+</tr>
+<tr>
+<td><code>uniqCombined</code></td>
+<td style="text-align: right;">8,003</td>
+<td style="text-align: right;">8,004</td>
+<td style="text-align: right;">4,003</td>
+<td style="text-align: right;">4,003</td>
+</tr>
+<tr>
+<td><code>uniqCombined(12)</code></td>
+<td style="text-align: right;">3,291</td>
+<td style="text-align: right;">3,292</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+</tr>
+<tr>
+<td><code>uniqHLL12</code></td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,652</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+</tr>
+<tr>
+<td><code>uniqExact</code></td>
+<td style="text-align: right;">16,002</td>
+<td style="text-align: right;">16,003</td>
+<td style="text-align: right;">8,002</td>
+<td style="text-align: right;">4,002</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Relative error</strong> (<code>03-state-size.sql</code>, 10 groups per count, mean / max %):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">distinct values</th>
+<th><code>uniq</code></th>
+<th><code>uniqCombined</code></th>
+<th><code>uniqCombined(12)</code></th>
+<th><code>uniqHLL12</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">100</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>0.80 / 2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>1.04 / 1.7</td>
+<td>1.03 / 2.3</td>
+</tr>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td>0 / 0</td>
+<td>0.14 / 0.43</td>
+<td>2.29 / 3.9</td>
+<td>3.17 / 5.12</td>
+</tr>
+<tr>
+<td style="text-align: right;">100,000</td>
+<td>0.17 / 0.34</td>
+<td>0.17 / 0.68</td>
+<td>1.70 / 4.69</td>
+<td>0.97 / 2.71</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td>0.27 / 0.49</td>
+<td>0.18 / 0.45</td>
+<td>1.12 / 3.37</td>
+<td>1.25 / 3.61</td>
+</tr>
+</tbody>
+</table>
+<p><code>uniqExact</code>, the control, is 0 everywhere.</p>
+<p><strong>The rollups</strong> (<code>04-rollup-size.sql</code>). Distinct users per group: 1-minute p50 11, p90 44, p99 174, max
+5,273 (1,436,078 groups); 10-minute p50 80, p90 225, p99 883, max 21,959 (144,000 groups). Bytes per column, compressed
+(LZ4); share = this column / (this column + the five other columns: <code>bucket</code>, <code>kind</code>, <code>page</code>, <code>events</code>,
+<code>latency_sum</code>, together 13.11 MiB in the 1-minute rollup and 1.41 MiB in the 10-minute rollup):</p>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th style="text-align: right;">1-minute</th>
+<th style="text-align: right;">bytes/row (uncompressed)</th>
+<th style="text-align: right;">share</th>
+<th style="text-align: right;">10-minute</th>
+<th style="text-align: right;">share</th>
+<th style="text-align: right;">10-minute / 1-minute</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniq(String)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniq(UInt64)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniq(UInt32)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniqCombined(UInt64)</code></td>
+<td style="text-align: right;">129.84 MiB</td>
+<td style="text-align: right;">94.4</td>
+<td style="text-align: right;">90.8%</td>
+<td style="text-align: right;">72.21 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.556</td>
+</tr>
+<tr>
+<td><code>uniqCombined(12)(UInt64)</code></td>
+<td style="text-align: right;">120.10 MiB</td>
+<td style="text-align: right;">95.0</td>
+<td style="text-align: right;">90.2%</td>
+<td style="text-align: right;">57.32 MiB</td>
+<td style="text-align: right;">97.6%</td>
+<td style="text-align: right;">0.477</td>
+</tr>
+<tr>
+<td><code>uniqHLL12(UInt64)</code></td>
+<td style="text-align: right;">173.57 MiB</td>
+<td style="text-align: right;">1,022.6</td>
+<td style="text-align: right;">93.0%</td>
+<td style="text-align: right;">61.56 MiB</td>
+<td style="text-align: right;">97.8%</td>
+<td style="text-align: right;">0.355</td>
+</tr>
+<tr>
+<td><code>uniqExact(String)</code></td>
+<td style="text-align: right;">509.68 MiB</td>
+<td style="text-align: right;">370.7</td>
+<td style="text-align: right;">97.5%</td>
+<td style="text-align: right;">292.38 MiB</td>
+<td style="text-align: right;">99.5%</td>
+<td style="text-align: right;">0.574</td>
+</tr>
+<tr>
+<td><code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">255.54 MiB</td>
+<td style="text-align: right;">185.9</td>
+<td style="text-align: right;">95.1%</td>
+<td style="text-align: right;">146.28 MiB</td>
+<td style="text-align: right;">99.0%</td>
+<td style="text-align: right;">0.572</td>
+</tr>
+<tr>
+<td><code>uniqExact(UInt32)</code></td>
+<td style="text-align: right;">128.47 MiB</td>
+<td style="text-align: right;">93.4</td>
+<td style="text-align: right;">90.7%</td>
+<td style="text-align: right;">73.23 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.57</td>
+</tr>
+</tbody>
+</table>
+<p>The 10-minute rollup has 0.1 of the rows (144,000 against 1,436,078); <code>bucket</code>, <code>page</code>, <code>events</code> and
+<code>latency_sum</code> shrink to 0.10–0.11. <code>uniqHLL12</code> is the only state that compresses (1.37 GiB uncompressed in
+the 1-minute rollup, ratio 8.07).</p>
+<p>On this build the <code>uniq</code> columns are stored as <code>AggregateFunction(1, uniq, …)</code>, a state version, although
+<code>01-setup.sql</code> declares <code>AggregateFunction(uniq, …)</code>; the other functions have none. The built-in description of
+<code>uniq</code> (<code>system.functions</code>, read 2026-11-05) says servers from 26.8 also keep a small sample of 64-bit hashes and
+that states written by older servers carry none.</p>
+<p><strong>The cascade</strong> (<code>05-cascade-check.sql</code>). The 10-minute rollup fed from the 1-minute rollup against 10-minute
+groups computed from the raw rows: 144,000 groups on both sides, 0 differences in <code>events</code>, <code>uniqExact</code>,
+<code>uniq</code>, <code>uniqCombined</code> and <code>uniqHLL12</code>; <code>uniqCombined(12)</code> differs in 20 groups, every one of them with exactly
+256 true distinct values, by at most 10. The negative control, adding up the per-minute distinct counts, is wrong
+in 143,945 of 144,000 groups and 1.53 times the true count on average.</p>
+<p>The same direct 10-minute computation repeated: <code>uniq</code>, <code>uniqCombined</code> and <code>uniqHLL12</code> gave the same result
+fingerprint in all five runs; <code>uniqCombined(12)</code> gave three different fingerprints in the three runs with the
+default <code>max_threads</code> and the same one in the two runs with <code>max_threads = 1</code>. So the 20 is not a cascade error:
+<code>uniqCombined(12)</code> itself returns different answers for the same data, at its switch point. The built-in
+description says <code>uniqCombined</code> "provides the result deterministically (it does not depend on the query
+processing order)".</p>
+<p><strong>Error inside the rollups</strong> (<code>07-topn-accuracy.sql</code> (c), per rollup row against <code>uniqExact</code>, mean / p99 / max %,
+share of groups not exact):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>uniq</code></th>
+<th><code>uniqCombined</code></th>
+<th><code>uniqCombined(12)</code></th>
+<th><code>uniqHLL12</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-minute groups</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0.005 / 0 / 5.76, 0.49%</td>
+<td>0.165 / 3.70 / 15.0, 7.62%</td>
+</tr>
+<tr>
+<td>10-minute groups</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0 / 0 / 0.45, 0.02%</td>
+<td>0.076 / 1.81 / 4.51, 7.47%</td>
+<td>0.764 / 3.70 / 11.5, 54.29%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top 10 / Bottom 10 over the last hour</strong> (<code>07-topn-accuracy.sql</code> (b), 2,000 pages from the 1-minute rollup). The
+exact Top 10 runs from 24,016 to 2,482 users, the exact Bottom 10 from 81 to 86. Every state column returned the
+same ten pages for both lists; the order was the same everywhere except the <code>uniqHLL12</code> Bottom 10. Error per
+page, mean / max %: <code>uniq</code> (all three types), <code>uniqExact(String)</code>, <code>uniqExact(UInt32)</code> 0 / 0; <code>uniqCombined</code>
+0 / 0.237; <code>uniqCombined(12)</code> 0.199 / 3.838; <code>uniqHLL12</code> 0.887 / 4.902.</p>
+<p><strong>Time</strong> (<code>08-timing.sql</code>, five runs, warm). <code>read from disk</code> is <code>ProfileEvents['ReadCompressedBytes']</code>;
+<code>query_log.read_bytes</code> is the in-memory size of the columns read and is in the results file.</p>
+<table>
+<thead>
+<tr>
+<th>source</th>
+<th style="text-align: right;">median ms</th>
+<th style="text-align: right;">min ms</th>
+<th style="text-align: right;">rows read</th>
+<th style="text-align: right;">read from disk</th>
+<th style="text-align: right;">decompressed</th>
+<th style="text-align: right;">peak memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-minute <code>uniq(String)</code></td>
+<td style="text-align: right;">72</td>
+<td style="text-align: right;">58</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.61 MiB</td>
+<td style="text-align: right;">63.01 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.60 MiB</td>
+<td style="text-align: right;">62.94 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniq(UInt32)</code></td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">58</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.60 MiB</td>
+<td style="text-align: right;">63.00 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqCombined</code></td>
+<td style="text-align: right;">56</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.44 MiB</td>
+<td style="text-align: right;">51.14 MiB</td>
+<td style="text-align: right;">69.74 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqCombined(12)</code></td>
+<td style="text-align: right;">49</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">42.14 MiB</td>
+<td style="text-align: right;">51.42 MiB</td>
+<td style="text-align: right;">60.04 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqHLL12</code></td>
+<td style="text-align: right;">130</td>
+<td style="text-align: right;">113</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">60.23 MiB</td>
+<td style="text-align: right;">480.46 MiB</td>
+<td style="text-align: right;">108.85 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqExact(String)</code></td>
+<td style="text-align: right;">91</td>
+<td style="text-align: right;">84</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">173.84 MiB</td>
+<td style="text-align: right;">179.03 MiB</td>
+<td style="text-align: right;">228.21 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">87.93 MiB</td>
+<td style="text-align: right;">93.46 MiB</td>
+<td style="text-align: right;">151.69 MiB</td>
+</tr>
+<tr>
+<td>1-minute <code>uniqExact(UInt32)</code></td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">44.98 MiB</td>
+<td style="text-align: right;">50.67 MiB</td>
+<td style="text-align: right;">87.67 MiB</td>
+</tr>
+<tr>
+<td>10-minute <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">48,060</td>
+<td style="text-align: right;">24.83 MiB</td>
+<td style="text-align: right;">25.92 MiB</td>
+<td style="text-align: right;">55.77 MiB</td>
+</tr>
+<tr>
+<td>10-minute <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">34</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">48,060</td>
+<td style="text-align: right;">49.62 MiB</td>
+<td style="text-align: right;">50.61 MiB</td>
+<td style="text-align: right;">111.34 MiB</td>
+</tr>
+<tr>
+<td>raw <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: right;">12,005,632</td>
+<td style="text-align: right;">124.97 MiB</td>
+<td style="text-align: right;">184.63 MiB</td>
+<td style="text-align: right;">61.62 MiB</td>
+</tr>
+<tr>
+<td>raw <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">47</td>
+<td style="text-align: right;">12,005,632</td>
+<td style="text-align: right;">124.93 MiB</td>
+<td style="text-align: right;">184.50 MiB</td>
+<td style="text-align: right;">157.16 MiB</td>
+</tr>
+</tbody>
+</table>
+<h3>What the numbers say</h3>
+<ul>
+<li>One distinct-count column is about 91% of a 1-minute rollup and 98% of a 10-minute one here, whichever
+  function it uses. The other columns are 13.11 MiB against 131.22 MiB for <code>uniq</code>.</li>
+<li>A narrower input type does not shrink <code>uniq</code> (4 bytes per distinct value for <code>String</code>, <code>UInt64</code> and <code>UInt32</code>;
+  <code>Nullable</code> adds one byte per state). It shrinks <code>uniqExact</code> (16 / 8 / 4 bytes per value) and the small-set
+  form of <code>uniqCombined</code> over <code>String</code> (twice the integer size).</li>
+<li>The fixed-size states (<code>uniqCombined(12)</code> and <code>uniqHLL12</code>, 2,651 bytes) are smaller than <code>uniq</code> only above
+  600–700 distinct values per group. With a median of 11 per 1-minute group, <code>uniqCombined(12)</code> saved 8% and
+  <code>uniqHLL12</code> cost 32% more (and was the slowest to query: 480 MiB to decompress).</li>
+<li>A 10-minute rollup does not cost a tenth: the state columns were 0.56 of the 1-minute ones while the rows
+  were 0.1. A 1-minute rollup without the distinct count is 13.11 MiB.</li>
+<li>The cascade is correct for <code>uniqExact</code>, <code>uniq</code>, <code>uniqCombined</code> and <code>uniqHLL12</code>. Check it with a query like the
+  one in <code>05-cascade-check.sql</code> and its negative control.</li>
+<li>At 12 million raw rows per hour on 12 CPUs, the raw table answered the last-hour Top/Bottom 10 as fast as the
+  1-minute rollup (48–50 ms against 49–72 ms for the <code>uniq</code>-sized states) while reading 2.7 times the bytes;
+  the 10-minute rollup took 34–38 ms. This lab does not measure how the gap grows with the raw volume.</li>
+</ul>
+<h3>Limits</h3>
+<p>One build, one machine, synthetic data: users uniform over 500,000, each fixed to one page, so the distinct
+count per group follows the page skew and not a real workload. Sizes are after <code>OPTIMIZE … FINAL</code>; a live rollup
+also holds unmerged partial states. Timings are warm (median of five) with other containers running. The
+<code>uniqCombined(12)</code> difference count changes from run to run (see above).</p>
+<hr /></div>
+  <div class="readme ko"><p>materialized view로 <code>AggregatingMergeTree</code>에 쌓는 1분 롤업에는 보통 합계 몇 개와 고유 수(<code>uniqState</code>) 하나가
+들어갑니다. 이 실습은 그 고유 수 컬럼 하나가 롤업의 얼마를 차지하는지, 입력 타입을 좁히면(<code>UInt64</code>나
+<code>String</code> 대신 <code>UInt32</code>) 작아지는지, <code>uniqCombined</code> · <code>uniqCombined(12)</code> · <code>uniqHLL12</code> · <code>uniqExact</code>의 크기와
+오차, <strong>1분 롤업에서 이어 만든</strong> 10분 롤업(cascading materialized view)의 크기와 정확성, 그리고 각 선택이
+최근 1시간 Top 10 / Bottom 10 조회에 주는 영향을 잽니다. 로컬 컨테이너 하나와 합성 데이터만 씁니다.
+운영 시스템의 데이터는 없습니다.</p>
+<p>TTL로 보관 기간을 관리하는 cascading materialized view는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/cascading-mv-ttl">workload/cascading-mv-ttl</a>에
+있고, 여기서 반복하지 않습니다.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/mv-uniq-state-size
+./run.sh                                        # 새 컨테이너, NN-*.sql 전부, 06-topn.sql은 다섯 번
+                                                # -&gt; results/&lt;버전&gt;.txt, 약 2.5분(2026-11-05, 12 CPU)
+KEEP=1 ./run.sh                                 # 끝난 뒤 컨테이너(musz-&lt;태그&gt;)를 남김
+tools/hol run workload/mv-uniq-state-size       # 저장소 루트에서: 파일마다 한 번, 예외가 없어야 함
+</code></pre>
+<p><code>run.sh</code>는 Docker만 있으면 됩니다. 이미지 태그는 <code>lab.yaml</code>(<code>clickhouse:</code>)에서 읽고, <code>tools/hol up</code>과 같은
+방식으로(포트 공개 없이) 컨테이너를 띄웁니다. 결과 파일에 날짜, <code>version()</code>, 호스트 CPU, Docker VM 크기,
+시작할 때와 시간 측정 직전에 돌던 다른 컨테이너의 CPU%를 적고, 파일마다 <code>clickhouse-client --echo</code>로
+실행한 뒤 컨테이너를 볼륨째 지웁니다. <code>99-cleanup.sql</code>은 <code>run.sh</code>가 건너뛰고 <code>tools/hol</code>이 실행합니다.</p>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-setup.sql</code></td>
+<td><code>events</code>(원본 페이지 조회), <code>rollup_1m</code>(<code>AggregatingMergeTree</code>, 키 <code>(bucket, kind, page)</code>)에 같은 고유 사용자 수를 아홉 번: <code>String</code> · <code>UInt64</code> · <code>UInt32</code> 입력의 <code>uniq</code>, <code>uniqCombined</code>, <code>uniqCombined(12)</code>, <code>uniqHLL12</code>, <code>String</code> · <code>UInt64</code> · <code>UInt32</code> 입력의 <code>uniqExact</code>. <code>events</code>에서 받는 <code>mv_1m</code>, 같은 컬럼의 <code>rollup_10m</code>과 <strong><code>rollup_1m</code>에서</strong> <code>-MergeState</code>로 받는 <code>mv_10m</code>. 모든 컬럼 <code>CODEC(LZ4)</code>, 롤업은 <code>min_bytes_for_wide_part = 0</code>(컬럼별 크기)</td>
+</tr>
+<tr>
+<td><code>02-load.sql</code></td>
+<td>3,600만 행, 2026-11-01 00:00–02:59 UTC, 분당 20만 행, 15분씩 INSERT 12번. 사용자 50만 명이 2,000개 페이지 중 하나에 고정(치우친 분포). 끝에 세 테이블 <code>OPTIMIZE … FINAL</code></td>
+</tr>
+<tr>
+<td><code>03-state-size.sql</code></td>
+<td>그룹당 고유값(1–1,000,000)별 직렬화한 상태 크기(<code>length(CAST(state AS String))</code>), <code>String</code> · <code>Nullable(String)</code> · <code>UInt64</code> · <code>UInt32</code> 입력별 크기, 고유값 10–1,000,000에서 상대 오차(값마다 그룹 10개, 대조군 <code>uniqExact</code>)</td>
+</tr>
+<tr>
+<td><code>04-rollup-size.sql</code></td>
+<td>테이블별 행과 바이트, 그룹당 고유 사용자, 선언된 코덱, 상태 컬럼 타입, <code>system.parts_columns</code>의 컬럼별 바이트, 고유 수 컬럼 하나만 둔 롤업에서의 비중, 컬럼별 10분 대 1분 바이트</td>
+</tr>
+<tr>
+<td><code>05-cascade-check.sql</code></td>
+<td>cascade로 만든 10분 롤업과 원본에서 바로 계산한 10분 그룹 비교(양성 검사), 분당 고유 수의 합과 실제 10분 고유 수 비교(음성 대조), 직접 계산을 다섯 번 반복해 함수마다 답이 매번 같은지</td>
+</tr>
+<tr>
+<td><code>06-topn.sql</code></td>
+<td>최근 1시간 고유 사용자 기준 Top 10 · Bottom 10 페이지. 상태 컬럼마다, 10분 롤업, 원본에서 같은 쿼리(<code>FORMAT Null</code>, <code>log_comment</code>로 표시)</td>
+</tr>
+<tr>
+<td><code>07-topn-accuracy.sql</code></td>
+<td>정확한 Top 10 · Bottom 10, 상태 컬럼별 페이지 오차와 같은 페이지 · 같은 순서인지, 롤업 행별 오차</td>
+</tr>
+<tr>
+<td><code>08-timing.sql</code></td>
+<td><code>system.query_log</code>의 <code>06-topn.sql</code> 실행: 중앙값 · 최솟값 시간, 읽은 행과 바이트, 최대 메모리</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td><code>mv_uniq</code> 데이터베이스 삭제</td>
+</tr>
+</tbody>
+</table>
+<h3>결과</h3>
+<p>ClickHouse 26.10.3.7(<code>clickhouse/clickhouse-server:26.10.3.7</code>)에서 검증했습니다. 2026-11-05, Apple M4 Pro
+호스트, Docker Desktop VM 12 CPU · 15.6 GiB, 원본 3,600만 행. 같은 시간에 다른 컨테이너가 돌고 있었고 그
+CPU%는 결과 파일에 있습니다. 전체 출력은 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/mv-uniq-state-size/results/26.10.3.7.txt">results/26.10.3.7.txt</a>이고 아래 숫자는 모두
+거기서 옮겼습니다. 크기는 <code>OPTIMIZE … FINAL</code> 뒤 테이블마다 파트 하나로 병합된 상태이고, 모든 컬럼이
+<code>CODEC(LZ4)</code>입니다.</p>
+<p><strong>상태 하나의 크기, 그룹당 고유값별</strong>(<code>03-state-size.sql</code>, 바이트, 입력 <code>UInt64</code>):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">고유값</th>
+<th style="text-align: right;"><code>uniq</code></th>
+<th style="text-align: right;"><code>uniqCombined</code></th>
+<th style="text-align: right;"><code>uniqCombined(12)</code></th>
+<th style="text-align: right;"><code>uniqHLL12</code></th>
+<th style="text-align: right;"><code>uniqExact</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">42</td>
+<td style="text-align: right;">42</td>
+<td style="text-align: right;">82</td>
+<td style="text-align: right;">81</td>
+</tr>
+<tr>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">123</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">241</td>
+</tr>
+<tr>
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">403</td>
+<td style="text-align: right;">402</td>
+<td style="text-align: right;">402</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">801</td>
+</tr>
+<tr>
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">1,204</td>
+<td style="text-align: right;">1,203</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,402</td>
+</tr>
+<tr>
+<td style="text-align: right;">600</td>
+<td style="text-align: right;">2,404</td>
+<td style="text-align: right;">2,403</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">4,802</td>
+</tr>
+<tr>
+<td style="text-align: right;">700</td>
+<td style="text-align: right;">2,804</td>
+<td style="text-align: right;">2,803</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">5,602</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000</td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,003</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">8,002</td>
+</tr>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: right;">40,004</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">80,002</td>
+</tr>
+<tr>
+<td style="text-align: right;">100,000</td>
+<td style="text-align: right;">199,815</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">800,003</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: right;">251,151</td>
+<td style="text-align: right;">81,993</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">8,000,003</td>
+</tr>
+</tbody>
+</table>
+<p><strong>같은 값을 다른 타입으로</strong>(고유값 1,000일 때 바이트, 100과 10,000은 결과 파일):</p>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th style="text-align: right;"><code>String</code>(16진 32자)</th>
+<th style="text-align: right;"><code>Nullable(String)</code></th>
+<th style="text-align: right;"><code>UInt64</code></th>
+<th style="text-align: right;"><code>UInt32</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniq</code></td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,005</td>
+<td style="text-align: right;">4,004</td>
+<td style="text-align: right;">4,004</td>
+</tr>
+<tr>
+<td><code>uniqCombined</code></td>
+<td style="text-align: right;">8,003</td>
+<td style="text-align: right;">8,004</td>
+<td style="text-align: right;">4,003</td>
+<td style="text-align: right;">4,003</td>
+</tr>
+<tr>
+<td><code>uniqCombined(12)</code></td>
+<td style="text-align: right;">3,291</td>
+<td style="text-align: right;">3,292</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+</tr>
+<tr>
+<td><code>uniqHLL12</code></td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,652</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">2,651</td>
+</tr>
+<tr>
+<td><code>uniqExact</code></td>
+<td style="text-align: right;">16,002</td>
+<td style="text-align: right;">16,003</td>
+<td style="text-align: right;">8,002</td>
+<td style="text-align: right;">4,002</td>
+</tr>
+</tbody>
+</table>
+<p><strong>상대 오차</strong>(<code>03-state-size.sql</code>, 값마다 그룹 10개, 평균 / 최대 %):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">고유값</th>
+<th><code>uniq</code></th>
+<th><code>uniqCombined</code></th>
+<th><code>uniqCombined(12)</code></th>
+<th><code>uniqHLL12</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">100</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>0.80 / 2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+<td>1.04 / 1.7</td>
+<td>1.03 / 2.3</td>
+</tr>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td>0 / 0</td>
+<td>0.14 / 0.43</td>
+<td>2.29 / 3.9</td>
+<td>3.17 / 5.12</td>
+</tr>
+<tr>
+<td style="text-align: right;">100,000</td>
+<td>0.17 / 0.34</td>
+<td>0.17 / 0.68</td>
+<td>1.70 / 4.69</td>
+<td>0.97 / 2.71</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td>0.27 / 0.49</td>
+<td>0.18 / 0.45</td>
+<td>1.12 / 3.37</td>
+<td>1.25 / 3.61</td>
+</tr>
+</tbody>
+</table>
+<p>대조군 <code>uniqExact</code>는 모두 0입니다.</p>
+<p><strong>롤업</strong>(<code>04-rollup-size.sql</code>). 그룹당 고유 사용자: 1분 p50 11, p90 44, p99 174, 최대 5,273(그룹
+1,436,078개), 10분 p50 80, p90 225, p99 883, 최대 21,959(그룹 144,000개). 컬럼별 압축 크기(LZ4). 비중 =
+이 컬럼 / (이 컬럼 + 나머지 다섯 컬럼 <code>bucket</code> · <code>kind</code> · <code>page</code> · <code>events</code> · <code>latency_sum</code>, 1분 롤업에서
+합 13.11 MiB, 10분 롤업에서 1.41 MiB):</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th style="text-align: right;">1분</th>
+<th style="text-align: right;">행당 바이트(비압축)</th>
+<th style="text-align: right;">비중</th>
+<th style="text-align: right;">10분</th>
+<th style="text-align: right;">비중</th>
+<th style="text-align: right;">10분 / 1분</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniq(String)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniq(UInt64)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniq(UInt32)</code></td>
+<td style="text-align: right;">131.22 MiB</td>
+<td style="text-align: right;">95.4</td>
+<td style="text-align: right;">90.9%</td>
+<td style="text-align: right;">73.50 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td><code>uniqCombined(UInt64)</code></td>
+<td style="text-align: right;">129.84 MiB</td>
+<td style="text-align: right;">94.4</td>
+<td style="text-align: right;">90.8%</td>
+<td style="text-align: right;">72.21 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.556</td>
+</tr>
+<tr>
+<td><code>uniqCombined(12)(UInt64)</code></td>
+<td style="text-align: right;">120.10 MiB</td>
+<td style="text-align: right;">95.0</td>
+<td style="text-align: right;">90.2%</td>
+<td style="text-align: right;">57.32 MiB</td>
+<td style="text-align: right;">97.6%</td>
+<td style="text-align: right;">0.477</td>
+</tr>
+<tr>
+<td><code>uniqHLL12(UInt64)</code></td>
+<td style="text-align: right;">173.57 MiB</td>
+<td style="text-align: right;">1,022.6</td>
+<td style="text-align: right;">93.0%</td>
+<td style="text-align: right;">61.56 MiB</td>
+<td style="text-align: right;">97.8%</td>
+<td style="text-align: right;">0.355</td>
+</tr>
+<tr>
+<td><code>uniqExact(String)</code></td>
+<td style="text-align: right;">509.68 MiB</td>
+<td style="text-align: right;">370.7</td>
+<td style="text-align: right;">97.5%</td>
+<td style="text-align: right;">292.38 MiB</td>
+<td style="text-align: right;">99.5%</td>
+<td style="text-align: right;">0.574</td>
+</tr>
+<tr>
+<td><code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">255.54 MiB</td>
+<td style="text-align: right;">185.9</td>
+<td style="text-align: right;">95.1%</td>
+<td style="text-align: right;">146.28 MiB</td>
+<td style="text-align: right;">99.0%</td>
+<td style="text-align: right;">0.572</td>
+</tr>
+<tr>
+<td><code>uniqExact(UInt32)</code></td>
+<td style="text-align: right;">128.47 MiB</td>
+<td style="text-align: right;">93.4</td>
+<td style="text-align: right;">90.7%</td>
+<td style="text-align: right;">73.23 MiB</td>
+<td style="text-align: right;">98.1%</td>
+<td style="text-align: right;">0.57</td>
+</tr>
+</tbody>
+</table>
+<p>10분 롤업의 행은 1분의 0.1배(144,000 대 1,436,078)이고, <code>bucket</code> · <code>page</code> · <code>events</code> · <code>latency_sum</code>은
+0.10–0.11배로 줄었습니다. 압축되는 상태는 <code>uniqHLL12</code>뿐입니다(1분 롤업에서 비압축 1.37 GiB, 압축률 8.07).</p>
+<p>이 빌드는 <code>uniq</code> 컬럼을 <code>AggregateFunction(1, uniq, …)</code>, 즉 상태 버전을 붙여 저장합니다. <code>01-setup.sql</code>은
+<code>AggregateFunction(uniq, …)</code>로 선언했고, 다른 함수에는 버전이 붙지 않습니다. <code>uniq</code>의 내장 설명
+(<code>system.functions</code>, 2026-11-05에 읽음)에 따르면 26.8부터 서버가 64비트 해시의 작은 표본도 함께 두고,
+그보다 오래된 서버가 쓴 상태에는 그 표본이 없습니다.</p>
+<p><strong>cascade</strong>(<code>05-cascade-check.sql</code>). 1분 롤업에서 받은 10분 롤업과 원본에서 바로 계산한 10분 그룹: 양쪽
+모두 그룹 144,000개, <code>events</code> · <code>uniqExact</code> · <code>uniq</code> · <code>uniqCombined</code> · <code>uniqHLL12</code> 차이 0.
+<code>uniqCombined(12)</code>는 20개 그룹에서 달랐고, 모두 실제 고유값이 정확히 256인 그룹이었으며 차이는 최대
+10이었습니다. 음성 대조(분당 고유 수를 더하기)는 144,000개 중 143,945개 그룹에서 틀렸고 평균 실제 값의
+1.53배였습니다.</p>
+<p>같은 직접 계산을 반복하면 <code>uniq</code> · <code>uniqCombined</code> · <code>uniqHLL12</code>는 다섯 번 모두 같은 결과 지문을 냈고,
+<code>uniqCombined(12)</code>는 기본 <code>max_threads</code>로 세 번 돌린 결과가 셋 다 달랐으며 <code>max_threads = 1</code>로 두 번 돌린
+결과는 같았습니다. 그러니 20개는 cascade의 오류가 아니라, <code>uniqCombined(12)</code>가 전환 지점에서 같은 데이터에
+다른 답을 내는 것입니다. 내장 설명은 <code>uniqCombined</code>가 "provides the result deterministically (it does not
+depend on the query processing order)"라고 적고 있습니다.</p>
+<p><strong>롤업 안의 오차</strong>(<code>07-topn-accuracy.sql</code> (c), 롤업 행마다 <code>uniqExact</code>와 비교, 평균 / p99 / 최대 %, 정확하지
+않은 그룹의 비율):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>uniq</code></th>
+<th><code>uniqCombined</code></th>
+<th><code>uniqCombined(12)</code></th>
+<th><code>uniqHLL12</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1분 그룹</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0.005 / 0 / 5.76, 0.49%</td>
+<td>0.165 / 3.70 / 15.0, 7.62%</td>
+</tr>
+<tr>
+<td>10분 그룹</td>
+<td>0 / 0 / 0, 0%</td>
+<td>0 / 0 / 0.45, 0.02%</td>
+<td>0.076 / 1.81 / 4.51, 7.47%</td>
+<td>0.764 / 3.70 / 11.5, 54.29%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>최근 1시간 Top 10 / Bottom 10</strong>(<code>07-topn-accuracy.sql</code> (b), 1분 롤업, 페이지 2,000개). 정확한 Top 10은 사용자
+24,016명에서 2,482명, Bottom 10은 81명에서 86명입니다. 모든 상태 컬럼이 두 목록 모두 같은 열 개 페이지를
+돌려줬고, 순서는 <code>uniqHLL12</code>의 Bottom 10만 달랐습니다. 페이지별 오차(평균 / 최대 %): <code>uniq</code>(세 타입 모두),
+<code>uniqExact(String)</code>, <code>uniqExact(UInt32)</code> 0 / 0, <code>uniqCombined</code> 0 / 0.237, <code>uniqCombined(12)</code> 0.199 / 3.838,
+<code>uniqHLL12</code> 0.887 / 4.902.</p>
+<p><strong>시간</strong>(<code>08-timing.sql</code>, 다섯 번, 캐시가 데워진 상태). <code>디스크에서 읽음</code>은
+<code>ProfileEvents['ReadCompressedBytes']</code>입니다. <code>query_log.read_bytes</code>는 읽은 컬럼의 메모리 크기라 상태
+컬럼에서는 디스크 크기와 다르고, 결과 파일에 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>원천</th>
+<th style="text-align: right;">중앙값 ms</th>
+<th style="text-align: right;">최솟값 ms</th>
+<th style="text-align: right;">읽은 행</th>
+<th style="text-align: right;">디스크에서 읽음</th>
+<th style="text-align: right;">압축 해제</th>
+<th style="text-align: right;">최대 메모리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1분 <code>uniq(String)</code></td>
+<td style="text-align: right;">72</td>
+<td style="text-align: right;">58</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.61 MiB</td>
+<td style="text-align: right;">63.01 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.60 MiB</td>
+<td style="text-align: right;">62.94 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniq(UInt32)</code></td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">58</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.91 MiB</td>
+<td style="text-align: right;">51.60 MiB</td>
+<td style="text-align: right;">63.00 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqCombined</code></td>
+<td style="text-align: right;">56</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">45.44 MiB</td>
+<td style="text-align: right;">51.14 MiB</td>
+<td style="text-align: right;">69.74 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqCombined(12)</code></td>
+<td style="text-align: right;">49</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">42.14 MiB</td>
+<td style="text-align: right;">51.42 MiB</td>
+<td style="text-align: right;">60.04 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqHLL12</code></td>
+<td style="text-align: right;">130</td>
+<td style="text-align: right;">113</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">60.23 MiB</td>
+<td style="text-align: right;">480.46 MiB</td>
+<td style="text-align: right;">108.85 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqExact(String)</code></td>
+<td style="text-align: right;">91</td>
+<td style="text-align: right;">84</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">173.84 MiB</td>
+<td style="text-align: right;">179.03 MiB</td>
+<td style="text-align: right;">228.21 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">87.93 MiB</td>
+<td style="text-align: right;">93.46 MiB</td>
+<td style="text-align: right;">151.69 MiB</td>
+</tr>
+<tr>
+<td>1분 <code>uniqExact(UInt32)</code></td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: right;">485,806</td>
+<td style="text-align: right;">44.98 MiB</td>
+<td style="text-align: right;">50.67 MiB</td>
+<td style="text-align: right;">87.67 MiB</td>
+</tr>
+<tr>
+<td>10분 <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">48,060</td>
+<td style="text-align: right;">24.83 MiB</td>
+<td style="text-align: right;">25.92 MiB</td>
+<td style="text-align: right;">55.77 MiB</td>
+</tr>
+<tr>
+<td>10분 <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">34</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">48,060</td>
+<td style="text-align: right;">49.62 MiB</td>
+<td style="text-align: right;">50.61 MiB</td>
+<td style="text-align: right;">111.34 MiB</td>
+</tr>
+<tr>
+<td>원본 <code>uniq(UInt64)</code></td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: right;">12,005,632</td>
+<td style="text-align: right;">124.97 MiB</td>
+<td style="text-align: right;">184.63 MiB</td>
+<td style="text-align: right;">61.62 MiB</td>
+</tr>
+<tr>
+<td>원본 <code>uniqExact(UInt64)</code></td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">47</td>
+<td style="text-align: right;">12,005,632</td>
+<td style="text-align: right;">124.93 MiB</td>
+<td style="text-align: right;">184.50 MiB</td>
+<td style="text-align: right;">157.16 MiB</td>
+</tr>
+</tbody>
+</table>
+<h3>숫자가 말하는 것</h3>
+<ul>
+<li>여기서 고유 수 컬럼 하나는 어떤 함수를 쓰든 1분 롤업의 약 91%, 10분 롤업의 98%였습니다. 나머지 컬럼은
+  13.11 MiB, <code>uniq</code>는 131.22 MiB입니다.</li>
+<li>입력 타입을 좁혀도 <code>uniq</code>는 줄지 않습니다(<code>String</code> · <code>UInt64</code> · <code>UInt32</code> 모두 고유값당 4바이트,
+  <code>Nullable</code>은 상태당 1바이트 추가). 줄어드는 것은 <code>uniqExact</code>(값당 16 / 8 / 4바이트)와 <code>String</code> 입력
+  <code>uniqCombined</code>의 작은 집합 형태(정수의 두 배)입니다.</li>
+<li>고정 크기 상태(<code>uniqCombined(12)</code>, <code>uniqHLL12</code>, 2,651바이트)는 그룹당 고유값이 600–700을 넘어야 <code>uniq</code>보다
+  작습니다. 1분 그룹 중앙값이 11인 이 데이터에서 <code>uniqCombined(12)</code>는 8% 줄었고 <code>uniqHLL12</code>는 32% 커졌습니다
+  (조회도 가장 느렸습니다. 압축 해제 480 MiB).</li>
+<li>10분 롤업은 1/10이 아닙니다. 행은 0.1배인데 상태 컬럼은 0.56배였습니다. 고유 수가 없는 1분 롤업은
+  13.11 MiB입니다.</li>
+<li>cascade는 <code>uniqExact</code> · <code>uniq</code> · <code>uniqCombined</code> · <code>uniqHLL12</code>에서 정확했습니다. <code>05-cascade-check.sql</code> 같은
+  쿼리와 음성 대조로 확인합니다.</li>
+<li>12 CPU에서 시간당 원본 1,200만 행이면, 최근 1시간 Top/Bottom 10을 원본 테이블이 1분 롤업과 비슷한 시간에
+  답했습니다(48–50 ms, <code>uniq</code> 크기 상태는 49–72 ms). 읽은 바이트는 2.7배였습니다. 10분 롤업은 34–38 ms였습니다.
+  원본이 커질 때 이 차이가 어떻게 벌어지는지는 이 실습에서 재지 않았습니다.</li>
+</ul>
+<h3>한계</h3>
+<p>빌드 하나, 머신 하나, 합성 데이터입니다. 사용자는 50만 명에서 고르게 뽑고 한 페이지에 고정했으므로, 그룹당
+고유 수는 페이지 분포를 따르고 실제 워크로드를 따르지 않습니다. 크기는 <code>OPTIMIZE … FINAL</code> 뒤의 값이고,
+운영 중인 롤업에는 병합되지 않은 부분 상태도 있습니다. 시간은 캐시가 데워진 상태(다섯 번 중 중앙값)이고
+다른 컨테이너가 돌고 있었습니다. <code>uniqCombined(12)</code> 차이 개수는 실행마다 달라집니다(위 참고).</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-uniq-state-size"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/mv-vs-rmv/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">MV vs RMV Resource Efficiency Comparison Test</span></a><a class="step next" href="../../../labs/workload/projection/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse Projection Lab</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

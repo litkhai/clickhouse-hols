@@ -65,6 +65,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/join-across-versions/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/json-stress-test/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/kafka-partitioning-ingestion/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/mv-uniq-state-size/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/mv-vs-rmv/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/projection-customsettings/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/projection/</loc></url>
