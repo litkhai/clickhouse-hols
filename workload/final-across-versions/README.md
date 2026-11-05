@@ -27,10 +27,10 @@ cd workload/final-across-versions
 tools/hol run workload/final-across-versions   # from the repository root: the SQL on 26.10 only, must not raise
 ```
 
-`versions.txt` pins the exact tags, oldest first. `run_matrix.py` is the runner of
-[workload/join-across-versions](../join-across-versions/) with one change: it removes each container with
-`docker rm -f -v`, so the anonymous `/var/lib/clickhouse` volume of the image goes with it (without `-v`
-every version left about 5 GB behind). Containers are named `fav-<tag>`. A statement preceded by
+`versions.txt` pins the exact tags, oldest first. `run_matrix.py` is the same file as in
+[workload/join-across-versions](../join-across-versions/) and [workload/upsert-across-versions](../upsert-across-versions/);
+it removes each container with `docker rm -f -v`, so the image's anonymous `/var/lib/clickhouse` volume goes
+with it (without `-v` every version left about 5 GB behind; #117). Containers are named `fav-<tag>`. A statement preceded by
 `-- probe: <id> [repeat=N] [show] [value]` is a probe, the others are setup; `value` puts the first result
 row in the table cell, `show` prints the newest version's rows. `-- settings: a, b` lists settings to look
 up in `system.settings`. Each statement runs in its own `clickhouse-client` call, so there is no bare `SET`.
@@ -180,9 +180,9 @@ tools/hol run workload/final-across-versions   # 저장소 루트에서: 26.10�
 ```
 
 `versions.txt`는 정확한 태그를 오래된 순으로 고정합니다. `run_matrix.py`는
-[workload/join-across-versions](../join-across-versions/)의 러너에서 한 군데만 다릅니다. 컨테이너를
-`docker rm -f -v`로 지워 이미지의 익명 볼륨 `/var/lib/clickhouse`도 함께 지웁니다(`-v`가 없으면 버전마다
-약 5 GB가 남았습니다). 컨테이너 이름은 `fav-<태그>`입니다. `-- probe: <id> [repeat=N] [show] [value]`가
+[workload/join-across-versions](../join-across-versions/) · [workload/upsert-across-versions](../upsert-across-versions/)와
+같은 파일입니다. 컨테이너를 `docker rm -f -v`로 지워 이미지의 익명 볼륨 `/var/lib/clickhouse`도 함께
+지웁니다(`-v`가 없으면 버전마다 약 5 GB가 남았습니다, #117). 컨테이너 이름은 `fav-<태그>`입니다. `-- probe: <id> [repeat=N] [show] [value]`가
 앞에 붙은 문장이 probe이고 나머지는 준비 문장입니다. `value`는 첫 결과 행을 표 셀에, `show`는 최신
 버전의 결과 행을 그대로 넣습니다. `-- settings: a, b`는 `system.settings`에서 찾을 설정입니다. 문장마다
 `clickhouse-client`를 따로 호출하므로 단독 `SET`은 쓰지 않습니다. probe마다 주석에 데이터로 계산한

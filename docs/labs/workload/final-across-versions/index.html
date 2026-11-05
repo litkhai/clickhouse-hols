@@ -54,10 +54,10 @@ partitions; <code>PREWHERE</code> under <code>FINAL</code>; skip indexes under <
 ./run_matrix.py --report-only        # rebuild RESULTS.md from results/*.json
 tools/hol run workload/final-across-versions   # from the repository root: the SQL on 26.10 only, must not raise
 </code></pre>
-<p><code>versions.txt</code> pins the exact tags, oldest first. <code>run_matrix.py</code> is the runner of
-<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> with one change: it removes each container with
-<code>docker rm -f -v</code>, so the anonymous <code>/var/lib/clickhouse</code> volume of the image goes with it (without <code>-v</code>
-every version left about 5 GB behind). Containers are named <code>fav-&lt;tag&gt;</code>. A statement preceded by
+<p><code>versions.txt</code> pins the exact tags, oldest first. <code>run_matrix.py</code> is the same file as in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> and <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>;
+it removes each container with <code>docker rm -f -v</code>, so the image's anonymous <code>/var/lib/clickhouse</code> volume goes
+with it (without <code>-v</code> every version left about 5 GB behind; #117). Containers are named <code>fav-&lt;tag&gt;</code>. A statement preceded by
 <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code> is a probe, the others are setup; <code>value</code> puts the first result
 row in the table cell, <code>show</code> prints the newest version's rows. <code>-- settings: a, b</code> lists settings to look
 up in <code>system.settings</code>. Each statement runs in its own <code>clickhouse-client</code> call, so there is no bare <code>SET</code>.
@@ -336,9 +336,9 @@ the notes article <code>core-architecture/clickhouse-final</code>:</p>
 tools/hol run workload/final-across-versions   # 저장소 루트에서: 26.10에서만 실행, 예외가 없어야 함
 </code></pre>
 <p><code>versions.txt</code>는 정확한 태그를 오래된 순으로 고정합니다. <code>run_matrix.py</code>는
-<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a>의 러너에서 한 군데만 다릅니다. 컨테이너를
-<code>docker rm -f -v</code>로 지워 이미지의 익명 볼륨 <code>/var/lib/clickhouse</code>도 함께 지웁니다(<code>-v</code>가 없으면 버전마다
-약 5 GB가 남았습니다). 컨테이너 이름은 <code>fav-&lt;태그&gt;</code>입니다. <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code>가
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a> · <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>와
+같은 파일입니다. 컨테이너를 <code>docker rm -f -v</code>로 지워 이미지의 익명 볼륨 <code>/var/lib/clickhouse</code>도 함께
+지웁니다(<code>-v</code>가 없으면 버전마다 약 5 GB가 남았습니다, #117). 컨테이너 이름은 <code>fav-&lt;태그&gt;</code>입니다. <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code>가
 앞에 붙은 문장이 probe이고 나머지는 준비 문장입니다. <code>value</code>는 첫 결과 행을 표 셀에, <code>show</code>는 최신
 버전의 결과 행을 그대로 넣습니다. <code>-- settings: a, b</code>는 <code>system.settings</code>에서 찾을 설정입니다. 문장마다
 <code>clickhouse-client</code>를 따로 호출하므로 단독 <code>SET</code>은 쓰지 않습니다. probe마다 주석에 데이터로 계산한
