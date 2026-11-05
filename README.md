@@ -81,6 +81,7 @@ and [MOVED.md](MOVED.md).
 | Lab | What it covers |
 |-----|----------------|
 | [workload/replacingmergetree](workload/replacingmergetree/) | `FINAL`, merge timing and the `argMax` alternative |
+| [workload/final-across-versions](workload/final-across-versions/) | The same `SELECT … FINAL` SQL on six ClickHouse versions: correctness per engine, partitions, `PREWHERE`, skip indexes, `JOIN`, read cost at 20M rows |
 | [workload/dedup-engine](workload/dedup-engine/) | Deduplication engines compared |
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE mechanisms and their costs |
 | [workload/upsert-across-versions](workload/upsert-across-versions/) | The same upsert, UPDATE and DELETE SQL on six ClickHouse versions: what each way of changing rows writes, how soon it shows, what it costs later reads |
@@ -300,6 +301,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | 실습 | 내용 |
 |------|------|
 | [workload/replacingmergetree](workload/replacingmergetree/) | `FINAL`, 머지 시점, `argMax` 대안 |
+| [workload/final-across-versions](workload/final-across-versions/) | 같은 `SELECT … FINAL` SQL을 ClickHouse 여섯 버전에서 실행: 엔진별 정확성, 파티션, `PREWHERE`, skip index, `JOIN`, 2,000만 행 읽기 비용 |
 | [workload/dedup-engine](workload/dedup-engine/) | 중복 제거 엔진 비교 |
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE 메커니즘과 비용 |
 | [workload/upsert-across-versions](workload/upsert-across-versions/) | 같은 upsert·UPDATE·DELETE SQL을 ClickHouse 여섯 버전에서 실행: 행을 바꾸는 방법별 쓰기량, 반영 시점, 이후 읽기 비용 |

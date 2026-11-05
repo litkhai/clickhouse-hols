@@ -59,6 +59,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/async-insert-stress/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/dedup-engine/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/delete-benchmark/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/final-across-versions/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/index-granularity-point-query/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/join-across-versions/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/json-stress-test/</loc></url>

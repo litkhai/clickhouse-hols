@@ -374,6 +374,10 @@
             <a href="labs/workload/replacingmergetree/index.html"><code>workload/replacingmergetree</code></a>
             <p><span class="en"><code>FINAL</code>, merge timing and the <code>argMax</code> alternative</span><span class="ko"><code>FINAL</code>, 머지 시점, <code>argMax</code> 대안</span></p>
           </li>
+          <li data-kw="aggregatefunction aggregatingmergetree analyzer_compatibility_apply_final_to_all_joined_tables apply_prewhere_after_final argmax bloom_filter codec collapsingmergetree countif defer_partition_pruning_after_final do_not_merge_across_partitions_select_final durations_ms enable_vertical_final engines.sql failures.sql final index.sql is_deleted join join.sql lz4 max_final_threads mergetree optimize optimize_move_to_prewhere_if_final partitions.sql prewhere prewhere.sql query_log query_plan_optimize_lazy_final replacing.sql replacingmergetree run_matrix.py sample scale.sql settings sharedmergetree simpleaggregatefunction summingmergetree system.query_log system.settings system.settings_changes touint32 use_skip_indexes_if_final use_skip_indexes_if_final_exact_mode versions.txt zstd">
+            <a href="labs/workload/final-across-versions/index.html"><code>workload/final-across-versions</code></a>
+            <p><span class="en">The same <code>SELECT … FINAL</code> SQL on six ClickHouse versions: correctness per engine, partitions, <code>PREWHERE</code>, skip indexes, <code>JOIN</code>, read cost at 20M rows</span><span class="ko">같은 <code>SELECT … FINAL</code> SQL을 ClickHouse 여섯 버전에서 실행: 엔진별 정확성, 파티션, <code>PREWHERE</code>, skip index, <code>JOIN</code>, 2,000만 행 읽기 비용</span></p>
+          </li>
           <li data-kw="ch_database config.py">
             <a href="labs/workload/dedup-engine/index.html"><code>workload/dedup-engine</code></a>
             <p><span class="en">Deduplication engines compared</span><span class="ko">중복 제거 엔진 비교</span></p>
