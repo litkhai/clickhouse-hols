@@ -11,13 +11,15 @@
 26.8 is an LTS release and a large one — the changelog runs to 21 backward
 incompatible changes, 46 new features and 89 performance improvements. This lab
 takes three of them that you can see working in a single container, and that
-change how you write queries rather than how fast they run.
+change how you write queries rather than how fast they run, and adds AI functions
+that also need an Anthropic API key (not run by `tools/hol`).
 
 | Lab | Feature | Why it is here |
 |-----|---------|----------------|
 | [01](01-pipe-operators.sql) | Pipe operators `\|>` | The biggest syntax change in years. Queries read in the order data flows |
 | [02](02-groups-window-frame.sql) | `GROUPS` window frame mode | The third frame mode SQL defines, and the one ClickHouse was missing |
 | [03](03-cjk-tokenizers.sql) | `japanese`, `chinese`, `icu` tokenizers | The difference between a working Korean text index and a useless one |
+| [AI](ai-functions.sql) | `aiFilter`, `aiRedact` (Beta) | An LLM call inside a `WHERE` — what it returns, what it costs, and the per-query limit that stops it. Needs an Anthropic key |
 
 ### Quick start
 
@@ -26,6 +28,7 @@ change how you write queries rather than how fast they run.
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
+./ai-functions.sh         # needs ./.env with ANTHROPIC_API_KEY; not run by tools/hol or smoke
 ```
 
 Each `NN-*.sh` pipes the matching `.sql` into `clickhouse-client`. Read the SQL
@@ -235,6 +238,87 @@ without extra configuration, which is the pragmatic choice for a mixed corpus.
 
 ---
 
+### AI functions: `aiFilter` and `aiRedact` (outside `tools/hol`)
+
+```sql
+SELECT id, body FROM tickets
+WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
+               map('temperature', '1'))
+```
+
+A function that sends the row to an LLM. They are **Beta** in 26.8 — every
+`ai_function_*` setting reports tier `Beta` in `system.settings` — their output
+is non-deterministic, and the text you pass goes to the provider. The docs carry a
+prompt-injection warning: input text can steer the model, so treat the output as
+untrusted before it builds SQL, shell commands or access decisions.
+
+**Setup.** Provider `anthropic`, model `claude-haiku-5-5`, run on local OSS
+26.8.36.3 with the author's own key. The key is never in the repository:
+`ai-functions.sh` reads it from `./.env` (gitignored; one line,
+`ANTHROPIC_API_KEY=...`, mode 600), builds the `CREATE NAMED COLLECTION`
+statement and pipes it to `clickhouse-client` on stdin (no `--echo`), and drops
+the collection when it ends. `ai_function_text_default_credentials` points the
+text functions at it. In `system.named_collections` and `query_log` the secret
+shows as `[HIDDEN]`. After the runs, a search of `system.query_log`,
+`system.text_log` and the server log file for the key's first 20 characters
+found nothing from the lab (the only hits were the search queries themselves).
+
+**What came back** (20 made-up tickets, Korean and English mixed, with fake names,
+`010-0000-xxxx` numbers and `@example.com` emails):
+
+| | Result |
+|---|---|
+| `aiFilter` "asks for a refund" | 7 of 20 rows: ids 1, 4, 6, 9, 12, 15, 18 — Korean and English both. Two runs gave the same 7 |
+| `aiRedact` name, email, phone number | `...My name is [REDACTED], phone [REDACTED].` and `연락처 [REDACTED], 이름은 [REDACTED]입니다.` The surrounding text was kept |
+
+Row 9 shows the docs' warning in action: `Jisoo Han, 010-0000-0009.` became
+`[REDACTED], [REDACTED].` — fine here, but the model decides what to keep, and the
+docs say not to rely on it as anonymisation.
+
+**One thing to know before you copy this.** `aiFilter` and `aiRedact` send
+`temperature = 0.0` by default, and `claude-haiku-5-5` rejects it:
+`HTTP 400 [invalid_request_error] temperature is deprecated for this model`. The
+lab passes `map('temperature', '1')` on every call, which the API accepts (an
+empty string is refused by ClickHouse: "must be a number"). The answers are then
+sampled rather than greedy, so another run can differ from the table above.
+
+**The limit.** `ai_function_max_api_calls_per_query` is an exact cap. On the
+first 8 tickets (8 calls):
+
+| Setting | Outcome |
+|---|---|
+| `max_api_calls_per_query = 10` | returns `3`, 8 calls |
+| `= 3`, `throw_on_quota_exceeded = 1` (default) | `Code: 290 ... AI API call limit reached: 3 calls made, maximum: 3 (LIMIT_EXCEEDED)` |
+| `= 3`, `throw_on_quota_exceeded = 0` | returns `1`, no error: 3 calls, 5 rows skipped (`AIRowsSkipped`) |
+
+The last row is the dangerous one — the query succeeds with a count that is wrong,
+and only `AIRowsSkipped` says so.
+
+**What it cost.** Per query, from `ProfileEvents` in `system.query_log` (the lab
+tags each query with `log_comment`):
+
+| Query | `AIAPICalls` | `AIInputTokens` | `AIOutputTokens` |
+|---|---|---|---|
+| `aiFilter` over 20 rows | 20 | 2182 | 60 |
+| `aiRedact` over 4 rows | 4 | 1105 | 168 |
+| limit 10, 8 rows | 8 | 875 | 24 |
+| limit 3, error | 3 | 318 | 9 |
+| limit 3, no throw | 3 | 318 | 9 |
+| **one run** | **38** | **4798** | **270** |
+
+One call per row. At Haiku 5.5 list price ($0.10 / $0.50 per million input /
+output tokens) one run is about $0.0006.
+
+**Why `aiSimilarity` is not run.** It needs an embeddings endpoint, and in the
+docs' "Supported providers" table (`ai-functions.mdx`, ClickHouse repository
+master) Anthropic is listed for chat functions only. An OpenAI key would be
+needed; the lab does not use one.
+
+**Provider hosts.** The docs suggest `remote_url_allow_hosts` to limit which
+hosts the functions may call; this container does not set it.
+
+---
+
 ### Also in 26.8, not covered by these labs
 
 Worth knowing about, in rough order of how likely they are to affect you:
@@ -249,7 +333,7 @@ Worth knowing about, in rough order of how likely they are to affect you:
 | `gini` | Aggregate function for the Gini coefficient |
 | `notHas`, array-of-integers subscript, `MultiPoint` | Small conveniences, all present and working |
 | `bigquery` table function and `BigQuery` engine | |
-| `aiSimilarity`, `aiFilter`, `aiRedact` | LLM-backed functions; need an external provider, so out of scope for an offline lab |
+| `aiSimilarity` | Embedding similarity of two texts; needs an embeddings provider, see the AI functions section for why it is not run. `aiFilter` and `aiRedact` are that section |
 | `CREATE HANDLER` | Custom HTTP handlers as DDL |
 | `parseQueryToJSON` / `formatQueryFromJSON` | AST to JSON and back |
 
@@ -261,6 +345,10 @@ Two of them needed fixing along the way, and both are noted in the SQL:
 `UNION ALL` does not expose its column aliases to a trailing `ORDER BY`, and
 `tokens()` will not take a locale from a column.
 
+The AI functions section was run separately, on **26.8.36.3** (the image `26.8` resolved to on
+2026-11-04), with the Anthropic API; labs 01–03 were not re-run on that build,
+so the version at the top of this page is unchanged.
+
 ---
 
 ## 한국어
@@ -269,13 +357,15 @@ Two of them needed fixing along the way, and both are noted in the SQL:
 
 26.8은 LTS이고 규모가 큽니다 — changelog에 하위 호환성 변경 21개, 신기능 46개,
 성능 개선 89개가 있습니다. 이 랩은 그중 **컨테이너 하나에서 눈으로 확인할 수
-있고**, 속도가 아니라 쿼리를 쓰는 방식을 바꾸는 세 가지를 다룹니다.
+있고**, 속도가 아니라 쿼리를 쓰는 방식을 바꾸는 세 가지를 다루고, Anthropic API 키가
+필요한 AI 함수를 따로 더합니다(`tools/hol`은 실행하지 않음).
 
 | 랩 | 기능 | 선정 이유 |
 |----|------|-----------|
 | [01](01-pipe-operators.sql) | 파이프 연산자 `\|>` | 수년 만의 가장 큰 문법 변화. 쿼리가 데이터 흐름 순서로 읽힘 |
 | [02](02-groups-window-frame.sql) | `GROUPS` 윈도우 프레임 | SQL이 정의한 세 번째 프레임 모드, ClickHouse에 없던 것 |
 | [03](03-cjk-tokenizers.sql) | `japanese`·`chinese`·`icu` 토크나이저 | 쓸모 있는 한국어 텍스트 인덱스와 무용지물의 차이 |
+| [AI](ai-functions.sql) | `aiFilter`·`aiRedact` (Beta) | `WHERE` 안의 LLM 호출 — 무엇을 돌려주고, 얼마가 들고, 무엇이 막는지. Anthropic 키 필요 |
 
 ### 빠른 시작
 
@@ -284,6 +374,7 @@ Two of them needed fixing along the way, and both are noted in the SQL:
 ./01-pipe-operators.sh
 ./02-groups-window-frame.sh
 ./03-cjk-tokenizers.sh
+./ai-functions.sh         # ./.env에 ANTHROPIC_API_KEY 필요, tools/hol·smoke는 실행하지 않음
 ```
 
 각 `NN-*.sh`는 같은 이름의 `.sql`을 `clickhouse-client`에 넘깁니다. SQL을
@@ -490,6 +581,84 @@ Code: 139. The Japanese tokenizer requires a dictionary configured under
 
 ---
 
+### AI 함수: `aiFilter`와 `aiRedact` (`tools/hol` 밖)
+
+```sql
+SELECT id, body FROM tickets
+WHERE aiFilter(body, 'the customer asks for a refund or for their money back',
+               map('temperature', '1'))
+```
+
+행을 LLM으로 보내는 함수입니다. 26.8에서는 **Beta**입니다 — `system.settings`에서
+모든 `ai_function_*` 설정의 tier가 `Beta`입니다. 출력은 비결정적이고, 넘긴 텍스트는
+제공자에게 갑니다. 문서에는 프롬프트 인젝션 경고가 있습니다. 입력 텍스트가 모델을
+유도할 수 있으므로, 출력으로 SQL·셸 명령·접근 결정을 만들기 전에 신뢰하지 않는
+값으로 다루세요.
+
+**준비.** 제공자 `anthropic`, 모델 `claude-haiku-5-5`, 로컬 OSS 26.8.36.3에서
+작성자 본인의 키로 실행했습니다. 키는 저장소에 없습니다. `ai-functions.sh`가
+`./.env`(gitignore, `ANTHROPIC_API_KEY=...` 한 줄, 권한 600)에서 읽어
+`CREATE NAMED COLLECTION` 문을 만들고 stdin으로 `clickhouse-client`에 넘기며
+(`--echo` 없음), 끝나면 컬렉션을 지웁니다. `ai_function_text_default_credentials`가
+텍스트 함수를 이 컬렉션으로 향하게 합니다. `system.named_collections`와
+`query_log`에서 비밀 값은 `[HIDDEN]`으로 보입니다. 실행 뒤 `system.query_log`,
+`system.text_log`, 서버 로그 파일에서 키 앞 20자를 검색했을 때 랩이 남긴 흔적은
+없었습니다(검색 쿼리 자체만 걸렸습니다).
+
+**결과** (한·영 섞인 가짜 티켓 20건. 가짜 이름, `010-0000-xxxx`, `@example.com`):
+
+| | 결과 |
+|---|---|
+| `aiFilter` "환불 요청" | 20행 중 7행: id 1, 4, 6, 9, 12, 15, 18 — 한국어와 영어 모두. 두 번 돌려 같은 7행 |
+| `aiRedact` 이름·이메일·전화번호 | `...My name is [REDACTED], phone [REDACTED].`, `연락처 [REDACTED], 이름은 [REDACTED]입니다.` 주변 텍스트는 유지 |
+
+9번 행이 문서의 경고를 보여 줍니다. `Jisoo Han, 010-0000-0009.`가
+`[REDACTED], [REDACTED].`가 됐습니다. 여기서는 무난하지만 무엇을 남길지는 모델이
+정하고, 문서도 익명화 수단으로 믿지 말라고 합니다.
+
+**복사해 가기 전에 알아둘 것.** `aiFilter`와 `aiRedact`는 기본으로
+`temperature = 0.0`을 보내는데 `claude-haiku-5-5`는 이를 거부합니다.
+`HTTP 400 [invalid_request_error] temperature is deprecated for this model`.
+이 랩은 모든 호출에 `map('temperature', '1')`을 넘기고 API가 받아들입니다(빈
+문자열은 ClickHouse가 "must be a number"로 거부). 그래서 답이 탐욕적이 아니라
+샘플링이므로 다시 돌리면 위 표와 다를 수 있습니다.
+
+**제한.** `ai_function_max_api_calls_per_query`는 정확한 상한입니다. 앞 8개 티켓
+(호출 8회) 기준:
+
+| 설정 | 결과 |
+|---|---|
+| `max_api_calls_per_query = 10` | `3` 반환, 호출 8회 |
+| `= 3`, `throw_on_quota_exceeded = 1`(기본) | `Code: 290 ... AI API call limit reached: 3 calls made, maximum: 3 (LIMIT_EXCEEDED)` |
+| `= 3`, `throw_on_quota_exceeded = 0` | 오류 없이 `1` 반환: 호출 3회, 5행 건너뜀(`AIRowsSkipped`) |
+
+마지막 줄이 위험합니다. 쿼리는 성공하는데 카운트가 틀리고, `AIRowsSkipped`만이
+이를 알려 줍니다.
+
+**비용.** `system.query_log`의 `ProfileEvents`로 쿼리별 값입니다(랩이 쿼리마다
+`log_comment`를 붙임):
+
+| 쿼리 | `AIAPICalls` | `AIInputTokens` | `AIOutputTokens` |
+|---|---|---|---|
+| `aiFilter` 20행 | 20 | 2182 | 60 |
+| `aiRedact` 4행 | 4 | 1105 | 168 |
+| 한도 10, 8행 | 8 | 875 | 24 |
+| 한도 3, 오류 | 3 | 318 | 9 |
+| 한도 3, throw 끔 | 3 | 318 | 9 |
+| **1회 실행** | **38** | **4798** | **270** |
+
+행마다 호출 1회입니다. Haiku 5.5 정가(입력 100만 토큰 $0.10 / 출력 $0.50) 기준
+1회 실행은 약 $0.0006입니다.
+
+**`aiSimilarity`를 실행하지 않는 이유.** 임베딩 엔드포인트가 필요한데, 문서의
+"Supported providers" 표(ClickHouse 저장소 master의 `ai-functions.mdx`)에서
+Anthropic은 채팅 함수만 지원합니다. OpenAI 키가 있어야 하며 이 랩은 쓰지 않았습니다.
+
+**제공자 호스트.** 문서는 함수가 호출할 호스트를 `remote_url_allow_hosts`로
+제한하라고 합니다. 이 컨테이너는 설정하지 않았습니다.
+
+---
+
 ### 26.8의 다른 변화 (이 랩에서 다루지 않음)
 
 영향을 받을 가능성이 큰 순서로:
@@ -504,7 +673,7 @@ Code: 139. The Japanese tokenizer requires a dictionary configured under
 | `gini` | 지니 계수 집계 함수 |
 | `notHas`, 정수 배열 첨자, `MultiPoint` | 소소한 편의 기능, 모두 동작 확인 |
 | `bigquery` 테이블 함수와 `BigQuery` 엔진 | |
-| `aiSimilarity`·`aiFilter`·`aiRedact` | LLM 기반 함수. 외부 제공자가 필요해 오프라인 랩 범위 밖 |
+| `aiSimilarity` | 두 텍스트의 임베딩 유사도. 임베딩 제공자가 필요해 실행하지 않음(이유는 AI 함수 절). `aiFilter`·`aiRedact`는 그 절 |
 | `CREATE HANDLER` | 커스텀 HTTP 핸들러를 DDL로 |
 | `parseQueryToJSON` / `formatQueryFromJSON` | AST ↔ JSON |
 
@@ -514,3 +683,7 @@ Code: 139. The Japanese tokenizer requires a dictionary configured under
 실행했고, 위에 인용한 출력은 그 실행 결과입니다. 그 과정에서 두 가지를 고쳐야
 했고 둘 다 SQL에 적어뒀습니다. `UNION ALL`은 컬럼 별칭을 뒤따르는 `ORDER BY`에
 노출하지 않으며, `tokens()`는 로케일을 컬럼에서 받지 않습니다.
+
+AI 함수 절은 따로 **26.8.36.3**(2026-11-04에 `26.8` 이미지가 가리킨 빌드)에서 Anthropic
+API로 실행했습니다. 01–03은 그 빌드에서 다시 돌리지 않았으므로 맨 위의 버전
+표기는 그대로입니다.
