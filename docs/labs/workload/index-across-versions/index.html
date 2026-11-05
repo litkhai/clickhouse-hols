@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indexes across ClickHouse versions · ClickHouse HOLs</title>
+<meta name="description" content="Indexes across ClickHouse versions — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/index-across-versions</code>
+    
+  </nav>
+  <div class="readme en"><h1>Indexes across ClickHouse versions</h1>
+<hr />
+<p>The same index SQL run on six builds (the LTS lines 24.8, 25.3, 25.8, 26.3, 26.8 and the latest stable 26.10).
+The main measure is how much each query reads: the granules that <code>EXPLAIN indexes = 1</code> selects and <code>read_rows</code>
+from <code>system.query_log</code>. Times are recorded only for the 20M-row tables, as the minimum of 5 runs. Every cell in
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/RESULTS.md">RESULTS.md</a> comes from a run; the raw per-probe data (including <code>query_log</code> rows) is in
+<code>results/&lt;version&gt;.json</code>.</p>
+<p>What is probed: the primary index (a condition on the first sorting-key column, on the second column only,
+on a function of the key, on a non-key column, <code>use_primary_key = 0</code>); skip indexes on non-key columns (<code>minmax</code>
+on a correlated and an uncorrelated column, <code>set(100)</code> vs <code>set(0)</code>, <code>bloom_filter</code> with <code>GRANULARITY</code> 1 and 4,
+<code>tokenbf_v1</code> at two sizes, <code>ngrambf_v1</code>, <code>!=</code>, <code>NOT</code>, <code>OR</code>, a value-preserving cast); the <code>text</code> index (<code>hasToken</code>,
+<code>hasAnyTokens</code>, <code>hasAllTokens</code>, <code>LIKE</code>, <code>=</code>, <code>NOT</code>, direct read, index size and posting-list codec); automatic minmax
+indices; the query condition cache; a skip index under <code>FINAL</code>; index sizes; and the statements each build rejects.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/index-across-versions
+./run_matrix.py                      # all six versions, about 20 minutes; pulls nothing, images must exist
+./run_matrix.py --versions 26.10     # one version (prefix of a line in versions.txt)
+./run_matrix.py --only 03            # one file or probe-id prefix (a file's results replace that file in the JSON)
+./run_matrix.py --report-only        # rebuild RESULTS.md from results/*.json
+tools/hol run workload/index-across-versions   # from the repository root: the SQL on 26.10 only, must not raise
+</code></pre>
+<p><code>versions.txt</code> pins the exact tags, oldest first. <code>run_matrix.py</code> is the same file as in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions">workload/final-across-versions</a>, <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a>
+and <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>; it removes each container with <code>docker rm -f -v</code>.
+Containers are named <code>iav-&lt;tag&gt;</code>. A statement preceded by <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code> is a probe, the
+others are setup; <code>value</code> puts the first result row in the table cell, <code>show</code> prints the newest version's rows.
+<code>-- settings: a, b</code> lists settings to look up in <code>system.settings</code> (then <code>system.merge_tree_settings</code>). Each statement
+runs in its own <code>clickhouse-client</code> call, so there is no bare <code>SET</code>. Each probe's comment states the correct answer
+computed from the data. A setup statement that fails skips the rest of its file, so statements that only newer builds
+accept sit at the end of a file.</p>
+<p>Granules come from a probe named <code>&lt;id&gt;-g</code> that keeps the <code>PrimaryKey</code>, <code>Skip</code>, <code>Name:</code>, <code>Granules:</code> and
+<code>Search Algorithm:</code> lines of <code>EXPLAIN indexes = 1</code> for the same query (26.8 and 26.10 draw the plan as a tree, so the
+probe strips the <code>│ └ ├ ─</code> prefixes first).</p>
+<h3>Probes</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-primary.sql</code></td>
+<td>8,192,000 rows (1,000 granules), <code>ORDER BY (a, b)</code> with a 10-value <code>a</code> and with a 100,000-value <code>a</code>, and <code>ORDER BY ts</code>: <code>a = 3</code>, <code>b = …</code> alone, <code>a AND b</code>, <code>a IN</code>, a non-key column, a time range, <code>toDate(ts)</code>, <code>toHour(ts)</code>, <code>use_primary_key = 0</code> (26.1+, last)</td>
+</tr>
+<tr>
+<td><code>02-skip.sql</code></td>
+<td>8,192,000 rows, <code>ORDER BY id</code>, one table with eleven indexed non-key columns: <code>minmax</code> (correlated / uncorrelated), <code>set(100)</code> / <code>set(0)</code> on ~8,000 values per granule, <code>bloom_filter</code> <code>GRANULARITY</code> 1 / 4, <code>tokenbf_v1(32768, 3, 0)</code> and <code>(1024, 2, 0)</code>, <code>ngrambf_v1(4, 32768, 3, 0)</code>; equality, <code>IN</code>, <code>!=</code>, <code>NOT</code>, <code>LIKE</code>, 3-character <code>LIKE</code>, <code>OR</code> across two indexes, <code>toNullable(uid) = …</code>; index and part sizes</td>
+</tr>
+<tr>
+<td><code>03-text.sql</code></td>
+<td>20,000,000 rows, <code>text(tokenizer = splitByNonAlpha)</code>: default granularity, size against the part, <code>hasToken</code> / <code>hasAnyTokens</code> / <code>hasAllTokens</code> / <code>LIKE</code> / <code>LIKE</code> on a substring / <code>=</code> / <code>NOT</code> / a frequent token, a column read through the index, <code>use_skip_indexes = 0</code>, <code>query_plan_direct_read_from_text_index = 0</code>; then <code>posting_list_codec = 'bitpacking'</code> and <code>'pfor'</code> (last). Fails at <code>CREATE</code> on 24.8–25.8</td>
+</tr>
+<tr>
+<td><code>04-auto-minmax.sql</code></td>
+<td><code>add_minmax_index_for_numeric_columns = 1</code> and <code>add_minmax_index_for_string_columns = 1</code> against the same table without them: the indices created, ranges on a correlated <code>UInt32</code> and <code>String</code>, a <code>DateTime</code> range; then <code>add_minmax_index_for_temporal_columns = 1</code> (last). Fails at <code>CREATE</code> on 24.8</td>
+</tr>
+<tr>
+<td><code>05-condition-cache.sql</code></td>
+<td>a selective filter on a non-key column run twice with the default, with <code>use_query_condition_cache = 0</code> and <code>= 1</code>; <code>system.query_condition_cache</code> entries; the count after an <code>INSERT</code>; then a lightweight <code>UPDATE</code> between two runs (last; 25.7+)</td>
+</tr>
+<tr>
+<td><code>06-final.sql</code></td>
+<td>1,000,000-row <code>ReplacingMergeTree</code> with a <code>bloom_filter</code> index, 1% of keys re-written: an old and a new value under <code>FINAL</code>, <code>use_skip_indexes_if_final = 0</code> (the full matrix is <code>final-across-versions/05-skip-index.sql</code>)</td>
+</tr>
+<tr>
+<td><code>07-scale.sql</code></td>
+<td>20,000,000 rows, every column <code>CODEC(LZ4)</code>: primary-key point lookup, <code>bloom_filter</code> lookup, <code>tokenbf_v1</code> <code>hasToken</code>, each with <code>use_skip_indexes = 0</code>, and a scan on a non-key column; every probe also with <code>use_query_condition_cache = 0</code> (5 repeats each); part and column codec; index sizes; then a control with the table default codec pinned to LZ4 (last, 25.8+)</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td><code>force_primary_key</code> and <code>force_data_skipping_indices</code> refusals (Code 277), the index type names of each generation (<code>inverted</code>, <code>full_text</code>, <code>text(tokenizer = 'default')</code>, <code>text</code> without a tokenizer), a <code>text</code> index on <code>UInt64</code>, <code>MergeTree</code> without <code>ORDER BY</code>. <code>tools/hol</code> does not run this directory; the runner does</td>
+</tr>
+</tbody>
+</table>
+<p>Tables of 1M rows or more carry <code>CODEC(LZ4)</code> on every column: from 26.9 a part of 100 MiB or more defaults to
+<code>ZSTD(3)</code> (ClickHouse#108786), older builds write LZ4, so without the pin the sizes and times would compare codecs
+as well as builds. <code>07-codec</code> shows the part default and the column codec on each build.</p>
+<h3>What the runs show</h3>
+<p>Run 2026-11-05 on one 12-CPU, 15.6 GiB Docker VM, a fresh container per build. Another session's containers
+(<code>lf-gateway-lab-*</code>) were running at 0–100% of 1,200% CPU when each build's run started (table in RESULTS.md).
+Granules are <code>selected/total</code> from <code>EXPLAIN indexes = 1</code>; rows are <code>read_rows</code>.</p>
+<p><strong>Primary index — the same on all six builds.</strong> On <code>ORDER BY (a, b)</code> with 1,000 granules: <code>a = 3</code> selects 101,
+<code>a AND b</code> 1, <code>a IN (3, 7)</code> 202. A condition on <code>b</code> alone selects 19 when <code>a</code> has 10 values and 1,000 when it has
+100,000 (generic exclusion search; the <code>Search Algorithm:</code> line appears from the 25.8 build). On <code>ORDER BY ts</code>:
+a one-day range and <code>toDate(ts) = …</code> both 12, <code>toHour(ts) = 3</code> 231 (not all: the function is monotonic within
+a granule's range, so granules whose range cannot contain hour 3 are excluded), a non-key column 1,000.
+<code>use_primary_key = 0</code> exists from the 26.3 build and selects 1,000. <code>count()</code> with a key condition read only the
+boundary granules on every build (16,385 rows for 819,200 matching).</p>
+<p><strong>Skip indexes.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Probe (8,192,000 rows, 1,000 granules)</th>
+<th>24.8–26.3</th>
+<th>26.8, 26.10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>minmax</code>, correlated column, <code>=</code> / range</td>
+<td>1 / 2</td>
+<td>1 / 2</td>
+</tr>
+<tr>
+<td><code>minmax</code>, uncorrelated column, <code>=</code> / range</td>
+<td>998 / 1,000</td>
+<td>998 / 1,000</td>
+</tr>
+<tr>
+<td><code>set(100)</code>, value absent, ~8,000 distinct per granule</td>
+<td>1,000 (8,192,000 rows)</td>
+<td>0 rows (part pruned by statistics)</td>
+</tr>
+<tr>
+<td><code>set(0)</code>, same value</td>
+<td>0</td>
+<td>0 rows (part pruned by statistics)</td>
+</tr>
+<tr>
+<td><code>bloom_filter</code>, one value / <code>IN</code> 3 values / <code>!=</code></td>
+<td>27 / 83 / 1,000</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>bloom_filter GRANULARITY 4</code>, one value</td>
+<td>28</td>
+<td>28</td>
+</tr>
+<tr>
+<td><code>toNullable(uid) = …</code></td>
+<td>1,000</td>
+<td>27</td>
+</tr>
+<tr>
+<td><code>tokenbf_v1(32768, 3, 0)</code>: <code>hasToken</code> / <code>LIKE '%timeout%'</code> / <code>NOT hasToken</code></td>
+<td>9 / 1,000 / 1,000</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>tokenbf_v1(1024, 2, 0)</code>, <code>hasToken</code></td>
+<td>825</td>
+<td>825</td>
+</tr>
+<tr>
+<td><code>ngrambf_v1(4, …)</code>: <code>LIKE '%timeout%'</code> / <code>'%imeou%'</code> / <code>'%eou%'</code> / <code>hasToken</code></td>
+<td>9 / 9 / 1,000 / 9</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>uid = … OR cat = 'rare'</code> (two indexes)</td>
+<td>24.8–25.8: 1,000; 26.3: 28</td>
+<td>28</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>On 26.8 and 26.10 the <code>set</code> probes read 0 rows for a different reason: <code>EXPLAIN</code> shows a <code>Statistics</code> step
+  (<code>Granules: 0/1000</code>) before <code>PrimaryKey</code>. Column statistics are built automatically (<code>auto_statistics_types</code>
+  <code>basic, uniq_v2</code>; <code>system.settings_changes</code> lists the default from 26.4, as is <code>use_statistics_for_part_pruning = 1</code>),
+  and the value 100001 is outside the column's range, so the whole part is skipped. The 26.3 build reads all 1,000
+  granules. The <code>set(100)</code> result on ≤26.3 is the one the index itself gives: a granule with more distinct values than
+  the limit cannot be skipped. <code>set(0)</code> (no limit) works but its index is 30.1 MiB against 67 bytes.</li>
+<li><code>toNullable(uid) = …</code> uses the index from the 26.8 build: ClickHouse#123239 (26.10), backported to 26.8 as #123727.</li>
+<li><code>OR</code> across two indexes is <code>&lt;Combined skip indexes&gt;</code> from the 26.3 build (25.12 changelog,
+  <code>use_skip_indexes_for_disjunctions</code>); 25.8 reads all 8,192,000 rows.</li>
+<li><code>tokenbf_v1</code> does not serve <code>LIKE '%word%'</code>; <code>ngrambf_v1</code> does, down to <code>n</code> characters. With the parameters
+  <code>(1024, 2, 0)</code> the token filter kept 825 of 1,000 granules (too small for ~9,000 tokens per granule).</li>
+<li>Index sizes on 24.8–26.8: <code>i_tok</code> 25.7 MiB, <code>i_ngr</code> 26.3 MiB, <code>i_uid</code> 7.8 MiB, <code>i_tok_small</code> 0.81 MiB; 26.10 16.6,
+  15.6, 7.6 and 0.51 MiB. The columns are pinned to <code>CODEC(LZ4)</code>, but the index files take the part's default codec,
+  which is <code>ZSTD(3)</code> on 26.10 for this 440 MiB part.</li>
+</ul>
+<p><strong><code>text</code> index (26.3+; 20,000,000 rows, 2,442 granules).</strong> Default granularity 100,000,000 (one index block per
+part). <code>hasToken</code>, <code>hasAnyTokens</code>, <code>hasAllTokens</code> select 20 granules (163,840 rows); <code>msg = …</code> 1; <code>NOT hasToken</code> all.
+<code>count()</code> with <code>hasToken</code> is answered from the index on 26.8 and 26.10 (16 and 0 bytes read; 26.10 still reports
+<code>read_rows</code> 20,000,000). <code>LIKE '%timeout%'</code> and <code>LIKE '%imeou%'</code>: 26.3 reads all 2,442 granules (975,578,100 bytes,
+31 ms), 26.8 and 26.10 select 20 (4–5 ms) — the 26.4 changelog has "<code>LIKE</code> queries … can use text indices" (#98149).
+Without the index (<code>use_skip_indexes = 0</code>) the same lookup takes 25–31 ms, with it 1–2 ms. Size: the default
+index was 233.3 MiB (26.3, 26.8) and 232.9 MiB (26.10) against a 225.4 MiB data part; <code>posting_list_codec = 'bitpacking'</code>
+87.5 MiB (26.3), 97.6 MiB (26.8), 97.2 MiB (26.10); <code>'pfor'</code> 40.0 MiB (26.10 only; 26.8 rejects it with Code 36).</p>
+<p><strong>Index type names per build</strong> (<code>errors/</code>): <code>inverted</code> is refused on 24.8 and 25.3 (Code 127, "use <code>full_text</code>");
+<code>full_text</code> is accepted on 25.3 with <code>allow_experimental_full_text_index = 1</code> in the <code>CREATE</code>'s <code>SETTINGS</code>, on 24.8
+only after a session <code>SET</code> (checked by hand); 25.8 accepts <code>text(tokenizer = 'default')</code> (experimental); from 26.3
+<code>text</code> needs a tokenizer (Code 36) and <code>'default'</code> is unknown. <code>MergeTree</code> without <code>ORDER BY</code> is refused on ≤25.8
+(Code 42) and accepted from 26.3 (<code>create_table_empty_primary_key_by_default</code>, 25.11). <code>force_primary_key</code> and
+<code>force_data_skipping_indices</code> refuse with Code 277 on every build.</p>
+<p><strong>Automatic minmax indices (25.3+).</strong> <code>add_minmax_index_for_numeric_columns = 1</code> and <code>…_string_columns = 1</code> create
+<code>auto_minmax_index_id</code>, <code>…_s</code>, <code>…_v</code>: a range on the correlated <code>UInt32</code> selects 2 of 1,000 granules (1,000 without),
+the <code>String</code> 1. A <code>DateTime</code> range is not covered (1,000) until <code>add_minmax_index_for_temporal_columns = 1</code>
+(from the 26.3 build): 12. 24.8 does not know the settings (Code 115).</p>
+<p><strong>Query condition cache.</strong> The second run of a selective filter on a non-key column read 262,144 rows instead of
+8,192,000 from the 25.8 build (default on; 25.4 changelog). 25.3 has the setting with default 0; with <code>= 1</code> the
+second run read 196,608. After an <code>INSERT</code> of 1,000 matching rows the count was right (1,004) and 263,144 rows were
+read. A lightweight <code>UPDATE</code> between two runs gave 4 then 5, correct, on every build that has <code>UPDATE</code> (25.8+).
+At 20M rows the cache made a repeated lookup without any index as cheap as with one (below).</p>
+<p><strong>Skip index under <code>FINAL</code>.</strong> 24.8 and 25.3 do not use the index under <code>FINAL</code> by default (1,210,112 rows read);
+from 25.8 they do (171,072), and <code>EXPLAIN</code> adds a <code>PrimaryKeyExpand</code> step (5 → 14 granules, the same key ranges in
+the other part). Answers are correct on every build. With <code>use_skip_indexes_if_final = 0</code>, ≤26.3 read 1,210,112 rows
+in both runs of the matrix; 26.8 and 26.10 read fewer and the number differed between the two runs (1,137,344–1,191,920).
+Not the cache (the same with it off, by hand on 26.10); not investigated further.</p>
+<h3>20M-row lookups (<code>07-scale.sql</code>)</h3>
+<p>Minimum of 5 runs in ms (<code>durations_ms</code> in <code>results/*.json</code>), <code>use_query_condition_cache = 0</code> (24.8 has no cache;
+its cell is the run without the setting). All columns <code>CODEC(LZ4)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>24.8</th>
+<th>25.3</th>
+<th>25.8</th>
+<th>26.3</th>
+<th>26.8</th>
+<th>26.10</th>
+<th>26.10, table default LZ4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>primary key <code>id = …</code></td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bloom_filter</code> <code>uid = …</code> (475,136 rows)</td>
+<td>4</td>
+<td>5</td>
+<td>4</td>
+<td>5</td>
+<td>5</td>
+<td>18</td>
+<td>5</td>
+</tr>
+<tr>
+<td>same, <code>use_skip_indexes = 0</code> (20M rows)</td>
+<td>5</td>
+<td>7</td>
+<td>6</td>
+<td>5</td>
+<td>6</td>
+<td>5</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tokenbf_v1</code> <code>hasToken</code> (163,840 rows)</td>
+<td>38</td>
+<td>40</td>
+<td>38</td>
+<td>35</td>
+<td>37</td>
+<td>67</td>
+<td>37</td>
+</tr>
+<tr>
+<td>same, <code>use_skip_indexes = 0</code></td>
+<td>45</td>
+<td>43</td>
+<td>32</td>
+<td>29</td>
+<td>25</td>
+<td>23</td>
+<td></td>
+</tr>
+<tr>
+<td>non-key column, no index</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>26.10's slower index lookups are the index files' codec: the part default is <code>ZSTD(3)</code> (<code>07-codec</code>), so the
+  <code>tokenbf</code> index is 40.6 MiB instead of 62.9 MiB and slower to read. Pinning the table's
+  <code>default_compression_codec = 'LZ4'</code> (<code>big_lz4</code>, the table setting exists from the 25.8 build) gives 37 and 5 ms.</li>
+<li>A <code>bloom_filter</code> on a 64-bit hash saved nothing here: 4–5 ms with it, 5–7 ms without. The <code>tokenbf</code> on a string
+  column was slower than scanning it on 25.8–26.10 (35–38 ms against 23–32 ms): reading 63 MiB of filter costs more
+  than the scan it avoids. The <code>text</code> index (<code>03-text.sql</code>) answered the same lookup in 1–2 ms.</li>
+<li>With the cache on (the default from 25.8), a repeated lookup with no index took 1–3 ms (65,536 / 327,680 rows).</li>
+</ul>
+<h3>Screens</h3>
+<p>Captured on 2026-11-05 from the ClickHouse <code>/play</code> UI of local throwaway containers loaded with this lab's
+files, for the notes article <code>core-architecture/clickhouse-index</code>.</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/01-explain-generic-exclusion-26-10.png"><code>images/01-explain-generic-exclusion-26-10.png</code></a> — 26.10.3.7, <code>b = 5000003</code> on <code>ORDER BY (a, b)</code> with a 10-value <code>a</code>: 19/1000 granules, generic exclusion search</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/02-or-skip-indexes-25-8.png"><code>images/02-or-skip-indexes-25-8.png</code></a> — 25.8.33.6, <code>uid = … OR cat = 'rare'</code>: only <code>i_uid</code> analysed, 1000/1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/03-or-skip-indexes-26-10.png"><code>images/03-or-skip-indexes-26-10.png</code></a> — the same on 26.10.3.7: <code>&lt;Combined skip indexes&gt;</code> 28/1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/04-statistics-part-pruning-26-10.png"><code>images/04-statistics-part-pruning-26-10.png</code></a> — 26.10.3.7, <code>many = 100001</code> (outside the column's range): <code>Statistics</code> 0/1000 before the primary key and the <code>set(100)</code> index</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/05-text-index-size-26-10.png"><code>images/05-text-index-size-26-10.png</code></a> — 26.10.3.7, the <code>text</code> index on 20M rows: 232.89 MiB (default), 97.24 MiB (<code>bitpacking</code>), 40.00 MiB (<code>pfor</code>), data part 225.41 MiB</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/06-condition-cache-26-10.png"><code>images/06-condition-cache-26-10.png</code></a> — 26.10.3.7, <code>system.query_log</code> for <code>count() WHERE v = 7</code> run twice and once with the cache off: 8,192,000 / 262,144 / 8,192,000 rows</li>
+</ul>
+<h3>Not covered here</h3>
+<ul>
+<li>Distributed and replicated tables, <code>SharedMergeTree</code>, parallel replicas, ClickHouse Cloud.</li>
+<li>Projections, <code>vector_similarity</code> indexes, column statistics as a query-planning input (only their part pruning
+  showed up), tokenizers other than <code>splitByNonAlpha</code> (see <code>usecase/fulltext-search</code> and
+  <code>usecase/korean-rag-tokenizers</code>), phrase search, data larger than 20M rows, many parts per table.</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>같은 인덱스 SQL을 빌드 여섯 개(LTS 24.8, 25.3, 25.8, 26.3, 26.8과 최신 안정판 26.10)에서 실행합니다. 주된 척도는
+쿼리마다 읽는 양입니다. <code>EXPLAIN indexes = 1</code>이 고른 granule 수와 <code>system.query_log</code>의 <code>read_rows</code>입니다. 시간은
+2,000만 행 테이블에서만 5회 최솟값으로 기록합니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/RESULTS.md">RESULTS.md</a>의 모든 셀은 실행 결과이고, probe별 원자료
+(<code>query_log</code> 행 포함)는 <code>results/&lt;버전&gt;.json</code>에 있습니다.</p>
+<p>확인하는 것: 기본 인덱스(정렬 키 첫 컬럼 조건, 둘째 컬럼만의 조건, 키의 함수, 키가 아닌 컬럼, <code>use_primary_key = 0</code>),
+키가 아닌 컬럼의 skip index(상관 있는 컬럼과 없는 컬럼의 <code>minmax</code>, <code>set(100)</code>과 <code>set(0)</code>, <code>GRANULARITY</code> 1 · 4의
+<code>bloom_filter</code>, 크기 두 가지의 <code>tokenbf_v1</code>, <code>ngrambf_v1</code>, <code>!=</code>, <code>NOT</code>, <code>OR</code>, 값을 바꾸지 않는 캐스트), <code>text</code> 인덱스
+(<code>hasToken</code>, <code>hasAnyTokens</code>, <code>hasAllTokens</code>, <code>LIKE</code>, <code>=</code>, <code>NOT</code>, direct read, 인덱스 크기와 posting list 코덱), 자동 minmax
+인덱스, query condition cache, <code>FINAL</code> 아래의 skip index, 인덱스 크기, 빌드마다 거부되는 문장.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/index-across-versions
+./run_matrix.py                      # 여섯 버전 전부, 약 20분; 이미지를 받지 않으므로 미리 있어야 함
+./run_matrix.py --versions 26.10     # 한 버전(versions.txt 줄의 접두사)
+./run_matrix.py --only 03            # 파일이나 probe id 접두사 하나(그 파일의 결과만 JSON에서 바뀜)
+./run_matrix.py --report-only        # results/*.json에서 RESULTS.md만 다시 만듦
+tools/hol run workload/index-across-versions   # 저장소 루트에서: 26.10에서만 SQL 실행, 오류가 없어야 함
+</code></pre>
+<p><code>versions.txt</code>는 정확한 태그를 오래된 순으로 고정합니다. <code>run_matrix.py</code>는
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions">workload/final-across-versions</a>, <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions">workload/join-across-versions</a>,
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/upsert-across-versions">workload/upsert-across-versions</a>와 같은 파일이고, 컨테이너를 <code>docker rm -f -v</code>로 지웁니다.
+컨테이너 이름은 <code>iav-&lt;태그&gt;</code>입니다. <code>-- probe: &lt;id&gt; [repeat=N] [show] [value]</code> 바로 뒤의 문장이 probe이고 나머지는
+준비 문장입니다. <code>value</code>는 결과 첫 행을 표 셀에, <code>show</code>는 최신 버전의 결과 행을 출력합니다. <code>-- settings: a, b</code>는
+<code>system.settings</code>(없으면 <code>system.merge_tree_settings</code>)에서 찾을 설정입니다. 문장마다 <code>clickhouse-client</code>를 따로 부르므로
+단독 <code>SET</code>은 쓰지 않습니다. probe 주석에는 데이터로 계산한 정답이 있습니다. 준비 문장이 실패하면 그 파일의 나머지가
+건너뛰어지므로, 새 빌드만 받는 문장은 파일 끝에 둡니다.</p>
+<p>granule 수는 같은 쿼리의 <code>EXPLAIN indexes = 1</code>에서 <code>PrimaryKey</code>, <code>Skip</code>, <code>Name:</code>, <code>Granules:</code>, <code>Search Algorithm:</code> 줄만
+남기는 <code>&lt;id&gt;-g</code> probe가 냅니다(26.8 · 26.10은 계획을 트리로 그려서 <code>│ └ ├ ─</code> 접두사를 먼저 지움).</p>
+<h3>Probe</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-primary.sql</code></td>
+<td>8,192,000행(granule 1,000개), 값 10개인 <code>a</code>와 값 100,000개인 <code>a</code>의 <code>ORDER BY (a, b)</code>, <code>ORDER BY ts</code>: <code>a = 3</code>, <code>b = …</code>만, <code>a AND b</code>, <code>a IN</code>, 키가 아닌 컬럼, 시간 범위, <code>toDate(ts)</code>, <code>toHour(ts)</code>, <code>use_primary_key = 0</code>(26.1+, 마지막)</td>
+</tr>
+<tr>
+<td><code>02-skip.sql</code></td>
+<td>8,192,000행, <code>ORDER BY id</code>, 키가 아닌 컬럼 11개에 인덱스: <code>minmax</code>(상관 있음 / 없음), granule당 약 8,000값 컬럼의 <code>set(100)</code> / <code>set(0)</code>, <code>bloom_filter</code> <code>GRANULARITY</code> 1 / 4, <code>tokenbf_v1(32768, 3, 0)</code>과 <code>(1024, 2, 0)</code>, <code>ngrambf_v1(4, 32768, 3, 0)</code>; 등호, <code>IN</code>, <code>!=</code>, <code>NOT</code>, <code>LIKE</code>, 3글자 <code>LIKE</code>, 인덱스 두 개에 걸친 <code>OR</code>, <code>toNullable(uid) = …</code>; 인덱스와 파트 크기</td>
+</tr>
+<tr>
+<td><code>03-text.sql</code></td>
+<td>20,000,000행, <code>text(tokenizer = splitByNonAlpha)</code>: 기본 granularity, 파트 대비 크기, <code>hasToken</code> / <code>hasAnyTokens</code> / <code>hasAllTokens</code> / <code>LIKE</code> / 부분 문자열 <code>LIKE</code> / <code>=</code> / <code>NOT</code> / 흔한 토큰, 인덱스로 다른 컬럼 읽기, <code>use_skip_indexes = 0</code>, <code>query_plan_direct_read_from_text_index = 0</code>; 이어서 <code>posting_list_codec = 'bitpacking'</code>과 <code>'pfor'</code>(마지막). 24.8–25.8은 <code>CREATE</code>에서 실패</td>
+</tr>
+<tr>
+<td><code>04-auto-minmax.sql</code></td>
+<td><code>add_minmax_index_for_numeric_columns = 1</code> · <code>add_minmax_index_for_string_columns = 1</code>과 설정 없는 같은 테이블: 만들어진 인덱스, 상관 있는 <code>UInt32</code> · <code>String</code> 범위, <code>DateTime</code> 범위; 이어서 <code>add_minmax_index_for_temporal_columns = 1</code>(마지막). 24.8은 <code>CREATE</code>에서 실패</td>
+</tr>
+<tr>
+<td><code>05-condition-cache.sql</code></td>
+<td>키가 아닌 컬럼의 선택적 필터를 기본값, <code>use_query_condition_cache = 0</code>, <code>= 1</code>로 두 번씩; <code>system.query_condition_cache</code> 항목 수; <code>INSERT</code> 뒤 개수; 두 실행 사이의 lightweight <code>UPDATE</code>(마지막, 25.7+)</td>
+</tr>
+<tr>
+<td><code>06-final.sql</code></td>
+<td>100만 행 <code>ReplacingMergeTree</code>에 <code>bloom_filter</code> 인덱스, 키 1% 재기록: <code>FINAL</code> 아래 옛 값과 새 값, <code>use_skip_indexes_if_final = 0</code>(전체 매트릭스는 <code>final-across-versions/05-skip-index.sql</code>)</td>
+</tr>
+<tr>
+<td><code>07-scale.sql</code></td>
+<td>20,000,000행, 모든 컬럼 <code>CODEC(LZ4)</code>: 기본 키 점 조회, <code>bloom_filter</code> 조회, <code>tokenbf_v1</code> <code>hasToken</code>과 각각의 <code>use_skip_indexes = 0</code>, 키가 아닌 컬럼 스캔; 모든 probe를 <code>use_query_condition_cache = 0</code>으로도(각 5회); 파트 · 컬럼 코덱; 인덱스 크기; 이어서 테이블 기본 코덱을 LZ4로 고정한 대조군(마지막, 25.8+)</td>
+</tr>
+<tr>
+<td><code>errors/01-expected-failures.sql</code></td>
+<td><code>force_primary_key</code> · <code>force_data_skipping_indices</code> 거부(Code 277), 세대별 인덱스 타입 이름(<code>inverted</code>, <code>full_text</code>, <code>text(tokenizer = 'default')</code>, 토크나이저 없는 <code>text</code>), <code>UInt64</code>에 <code>text</code> 인덱스, <code>ORDER BY</code> 없는 <code>MergeTree</code>. <code>tools/hol</code>은 이 디렉터리를 돌리지 않고 러너는 돌림</td>
+</tr>
+</tbody>
+</table>
+<p>100만 행 이상 테이블은 모든 컬럼에 <code>CODEC(LZ4)</code>를 붙였습니다. 26.9부터 100 MiB 이상 파트의 기본 코덱이 <code>ZSTD(3)</code>이고
+(ClickHouse#108786) 옛 빌드는 LZ4라서, 고정하지 않으면 빌드와 함께 코덱도 비교하게 됩니다. <code>07-codec</code>이 빌드마다
+파트 기본값과 컬럼 코덱을 보여 줍니다.</p>
+<h3>결과</h3>
+<p>2026-11-05, 12 CPU · 15.6 GiB Docker VM 한 대에서 빌드마다 새 컨테이너로 실행했습니다. 다른 세션의 컨테이너
+(<code>lf-gateway-lab-*</code>)가 각 빌드 실행 시작 시점에 1,200% 중 0–100% CPU로 돌고 있었습니다(RESULTS.md 표).
+granule은 <code>EXPLAIN indexes = 1</code>의 <code>고른 수/전체</code>, 행은 <code>read_rows</code>입니다.</p>
+<p><strong>기본 인덱스 — 여섯 빌드 모두 같음.</strong> granule 1,000개의 <code>ORDER BY (a, b)</code>에서 <code>a = 3</code>은 101, <code>a AND b</code>는 1,
+<code>a IN (3, 7)</code>은 202개를 고릅니다. <code>b</code>만의 조건은 <code>a</code>가 값 10개일 때 19, 값 100,000개일 때 1,000입니다(generic exclusion
+search; <code>Search Algorithm:</code> 줄은 25.8 빌드부터 나옴). <code>ORDER BY ts</code>에서 하루 범위와 <code>toDate(ts) = …</code>는 둘 다 12,
+<code>toHour(ts) = 3</code>은 231입니다(전부가 아님: 함수가 granule 범위 안에서는 단조라, 3시를 담을 수 없는 granule은 제외됨).
+키가 아닌 컬럼은 1,000입니다. <code>use_primary_key = 0</code>은 26.3 빌드부터 있고 1,000을 고릅니다. 키 조건이 있는 <code>count()</code>는
+모든 빌드에서 경계 granule만 읽었습니다(일치 819,200행에 16,385행).</p>
+<p><strong>Skip index.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Probe(8,192,000행, granule 1,000개)</th>
+<th>24.8–26.3</th>
+<th>26.8, 26.10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>minmax</code>, 상관 있는 컬럼, <code>=</code> / 범위</td>
+<td>1 / 2</td>
+<td>1 / 2</td>
+</tr>
+<tr>
+<td><code>minmax</code>, 상관 없는 컬럼, <code>=</code> / 범위</td>
+<td>998 / 1,000</td>
+<td>998 / 1,000</td>
+</tr>
+<tr>
+<td><code>set(100)</code>, 없는 값, granule당 약 8,000값</td>
+<td>1,000(8,192,000행)</td>
+<td>0행(통계로 파트 제외)</td>
+</tr>
+<tr>
+<td><code>set(0)</code>, 같은 값</td>
+<td>0</td>
+<td>0행(통계로 파트 제외)</td>
+</tr>
+<tr>
+<td><code>bloom_filter</code>, 값 하나 / <code>IN</code> 3개 / <code>!=</code></td>
+<td>27 / 83 / 1,000</td>
+<td>같음</td>
+</tr>
+<tr>
+<td><code>bloom_filter GRANULARITY 4</code>, 값 하나</td>
+<td>28</td>
+<td>28</td>
+</tr>
+<tr>
+<td><code>toNullable(uid) = …</code></td>
+<td>1,000</td>
+<td>27</td>
+</tr>
+<tr>
+<td><code>tokenbf_v1(32768, 3, 0)</code>: <code>hasToken</code> / <code>LIKE '%timeout%'</code> / <code>NOT hasToken</code></td>
+<td>9 / 1,000 / 1,000</td>
+<td>같음</td>
+</tr>
+<tr>
+<td><code>tokenbf_v1(1024, 2, 0)</code>, <code>hasToken</code></td>
+<td>825</td>
+<td>825</td>
+</tr>
+<tr>
+<td><code>ngrambf_v1(4, …)</code>: <code>LIKE '%timeout%'</code> / <code>'%imeou%'</code> / <code>'%eou%'</code> / <code>hasToken</code></td>
+<td>9 / 9 / 1,000 / 9</td>
+<td>같음</td>
+</tr>
+<tr>
+<td><code>uid = … OR cat = 'rare'</code>(인덱스 두 개)</td>
+<td>24.8–25.8: 1,000; 26.3: 28</td>
+<td>28</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>26.8 · 26.10의 <code>set</code> probe가 0행인 이유는 다릅니다. <code>EXPLAIN</code>에 <code>PrimaryKey</code> 앞의 <code>Statistics</code> 단계
+  (<code>Granules: 0/1000</code>)가 있습니다. 컬럼 통계가 자동으로 만들어지고(<code>auto_statistics_types</code> <code>basic, uniq_v2</code>;
+  <code>system.settings_changes</code>는 기본값을 26.4에 적고, <code>use_statistics_for_part_pruning = 1</code>도 26.4), 값 100001이 컬럼
+  범위 밖이라 파트 전체가 빠집니다. 26.3 빌드는 1,000개를 모두 읽습니다. ≤26.3의 <code>set(100)</code> 결과가 인덱스 자체의
+  동작입니다. 고유값이 한도보다 많은 granule은 건너뛸 수 없습니다. <code>set(0)</code>(한도 없음)은 동작하지만 인덱스가 67바이트
+  대신 30.1 MiB입니다.</li>
+<li><code>toNullable(uid) = …</code>는 26.8 빌드부터 인덱스를 씁니다. ClickHouse#123239(26.10)가 #123727로 26.8에 백포트됐습니다.</li>
+<li>인덱스 두 개에 걸친 <code>OR</code>는 26.3 빌드부터 <code>&lt;Combined skip indexes&gt;</code>입니다(25.12 changelog,
+  <code>use_skip_indexes_for_disjunctions</code>). 25.8은 8,192,000행을 모두 읽습니다.</li>
+<li><code>tokenbf_v1</code>은 <code>LIKE '%word%'</code>에 쓰이지 않고, <code>ngrambf_v1</code>은 <code>n</code>글자까지 쓰입니다. <code>(1024, 2, 0)</code> 파라미터의 토큰
+  필터는 granule 1,000개 중 825개를 남겼습니다(granule당 토큰 약 9,000개에 비해 너무 작음).</li>
+<li>인덱스 크기(24.8–26.8): <code>i_tok</code> 25.7 MiB, <code>i_ngr</code> 26.3 MiB, <code>i_uid</code> 7.8 MiB, <code>i_tok_small</code> 0.81 MiB; 26.10은 16.6,
+  15.6, 7.6, 0.51 MiB. 컬럼은 <code>CODEC(LZ4)</code>로 고정했지만 인덱스 파일은 파트 기본 코덱을 따르고, 26.10에서 이 440 MiB
+  파트의 기본값은 <code>ZSTD(3)</code>입니다.</li>
+</ul>
+<p><strong><code>text</code> 인덱스(26.3+, 2,000만 행, granule 2,442개).</strong> 기본 granularity는 100,000,000(파트당 인덱스 블록 하나)입니다.
+<code>hasToken</code>, <code>hasAnyTokens</code>, <code>hasAllTokens</code>는 granule 20개(163,840행), <code>msg = …</code>는 1개, <code>NOT hasToken</code>은 전부를 고릅니다.
+<code>hasToken</code>의 <code>count()</code>는 26.8 · 26.10에서 인덱스로 답합니다(읽은 바이트 16, 0; 26.10은 그래도 <code>read_rows</code>
+20,000,000을 기록). <code>LIKE '%timeout%'</code> · <code>LIKE '%imeou%'</code>는 26.3에서 2,442개를 모두 읽고(975,578,100바이트, 31 ms),
+26.8 · 26.10은 20개를 고릅니다(4–5 ms). 26.4 changelog에 "<code>LIKE</code> queries … can use text indices"(#98149)가 있습니다.
+인덱스 없이(<code>use_skip_indexes = 0</code>) 같은 조회가 25–31 ms, 인덱스로 1–2 ms입니다. 크기: 기본 인덱스는 233.3 MiB(26.3,
+26.8) · 232.9 MiB(26.10)로 데이터 파트 225.4 MiB보다 컸습니다. <code>posting_list_codec = 'bitpacking'</code>은 87.5 MiB(26.3),
+97.6 MiB(26.8), 97.2 MiB(26.10), <code>'pfor'</code>는 40.0 MiB(26.10만; 26.8은 Code 36으로 거부).</p>
+<p><strong>빌드별 인덱스 타입 이름</strong>(<code>errors/</code>): <code>inverted</code>는 24.8 · 25.3에서 거부(Code 127, "<code>full_text</code>를 쓰라"). <code>full_text</code>는
+25.3에서 <code>CREATE</code>의 <code>SETTINGS</code>에 <code>allow_experimental_full_text_index = 1</code>을 주면 되고, 24.8은 세션 <code>SET</code> 뒤에만 됩니다
+(손으로 확인). 25.8은 <code>text(tokenizer = 'default')</code>(실험 기능)를 받습니다. 26.3부터 <code>text</code>에는 토크나이저가 필요하고
+(Code 36) <code>'default'</code>는 알 수 없는 토크나이저입니다. <code>ORDER BY</code> 없는 <code>MergeTree</code>는 ≤25.8에서 거부(Code 42), 26.3부터
+허용(<code>create_table_empty_primary_key_by_default</code>, 25.11). <code>force_primary_key</code> · <code>force_data_skipping_indices</code>는 모든 빌드에서
+Code 277로 거부합니다.</p>
+<p><strong>자동 minmax 인덱스(25.3+).</strong> <code>add_minmax_index_for_numeric_columns = 1</code>과 <code>…_string_columns = 1</code>은
+<code>auto_minmax_index_id</code>, <code>…_s</code>, <code>…_v</code>를 만듭니다. 상관 있는 <code>UInt32</code> 범위가 granule 1,000개 중 2개(설정 없으면 1,000),
+<code>String</code>은 1개입니다. <code>DateTime</code> 범위는 <code>add_minmax_index_for_temporal_columns = 1</code>(26.3 빌드부터) 전까지 대상이 아니고
+(1,000), 켜면 12입니다. 24.8은 설정을 모릅니다(Code 115).</p>
+<p><strong>Query condition cache.</strong> 키가 아닌 컬럼의 선택적 필터를 두 번째로 돌리면 25.8 빌드부터 8,192,000행 대신 262,144행을
+읽었습니다(기본 켜짐; 25.4 changelog). 25.3에는 설정이 있고 기본 0이며, <code>= 1</code>이면 두 번째 실행이 196,608행이었습니다.
+일치하는 1,000행을 <code>INSERT</code>한 뒤 개수는 맞았고(1,004) 263,144행을 읽었습니다. 두 실행 사이의 lightweight <code>UPDATE</code>는
+<code>UPDATE</code>가 있는 모든 빌드(25.8+)에서 4, 5로 맞았습니다. 2,000만 행에서 캐시는 인덱스 없는 반복 조회를 인덱스 있는
+조회만큼 싸게 만들었습니다(아래).</p>
+<p><strong><code>FINAL</code> 아래의 skip index.</strong> 24.8 · 25.3은 기본으로 <code>FINAL</code>에서 인덱스를 쓰지 않고(1,210,112행), 25.8부터 씁니다
+(171,072행). <code>EXPLAIN</code>에 <code>PrimaryKeyExpand</code> 단계가 붙습니다(granule 5 → 14, 다른 파트의 같은 키 범위). 답은 모든 빌드에서
+맞습니다. <code>use_skip_indexes_if_final = 0</code>이면 ≤26.3은 매트릭스 두 번 모두 1,210,112행을 읽었고, 26.8 · 26.10은 더 적게,
+두 번이 서로 다르게 읽었습니다(1,137,344–1,191,920). 캐시 때문은 아니고(26.10에서 캐시를 끄고 손으로 확인), 더 조사하지
+않았습니다.</p>
+<h3>2,000만 행 조회(<code>07-scale.sql</code>)</h3>
+<p>5회 최솟값 ms(<code>results/*.json</code>의 <code>durations_ms</code>), <code>use_query_condition_cache = 0</code>(24.8은 캐시가 없어 설정 없는 실행).
+모든 컬럼 <code>CODEC(LZ4)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>쿼리</th>
+<th>24.8</th>
+<th>25.3</th>
+<th>25.8</th>
+<th>26.3</th>
+<th>26.8</th>
+<th>26.10</th>
+<th>26.10, 테이블 기본 LZ4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기본 키 <code>id = …</code></td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bloom_filter</code> <code>uid = …</code>(475,136행)</td>
+<td>4</td>
+<td>5</td>
+<td>4</td>
+<td>5</td>
+<td>5</td>
+<td>18</td>
+<td>5</td>
+</tr>
+<tr>
+<td>같은 쿼리, <code>use_skip_indexes = 0</code>(2,000만 행)</td>
+<td>5</td>
+<td>7</td>
+<td>6</td>
+<td>5</td>
+<td>6</td>
+<td>5</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tokenbf_v1</code> <code>hasToken</code>(163,840행)</td>
+<td>38</td>
+<td>40</td>
+<td>38</td>
+<td>35</td>
+<td>37</td>
+<td>67</td>
+<td>37</td>
+</tr>
+<tr>
+<td>같은 쿼리, <code>use_skip_indexes = 0</code></td>
+<td>45</td>
+<td>43</td>
+<td>32</td>
+<td>29</td>
+<td>25</td>
+<td>23</td>
+<td></td>
+</tr>
+<tr>
+<td>키가 아닌 컬럼, 인덱스 없음</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td>4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>26.10의 인덱스 조회가 느린 것은 인덱스 파일 코덱 때문입니다. 파트 기본값이 <code>ZSTD(3)</code>이라(<code>07-codec</code>) <code>tokenbf</code> 인덱스가
+  62.9 MiB 대신 40.6 MiB이고 읽기가 느립니다. 테이블의 <code>default_compression_codec = 'LZ4'</code>를 고정하면(<code>big_lz4</code>, 이 테이블
+  설정은 25.8 빌드부터 있음) 37 ms와 5 ms입니다.</li>
+<li>64비트 해시 컬럼의 <code>bloom_filter</code>는 여기서 이득이 없었습니다(있으면 4–5 ms, 없으면 5–7 ms). 문자열 컬럼의 <code>tokenbf</code>는
+  25.8–26.10에서 스캔보다 느렸습니다(35–38 ms 대 23–32 ms). 필터 63 MiB를 읽는 비용이 피하는 스캔보다 컸습니다.
+  <code>text</code> 인덱스(<code>03-text.sql</code>)는 같은 조회를 1–2 ms에 답했습니다.</li>
+<li>캐시를 켜면(25.8부터 기본) 인덱스 없는 반복 조회가 1–3 ms였습니다(65,536 / 327,680행).</li>
+</ul>
+<h3>화면</h3>
+<p>2026-11-05에 이 실습의 파일을 넣은 로컬 일회용 컨테이너의 ClickHouse <code>/play</code> UI에서 노트 글
+<code>core-architecture/clickhouse-index</code>용으로 찍었습니다.</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/01-explain-generic-exclusion-26-10.png"><code>images/01-explain-generic-exclusion-26-10.png</code></a> — 26.10.3.7, 값 10개인 <code>a</code>의 <code>ORDER BY (a, b)</code>에서 <code>b = 5000003</code>: granule 19/1000, generic exclusion search</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/02-or-skip-indexes-25-8.png"><code>images/02-or-skip-indexes-25-8.png</code></a> — 25.8.33.6, <code>uid = … OR cat = 'rare'</code>: <code>i_uid</code>만 분석, 1000/1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/03-or-skip-indexes-26-10.png"><code>images/03-or-skip-indexes-26-10.png</code></a> — 같은 쿼리, 26.10.3.7: <code>&lt;Combined skip indexes&gt;</code> 28/1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/04-statistics-part-pruning-26-10.png"><code>images/04-statistics-part-pruning-26-10.png</code></a> — 26.10.3.7, <code>many = 100001</code>(컬럼 범위 밖): 기본 키와 <code>set(100)</code> 인덱스 앞의 <code>Statistics</code> 0/1000</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/05-text-index-size-26-10.png"><code>images/05-text-index-size-26-10.png</code></a> — 26.10.3.7, 2,000만 행의 <code>text</code> 인덱스: 232.89 MiB(기본), 97.24 MiB(<code>bitpacking</code>), 40.00 MiB(<code>pfor</code>), 데이터 파트 225.41 MiB</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/index-across-versions/images/06-condition-cache-26-10.png"><code>images/06-condition-cache-26-10.png</code></a> — 26.10.3.7, <code>count() WHERE v = 7</code>을 두 번, 캐시를 끄고 한 번 돌린 <code>system.query_log</code>: 8,192,000 / 262,144 / 8,192,000행</li>
+</ul>
+<h3>여기서 확인하지 않은 것</h3>
+<ul>
+<li>Distributed · 복제 테이블, <code>SharedMergeTree</code>, parallel replicas, ClickHouse Cloud.</li>
+<li>Projection, <code>vector_similarity</code> 인덱스, 쿼리 계획 입력으로서의 컬럼 통계(파트 제외만 드러남), <code>splitByNonAlpha</code> 외의
+  토크나이저(<code>usecase/fulltext-search</code>, <code>usecase/korean-rag-tokenizers</code> 참고), phrase search, 2,000만 행보다 큰 데이터,
+  파트가 많은 테이블.</li>
+</ul>
+<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-05 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/index-across-versions"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/index-granularity-point-query/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse Index Granularity Point Query Benchmark</span></a><a class="step next" href="../../../labs/workload/async-insert-stress/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse Async Insert Stress Test</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

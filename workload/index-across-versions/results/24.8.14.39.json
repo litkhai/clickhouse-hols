@@ -1,0 +1,6592 @@
+{
+ "files": {
+  "01-primary.sql": {
+   "setup": [
+    {
+     "id": "01-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "01-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.pk_lo;"
+    },
+    {
+     "id": "01-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.pk_hi;"
+    },
+    {
+     "id": "01-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.pk_ts;"
+    },
+    {
+     "id": "01-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.pk_lo (a UInt8, b UInt64, c UInt32, ts DateTime) ENGINE = MergeTree ORDER BY (a, b);"
+    },
+    {
+     "id": "01-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.pk_hi (a UInt32, b UInt64, c UInt32, ts DateTime) ENGINE = MergeTree ORDER BY (a, b);"
+    },
+    {
+     "id": "01-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.pk_ts (ts DateTime, v UInt64) ENGINE = MergeTree ORDER BY ts;"
+    },
+    {
+     "id": "01-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.3,
+     "sql": "INSERT INTO index_lab.pk_lo SELECT number % 10, number, intHash32(number) % 1000000, toDateTime('2026-01-01 00:00:00') + number FROM numbers(8192000);"
+    },
+    {
+     "id": "01-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.45,
+     "sql": "INSERT INTO index_lab.pk_hi SELECT number % 100000, number, intHash32(number) % 1000000, toDateTime('2026-01-01 00:00:00') + number FROM numbers(8192000);"
+    },
+    {
+     "id": "01-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.19,
+     "sql": "INSERT INTO index_lab.pk_ts SELECT toDateTime('2026-01-01 00:00:00') + number, number FROM numbers(8192000);"
+    },
+    {
+     "id": "01-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.44,
+     "sql": "OPTIMIZE TABLE index_lab.pk_lo FINAL;"
+    },
+    {
+     "id": "01-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.48,
+     "sql": "OPTIMIZE TABLE index_lab.pk_hi FINAL;"
+    },
+    {
+     "id": "01-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.23,
+     "sql": "OPTIMIZE TABLE index_lab.pk_ts FINAL;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "01-a-eq",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE a = 3;",
+     "runs": [
+      {
+       "query_id": "01-a-eq",
+       "wall_s": 0.087,
+       "rc": 0,
+       "stdout": "count()\n819200\n",
+       "rows": [
+        "count()",
+        "819200"
+       ],
+       "log": {
+        "query_duration_ms": 7,
+        "memory_usage": 60520,
+        "read_rows": 16385,
+        "read_bytes": 16400,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-a-eq",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      7
+     ],
+     "duration_ms": 7,
+     "memory_usage": 60520,
+     "read_rows": 16385,
+     "read_bytes": 16400,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "819200"
+     ],
+     "stdout": "count()\n819200\n"
+    },
+    {
+     "id": "01-a-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE a = 3))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-a-eq-g",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 101/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 101/1000"
+       ],
+       "log": {
+        "query_duration_ms": 6,
+        "memory_usage": 77928,
+        "read_rows": 13,
+        "read_bytes": 531,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-a-eq-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      6
+     ],
+     "duration_ms": 6,
+     "memory_usage": 77928,
+     "read_rows": 13,
+     "read_bytes": 531,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 101/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 101/1000\n"
+    },
+    {
+     "id": "01-b-lo",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE b = 5000003;",
+     "runs": [
+      {
+       "query_id": "01-b-lo",
+       "wall_s": 0.081,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 66800,
+        "read_rows": 155648,
+        "read_bytes": 1245184,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-b-lo",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 66800,
+     "read_rows": 155648,
+     "read_bytes": 1245184,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "01-b-lo-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE b = 5000003))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-b-lo-g",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 19/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 19/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72744,
+        "read_rows": 12,
+        "read_bytes": 471,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-b-lo-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72744,
+     "read_rows": 12,
+     "read_bytes": 471,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 19/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 19/1000\n"
+    },
+    {
+     "id": "01-b-hi",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_hi WHERE b = 5000003;",
+     "runs": [
+      {
+       "query_id": "01-b-hi",
+       "wall_s": 0.151,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 51,
+        "memory_usage": 134096,
+        "read_rows": 8192000,
+        "read_bytes": 65536000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-b-hi",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      51
+     ],
+     "duration_ms": 51,
+     "memory_usage": 134096,
+     "read_rows": 8192000,
+     "read_bytes": 65536000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "01-b-hi-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_hi WHERE b = 5000003))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-b-hi-g",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 71512,
+        "read_rows": 12,
+        "read_bytes": 473,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-b-hi-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 71512,
+     "read_rows": 12,
+     "read_bytes": 473,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n"
+    },
+    {
+     "id": "01-ab",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE a = 3 AND b = 5000003;",
+     "runs": [
+      {
+       "query_id": "01-ab",
+       "wall_s": 0.066,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 66496,
+        "read_rows": 8192,
+        "read_bytes": 73728,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ab",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 66496,
+     "read_rows": 8192,
+     "read_bytes": 73728,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "01-ab-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE a = 3 AND b = 5000003))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-ab-g",
+       "wall_s": 0.071,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71472,
+        "read_rows": 13,
+        "read_bytes": 464,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ab-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71472,
+     "read_rows": 13,
+     "read_bytes": 464,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1/1000\n"
+    },
+    {
+     "id": "01-a-in",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE a IN (3, 7);",
+     "runs": [
+      {
+       "query_id": "01-a-in",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "count()\n1638400\n",
+       "rows": [
+        "count()",
+        "1638400"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 241819,
+        "read_rows": 1654784,
+        "read_bytes": 1654784,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-a-in",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 241819,
+     "read_rows": 1654784,
+     "read_bytes": 1654784,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1638400"
+     ],
+     "stdout": "count()\n1638400\n"
+    },
+    {
+     "id": "01-a-in-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE a IN (3, 7)))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-a-in-g",
+       "wall_s": 0.068,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 202/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 202/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72744,
+        "read_rows": 12,
+        "read_bytes": 467,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-a-in-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72744,
+     "read_rows": 12,
+     "read_bytes": 467,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 202/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 202/1000\n"
+    },
+    {
+     "id": "01-c",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE c = 7;",
+     "runs": [
+      {
+       "query_id": "01-c",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "count()\n4\n",
+       "rows": [
+        "count()",
+        "4"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 127840,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-c",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 127840,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "4"
+     ],
+     "stdout": "count()\n4\n"
+    },
+    {
+     "id": "01-c-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE c = 7))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-c-g",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 71560,
+        "read_rows": 10,
+        "read_bytes": 401,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-c-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 71560,
+     "read_rows": 10,
+     "read_bytes": 401,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n"
+    },
+    {
+     "id": "01-ts-range",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_ts WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00';",
+     "runs": [
+      {
+       "query_id": "01-ts-range",
+       "wall_s": 0.068,
+       "rc": 0,
+       "stdout": "count()\n86400\n",
+       "rows": [
+        "count()",
+        "86400"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 63568,
+        "read_rows": 16385,
+        "read_bytes": 65552,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-range",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 63568,
+     "read_rows": 16385,
+     "read_bytes": 65552,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "86400"
+     ],
+     "stdout": "count()\n86400\n"
+    },
+    {
+     "id": "01-ts-range-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_ts WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-ts-range-g",
+       "wall_s": 0.066,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 12/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 12/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72312,
+        "read_rows": 13,
+        "read_bytes": 577,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-range-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72312,
+     "read_rows": 13,
+     "read_bytes": 577,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 12/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 12/1000\n"
+    },
+    {
+     "id": "01-ts-todate",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_ts WHERE toDate(ts) = '2026-02-01';",
+     "runs": [
+      {
+       "query_id": "01-ts-todate",
+       "wall_s": 0.066,
+       "rc": 0,
+       "stdout": "count()\n86400\n",
+       "rows": [
+        "count()",
+        "86400"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 60168,
+        "read_rows": 16385,
+        "read_bytes": 65552,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-todate",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 60168,
+     "read_rows": 16385,
+     "read_bytes": 65552,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "86400"
+     ],
+     "stdout": "count()\n86400\n"
+    },
+    {
+     "id": "01-ts-todate-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_ts WHERE toDate(ts) = '2026-02-01'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-ts-todate-g",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 12/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 12/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 75568,
+        "read_rows": 13,
+        "read_bytes": 548,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-todate-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 75568,
+     "read_rows": 13,
+     "read_bytes": 548,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 12/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 12/1000\n"
+    },
+    {
+     "id": "01-ts-tohour",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_ts WHERE toHour(ts) = 3;",
+     "runs": [
+      {
+       "query_id": "01-ts-tohour",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "count()\n342000\n",
+       "rows": [
+        "count()",
+        "342000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 466990,
+        "read_rows": 1892352,
+        "read_bytes": 7569408,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-tohour",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 466990,
+     "read_rows": 1892352,
+     "read_bytes": 7569408,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "342000"
+     ],
+     "stdout": "count()\n342000\n"
+    },
+    {
+     "id": "01-ts-tohour-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_ts WHERE toHour(ts) = 3))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-ts-tohour-g",
+       "wall_s": 0.101,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 231/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 231/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71464,
+        "read_rows": 12,
+        "read_bytes": 470,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "01-ts-tohour-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71464,
+     "read_rows": 12,
+     "read_bytes": 470,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 231/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 231/1000\n"
+    },
+    {
+     "id": "01-explain",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE b = 5000003;",
+     "runs": [
+      {
+       "query_id": "01-explain",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "explain\nExpression ((Project names + Projection))\n  Aggregating\n    Expression (Before GROUP BY)\n      Filter ((WHERE + Change column names to column identifiers))\n        ReadFromMergeTree (index_lab.pk_lo)\n        Indexes:\n          PrimaryKey\n            Keys: \n              b\n            Condition: (b in [5000003, 5000003])\n            Parts: 1/1\n            Granules: 19/1000\n",
+       "rows": [
+        "explain",
+        "Expression ((Project names + Projection))",
+        "  Aggregating",
+        "    Expression (Before GROUP BY)",
+        "      Filter ((WHERE + Change column names to column identifiers))",
+        "        ReadFromMergeTree (index_lab.pk_lo)",
+        "        Indexes:",
+        "          PrimaryKey",
+        "            Keys: ",
+        "              b",
+        "            Condition: (b in [5000003, 5000003])",
+        "            Parts: 1/1",
+        "            Granules: 19/1000"
+       ],
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 9352,
+        "read_rows": 12,
+        "read_bytes": 471,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 12,
+        "exception_code": 0,
+        "query_id": "01-explain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      0
+     ],
+     "duration_ms": 0,
+     "memory_usage": 9352,
+     "read_rows": 12,
+     "read_bytes": 471,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 12,
+     "events": {},
+     "rows": [
+      "explain",
+      "Expression ((Project names + Projection))",
+      "  Aggregating",
+      "    Expression (Before GROUP BY)",
+      "      Filter ((WHERE + Change column names to column identifiers))",
+      "        ReadFromMergeTree (index_lab.pk_lo)",
+      "        Indexes:",
+      "          PrimaryKey",
+      "            Keys: ",
+      "              b",
+      "            Condition: (b in [5000003, 5000003])",
+      "            Parts: 1/1",
+      "            Granules: 19/1000"
+     ],
+     "stdout": "explain\nExpression ((Project names + Projection))\n  Aggregating\n    Expression (Before GROUP BY)\n      Filter ((WHERE + Change column names to column identifiers))\n        ReadFromMergeTree (index_lab.pk_lo)\n        Indexes:\n          PrimaryKey\n            Keys: \n              b\n            Condition: (b in [5000003, 5000003])\n            Parts: 1/1\n            Granules: 19/1000\n"
+    },
+    {
+     "id": "01-nopk",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.pk_lo WHERE a = 3 SETTINGS use_primary_key = 0, use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "01-nopk",
+       "wall_s": 0.13,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.pk_lo WHERE a = 3 SETTINGS use_primary_key = 0, use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "01-nopk-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE a = 3 SETTINGS use_primary_key = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "01-nopk-g",
+       "wall_s": 0.072,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)\n(query: SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.pk_lo WHERE a = 3 SETTINGS use_primary_key = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 115,
+        "query_id": "01-nopk-g",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_primary_key is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['force_primary_key']. (UNKNOWN_SETTING)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    }
+   ]
+  },
+  "02-skip.sql": {
+   "setup": [
+    {
+     "id": "02-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "02-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.sk;"
+    },
+    {
+     "id": "02-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.sk\n(\n    id UInt64 CODEC(LZ4),\n    t_corr UInt32 CODEC(LZ4),\n    v_rand UInt32 CODEC(LZ4),\n    cat String CODEC(LZ4),\n    many UInt32 CODEC(LZ4),\n    many0 UInt32 CODEC(LZ4),\n    uid UInt64 CODEC(LZ4),\n    uid4 UInt64 CODEC(LZ4),\n    msg_t String CODEC(LZ4),\n    msg_s String C"
+    },
+    {
+     "id": "02-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 6.75,
+     "sql": "INSERT INTO index_lab.sk SELECT number, intDiv(number, 10), intHash32(number) % 1000000,\n    if(number >= 4096000 AND number < 4097000, 'rare', concat('c', toString(number % 50))),\n    intHash32(number + 1) % 100000, intHash32(number + 1) % 100000, intHash64(number), intHash64(number),\n    concat('G"
+    },
+    {
+     "id": "02-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 10.87,
+     "sql": "OPTIMIZE TABLE index_lab.sk FINAL;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "02-corr-eq",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE t_corr = 400000;",
+     "runs": [
+      {
+       "query_id": "02-corr-eq",
+       "wall_s": 0.088,
+       "rc": 0,
+       "stdout": "count()\n10\n",
+       "rows": [
+        "count()",
+        "10"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 93816,
+        "read_rows": 8192,
+        "read_bytes": 32768,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-corr-eq",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 93816,
+     "read_rows": 8192,
+     "read_bytes": 32768,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "10"
+     ],
+     "stdout": "count()\n10\n"
+    },
+    {
+     "id": "02-corr-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE t_corr = 400000))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-corr-eq-g",
+       "wall_s": 0.068,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 1/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 1/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 576,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-corr-eq-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 576,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 1/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 1/1000\n"
+    },
+    {
+     "id": "02-corr-range",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE t_corr BETWEEN 400000 AND 400999;",
+     "runs": [
+      {
+       "query_id": "02-corr-range",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "count()\n10000\n",
+       "rows": [
+        "count()",
+        "10000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 66512,
+        "read_rows": 16384,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-corr-range",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 66512,
+     "read_rows": 16384,
+     "read_bytes": 65536,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "10000"
+     ],
+     "stdout": "count()\n10000\n"
+    },
+    {
+     "id": "02-corr-range-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE t_corr BETWEEN 400000 AND 400999))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-corr-range-g",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 2/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 2/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 576,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-corr-range-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 576,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 2/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_corr Granules: 2/1000\n"
+    },
+    {
+     "id": "02-rand-eq",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE v_rand = 777;",
+     "runs": [
+      {
+       "query_id": "02-rand-eq",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "count()\n11\n",
+       "rows": [
+        "count()",
+        "11"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 485110,
+        "read_rows": 8175616,
+        "read_bytes": 32702464,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-rand-eq",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 485110,
+     "read_rows": 8175616,
+     "read_bytes": 32702464,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "11"
+     ],
+     "stdout": "count()\n11\n"
+    },
+    {
+     "id": "02-rand-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE v_rand = 777))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-rand-eq-g",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 998/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 998/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 75776,
+        "read_rows": 15,
+        "read_bytes": 578,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-rand-eq-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 75776,
+     "read_rows": 15,
+     "read_bytes": 578,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 998/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 998/1000\n"
+    },
+    {
+     "id": "02-rand-range",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE v_rand BETWEEN 1000 AND 1999;",
+     "runs": [
+      {
+       "query_id": "02-rand-range",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "count()\n8144\n",
+       "rows": [
+        "count()",
+        "8144"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 1087218,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-rand-range",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 1087218,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "8144"
+     ],
+     "stdout": "count()\n8144\n"
+    },
+    {
+     "id": "02-rand-range-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE v_rand BETWEEN 1000 AND 1999))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-rand-range-g",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 579,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-rand-range-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 579,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_rand Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-cat-rare",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE cat = 'rare';",
+     "runs": [
+      {
+       "query_id": "02-cat-rare",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "count()\n1000\n",
+       "rows": [
+        "count()",
+        "1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 67672,
+        "read_rows": 8192,
+        "read_bytes": 97864,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-cat-rare",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 67672,
+     "read_rows": 8192,
+     "read_bytes": 97864,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1000"
+     ],
+     "stdout": "count()\n1000\n"
+    },
+    {
+     "id": "02-cat-rare-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE cat = 'rare'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-cat-rare-g",
+       "wall_s": 0.075,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 1/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 1/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 572,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-cat-rare-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 572,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 1/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 1/1000\n"
+    },
+    {
+     "id": "02-cat-none",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE cat = 'nope';",
+     "runs": [
+      {
+       "query_id": "02-cat-none",
+       "wall_s": 0.068,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 66176,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-cat-none",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 66176,
+     "read_rows": 0,
+     "read_bytes": 0,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    },
+    {
+     "id": "02-cat-none-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE cat = 'nope'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-cat-none-g",
+       "wall_s": 0.064,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 0/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 0/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 75584,
+        "read_rows": 15,
+        "read_bytes": 572,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-cat-none-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 75584,
+     "read_rows": 15,
+     "read_bytes": 572,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 0/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_cat Granules: 0/1000\n"
+    },
+    {
+     "id": "02-many-none",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE many = 100001;",
+     "runs": [
+      {
+       "query_id": "02-many-none",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 125528,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-many-none",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 125528,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    },
+    {
+     "id": "02-many-none-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE many = 100001))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-many-none-g",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_many Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_many Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 576,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-many-none-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 576,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_many Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_many Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-many0-none",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE many0 = 100001;",
+     "runs": [
+      {
+       "query_id": "02-many0-none",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 10,
+        "memory_usage": 296832,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-many0-none",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      10
+     ],
+     "duration_ms": 10,
+     "memory_usage": 296832,
+     "read_rows": 0,
+     "read_bytes": 0,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    },
+    {
+     "id": "02-many0-none-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE many0 = 100001))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-many0-none-g",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_many0 Granules: 0/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_many0 Granules: 0/1000"
+       ],
+       "log": {
+        "query_duration_ms": 11,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 574,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-many0-none-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      11
+     ],
+     "duration_ms": 11,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 574,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_many0 Granules: 0/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_many0 Granules: 0/1000\n"
+    },
+    {
+     "id": "02-uid-eq",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE uid = intHash64(5000003);",
+     "runs": [
+      {
+       "query_id": "02-uid-eq",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 107288,
+        "read_rows": 221184,
+        "read_bytes": 1769472,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-eq",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 107288,
+     "read_rows": 221184,
+     "read_bytes": 1769472,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "02-uid-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE uid = intHash64(5000003)))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-uid-eq-g",
+       "wall_s": 0.066,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 27/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 27/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 582,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-eq-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 582,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 27/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 27/1000\n"
+    },
+    {
+     "id": "02-uid-in",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE uid IN (intHash64(1), intHash64(2), intHash64(3));",
+     "runs": [
+      {
+       "query_id": "02-uid-in",
+       "wall_s": 0.068,
+       "rc": 0,
+       "stdout": "count()\n3\n",
+       "rows": [
+        "count()",
+        "3"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 127416,
+        "read_rows": 679936,
+        "read_bytes": 5439488,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-in",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 127416,
+     "read_rows": 679936,
+     "read_bytes": 5439488,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "3"
+     ],
+     "stdout": "count()\n3\n"
+    },
+    {
+     "id": "02-uid-in-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE uid IN (intHash64(1), intHash64(2), intHash64(3))))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-uid-in-g",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 83/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 83/1000"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 582,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-in-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 582,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 83/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 83/1000\n"
+    },
+    {
+     "id": "02-uid-ne",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE uid != intHash64(5000003);",
+     "runs": [
+      {
+       "query_id": "02-uid-ne",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "count()\n8191999\n",
+       "rows": [
+        "count()",
+        "8191999"
+       ],
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 704436,
+        "read_rows": 8192000,
+        "read_bytes": 65536000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-ne",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      5
+     ],
+     "duration_ms": 5,
+     "memory_usage": 704436,
+     "read_rows": 8192000,
+     "read_bytes": 65536000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "8191999"
+     ],
+     "stdout": "count()\n8191999\n"
+    },
+    {
+     "id": "02-uid-ne-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE uid != intHash64(5000003)))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-uid-ne-g",
+       "wall_s": 0.064,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 584,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-ne-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 584,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-uid4-eq",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE uid4 = intHash64(5000003);",
+     "runs": [
+      {
+       "query_id": "02-uid4-eq",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 101808,
+        "read_rows": 229376,
+        "read_bytes": 1835008,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid4-eq",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 101808,
+     "read_rows": 229376,
+     "read_bytes": 1835008,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "02-uid4-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE uid4 = intHash64(5000003)))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-uid4-eq-g",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid4 Granules: 28/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_uid4 Granules: 28/1000"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 583,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid4-eq-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 583,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_uid4 Granules: 28/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_uid4 Granules: 28/1000\n"
+    },
+    {
+     "id": "02-uid-cast",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE toNullable(uid) = intHash64(5000003);",
+     "runs": [
+      {
+       "query_id": "02-uid-cast",
+       "wall_s": 0.165,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 8,
+        "memory_usage": 475510,
+        "read_rows": 8192000,
+        "read_bytes": 65536000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-cast",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      8
+     ],
+     "duration_ms": 8,
+     "memory_usage": 475510,
+     "read_rows": 8192000,
+     "read_bytes": 65536000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "02-uid-cast-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE toNullable(uid) = intHash64(5000003)))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-uid-cast-g",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72744,
+        "read_rows": 10,
+        "read_bytes": 398,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-uid-cast-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72744,
+     "read_rows": 10,
+     "read_bytes": 398,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-tok-token",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE hasToken(msg_t, 'timeout');",
+     "runs": [
+      {
+       "query_id": "02-tok-token",
+       "wall_s": 0.101,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 20,
+        "memory_usage": 65728,
+        "read_rows": 73728,
+        "read_bytes": 3983913,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-token",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      20
+     ],
+     "duration_ms": 20,
+     "memory_usage": 65728,
+     "read_rows": 73728,
+     "read_bytes": 3983913,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-tok-token-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE hasToken(msg_t, 'timeout')))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-tok-token-g",
+       "wall_s": 0.081,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 9/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 9/1000"
+       ],
+       "log": {
+        "query_duration_ms": 17,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 579,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-token-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      17
+     ],
+     "duration_ms": 17,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 579,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 9/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 9/1000\n"
+    },
+    {
+     "id": "02-tok-like",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE msg_t LIKE '%timeout%';",
+     "runs": [
+      {
+       "query_id": "02-tok-like",
+       "wall_s": 0.1,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 34,
+        "memory_usage": 123488,
+        "read_rows": 8192000,
+        "read_bytes": 448747905,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-like",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      34
+     ],
+     "duration_ms": 34,
+     "memory_usage": 123488,
+     "read_rows": 8192000,
+     "read_bytes": 448747905,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-tok-like-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE msg_t LIKE '%timeout%'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-tok-like-g",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 18,
+        "memory_usage": 77376,
+        "read_rows": 15,
+        "read_bytes": 582,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-like-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      18
+     ],
+     "duration_ms": 18,
+     "memory_usage": 77376,
+     "read_rows": 15,
+     "read_bytes": 582,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-tok-not",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE NOT hasToken(msg_t, 'timeout');",
+     "runs": [
+      {
+       "query_id": "02-tok-not",
+       "wall_s": 0.095,
+       "rc": 0,
+       "stdout": "count()\n8191991\n",
+       "rows": [
+        "count()",
+        "8191991"
+       ],
+       "log": {
+        "query_duration_ms": 35,
+        "memory_usage": 1689655,
+        "read_rows": 8192000,
+        "read_bytes": 448747905,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-not",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      35
+     ],
+     "duration_ms": 35,
+     "memory_usage": 1689655,
+     "read_rows": 8192000,
+     "read_bytes": 448747905,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "8191991"
+     ],
+     "stdout": "count()\n8191991\n"
+    },
+    {
+     "id": "02-tok-not-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE NOT hasToken(msg_t, 'timeout')))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-tok-not-g",
+       "wall_s": 0.087,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 16,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 582,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-tok-not-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      16
+     ],
+     "duration_ms": 16,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 582,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-toksmall-token",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE hasToken(msg_s, 'timeout');",
+     "runs": [
+      {
+       "query_id": "02-toksmall-token",
+       "wall_s": 0.085,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 19,
+        "memory_usage": 126744,
+        "read_rows": 6758400,
+        "read_bytes": 370700059,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-toksmall-token",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      19
+     ],
+     "duration_ms": 19,
+     "memory_usage": 126744,
+     "read_rows": 6758400,
+     "read_bytes": 370700059,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-toksmall-token-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE hasToken(msg_s, 'timeout')))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-toksmall-token-g",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok_small Granules: 825/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_tok_small Granules: 825/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 75576,
+        "read_rows": 15,
+        "read_bytes": 587,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-toksmall-token-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 75576,
+     "read_rows": 15,
+     "read_bytes": 587,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_tok_small Granules: 825/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_tok_small Granules: 825/1000\n"
+    },
+    {
+     "id": "02-ngr-like",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%timeout%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-like",
+       "wall_s": 0.08,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 17,
+        "memory_usage": 65520,
+        "read_rows": 73728,
+        "read_bytes": 3983913,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-like",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      17
+     ],
+     "duration_ms": 17,
+     "memory_usage": 65520,
+     "read_rows": 73728,
+     "read_bytes": 3983913,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-ngr-like-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%timeout%'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-like-g",
+       "wall_s": 0.084,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+       ],
+       "log": {
+        "query_duration_ms": 15,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 579,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-like-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      15
+     ],
+     "duration_ms": 15,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 579,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n"
+    },
+    {
+     "id": "02-ngr-sub",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%imeou%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-sub",
+       "wall_s": 0.086,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 16,
+        "memory_usage": 62184,
+        "read_rows": 73728,
+        "read_bytes": 3983913,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-sub",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      16
+     ],
+     "duration_ms": 16,
+     "memory_usage": 62184,
+     "read_rows": 73728,
+     "read_bytes": 3983913,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-ngr-sub-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%imeou%'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-sub-g",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+       ],
+       "log": {
+        "query_duration_ms": 15,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 579,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-sub-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      15
+     ],
+     "duration_ms": 15,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 579,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n"
+    },
+    {
+     "id": "02-ngr-short",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%eou%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-short",
+       "wall_s": 0.127,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 56,
+        "memory_usage": 123088,
+        "read_rows": 8192000,
+        "read_bytes": 448747905,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-short",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      56
+     ],
+     "duration_ms": 56,
+     "memory_usage": 123088,
+     "read_rows": 8192000,
+     "read_bytes": 448747905,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-ngr-short-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE msg_n LIKE '%eou%'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-short-g",
+       "wall_s": 0.088,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 18,
+        "memory_usage": 71480,
+        "read_rows": 15,
+        "read_bytes": 582,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-short-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      18
+     ],
+     "duration_ms": 18,
+     "memory_usage": 71480,
+     "read_rows": 15,
+     "read_bytes": 582,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-ngr-token",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE hasToken(msg_n, 'timeout');",
+     "runs": [
+      {
+       "query_id": "02-ngr-token",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "count()\n9\n",
+       "rows": [
+        "count()",
+        "9"
+       ],
+       "log": {
+        "query_duration_ms": 16,
+        "memory_usage": 63672,
+        "read_rows": 73728,
+        "read_bytes": 3983913,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-token",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      16
+     ],
+     "duration_ms": 16,
+     "memory_usage": 63672,
+     "read_rows": 73728,
+     "read_bytes": 3983913,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "9"
+     ],
+     "stdout": "count()\n9\n"
+    },
+    {
+     "id": "02-ngr-token-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE hasToken(msg_n, 'timeout')))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-ngr-token-g",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+       ],
+       "log": {
+        "query_duration_ms": 15,
+        "memory_usage": 72760,
+        "read_rows": 15,
+        "read_bytes": 579,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-ngr-token-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      15
+     ],
+     "duration_ms": 15,
+     "memory_usage": 72760,
+     "read_rows": 15,
+     "read_bytes": 579,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000 Skip Name: i_ngr Granules: 9/1000\n"
+    },
+    {
+     "id": "02-or",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.sk WHERE uid = intHash64(5000003) OR cat = 'rare';",
+     "runs": [
+      {
+       "query_id": "02-or",
+       "wall_s": 0.072,
+       "rc": 0,
+       "stdout": "count()\n1001\n",
+       "rows": [
+        "count()",
+        "1001"
+       ],
+       "log": {
+        "query_duration_ms": 11,
+        "memory_usage": 124128,
+        "read_rows": 8192000,
+        "read_bytes": 162202800,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-or",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      11
+     ],
+     "duration_ms": 11,
+     "memory_usage": 124128,
+     "read_rows": 8192000,
+     "read_bytes": 162202800,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1001"
+     ],
+     "stdout": "count()\n1001\n"
+    },
+    {
+     "id": "02-or-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.sk WHERE uid = intHash64(5000003) OR cat = 'rare'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "02-or-g",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 1000/1000"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 72744,
+        "read_rows": 10,
+        "read_bytes": 398,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-or-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 72744,
+     "read_rows": 10,
+     "read_bytes": 398,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 1000/1000"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 1000/1000\n"
+    },
+    {
+     "id": "02-sizes",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(concat(name, '=', toString(data_compressed_bytes))), ', ') FROM (SELECT name, data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'sk' ORDER BY name);",
+     "runs": [
+      {
+       "query_id": "02-sizes",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')\ni_cat=2541, i_corr=5628, i_many=67, i_many0=31591356, i_ngr=27601576, i_rand=5733, i_tok=26996214, i_tok_small=849694, i_uid=8229500, i_uid4=8228124\n",
+       "rows": [
+        "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')",
+        "i_cat=2541, i_corr=5628, i_many=67, i_many0=31591356, i_ngr=27601576, i_rand=5733, i_tok=26996214, i_tok_small=849694, i_uid=8229500, i_uid4=8228124"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 71728,
+        "read_rows": 10,
+        "read_bytes": 522,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-sizes",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 71728,
+     "read_rows": 10,
+     "read_bytes": 522,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')",
+      "i_cat=2541, i_corr=5628, i_many=67, i_many0=31591356, i_ngr=27601576, i_rand=5733, i_tok=26996214, i_tok_small=849694, i_uid=8229500, i_uid4=8228124"
+     ],
+     "stdout": "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')\ni_cat=2541, i_corr=5628, i_many=67, i_many0=31591356, i_ngr=27601576, i_rand=5733, i_tok=26996214, i_tok_small=849694, i_uid=8229500, i_uid4=8228124\n"
+    },
+    {
+     "id": "02-part",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(rows), sum(data_compressed_bytes), sum(secondary_indices_compressed_bytes) FROM system.parts WHERE database = 'index_lab' AND table = 'sk' AND active;",
+     "runs": [
+      {
+       "query_id": "02-part",
+       "wall_s": 0.064,
+       "rc": 0,
+       "stdout": "sum(rows)\tsum(data_compressed_bytes)\tsum(secondary_indices_compressed_bytes)\n8192000\t461074015\t103510433\n",
+       "rows": [
+        "sum(rows)\tsum(data_compressed_bytes)\tsum(secondary_indices_compressed_bytes)",
+        "8192000\t461074015\t103510433"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 43936,
+        "read_rows": 1,
+        "read_bytes": 54,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "02-part",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 43936,
+     "read_rows": 1,
+     "read_bytes": 54,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "sum(rows)\tsum(data_compressed_bytes)\tsum(secondary_indices_compressed_bytes)",
+      "8192000\t461074015\t103510433"
+     ],
+     "stdout": "sum(rows)\tsum(data_compressed_bytes)\tsum(secondary_indices_compressed_bytes)\n8192000\t461074015\t103510433\n"
+    }
+   ]
+  },
+  "03-text.sql": {
+   "setup": [
+    {
+     "id": "03-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "03-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.tx;"
+    },
+    {
+     "id": "03-setup03",
+     "ok": false,
+     "code": 80,
+     "message": "Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.tx\n(\n    id UInt64 CODEC(LZ4),\n    msg String CODEC(LZ4),\n    INDEX i_msg msg TYPE text(tokenizer = splitByNonAlpha)\n)\nENGINE = MergeTree\nORDER BY id;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "03-index",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT type_full, granularity FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'tx';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-size",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT (SELECT data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'tx'), (SELECT sum(data_compressed_bytes) FROM system.parts WHERE database = 'index_lab' AND table = 'tx' AND active);",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-token",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-token-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.tx WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-any",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasAnyTokens(msg, ['timeout', 'nosuchtoken']) SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-all",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasAllTokens(msg, ['timeout', '504']) SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-like",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE msg LIKE '%timeout%' SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-like-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.tx WHERE msg LIKE '%timeout%' SETTINGS use_query_condition_cache = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-like-sub",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE msg LIKE '%imeou%' SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-like-sub-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.tx WHERE msg LIKE '%imeou%' SETTINGS use_query_condition_cache = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-eq",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE msg = 'GET /api/v1/item/0 status=504 timeout user=u0' SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-eq-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.tx WHERE msg = 'GET /api/v1/item/0 status=504 timeout user=u0' SETTINGS use_query_condition_cache = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-not",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE NOT hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-not-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.tx WHERE NOT hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-frequent",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasToken(msg, 'ok') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-sum",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(id) FROM index_lab.tx WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-noindex",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasToken(msg, 'timeout') SETTINGS use_skip_indexes = 0, use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-nodirect",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.tx WHERE hasToken(msg, 'timeout') SETTINGS query_plan_direct_read_from_text_index = 0, use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-size-bitpacking",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'tx_bp';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-token-bitpacking",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(id) > 0, count() FROM index_lab.tx_bp WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-size-pfor",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'tx_pfor';",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    },
+    {
+     "id": "03-token-pfor",
+     "repeat": 5,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(id) > 0, count() FROM index_lab.tx_pfor WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 80,
+     "message": "skip (setup Code 80)"
+    }
+   ]
+  },
+  "04-auto-minmax.sql": {
+   "setup": [
+    {
+     "id": "04-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "04-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "DROP TABLE IF EXISTS index_lab.am;"
+    },
+    {
+     "id": "04-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.am_off;"
+    },
+    {
+     "id": "04-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.am_t;"
+    },
+    {
+     "id": "04-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.am_off\n(\n    id UInt64 CODEC(LZ4),\n    v UInt32 CODEC(LZ4),\n    s String CODEC(LZ4),\n    ts DateTime CODEC(LZ4)\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "04-setup06",
+     "ok": false,
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Unknown setting 'add_minmax_index_for_numeric_columns': for storage MergeTree. (UNKNOWN_SETTING)",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.am\n(\n    id UInt64 CODEC(LZ4),\n    v UInt32 CODEC(LZ4),\n    s String CODEC(LZ4),\n    ts DateTime CODEC(LZ4)\n)\nENGINE = MergeTree\nORDER BY id\nSETTINGS add_minmax_index_for_numeric_columns = 1, add_minmax_index_for_string_columns = 1;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "04-indices",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(name), ', ') FROM (SELECT name FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'am' ORDER BY name);",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-v-on",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am WHERE v BETWEEN 400000 AND 400999;",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-v-on-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am WHERE v BETWEEN 400000 AND 400999))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-v-off",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am_off WHERE v BETWEEN 400000 AND 400999;",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-v-off-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am_off WHERE v BETWEEN 400000 AND 400999))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-s-on",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am WHERE s = '004000';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-s-on-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am WHERE s = '004000'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-s-off",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am_off WHERE s = '004000';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-s-off-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am_off WHERE s = '004000'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-ts-on",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-ts-on-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-indices-t",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(name), ', ') FROM (SELECT name FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'am_t' ORDER BY name);",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-ts-t",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.am_t WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "04-ts-t-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.am_t WHERE ts >= '2026-02-01 00:00:00' AND ts < '2026-02-02 00:00:00'))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    }
+   ]
+  },
+  "05-condition-cache.sql": {
+   "setup": [
+    {
+     "id": "05-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "05-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "DROP TABLE IF EXISTS index_lab.qc;"
+    },
+    {
+     "id": "05-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.qu;"
+    },
+    {
+     "id": "05-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.qc (id UInt64 CODEC(LZ4), v UInt32 CODEC(LZ4)) ENGINE = MergeTree ORDER BY id;"
+    },
+    {
+     "id": "05-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.18,
+     "sql": "INSERT INTO index_lab.qc SELECT number, intHash32(number) % 1000000 FROM numbers(8192000);"
+    },
+    {
+     "id": "05-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.27,
+     "sql": "OPTIMIZE TABLE index_lab.qc FINAL;"
+    },
+    {
+     "id": "05-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "INSERT INTO index_lab.qc SELECT 10000000 + number, 7 FROM numbers(1000);"
+    },
+    {
+     "id": "05-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.qu (id UInt64 CODEC(LZ4), v UInt32 CODEC(LZ4)) ENGINE = MergeTree ORDER BY id SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1;"
+    },
+    {
+     "id": "05-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.17,
+     "sql": "INSERT INTO index_lab.qu SELECT number, intHash32(number) % 1000000 FROM numbers(8192000);"
+    },
+    {
+     "id": "05-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.37,
+     "sql": "OPTIMIZE TABLE index_lab.qu FINAL;"
+    },
+    {
+     "id": "05-setup20",
+     "ok": false,
+     "code": 62,
+     "message": "Syntax error: failed at position 1 ('UPDATE'): UPDATE index_lab.qu SET v = 7 WHERE id = 100;. Expected one of: Query, Query with output, EXPLAIN, EXPLAIN, SELECT query, possibly with UNION, list of union elements, SELECT query, subquery, po",
+     "wall_s": 0.06,
+     "sql": "UPDATE index_lab.qu SET v = 7 WHERE id = 100;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "05-default-1",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 7;",
+     "runs": [
+      {
+       "query_id": "05-default-1",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "count()\n4\n",
+       "rows": [
+        "count()",
+        "4"
+       ],
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 125656,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-default-1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      5
+     ],
+     "duration_ms": 5,
+     "memory_usage": 125656,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "4"
+     ],
+     "stdout": "count()\n4\n"
+    },
+    {
+     "id": "05-default-2",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 7;",
+     "runs": [
+      {
+       "query_id": "05-default-2",
+       "wall_s": 0.084,
+       "rc": 0,
+       "stdout": "count()\n4\n",
+       "rows": [
+        "count()",
+        "4"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 130384,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-default-2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 130384,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "4"
+     ],
+     "stdout": "count()\n4\n"
+    },
+    {
+     "id": "05-off-2",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 7 SETTINGS use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "05-off-2",
+       "wall_s": 0.073,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.qc WHERE v = 7 SETTINGS use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-on-1",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 8 SETTINGS use_query_condition_cache = 1;",
+     "runs": [
+      {
+       "query_id": "05-on-1",
+       "wall_s": 0.061,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.qc WHERE v = 8 SETTINGS use_query_condition_cache = 1;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-on-2",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 8 SETTINGS use_query_condition_cache = 1;",
+     "runs": [
+      {
+       "query_id": "05-on-2",
+       "wall_s": 0.065,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.qc WHERE v = 8 SETTINGS use_query_condition_cache = 1;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "05-entries",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM system.query_condition_cache;",
+     "runs": [
+      {
+       "query_id": "05-entries",
+       "wall_s": 0.066,
+       "rc": 60,
+       "code": 60,
+       "message": "Received from localhost:9000. DB::Exception: Unknown table expression identifier 'system.query_condition_cache' in scope SELECT count() FROM system.query_condition_cache. (UNKNOWN_TABLE)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 60. DB::Exception: Received from localhost:9000. DB::Exception: Unknown table expression identifier 'system.query_condition_cache' in scope SELECT count() FROM system.query_condition_cache. (UNKNOWN_TABLE)\n(query: SELECT count() FROM system.query_condition_cache;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 60,
+        "query_id": "05-entries",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 60,
+     "message": "Received from localhost:9000. DB::Exception: Unknown table expression identifier 'system.query_condition_cache' in scope SELECT count() FROM system.query_condition_cache. (UNKNOWN_TABLE)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "05-after-insert",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qc WHERE v = 7;",
+     "runs": [
+      {
+       "query_id": "05-after-insert",
+       "wall_s": 0.064,
+       "rc": 0,
+       "stdout": "count()\n1004\n",
+       "rows": [
+        "count()",
+        "1004"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 629118,
+        "read_rows": 8193000,
+        "read_bytes": 32772000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-after-insert",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 629118,
+     "read_rows": 8193000,
+     "read_bytes": 32772000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1004"
+     ],
+     "stdout": "count()\n1004\n"
+    },
+    {
+     "id": "05-u-check",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT v != 7 FROM index_lab.qu WHERE id = 100;",
+     "runs": [
+      {
+       "query_id": "05-u-check",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "notEquals(v, 7)\n1\n",
+       "rows": [
+        "notEquals(v, 7)",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 12008,
+        "read_rows": 8192,
+        "read_bytes": 65940,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-u-check",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 12008,
+     "read_rows": 8192,
+     "read_bytes": 65940,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "notEquals(v, 7)",
+      "1"
+     ],
+     "stdout": "notEquals(v, 7)\n1\n"
+    },
+    {
+     "id": "05-u-1",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qu WHERE v = 7;",
+     "runs": [
+      {
+       "query_id": "05-u-1",
+       "wall_s": 0.071,
+       "rc": 0,
+       "stdout": "count()\n4\n",
+       "rows": [
+        "count()",
+        "4"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 374646,
+        "read_rows": 8192000,
+        "read_bytes": 32768000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "05-u-1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 374646,
+     "read_rows": 8192000,
+     "read_bytes": 32768000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "4"
+     ],
+     "stdout": "count()\n4\n"
+    },
+    {
+     "id": "05-u-2",
+     "repeat": 1,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.qu WHERE v = 7;",
+     "runs": [],
+     "status": "skip",
+     "code": 62,
+     "message": "skip (setup Code 62)"
+    }
+   ]
+  },
+  "06-final.sql": {
+   "setup": [
+    {
+     "id": "06-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "06-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.fi;"
+    },
+    {
+     "id": "06-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "CREATE TABLE index_lab.fi\n(\n    id UInt64 CODEC(LZ4),\n    code UInt64 CODEC(LZ4),\n    ver UInt32 CODEC(LZ4),\n    INDEX ic code TYPE bloom_filter GRANULARITY 1\n)\nENGINE = ReplacingMergeTree(ver)\nORDER BY id;"
+    },
+    {
+     "id": "06-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.12,
+     "sql": "INSERT INTO index_lab.fi SELECT number, number, 1 FROM numbers(1000000);"
+    },
+    {
+     "id": "06-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.13,
+     "sql": "OPTIMIZE TABLE index_lab.fi FINAL;"
+    },
+    {
+     "id": "06-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "SYSTEM STOP MERGES index_lab.fi;"
+    },
+    {
+     "id": "06-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "INSERT INTO index_lab.fi SELECT number, number + 1000000000, 2 FROM numbers(1000000) WHERE number % 100 = 0;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "06-old",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.fi FINAL WHERE code = 500000;",
+     "runs": [
+      {
+       "query_id": "06-old",
+       "wall_s": 0.072,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 10,
+        "memory_usage": 4393089,
+        "read_rows": 1210112,
+        "read_bytes": 24202240,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-old",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      10
+     ],
+     "duration_ms": 10,
+     "memory_usage": 4393089,
+     "read_rows": 1210112,
+     "read_bytes": 24202240,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    },
+    {
+     "id": "06-old-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.fi FINAL WHERE code = 500000))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "06-old-g",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 124/124\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 124/124"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 82616,
+        "read_rows": 10,
+        "read_bytes": 396,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-old-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 82616,
+     "read_rows": 10,
+     "read_bytes": 396,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 124/124"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 124/124\n"
+    },
+    {
+     "id": "06-new",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.fi FINAL WHERE code = 500001;",
+     "runs": [
+      {
+       "query_id": "06-new",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 9,
+        "memory_usage": 7831953,
+        "read_rows": 1210112,
+        "read_bytes": 24202240,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-new",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      9
+     ],
+     "duration_ms": 9,
+     "memory_usage": 7831953,
+     "read_rows": 1210112,
+     "read_bytes": 24202240,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "06-new-g",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(e), ' ') FROM (SELECT trimBoth(replaceRegexpAll(explain, '^[ │└├─]+', '')) AS e FROM (EXPLAIN indexes = 1 SELECT count() FROM index_lab.fi FINAL WHERE code = 500001))\nWHERE e LIKE 'Granules:%' OR e IN ('PrimaryKey', 'Skip', 'MinMax', 'Partition')\n   OR e LIKE 'Name:%' OR e LIKE 'Search Algorithm:%';",
+     "runs": [
+      {
+       "query_id": "06-new-g",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 124/124\n",
+       "rows": [
+        "arrayStringConcat(groupArray(e), \\' \\')",
+        "PrimaryKey Granules: 124/124"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 82616,
+        "read_rows": 10,
+        "read_bytes": 396,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-new-g",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 82616,
+     "read_rows": 10,
+     "read_bytes": 396,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(e), \\' \\')",
+      "PrimaryKey Granules: 124/124"
+     ],
+     "stdout": "arrayStringConcat(groupArray(e), \\' \\')\nPrimaryKey Granules: 124/124\n"
+    },
+    {
+     "id": "06-old-noidx",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.fi FINAL WHERE code = 500000 SETTINGS use_skip_indexes_if_final = 0;",
+     "runs": [
+      {
+       "query_id": "06-old-noidx",
+       "wall_s": 0.072,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 9,
+        "memory_usage": 9268545,
+        "read_rows": 1210112,
+        "read_bytes": 24202240,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "06-old-noidx",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      9
+     ],
+     "duration_ms": 9,
+     "memory_usage": 9268545,
+     "read_rows": 1210112,
+     "read_bytes": 24202240,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    }
+   ]
+  },
+  "07-scale.sql": {
+   "setup": [
+    {
+     "id": "07-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "07-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.big;"
+    },
+    {
+     "id": "07-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.big\n(\n    id UInt64 CODEC(LZ4),\n    uid UInt64 CODEC(LZ4),\n    v UInt32 CODEC(LZ4),\n    msg String CODEC(LZ4),\n    INDEX i_uid uid TYPE bloom_filter GRANULARITY 1,\n    INDEX i_tok msg TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 1\n)\nENGINE = MergeTree\nORDER BY id;"
+    },
+    {
+     "id": "07-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 4.76,
+     "sql": "INSERT INTO index_lab.big SELECT number, intHash64(number), intHash32(number) % 1000000, concat('GET /api/v1/item/', toString(number % 1000), ' status=', if(number % 1000003 = 0, '504 timeout', '200 ok'), ' user=u', toString(number % 100000)) FROM numbers(20000000);"
+    },
+    {
+     "id": "07-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 5.01,
+     "sql": "OPTIMIZE TABLE index_lab.big FINAL;"
+    },
+    {
+     "id": "07-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.big_lz4;"
+    },
+    {
+     "id": "07-setup20",
+     "ok": false,
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Unknown setting 'default_compression_codec': for storage MergeTree. (UNKNOWN_SETTING)",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.big_lz4\n(\n    id UInt64 CODEC(LZ4),\n    uid UInt64 CODEC(LZ4),\n    v UInt32 CODEC(LZ4),\n    msg String CODEC(LZ4),\n    INDEX i_uid uid TYPE bloom_filter GRANULARITY 1,\n    INDEX i_tok msg TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 1\n)\nENGINE = MergeTree\nORDER BY id\nSETTINGS defa"
+    }
+   ],
+   "probes": [
+    {
+     "id": "07-id",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE id = 12345678;",
+     "runs": [
+      {
+       "query_id": "07-id.1",
+       "wall_s": 0.091,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 71080,
+        "read_rows": 8192,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-id.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-id.2",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 63352,
+        "read_rows": 8192,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-id.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-id.3",
+       "wall_s": 0.072,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 63352,
+        "read_rows": 8192,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-id.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-id.4",
+       "wall_s": 0.066,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 63352,
+        "read_rows": 8192,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-id.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-id.5",
+       "wall_s": 0.065,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 62072,
+        "read_rows": 8192,
+        "read_bytes": 65536,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-id.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3,
+      2,
+      1,
+      1,
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 71080,
+     "read_rows": 8192,
+     "read_bytes": 65536,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "07-uid",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678);",
+     "runs": [
+      {
+       "query_id": "07-uid.1",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 6,
+        "memory_usage": 121048,
+        "read_rows": 475136,
+        "read_bytes": 3801088,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid.2",
+       "wall_s": 0.109,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 26,
+        "memory_usage": 437001,
+        "read_rows": 475136,
+        "read_bytes": 3801088,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid.3",
+       "wall_s": 0.085,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 6,
+        "memory_usage": 286569,
+        "read_rows": 475136,
+        "read_bytes": 3801088,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid.4",
+       "wall_s": 0.072,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 331145,
+        "read_rows": 475136,
+        "read_bytes": 3801088,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid.5",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 118880,
+        "read_rows": 475136,
+        "read_bytes": 3801088,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      6,
+      26,
+      6,
+      4,
+      5
+     ],
+     "duration_ms": 6,
+     "memory_usage": 437001,
+     "read_rows": 475136,
+     "read_bytes": 3801088,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "07-uid-noidx",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678) SETTINGS use_skip_indexes = 0;",
+     "runs": [
+      {
+       "query_id": "07-uid-noidx.1",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 8,
+        "memory_usage": 129416,
+        "read_rows": 20000000,
+        "read_bytes": 160000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid-noidx.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid-noidx.2",
+       "wall_s": 0.082,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 6,
+        "memory_usage": 355008,
+        "read_rows": 20000000,
+        "read_bytes": 160000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid-noidx.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid-noidx.3",
+       "wall_s": 0.069,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 130736,
+        "read_rows": 20000000,
+        "read_bytes": 160000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid-noidx.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid-noidx.4",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 7,
+        "memory_usage": 126648,
+        "read_rows": 20000000,
+        "read_bytes": 160000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid-noidx.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-uid-noidx.5",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 6,
+        "memory_usage": 126912,
+        "read_rows": 20000000,
+        "read_bytes": 160000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-uid-noidx.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      8,
+      6,
+      5,
+      7,
+      6
+     ],
+     "duration_ms": 6,
+     "memory_usage": 355008,
+     "read_rows": 20000000,
+     "read_bytes": 160000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "07-tok",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout');",
+     "runs": [
+      {
+       "query_id": "07-tok.1",
+       "wall_s": 0.138,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 45,
+        "memory_usage": 71528,
+        "read_rows": 163840,
+        "read_bytes": 8876764,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok.2",
+       "wall_s": 0.116,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 39,
+        "memory_usage": 63560,
+        "read_rows": 163840,
+        "read_bytes": 8876764,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok.3",
+       "wall_s": 0.114,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 40,
+        "memory_usage": 63560,
+        "read_rows": 163840,
+        "read_bytes": 8876764,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok.4",
+       "wall_s": 0.107,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 39,
+        "memory_usage": 63560,
+        "read_rows": 163840,
+        "read_bytes": 8876764,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok.5",
+       "wall_s": 0.105,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 38,
+        "memory_usage": 67664,
+        "read_rows": 163840,
+        "read_bytes": 8876764,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      45,
+      39,
+      40,
+      39,
+      38
+     ],
+     "duration_ms": 39,
+     "memory_usage": 71528,
+     "read_rows": 163840,
+     "read_bytes": 8876764,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "20"
+     ],
+     "stdout": "count()\n20\n"
+    },
+    {
+     "id": "07-tok-noidx",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout') SETTINGS use_skip_indexes = 0;",
+     "runs": [
+      {
+       "query_id": "07-tok-noidx.1",
+       "wall_s": 0.118,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 45,
+        "memory_usage": 126768,
+        "read_rows": 20000000,
+        "read_bytes": 1095578100,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok-noidx.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok-noidx.2",
+       "wall_s": 0.15,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 50,
+        "memory_usage": 127936,
+        "read_rows": 20000000,
+        "read_bytes": 1095578100,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok-noidx.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok-noidx.3",
+       "wall_s": 0.219,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 84,
+        "memory_usage": 586576,
+        "read_rows": 20000000,
+        "read_bytes": 1095578100,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok-noidx.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok-noidx.4",
+       "wall_s": 0.125,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 48,
+        "memory_usage": 129368,
+        "read_rows": 20000000,
+        "read_bytes": 1095578100,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok-noidx.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-tok-noidx.5",
+       "wall_s": 0.124,
+       "rc": 0,
+       "stdout": "count()\n20\n",
+       "rows": [
+        "count()",
+        "20"
+       ],
+       "log": {
+        "query_duration_ms": 49,
+        "memory_usage": 128824,
+        "read_rows": 20000000,
+        "read_bytes": 1095578100,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-tok-noidx.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      45,
+      50,
+      84,
+      48,
+      49
+     ],
+     "duration_ms": 49,
+     "memory_usage": 586576,
+     "read_rows": 20000000,
+     "read_bytes": 1095578100,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "20"
+     ],
+     "stdout": "count()\n20\n"
+    },
+    {
+     "id": "07-v",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE v = 7;",
+     "runs": [
+      {
+       "query_id": "07-v.1",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "count()\n17\n",
+       "rows": [
+        "count()",
+        "17"
+       ],
+       "log": {
+        "query_duration_ms": 8,
+        "memory_usage": 130704,
+        "read_rows": 20000000,
+        "read_bytes": 80000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-v.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-v.2",
+       "wall_s": 0.071,
+       "rc": 0,
+       "stdout": "count()\n17\n",
+       "rows": [
+        "count()",
+        "17"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 484950,
+        "read_rows": 20000000,
+        "read_bytes": 80000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-v.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-v.3",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "count()\n17\n",
+       "rows": [
+        "count()",
+        "17"
+       ],
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 483886,
+        "read_rows": 20000000,
+        "read_bytes": 80000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-v.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-v.4",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "count()\n17\n",
+       "rows": [
+        "count()",
+        "17"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 140352,
+        "read_rows": 20000000,
+        "read_bytes": 80000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-v.4",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "07-v.5",
+       "wall_s": 0.067,
+       "rc": 0,
+       "stdout": "count()\n17\n",
+       "rows": [
+        "count()",
+        "17"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 125584,
+        "read_rows": 20000000,
+        "read_bytes": 80000000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-v.5",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      8,
+      4,
+      5,
+      4,
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 484950,
+     "read_rows": 20000000,
+     "read_bytes": 80000000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "count()",
+      "17"
+     ],
+     "stdout": "count()\n17\n"
+    },
+    {
+     "id": "07-uid-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678) SETTINGS use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "07-uid-nc.1",
+       "wall_s": 0.059,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678) SETTINGS use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-uid-noidx-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678) SETTINGS use_skip_indexes = 0, use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "07-uid-noidx-nc.1",
+       "wall_s": 0.064,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.big WHERE uid = intHash64(12345678) SETTINGS use_skip_indexes = 0, use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-tok-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "07-tok-nc.1",
+       "wall_s": 0.067,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-tok-noidx-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout') SETTINGS use_skip_indexes = 0, use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "07-tok-noidx-nc.1",
+       "wall_s": 0.065,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.big WHERE hasToken(msg, 'timeout') SETTINGS use_skip_indexes = 0, use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-v-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big WHERE v = 7 SETTINGS use_query_condition_cache = 0;",
+     "runs": [
+      {
+       "query_id": "07-v-nc.1",
+       "wall_s": 0.063,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)\n(query: SELECT count() FROM index_lab.big WHERE v = 7 SETTINGS use_query_condition_cache = 0;)\n",
+       "log": null
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Setting use_query_condition_cache is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
+     "memory_usage": null,
+     "duration_ms": null,
+     "events": null
+    },
+    {
+     "id": "07-codec",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT\n    (SELECT groupUniqArray(default_compression_codec) FROM system.parts WHERE database = 'index_lab' AND table = 'big' AND active) AS part_default,\n    (SELECT groupUniqArray(compression_codec) FROM system.columns WHERE database = 'index_lab' AND table = 'big') AS column_codec;",
+     "runs": [
+      {
+       "query_id": "07-codec",
+       "wall_s": 0.062,
+       "rc": 0,
+       "stdout": "part_default\tcolumn_codec\n['LZ4']\t['CODEC(LZ4)']\n",
+       "rows": [
+        "part_default\tcolumn_codec",
+        "['LZ4']\t['CODEC(LZ4)']"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 132784,
+        "read_rows": 6,
+        "read_bytes": 240,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-codec",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3
+     ],
+     "duration_ms": 3,
+     "memory_usage": 132784,
+     "read_rows": 6,
+     "read_bytes": 240,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "part_default\tcolumn_codec",
+      "['LZ4']\t['CODEC(LZ4)']"
+     ],
+     "stdout": "part_default\tcolumn_codec\n['LZ4']\t['CODEC(LZ4)']\n"
+    },
+    {
+     "id": "07-sizes",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(concat(name, '=', toString(data_compressed_bytes))), ', ') FROM (SELECT name, data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'big' ORDER BY name);",
+     "runs": [
+      {
+       "query_id": "07-sizes",
+       "wall_s": 0.063,
+       "rc": 0,
+       "stdout": "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')\ni_tok=65920297, i_uid=20091576\n",
+       "rows": [
+        "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')",
+        "i_tok=65920297, i_uid=20091576"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 71856,
+        "read_rows": 13,
+        "read_bytes": 674,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "07-sizes",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 71856,
+     "read_rows": 13,
+     "read_bytes": 674,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')",
+      "i_tok=65920297, i_uid=20091576"
+     ],
+     "stdout": "arrayStringConcat(groupArray(concat(name, \\'=\\', toString(data_compressed_bytes))), \\', \\')\ni_tok=65920297, i_uid=20091576\n"
+    },
+    {
+     "id": "07-lz4-uid-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big_lz4 WHERE uid = intHash64(12345678) SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "07-lz4-tok-nc",
+     "repeat": 5,
+     "flags": [],
+     "sql": "SELECT count() FROM index_lab.big_lz4 WHERE hasToken(msg, 'timeout') SETTINGS use_query_condition_cache = 0;",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "07-lz4-codec",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT groupUniqArray(default_compression_codec) FROM system.parts WHERE database = 'index_lab' AND table = 'big_lz4' AND active;",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    },
+    {
+     "id": "07-lz4-sizes",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT arrayStringConcat(groupArray(concat(name, '=', toString(data_compressed_bytes))), ', ') FROM (SELECT name, data_compressed_bytes FROM system.data_skipping_indices WHERE database = 'index_lab' AND table = 'big_lz4' ORDER BY name);",
+     "runs": [],
+     "status": "skip",
+     "code": 115,
+     "message": "skip (setup Code 115)"
+    }
+   ]
+  },
+  "errors/01-expected-failures.sql": {
+   "setup": [
+    {
+     "id": "01-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "CREATE DATABASE IF NOT EXISTS index_lab;"
+    },
+    {
+     "id": "01-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_pk;"
+    },
+    {
+     "id": "01-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.1,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_sk;"
+    },
+    {
+     "id": "01-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_inv;"
+    },
+    {
+     "id": "01-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_ft;"
+    },
+    {
+     "id": "01-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_txd;"
+    },
+    {
+     "id": "01-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_txn;"
+    },
+    {
+     "id": "01-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_txu;"
+    },
+    {
+     "id": "01-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP TABLE IF EXISTS index_lab.e_noorder;"
+    },
+    {
+     "id": "01-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE index_lab.e_pk (id UInt64, c UInt32) ENGINE = MergeTree ORDER BY id;"
+    },
+    {
+     "id": "01-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "INSERT INTO index_lab.e_pk SELECT number, number % 7 FROM numbers(10000);"
+    },
+    {
+     "id": "01-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "CREATE TABLE index_lab.e_sk (id UInt64, v UInt32, INDEX i_v v TYPE minmax GRANULARITY 1) ENGINE = MergeTree ORDER BY id;"
+    },
+    {
+     "id": "01-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.06,
+     "sql": "INSERT INTO index_lab.e_sk SELECT number, number FROM numbers(10000);"
+    }
+   ],
+   "probes": [
+    {
+     "id": "err-force-pk",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.e_pk WHERE c = 7 SETTINGS force_primary_key = 1;",
+     "runs": [
+      {
+       "query_id": "err-force-pk",
+       "wall_s": 0.062,
+       "rc": 21,
+       "code": 277,
+       "message": "Received from localhost:9000. DB::Exception: Primary key (id) is not used and setting 'force_primary_key' is set. (INDEX_NOT_USED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 277. DB::Exception: Received from localhost:9000. DB::Exception: Primary key (id) is not used and setting 'force_primary_key' is set. (INDEX_NOT_USED)\n(query: SELECT count() FROM index_lab.e_pk WHERE c = 7 SETTINGS force_primary_key = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 277,
+        "query_id": "err-force-pk",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 277,
+     "message": "Received from localhost:9000. DB::Exception: Primary key (id) is not used and setting 'force_primary_key' is set. (INDEX_NOT_USED)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-force-skip",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM index_lab.e_sk WHERE v = 7 SETTINGS force_data_skipping_indices = 'i_none';",
+     "runs": [
+      {
+       "query_id": "err-force-skip",
+       "wall_s": 0.089,
+       "rc": 21,
+       "code": 277,
+       "message": "Received from localhost:9000. DB::Exception: Index `i_none` is not used and setting 'force_data_skipping_indices' contains it. (INDEX_NOT_USED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 277. DB::Exception: Received from localhost:9000. DB::Exception: Index `i_none` is not used and setting 'force_data_skipping_indices' contains it. (INDEX_NOT_USED)\n(query: SELECT count() FROM index_lab.e_sk WHERE v = 7 SETTINGS force_data_skipping_indices = 'i_none';)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 277,
+        "query_id": "err-force-skip",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 277,
+     "message": "Received from localhost:9000. DB::Exception: Index `i_none` is not used and setting 'force_data_skipping_indices' contains it. (INDEX_NOT_USED)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-type-inverted",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_inv (id UInt64, s String, INDEX i s TYPE inverted(0)) ENGINE = MergeTree ORDER BY id;",
+     "runs": [
+      {
+       "query_id": "err-type-inverted",
+       "wall_s": 0.064,
+       "rc": 127,
+       "code": 127,
+       "message": "Received from localhost:9000. DB::Exception: Please use index type 'full_text' instead of 'inverted'. (ILLEGAL_INDEX)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 127. DB::Exception: Received from localhost:9000. DB::Exception: Please use index type 'full_text' instead of 'inverted'. (ILLEGAL_INDEX)\n(query: CREATE TABLE index_lab.e_inv (id UInt64, s String, INDEX i s TYPE inverted(0)) ENGINE = MergeTree ORDER BY id;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 127,
+        "query_id": "err-type-inverted",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 127,
+     "message": "Received from localhost:9000. DB::Exception: Please use index type 'full_text' instead of 'inverted'. (ILLEGAL_INDEX)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-type-full-text",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_ft (id UInt64, s String, INDEX i s TYPE full_text(0)) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;",
+     "runs": [
+      {
+       "query_id": "err-type-full-text",
+       "wall_s": 0.067,
+       "rc": 88,
+       "code": 344,
+       "message": "Received from localhost:9000. DB::Exception: Experimental full-text index feature is not enabled (the setting 'allow_experimental_full_text_index'). (SUPPORT_IS_DISABLED)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 344. DB::Exception: Received from localhost:9000. DB::Exception: Experimental full-text index feature is not enabled (the setting 'allow_experimental_full_text_index'). (SUPPORT_IS_DISABLED)\n(query: CREATE TABLE index_lab.e_ft (id UInt64, s String, INDEX i s TYPE full_text(0)) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 344,
+        "query_id": "err-type-full-text",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 344,
+     "message": "Received from localhost:9000. DB::Exception: Experimental full-text index feature is not enabled (the setting 'allow_experimental_full_text_index'). (SUPPORT_IS_DISABLED)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-type-text-default",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_txd (id UInt64, s String, INDEX i s TYPE text(tokenizer = 'default')) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;",
+     "runs": [
+      {
+       "query_id": "err-type-text-default",
+       "wall_s": 0.073,
+       "rc": 80,
+       "code": 80,
+       "message": "Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 80. DB::Exception: Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)\n(query: CREATE TABLE index_lab.e_txd (id UInt64, s String, INDEX i s TYPE text(tokenizer = 'default')) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 80,
+        "query_id": "err-type-text-default",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 80,
+     "message": "Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-type-text-notok",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_txn (id UInt64, s String, INDEX i s TYPE text) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;",
+     "runs": [
+      {
+       "query_id": "err-type-text-notok",
+       "wall_s": 0.085,
+       "rc": 115,
+       "code": 115,
+       "message": "Received from localhost:9000. DB::Exception: Unknown setting 'allow_experimental_full_text_index': for storage MergeTree. (UNKNOWN_SETTING)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 115. DB::Exception: Received from localhost:9000. DB::Exception: Unknown setting 'allow_experimental_full_text_index': for storage MergeTree. (UNKNOWN_SETTING)\n(query: CREATE TABLE index_lab.e_txn (id UInt64, s String, INDEX i s TYPE text) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 115,
+        "query_id": "err-type-text-notok",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 115,
+     "message": "Received from localhost:9000. DB::Exception: Unknown setting 'allow_experimental_full_text_index': for storage MergeTree. (UNKNOWN_SETTING)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-text-on-uint",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_txu (id UInt64, n UInt64, INDEX i n TYPE text(tokenizer = splitByNonAlpha)) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;",
+     "runs": [
+      {
+       "query_id": "err-text-on-uint",
+       "wall_s": 0.066,
+       "rc": 80,
+       "code": 80,
+       "message": "Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 80. DB::Exception: Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)\n(query: CREATE TABLE index_lab.e_txu (id UInt64, n UInt64, INDEX i n TYPE text(tokenizer = splitByNonAlpha)) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_full_text_index = 1;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 80,
+        "query_id": "err-text-on-uint",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 80,
+     "message": "Received from localhost:9000. DB::Exception: Only literals can be skip index arguments. (INCORRECT_QUERY)",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    },
+    {
+     "id": "err-no-order-by",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "CREATE TABLE index_lab.e_noorder (id UInt64) ENGINE = MergeTree;",
+     "runs": [
+      {
+       "query_id": "err-no-order-by",
+       "wall_s": 0.065,
+       "rc": 42,
+       "code": 42,
+       "message": "Received from localhost:9000. DB::Exception: ORDER BY or PRIMARY KEY clause is missing. Consider using extended storage definition syntax with ORDER BY or PRIMARY KEY clause. With deprecated old syntax (highly not recommended) storage Merge",
+       "stderr": "Received exception from server (version 24.8.14):\nCode: 42. DB::Exception: Received from localhost:9000. DB::Exception: ORDER BY or PRIMARY KEY clause is missing. Consider using extended storage definition syntax with ORDER BY or PRIMARY KEY clause. With deprecated old syntax (highly not recommended) storage MergeTree requires 3 to 4 parameters: \nname of column with date,\n[sampling element of primary key],\nprimary key expression,\nindex granularity\n\nSyntax for the MergeTree table engine:\n\nCREATE TABLE [IF NOT EXISTS] [db.]table_name [ON CLUSTER cluster]\n(\n    name1 [type1] [DEFAULT|MATERIALIZED|ALIAS expr1] [TTL expr1],\n    name2 [type2] [DEFAULT|MATERIALIZED|ALIAS expr2] [TTL expr2],\n    ...\n    INDEX index_name1 expr1 TYPE type1(...) [GRANULARITY value1],\n    INDEX index_name2 expr2 TYPE type2(...) [GRANULARITY value2]\n) ENGINE = MergeTree()\nORDER BY expr\n[PARTITION BY expr]\n[PRIMARY KEY expr]\n[SAMPLE BY expr]\n[TTL expr [DELETE|TO DISK 'xxx'|TO VOLUME 'xxx'], ...]\n[SETTINGS name=value, ...]\n[COMMENT 'comment']\n\nSee details in documentation: https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree/. Other engines of the family support different syntax, see details in the corresponding documentation topics.\n\nIf you use the Replicated version of engines, see https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replication/.\n. (NUMBER_OF_ARGUMENTS_DOESNT_MATCH)\n(query: CREATE TABLE index_lab.e_noorder (id UInt64) ENGINE = MergeTree;)\n",
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 0,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 42,
+        "query_id": "err-no-order-by",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 42,
+     "message": "Received from localhost:9000. DB::Exception: ORDER BY or PRIMARY KEY clause is missing. Consider using extended storage definition syntax with ORDER BY or PRIMARY KEY clause. With deprecated old syntax (highly not recommended) storage Merge",
+     "memory_usage": 0,
+     "duration_ms": 0,
+     "events": {}
+    }
+   ]
+  }
+ },
+ "settings": {
+  "01-primary.sql": [
+   {
+    "name": "use_primary_key",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "force_primary_key",
+    "exists": true,
+    "value": "0",
+    "tier": null
+   },
+   {
+    "name": "index_granularity",
+    "exists": true,
+    "value": "8192",
+    "tier": "table"
+   },
+   {
+    "name": "index_granularity_bytes",
+    "exists": true,
+    "value": "10485760",
+    "tier": "table"
+   },
+   {
+    "name": "use_lightweight_primary_key_index_analysis",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "02-skip.sql": [
+   {
+    "name": "use_skip_indexes",
+    "exists": true,
+    "value": "1",
+    "tier": null
+   },
+   {
+    "name": "use_skip_indexes_on_data_read",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "use_skip_indexes_for_disjunctions",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "secondary_indices_enable_bulk_filtering",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "packed_skip_index_max_bytes",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "03-text.sql": [
+   {
+    "name": "enable_full_text_index",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "allow_experimental_full_text_index",
+    "exists": true,
+    "value": "0",
+    "tier": null
+   },
+   {
+    "name": "query_plan_direct_read_from_text_index",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "query_plan_optimize_count_from_text_index",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "query_plan_text_index_add_hint",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "text_index_like_min_pattern_length",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "use_text_index_like_evaluation_by_dictionary_scan",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "text_index_posting_list_apply_mode",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "use_query_condition_cache",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "04-auto-minmax.sql": [
+   {
+    "name": "add_minmax_index_for_numeric_columns",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "add_minmax_index_for_string_columns",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "add_minmax_index_for_temporal_columns",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "05-condition-cache.sql": [
+   {
+    "name": "use_query_condition_cache",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "query_condition_cache_store_conditions_as_plaintext",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "use_query_condition_cache_for_top_k",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "06-final.sql": [
+   {
+    "name": "use_skip_indexes_if_final",
+    "exists": true,
+    "value": "0",
+    "tier": null
+   },
+   {
+    "name": "use_skip_indexes_if_final_exact_mode",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "07-scale.sql": [
+   {
+    "name": "use_skip_indexes",
+    "exists": true,
+    "value": "1",
+    "tier": null
+   },
+   {
+    "name": "use_query_condition_cache",
+    "exists": false,
+    "value": null,
+    "tier": null
+   },
+   {
+    "name": "default_compression_codec",
+    "exists": false,
+    "value": null,
+    "tier": null
+   }
+  ],
+  "errors/01-expected-failures.sql": []
+ },
+ "tag": "24.8.14.39",
+ "version": "24.8.14.39",
+ "date": "2026-11-05",
+ "machine": {
+  "ncpu": 12,
+  "mem_bytes": 16745496576,
+  "others": [
+   "lf-gateway-lab-ai-gateway-1",
+   "lf-gateway-lab-clickhouse-1",
+   "lf-gateway-lab-langfuse-web-1",
+   "lf-gateway-lab-langfuse-worker-1",
+   "lf-gateway-lab-litellm-1",
+   "lf-gateway-lab-litellm-db-1",
+   "lf-gateway-lab-minio-1",
+   "lf-gateway-lab-postgres-1",
+   "lf-gateway-lab-redis-1"
+  ],
+  "others_cpu": {
+   "lf-gateway-lab-litellm-1": 0.19,
+   "lf-gateway-lab-litellm-db-1": 3.85,
+   "lf-gateway-lab-ai-gateway-1": 0.0,
+   "lf-gateway-lab-langfuse-web-1": 0.0,
+   "lf-gateway-lab-langfuse-worker-1": 3.31,
+   "lf-gateway-lab-postgres-1": 0.37,
+   "lf-gateway-lab-redis-1": 0.51,
+   "lf-gateway-lab-clickhouse-1": 6.93,
+   "lf-gateway-lab-minio-1": 9.73
+  }
+ },
+ "elapsed_s": 52
+}
