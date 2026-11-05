@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generated from khai-workbench domains/clickhouse/tools/hol @3f80d0b — edit there, not here (sync.py).
+# Generated from khai-workbench domains/clickhouse/tools/hol @d1917e1 — edit there, not here (sync.py).
 """hol — run hands-on labs against a throwaway ClickHouse container.
 
 Needs only Python 3 and Docker; run on macOS and Linux. Labs opt in with a
@@ -48,7 +48,7 @@ def sh(*cmd, **kw):
 
 def up(meta):
     name, image = container(meta), "clickhouse/clickhouse-server:%s" % meta["clickhouse"]
-    sh("docker", "rm", "-f", name, capture_output=True)
+    sh("docker", "rm", "-f", "-v", name, capture_output=True)
     args = ["docker", "run", "-d", "--name", name,
             "--ulimit", "nofile=262144:262144",
             "-e", "CLICKHOUSE_PASSWORD=", "-e", "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1"]
@@ -111,11 +111,11 @@ def main():
     if a.cmd == "up":
         print(up(meta))
     elif a.cmd == "down":
-        sh("docker", "rm", "-f", container(meta), capture_output=True)
+        sh("docker", "rm", "-f", "-v", container(meta), capture_output=True)
     else:
         failed = run(meta)
         if not a.keep:
-            sh("docker", "rm", "-f", container(meta), capture_output=True)
+            sh("docker", "rm", "-f", "-v", container(meta), capture_output=True)
         return 1 if failed else 0
     return 0
 
