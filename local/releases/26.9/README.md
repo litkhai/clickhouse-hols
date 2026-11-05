@@ -6,7 +6,7 @@
 
 ## English
 
-**Released 2026-09-21 · verified here against 26.9.1.1629**
+**Released 2026-09-21 · verified here against 26.9.27.3**
 
 26.9 is the release after an LTS, and it spends that position on cleanup: the
 changelog has 17 backward incompatible changes against 27 new features, and
@@ -143,6 +143,20 @@ an `IN` list. That is worth a comment in the schema.
 
 There is also no way past the `map['key'] = 'value'` form — `hasToken(attrs,
 …)` rejects a `Map` argument outright. The equality is the whole interface.
+
+**ClickStack's attribute type works too.** ClickStack (HyperDX) declares
+`LogAttributes`, `ResourceAttributes` and `SpanAttributes` as
+`Map(LowCardinality(String), String)`. The same `CREATE TABLE` with that type
+and the same `keyValuePairs` index is accepted as written — no cast, no
+workaround. On 1M rows (`service.name` clustered 100k rows to a value, four
+services), `LogAttributes['service.name'] = 'checkout'` shows
+`Skip idx_attrs ... Granules: 40/123` with `tokens: ["service.namecheckout"]`,
+and the indexed `count()` reads 1 row (16 B). A `SELECT ... LIMIT 3` reads
+16,384 rows (80 KiB). The same rule as above applies: `IN ('checkout',
+'payment')` on 26.9 has no `Skip` entry and reads all 1,000,000 rows
+(8.96 MiB). Measured on 26.9.27.3 (section 10 of the SQL). 26.10 answers the
+`IN` from the index too (26.10 changelog): on 26.10.3.7 the same table shows
+`Skip idx_attrs (mode: Any …) Granules: 40/123` for it.
 
 This is the third release running to extend text indexes: 26.8 added the
 `japanese`, `chinese` and `icu` tokenizers, and 26.9 also gives
@@ -345,7 +359,7 @@ likely they are to affect you:
 
 ### Verified
 
-Every query in the four `.sql` files was run against **26.9.1.1629** in the
+Every query in the four `.sql` files was run against **26.9.27.3** in the
 container this lab sets up, and every number, plan fragment and error code
 quoted above is from those runs. `04-create-token.sh` was run end to end too.
 
@@ -366,7 +380,7 @@ zero-argument `year()`.
 
 ## 한국어
 
-**2026-09-21 릴리스 · 여기서는 26.9.1.1629로 검증**
+**2026-09-21 릴리스 · 여기서는 26.9.27.3로 검증**
 
 26.9는 LTS 다음 릴리스이고, 그 자리를 정리에 씁니다 — changelog에 하위 호환성
 변경 17개에 신기능 27개입니다. 제거된 것 중 상당수는 수년간 deprecated 상태였던
@@ -502,6 +516,20 @@ CREATE TABLE kvp (
 
 `map['key'] = 'value'` 형태를 우회할 방법도 없습니다 — `hasToken(attrs, …)`은
 `Map` 인자를 아예 거부합니다. 이 동등 비교가 인터페이스의 전부입니다.
+
+**ClickStack의 속성 타입도 동작합니다.** ClickStack(HyperDX)은
+`LogAttributes`·`ResourceAttributes`·`SpanAttributes`를
+`Map(LowCardinality(String), String)`으로 선언합니다. 이 타입으로 같은
+`keyValuePairs` 인덱스를 건 `CREATE TABLE`이 캐스트나 우회 없이 그대로
+받아들여집니다. 100만 행(`service.name`이 값 하나당 10만 행씩 묶인 서비스
+4개)에서 `LogAttributes['service.name'] = 'checkout'`은
+`tokens: ["service.namecheckout"]`와 `Skip idx_attrs ... Granules: 40/123`을
+보이고, 인덱스를 쓰는 `count()`는 1행(16 B)을 읽습니다. `SELECT ... LIMIT 3`은
+16,384행(80 KiB)을 읽습니다. 위와 같은 규칙이 적용됩니다 — 26.9에서
+`IN ('checkout', 'payment')`는 `Skip` 항목이 없고 100만 행 전부(8.96 MiB)를
+읽습니다. 26.9.27.3에서 측정했습니다(SQL 10번 절). 26.10부터는 `IN`도
+인덱스로 답합니다(26.10 changelog). 26.10.3.7에서 같은 표는
+`Skip idx_attrs (mode: Any …) Granules: 40/123`을 보입니다.
 
 텍스트 인덱스 확장은 이번이 세 번째 릴리스 연속입니다. 26.8이
 `japanese`·`chinese`·`icu` 토크나이저를 추가했고, 26.9는 `splitByRegexp`에
@@ -701,7 +729,7 @@ changelog에는 하위 호환성 변경 17개, 신기능 27개, 실험 기능 28
 
 ### 검증
 
-네 개 `.sql` 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 **26.9.1.1629**에서
+네 개 `.sql` 파일의 모든 쿼리를 이 랩이 띄우는 컨테이너의 **26.9.27.3**에서
 실행했고, 위에 인용한 수치·플랜 조각·에러 코드는 전부 그 실행 결과입니다.
 `04-create-token.sh`도 끝까지 실행했습니다.
 
