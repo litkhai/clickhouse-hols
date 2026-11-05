@@ -76,20 +76,22 @@ few milliseconds are not used below.
   `DELETE FROM` is a `MutatePart` that writes about 11 KB (24.8) to 18 KB (26.10) for 1% of 2M rows;
   `ALTER ... DELETE` writes 16 MB. With `lightweight_delete_mode = 'lightweight_update'` on a table with
   the block columns the server writes a patch part instead (`07-delete-patch-bytes`: 5 KB on 25.8 and 26.3,
-  92 KB on 26.8 and 26.10, no `MutatePart`). `lightweight_update_force` on a table without the block columns
+  92 KB on 26.8 and 26.10, no `MutatePart`; the jump has the same cause as the patch bytes, item 2 of
+  *Explained after the run* below). `lightweight_update_force` on a table without the block columns
   fails with Code 344 (`err-delete-force-no-block-columns`). With `apply_deleted_mask = 0` the deleted rows
   are back (`count()` 2,000,000 against 1,980,000) on every version, and for the patch mode from 25.8.
 - **Patch bytes.** For the same 1% update the patch part is 93 KB (10%: 845 KB) on 25.8.33.6 and
   26.3.62.3; on 26.8.36.3 and 26.10.3.7 they are 180 KB
-  and 1.65 MB.
+  and 1.65 MB. From 26.8 a patch part also stores the table's sort key (item 2 below).
 - **On-the-fly mutations.** `apply_mutations_on_fly = 1` returns the new value on 25.3.14.14 and
   later; on 24.8.14.39 the setting exists but the read still returns the old value
   (`05-read-on-fly`).
 - **`APPLY PATCHES`.** `ALTER TABLE ... APPLY PATCHES` ran on 25.8 to 26.10. After 50 patches,
   `OPTIMIZE ... FINAL` renamed the base part (`all_1_2_1` to `all_1_2_2_101`) and left one active
-  patch part holding the 50 rows; `APPLY PATCHES` renamed it again (`..._103`). On 25.8.33.6 no patch
-  part was active afterwards; on 26.3.62.3, 26.8.36.3 and 26.10.3.7 one patch part with 50 rows stayed
-  active. Scan and point-read results are identical in all steps.
+  patch part holding the 50 rows; `APPLY PATCHES` renamed it again (`..._103`). The probe right after it
+  found no active patch part on 25.8.33.6 and the 50-row patch part still active on 26.3.62.3, 26.8.36.3
+  and 26.10.3.7. It is removed in the background on every build, about 1 s later on 25.8 and 28 to 36 s
+  later on 26.3 to 26.10 (item 1 below). Scan and point-read results are identical in all steps.
 - **`ReplacingMergeTree`.** Same results on all six versions: 2,020,000 rows without `FINAL`,
   2,000,000 with it; a plain `OPTIMIZE FINAL` on the `is_deleted` table leaves the 2,000 deleted rows
   (2,000,000 physical rows); `OPTIMIZE ... FINAL CLEANUP` removes them (1,998,000) but only when the
@@ -144,7 +146,9 @@ merges stopped, and the re-insert tables are read with `FINAL`. The scan is
 ids on the sort key. Cells are median (fastest) of 5 repeats in ms, 26.10.3.7 first and the oldest build
 where the mechanism runs in brackets (24.8.14.39; 25.8.33.6 for patch parts). The run took 74 to 121 s
 per version; other containers were running (RESULTS.md has their CPU%, total 88% to 459% of 1200%), so
-read differences smaller than about 30% as noise.
+read differences smaller than about 30% as noise. On 26.10.3.7 `OPTIMIZE ... FINAL` writes every 20M-row
+table with `ZSTD(3)`, on the other builds with `LZ4` (item 3 below); the patch parts and the re-inserted
+parts are `LZ4` on every build. So a bracketed value differs from the 26.10 one in codec as well as in build.
 
 | Read | Fraction | untouched control | classic `ALTER UPDATE` | patch-part `UPDATE` | re-insert, `FINAL` |
 |---|---|---|---|---|---|
@@ -168,7 +172,7 @@ re-insert 63 ms and 255 ms, writing 1.8 MB and 9.2 MB.
 What changes between builds, from the same file:
 
 - **Patch part, bytes written.** 916 KB (1%) and 8.4 MB (10%) on 25.8.33.6 and 26.3.62.3; 1.79 MB and
-  16.4 MB on 26.8.36.3 and 26.10.3.7, for the same changed rows (200,000 and 2,000,000).
+  16.4 MB on 26.8.36.3 and 26.10.3.7, for the same changed rows (200,000 and 2,000,000); item 2 below.
 - **Patch part, update time (1% / 10%).** 137 / 734 ms on 25.8, 141 / 553 ms on 26.3, 100 / 832 ms on
   26.8, 125 / 269 ms on 26.10 (single runs).
 - **Patch part, scan (1% / 10%).** 186 (173) / 270 (229) on 25.8 against a control of 252 (203); 367 (226)
@@ -176,9 +180,68 @@ What changes between builds, from the same file:
   (204) on 26.10 against 148 (134). The control itself varies by 1.7x between builds on this loaded
   machine, so the overhead ratios of 25.8 to 26.8 are not reliable; these runs do not separate the builds.
 - **Classic mutation, bytes written.** 79 MB (1%) and 72 MB (10%) on 24.8 to 26.8; 20.5 MB and 19.6 MB on
-  26.10.3.7. At 2M rows (file 04) all six builds wrote 7 to 8 MB. This lab did not look into why.
+  26.10.3.7. At 2M rows (file 04) all six builds wrote 7 to 8 MB. The mutation is the same; 26.10
+  compresses the 20M-row part with `ZSTD(3)` (item 3 below).
 - **Not available.** Patch parts are Code 62 on 24.8 and 25.3, as in file 04; their classic and
   re-insert tables ran.
+
+### Explained after the run (2026-11-05)
+
+Three of the differences above were first recorded without a cause. On 2026-11-05 each one was reproduced
+with a control on throwaway containers of 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7 (other containers
+used about 230% of 1200% CPU at the start and 43% at the end; only bytes, part names and log lines are
+used, no timings). The cause was read in the ClickHouse source: `v25.8.33.6-lts`, and for the other builds
+the nearest public tags `v26.3.60.2-lts`, `v26.8.34.13-lts` and `v26.10.2.103-stable`, because the
+26.3.62.3, 26.8.36.3 and 26.10.3.7 build commits (`system.build_options`) are not on GitHub. None of the
+three is a bug. The reproductions are in [`explain/`](explain/); run one with
+`clickhouse-client --multiquery < explain/<file>` (the runner and `tools/hol` do not run this directory).
+
+1. **The patch part left after `APPLY PATCHES` is removed later by the cleanup.** On every build the server
+   log has `Will drop unused patch part ...` for it: 1.0 s after `APPLY PATCHES` finished on 25.8.33.6,
+   28.6 s on 26.3.62.3, 27.9 s on 26.8.36.3 and 36.3 s on 26.10.3.7. On 25.8, `clearUnusedPatchParts` ran
+   from the table's merge and mutation scheduler (`StorageMergeTree::scheduleDataProcessingJob`) at most
+   every `merge_tree_clear_old_parts_interval_seconds` (1 s). From 26.3 it
+   runs in a separate cleanup thread
+   ([ClickHouse#91574](https://github.com/ClickHouse/ClickHouse/pull/91574), merged into 26.3.1.471,
+   `MergeTreeCleanupThread`). That thread sleeps between `cleanup_delay_period` (30 s) and `max_cleanup_delay_period` (300 s), longer after
+   a pass that removed little, plus up to `cleanup_delay_period_random_add` (10 s). The setting's
+   description agrees: `remove_unused_patch_parts` removes such parts "in background".
+   `explain/01-patch-cleanup.sql` reads `system.parts` 3 s after `APPLY PATCHES`. With default settings the
+   patch part is gone on 25.8 and still there on 26.3 to 26.10. When the three cleanup settings are 1, 1
+   and 0 it is gone on all four builds. With the same cadence and `remove_unused_patch_parts = 0` it stays
+   on all four. Setting only `cleanup_delay_period = 1` is not enough: after a pass that removed almost
+   nothing, the 26.10 trace said `Scheduling next cleanup after 75000ms`.
+2. **From 26.8 a patch part stores the table's sort key.** 26.8 adds the table setting
+   `patch_parts_version`, default `v2`
+   ([ClickHouse#103182](https://github.com/ClickHouse/ClickHouse/pull/103182) "Lightweight Updates v2", a
+   backward-incompatible change, re-landed as [ClickHouse#116007](https://github.com/ClickHouse/ClickHouse/pull/116007) and backported to 26.8 as
+   [ClickHouse#116373](https://github.com/ClickHouse/ClickHouse/pull/116373);
+   `v26.8.1.2041-lts` already defaults to `v2`). A `v1` patch part holds `v`, `_part`, `_part_offset`,
+   `_part_data_version`, `_block_number` and `_block_offset`, sorted by `(_part, _part_offset)`. A `v2` patch
+   part holds the sort-key columns (here `id`) in place of `_part_offset` and is sorted by
+   `(id, _block_number, _block_offset)`. According to the setting's description, applying a `v2` patch needs
+   memory for the largest run of equal keys instead of the whole patch. Both are 820,086 bytes
+   uncompressed for 1% of 2M rows. The difference is the codec: `_part_offset` gets the `Delta, LZ4` codec of
+   `_block_offset` (`addCodecsForPatchSystemColumns` in `PatchParts/PatchPartsUtils.cpp`; about 300 bytes per
+   compressed block in `clickhouse-compressor --stat`), and `id` gets the table's codec, `LZ4` (36 to 52 KB
+   per block, as much as `v`). That makes 91,118 against 178,248 compressed bytes.
+   `explain/02-patch-part-columns.sql`: with `patch_parts_version = 'v1'`, 26.8.36.3 and 26.10.3.7 write
+   91,118 bytes, the same as 25.8 and 26.3. On those two builds the setting does not exist (Code 115). The
+   `lightweight_update` `DELETE` patch is bigger for the same reason: 3,280 compressed bytes on 26.3, and on
+   26.10 with `v1`, against 90,410 on 26.10 with `v2`. How much a `v2` patch grows depends on the width of
+   the sort key.
+3. **26.10 compresses large parts with `ZSTD(3)`; the mutation is unchanged.** On 26.10.3.7 the 20M-row
+   part that `OPTIMIZE ... FINAL` writes is already `ZSTD(3)` (`system.parts.default_compression_codec`,
+   41.2 MB), where 25.8 to 26.8 write `LZ4` (162 MB). A mutation that rewrites only some columns keeps the
+   source part's codec (`MutateTask.cpp`), so `v` is rewritten with `ZSTD(3)`. The cause is [ClickHouse#108786](https://github.com/ClickHouse/ClickHouse/pull/108786) ("Switch the
+   default compression to ZSTD(3) for table data and network", backward incompatible, merged into
+   26.9.1.810). For a column with no codec, no `default_compression_codec` table setting and no matching
+   `<compression>` case, MergeTree now uses `LZ4` below 100 MiB and `ZSTD(3)` at or above
+   (`min_part_size_for_default_codec` in `src/Storages/CompressionCodecSelector.h`). It judges a merge by
+   the compressed size of its source parts and an insert by 0. The 2M-row part (16 MB) stays
+   `LZ4`, so file 04 wrote 7 to 8 MB on every build. `explain/03-default-codec.sql`: the classic 1%
+   mutation writes 20,478,234 bytes on 26.10.3.7 and 79,316,481 to 79,323,443 on 25.8 to 26.8. With
+   `default_compression_codec = 'LZ4'`, 26.10.3.7 writes 79,323,441.
 
 ### Screens
 
@@ -268,17 +331,19 @@ tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10�
   200만 행의 1%에 대해 약 11 KB(24.8)~18 KB(26.10)를 쓰는 `MutatePart`이고, `ALTER ... DELETE`는
   16 MB를 씁니다. 블록 컬럼이 있는 테이블에서 `lightweight_delete_mode = 'lightweight_update'`를
   쓰면 패치 파트를 씁니다(`07-delete-patch-bytes`: 25.8과 26.3에서 5 KB, 26.8과 26.10에서 92 KB, `MutatePart`
-  없음). 블록 컬럼 없는 테이블에서 `lightweight_update_force`는 Code 344로 실패합니다
+  없음. 늘어난 이유는 패치 바이트와 같으며 아래 *실행 뒤 밝힌 원인*의 2번입니다). 블록 컬럼 없는 테이블에서 `lightweight_update_force`는 Code 344로 실패합니다
   (`err-delete-force-no-block-columns`). `apply_deleted_mask = 0`이면 삭제한 행이 다시 보입니다
   (`count()` 2,000,000 대 1,980,000). 모든 버전에서 같고 패치 모드는 25.8부터입니다.
 - **패치 바이트.** 같은 1% 업데이트에서 패치 파트는 25.8.33.6과 26.3.62.3에서 93 KB(10%는 845 KB), 26.8.36.3과 26.10.3.7은 180 KB와 1.65 MB입니다.
+  26.8부터 패치 파트가 테이블의 정렬 키도 저장하기 때문입니다(아래 2번).
 - **On-the-fly 뮤테이션.** `apply_mutations_on_fly = 1`은 25.3.14.14부터 새 값을 반환하고, 24.8.14.39는
   설정은 있지만 읽으면 이전 값이 나옵니다(`05-read-on-fly`).
 - **`APPLY PATCHES`.** `ALTER TABLE ... APPLY PATCHES`는 25.8~26.10에서 실행됐습니다. 패치 50개 뒤
   `OPTIMIZE ... FINAL`은 기본 파트 이름을 바꾸고(`all_1_2_1`에서 `all_1_2_2_101`) 50행을 담은 활성
-  패치 파트 하나를 남겼고, `APPLY PATCHES`는 다시 이름을 바꿨습니다(`..._103`). 25.8.33.6에서는 이후
-  활성 패치 파트가 없었고 26.3.62.3, 26.8.36.3, 26.10.3.7에서는 50행짜리 패치 파트 하나가 활성으로
-  남았습니다. 스캔과 포인트 읽기 결과는 모든 단계에서 같습니다.
+  패치 파트 하나를 남겼고, `APPLY PATCHES`는 다시 이름을 바꿨습니다(`..._103`). 바로 뒤의 probe는
+  25.8.33.6에서 활성 패치 파트를 찾지 못했고 26.3.62.3, 26.8.36.3, 26.10.3.7에서는 50행짜리 패치 파트가
+  아직 활성이었습니다. 모든 빌드에서 이 파트는 백그라운드에서 지워지며, 25.8은 약 1초 뒤, 26.3~26.10은
+  28~36초 뒤입니다(아래 1번). 스캔과 포인트 읽기 결과는 모든 단계에서 같습니다.
 - **`ReplacingMergeTree`.** 여섯 버전 모두 같습니다: `FINAL` 없으면 2,020,000행, 있으면 2,000,000행.
   `is_deleted` 테이블의 일반 `OPTIMIZE FINAL`은 삭제 행 2,000개를 남기고(물리 2,000,000행),
   `OPTIMIZE ... FINAL CLEANUP`이 지웁니다(1,998,000). 단 테이블을
@@ -331,7 +396,9 @@ tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10�
 정렬 키 기준 10만 id에 대한 같은 집계입니다. 셀은 5회 반복의 중앙값(최솟값) ms이며 26.10.3.7이 먼저이고
 대괄호는 그 방법이 실행되는 가장 오래된 빌드(24.8.14.39, 패치 파트는 25.8.33.6)입니다. 버전당 74~121초가
 걸렸고 다른 컨테이너가 돌고 있었으므로(CPU% 합계는 RESULTS.md, 1200% 중 88~459%) 약 30%보다 작은
-차이는 잡음으로 보세요.
+차이는 잡음으로 보세요. 26.10.3.7에서는 `OPTIMIZE ... FINAL`이 2,000만 행 테이블을 모두 `ZSTD(3)`로,
+다른 빌드는 `LZ4`로 씁니다(아래 3번). 패치 파트와 재삽입한 파트는 모든 빌드에서 `LZ4`입니다. 그래서
+대괄호 값은 26.10 값과 빌드뿐 아니라 코덱도 다릅니다.
 
 | 읽기 | 비율 | 건드리지 않은 대조군 | 기존 `ALTER UPDATE` | 패치 파트 `UPDATE` | 재삽입, `FINAL` |
 |---|---|---|---|---|---|
@@ -354,7 +421,7 @@ tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10�
 같은 파일에서 본 빌드 간 변화:
 
 - **패치 파트 쓴 바이트.** 같은 바뀐 행(20만, 200만)에 대해 25.8.33.6과 26.3.62.3은 916 KB(1%)와
-  8.4 MB(10%), 26.8.36.3과 26.10.3.7은 1.79 MB와 16.4 MB입니다.
+  8.4 MB(10%), 26.8.36.3과 26.10.3.7은 1.79 MB와 16.4 MB입니다(아래 2번).
 - **패치 파트 업데이트 시간(1% / 10%).** 25.8 137 / 734 ms, 26.3 141 / 553 ms, 26.8 100 / 832 ms,
   26.10 125 / 269 ms(단일 실행).
 - **패치 파트 스캔(1% / 10%).** 25.8 186 (173) / 270 (229), 대조군 252 (203). 26.3 367 (226) / 229 (160),
@@ -362,9 +429,66 @@ tools/hol run workload/upsert-across-versions   # 저장소 루트에서: 26.10�
   148 (134). 부하가 있는 이 머신에서 대조군 자체가 빌드 사이에 1.7배 달라지므로 25.8~26.8의 오버헤드
   비율은 신뢰할 수 없고, 이 실행으로는 빌드를 구분할 수 없습니다.
 - **기존 뮤테이션 쓴 바이트.** 24.8~26.8은 79 MB(1%), 72 MB(10%), 26.10.3.7은 20.5 MB, 19.6 MB입니다.
-  200만 행(파일 04)에서는 여섯 빌드 모두 7~8 MB였습니다. 이유는 이 실습에서 조사하지 않았습니다.
+  200만 행(파일 04)에서는 여섯 빌드 모두 7~8 MB였습니다. 뮤테이션은 같고, 26.10이 2,000만 행 파트를
+  `ZSTD(3)`로 압축합니다(아래 3번).
 - **불가.** 패치 파트는 파일 04처럼 24.8과 25.3에서 Code 62이고, 그 빌드의 기존 방식과 재삽입
   테이블은 실행됐습니다.
+
+### 실행 뒤 밝힌 원인(2026-11-05)
+
+위 차이 가운데 셋은 처음에 원인 없이 기록했습니다. 2026-11-05에 25.8.33.6, 26.3.62.3, 26.8.36.3,
+26.10.3.7 일회용 컨테이너에서 대조군과 함께 하나씩 재현했습니다(다른 컨테이너의 CPU는 시작 때 1200% 중
+약 230%, 끝날 때 43%였고, 시간은 쓰지 않고 바이트, 파트 이름, 로그 줄만 씁니다). 원인은 ClickHouse
+소스에서 읽었습니다. 25.8은 `v25.8.33.6-lts`이고, 26.3.62.3, 26.8.36.3, 26.10.3.7의 빌드 커밋
+(`system.build_options`)은 GitHub에 없어서 가장 가까운 공개 태그 `v26.3.60.2-lts`, `v26.8.34.13-lts`,
+`v26.10.2.103-stable`을 읽었습니다. 셋 다 버그가 아닙니다. 재현 SQL은 [`explain/`](explain/)에 있고
+`clickhouse-client --multiquery < explain/<파일>`로 실행합니다(러너와 `tools/hol`은 이 디렉터리를
+실행하지 않습니다).
+
+1. **`APPLY PATCHES` 뒤에 남은 패치 파트는 정리 작업이 나중에 지웁니다.** 모든 빌드의 서버 로그에
+   그 파트에 대한 `Will drop unused patch part ...`가 있습니다. `APPLY PATCHES`가 끝나고 25.8.33.6은
+   1.0초, 26.3.62.3은 28.6초, 26.8.36.3은 27.9초, 26.10.3.7은 36.3초 뒤입니다. 25.8에서는
+   `clearUnusedPatchParts`가 테이블의 머지·뮤테이션 스케줄러(`StorageMergeTree::scheduleDataProcessingJob`)에서
+   `merge_tree_clear_old_parts_interval_seconds`(1초)마다 최대 한 번 돌았습니다. 26.3부터는 별도 정리
+   스레드에서 돕니다([ClickHouse#91574](https://github.com/ClickHouse/ClickHouse/pull/91574), 26.3.1.471에
+   머지, `MergeTreeCleanupThread`). 이 스레드는 `cleanup_delay_period`(30초)에서
+   `max_cleanup_delay_period`(300초) 사이를 쉬고(직전에 지운 것이 적을수록 길게), 여기에
+   `cleanup_delay_period_random_add`(10초)까지 더합니다. 설정 설명도 `remove_unused_patch_parts`가
+   "in background"로 지운다고 적고 있습니다. `explain/01-patch-cleanup.sql`은 `APPLY PATCHES` 3초 뒤에
+   `system.parts`를 읽습니다. 기본 설정이면 패치 파트가 25.8에서는 없고 26.3~26.10에서는 아직 있습니다.
+   정리 설정 세 개를 1, 1, 0으로 두면 네 빌드 모두 없고, 같은 주기에 `remove_unused_patch_parts = 0`이면
+   네 빌드 모두 남습니다. `cleanup_delay_period = 1`만으로는 부족합니다. 거의 지운 것이 없던 직전 정리
+   뒤에 26.10의 trace는 `Scheduling next cleanup after 75000ms`였습니다.
+2. **26.8부터 패치 파트가 테이블의 정렬 키를 저장합니다.** 26.8에 테이블 설정 `patch_parts_version`이
+   생겼고 기본값은 `v2`입니다([ClickHouse#103182](https://github.com/ClickHouse/ClickHouse/pull/103182)
+   "Lightweight Updates v2", 하위 호환이 깨지는 변경, [ClickHouse#116007](https://github.com/ClickHouse/ClickHouse/pull/116007)로 다시 들어가
+   [ClickHouse#116373](https://github.com/ClickHouse/ClickHouse/pull/116373)으로 26.8에 백포트,
+   `v26.8.1.2041-lts`부터 기본값 `v2`). `v1` 패치 파트는 `v`, `_part`, `_part_offset`,
+   `_part_data_version`, `_block_number`, `_block_offset`을 담고 `(_part, _part_offset)`로 정렬됩니다.
+   `v2` 패치 파트는 `_part_offset` 대신 정렬 키 컬럼(여기서는 `id`)을 담고
+   `(id, _block_number, _block_offset)`로 정렬됩니다. 설정 설명에 따르면 `v2` 패치를 적용할 때 메모리는
+   패치 전체가 아니라 같은 키가 이어지는 가장 긴 구간만큼 필요합니다. 200만 행의 1%에서 비압축 크기는 둘 다
+   820,086바이트입니다. 차이는 코덱입니다. `_part_offset`은 `_block_offset`의 `Delta, LZ4` 코덱을 받고
+   (`PatchParts/PatchPartsUtils.cpp`의 `addCodecsForPatchSystemColumns`, `clickhouse-compressor --stat`으로
+   압축 블록당 약 300바이트), `id`는 테이블 코덱인 `LZ4`를 받습니다(블록당 36~52 KB, `v`와 같은 양).
+   그래서 압축 크기가 91,118 대 178,248바이트입니다. `explain/02-patch-part-columns.sql`:
+   `patch_parts_version = 'v1'`이면 26.8.36.3과 26.10.3.7도 91,118바이트로 25.8, 26.3과 같습니다. 25.8과
+   26.3에는 이 설정이 없습니다(Code 115). `lightweight_update` `DELETE` 패치가 커진 이유도 같습니다. 26.3과
+   `v1`의 26.10에서 압축 3,280바이트, `v2`의 26.10에서 90,410바이트입니다. `v2` 패치가 얼마나 커지는지는
+   정렬 키의 폭에 달려 있습니다.
+3. **26.10은 큰 파트를 `ZSTD(3)`로 압축합니다. 뮤테이션은 그대로입니다.** 26.10.3.7에서는
+   `OPTIMIZE ... FINAL`이 쓴 2,000만 행 파트가 이미 `ZSTD(3)`입니다(`system.parts.default_compression_codec`,
+   41.2 MB). 25.8~26.8은 `LZ4`(162 MB)입니다. 일부 컬럼만 다시 쓰는 뮤테이션은 원본 파트의 코덱을
+   유지하므로(`MutateTask.cpp`) `v`도 `ZSTD(3)`로 다시 쓰입니다. 원인은
+   [ClickHouse#108786](https://github.com/ClickHouse/ClickHouse/pull/108786)("Switch the default compression
+   to ZSTD(3) for table data and network", 하위 호환이 깨지는 변경, 26.9.1.810에 머지)입니다. 코덱이 없는
+   컬럼에 `default_compression_codec` 테이블 설정도, 맞는 `<compression>` case도 없으면 MergeTree는 이제
+   100 MiB 미만은 `LZ4`, 이상은 `ZSTD(3)`을 씁니다(`src/Storages/CompressionCodecSelector.h`의
+   `min_part_size_for_default_codec`). 머지는 원본 파트들의 압축 크기로, INSERT는 0으로 판단합니다.
+   200만 행 파트(16 MB)는 `LZ4`로 남아서 파일 04는 모든 빌드에서 7~8 MB를 썼습니다.
+   `explain/03-default-codec.sql`: 기존 방식 1% 뮤테이션은 26.10.3.7에서 20,478,234바이트, 25.8~26.8에서
+   79,316,481~79,323,443바이트를 씁니다. `default_compression_codec = 'LZ4'`이면 26.10.3.7도
+   79,323,441바이트입니다.
 
 ### 화면
 
