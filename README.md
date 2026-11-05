@@ -86,6 +86,7 @@ and [MOVED.md](MOVED.md).
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE mechanisms and their costs |
 | [workload/upsert-across-versions](workload/upsert-across-versions/) | The same upsert, UPDATE and DELETE SQL on six ClickHouse versions: what each way of changing rows writes, how soon it shows, what it costs later reads |
 | [workload/mv-vs-rmv](workload/mv-vs-rmv/) | Materialized vs refreshable materialized views |
+| [workload/mv-uniq-state-size](workload/mv-uniq-state-size/) | Distinct-count state size in 1-minute and cascading 10-minute rollups: `uniq` · `uniqCombined` · `uniqHLL12` · `uniqExact` bytes, error and Top/Bottom-N time |
 | [workload/projection](workload/projection/) | Projections for read patterns one sort key cannot serve |
 | [workload/projection-customsettings](workload/projection-customsettings/) | Projection behaviour under custom settings |
 | [workload/index-granularity-point-query](workload/index-granularity-point-query/) | Index granularity versus point-query latency |
@@ -307,6 +308,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [workload/delete-benchmark](workload/delete-benchmark/) | DELETE 메커니즘과 비용 |
 | [workload/upsert-across-versions](workload/upsert-across-versions/) | 같은 upsert·UPDATE·DELETE SQL을 ClickHouse 여섯 버전에서 실행: 행을 바꾸는 방법별 쓰기량, 반영 시점, 이후 읽기 비용 |
 | [workload/mv-vs-rmv](workload/mv-vs-rmv/) | MV vs RMV(갱신 구체화 뷰) |
+| [workload/mv-uniq-state-size](workload/mv-uniq-state-size/) | 1분 롤업과 cascading 10분 롤업에서 고유 수 상태의 크기: `uniq` · `uniqCombined` · `uniqHLL12` · `uniqExact`의 바이트, 오차, Top/Bottom N 시간 |
 | [workload/projection](workload/projection/) | 단일 정렬 키로 커버되지 않는 읽기 패턴용 프로젝션 |
 | [workload/projection-customsettings](workload/projection-customsettings/) | 커스텀 설정에서의 프로젝션 동작 |
 | [workload/index-granularity-point-query](workload/index-granularity-point-query/) | 인덱스 granularity와 포인트 쿼리 지연 |

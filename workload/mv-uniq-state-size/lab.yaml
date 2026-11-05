@@ -1,0 +1,6 @@
+target: oss
+tier: T0
+clickhouse: "26.10.3.7"
+services: [clickhouse]
+verified_on: "26.10.3.7"
+tags: [materialized-view, performance]

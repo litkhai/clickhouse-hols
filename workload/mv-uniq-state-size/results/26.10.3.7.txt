@@ -1,0 +1,845 @@
+# workload/mv-uniq-state-size: run.sh output
+date (UTC):  2026-11-05 06:30
+image:       clickhouse/clickhouse-server:26.10.3.7
+version():   26.10.3.7
+host:        Darwin arm64, Apple M4 Pro
+docker VM:   12 CPUs, 16745496576 bytes memory, Docker Desktop
+timing runs: 5
+other containers at start (CPU%):
+  pgch-postgres 18.05%
+  pgch-clickhouse 16.48%
+  ttl308-2610 3.23%
+  ttl308-268 3.53%
+
+=================== 01-setup.sql
+-- 01-setup.sql: a raw table, a 1-minute rollup fed by a materialized view on the raw table,
+-- and a 10-minute rollup fed by a materialized view on the 1-minute rollup (cascading).
+--
+-- The rollup holds the same distinct-user count nine times (one column per state function and
+-- input type) so that system.parts_columns can give each one's size side by side. A real rollup
+-- would hold one of them. Every rollup column is pinned to CODEC(LZ4) so the compressed sizes
+-- do not depend on the build's default codec; uncompressed sizes are the state bytes themselves.
+
+CREATE DATABASE IF NOT EXISTS mv_uniq;
+-- Raw events: page views. The same user appears as UInt32, UInt64 and a 32-character String.
+CREATE TABLE mv_uniq.events
+(
+    ts         DateTime('UTC')        CODEC(LZ4),
+    kind       LowCardinality(String) CODEC(LZ4),
+    page       UInt32                 CODEC(LZ4),
+    user_u32   UInt32                 CODEC(LZ4),
+    user_u64   UInt64                 CODEC(LZ4),
+    user_str   String                 CODEC(LZ4),
+    latency_ms Float32                CODEC(LZ4)
+)
+ENGINE = MergeTree
+ORDER BY ts;
+CREATE TABLE mv_uniq.rollup_1m
+(
+    bucket       DateTime('UTC')                           CODEC(LZ4),
+    kind         LowCardinality(String)                    CODEC(LZ4),
+    page         UInt32                                    CODEC(LZ4),
+    events       SimpleAggregateFunction(sum, UInt64)      CODEC(LZ4),
+    latency_sum  SimpleAggregateFunction(sum, Float64)     CODEC(LZ4),
+    u_uniq_str   AggregateFunction(uniq, String)           CODEC(LZ4),
+    u_uniq_u64   AggregateFunction(uniq, UInt64)           CODEC(LZ4),
+    u_uniq_u32   AggregateFunction(uniq, UInt32)           CODEC(LZ4),
+    u_comb_u64   AggregateFunction(uniqCombined, UInt64)   CODEC(LZ4),
+    u_comb12_u64 AggregateFunction(uniqCombined(12), UInt64) CODEC(LZ4),
+    u_hll12_u64  AggregateFunction(uniqHLL12, UInt64)      CODEC(LZ4),
+    u_exact_str  AggregateFunction(uniqExact, String)      CODEC(LZ4),
+    u_exact_u64  AggregateFunction(uniqExact, UInt64)      CODEC(LZ4),
+    u_exact_u32  AggregateFunction(uniqExact, UInt32)      CODEC(LZ4)
+)
+ENGINE = AggregatingMergeTree
+ORDER BY (bucket, kind, page)
+SETTINGS min_bytes_for_wide_part = 0;
+CREATE MATERIALIZED VIEW mv_uniq.mv_1m TO mv_uniq.rollup_1m AS
+SELECT
+    toStartOfMinute(ts)              AS bucket,
+    kind,
+    page,
+    count()                          AS events,
+    sum(toFloat64(latency_ms))       AS latency_sum,
+    uniqState(user_str)              AS u_uniq_str,
+    uniqState(user_u64)              AS u_uniq_u64,
+    uniqState(user_u32)              AS u_uniq_u32,
+    uniqCombinedState(user_u64)      AS u_comb_u64,
+    uniqCombinedState(12)(user_u64)  AS u_comb12_u64,
+    uniqHLL12State(user_u64)         AS u_hll12_u64,
+    uniqExactState(user_str)         AS u_exact_str,
+    uniqExactState(user_u64)         AS u_exact_u64,
+    uniqExactState(user_u32)         AS u_exact_u32
+FROM mv_uniq.events
+GROUP BY bucket, kind, page;
+-- Same columns, codecs and settings as the 1-minute rollup.
+CREATE TABLE mv_uniq.rollup_10m AS mv_uniq.rollup_1m
+ENGINE = AggregatingMergeTree
+ORDER BY (bucket, kind, page)
+SETTINGS min_bytes_for_wide_part = 0;
+-- Cascading: the source is the 1-minute rollup, so this view sees each block the 1-minute view
+-- writes and merges its partial states into 10-minute states. The raw rows are aggregated once.
+CREATE MATERIALIZED VIEW mv_uniq.mv_10m TO mv_uniq.rollup_10m AS
+SELECT
+    toStartOfTenMinutes(bucket)               AS bucket,
+    kind,
+    page,
+    sum(events)                               AS events,
+    sum(latency_sum)                          AS latency_sum,
+    uniqMergeState(u_uniq_str)                AS u_uniq_str,
+    uniqMergeState(u_uniq_u64)                AS u_uniq_u64,
+    uniqMergeState(u_uniq_u32)                AS u_uniq_u32,
+    uniqCombinedMergeState(u_comb_u64)        AS u_comb_u64,
+    uniqCombinedMergeState(12)(u_comb12_u64)  AS u_comb12_u64,
+    uniqHLL12MergeState(u_hll12_u64)          AS u_hll12_u64,
+    uniqExactMergeState(u_exact_str)          AS u_exact_str,
+    uniqExactMergeState(u_exact_u64)          AS u_exact_u64,
+    uniqExactMergeState(u_exact_u32)          AS u_exact_u32
+FROM mv_uniq.rollup_1m
+GROUP BY bucket, kind, page;
+------------------- 01-setup.sql: 0 s
+
+=================== 02-load.sql
+-- 02-load.sql: 36,000,000 synthetic page views over three hours (2026-11-01 00:00 to 02:59 UTC),
+-- 200,000 per minute, in 12 INSERTs of 15 minutes each. A 15-minute batch splits some 10-minute
+-- buckets across two INSERTs, as uneven batches do in practice; the rollups merge the partial states.
+--
+-- Generator (deterministic, no rand()):
+--   user u    = cityHash64(number, 2) % 500000         500,000 users, uniform per event
+--   page      = floor(2000 * x^2.5), x from cityHash64(u, 3)
+--               fixed per user; 2,000 pages, a few hold most users (page 0 about 5%)
+--   kind      = view 60%, click 20%, scroll 10%, purchase 10%
+--   user_u32 = u, user_u64 = sipHash64(u), user_str = hex(MD5(toString(u))): the same user three ways
+
+-- batch 1 of 12: 00:00 to 00:14
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(0, 3000000);
+-- batch 2 of 12: 00:15 to 00:29
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(3000000, 3000000);
+-- batch 3 of 12: 00:30 to 00:44
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(6000000, 3000000);
+-- batch 4 of 12: 00:45 to 00:59
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(9000000, 3000000);
+-- batch 5 of 12: 01:00 to 01:14
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(12000000, 3000000);
+-- batch 6 of 12: 01:15 to 01:29
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(15000000, 3000000);
+-- batch 7 of 12: 01:30 to 01:44
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(18000000, 3000000);
+-- batch 8 of 12: 01:45 to 01:59
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(21000000, 3000000);
+-- batch 9 of 12: 02:00 to 02:14
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(24000000, 3000000);
+-- batch 10 of 12: 02:15 to 02:29
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(27000000, 3000000);
+-- batch 11 of 12: 02:30 to 02:44
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(30000000, 3000000);
+-- batch 12 of 12: 02:45 to 02:59
+INSERT INTO mv_uniq.events
+WITH cityHash64(number, 2) % 500000 AS u
+SELECT
+    toDateTime('2026-11-01 00:00:00', 'UTC') + intDiv(number, 200000) * 60 + cityHash64(number, 1) % 60 AS ts,
+    ['view', 'view', 'view', 'view', 'view', 'view', 'click', 'click', 'scroll', 'purchase'][1 + cityHash64(number, 4) % 10] AS kind,
+    toUInt32(floor(2000 * pow((cityHash64(u, 3) % 1000000) / 1000000., 2.5))) AS page,
+    toUInt32(u)           AS user_u32,
+    sipHash64(u)          AS user_u64,
+    hex(MD5(toString(u))) AS user_str,
+    toFloat32(20 + (cityHash64(number, 5) % 2000) / 10) AS latency_ms
+FROM numbers(33000000, 3000000);
+-- One part per table, so the sizes below are of fully merged states and no merge runs during the timings.
+OPTIMIZE TABLE mv_uniq.events FINAL;
+OPTIMIZE TABLE mv_uniq.rollup_1m FINAL;
+OPTIMIZE TABLE mv_uniq.rollup_10m FINAL;
+SELECT table, count() AS active_parts, sum(rows) AS rows, any(part_type) AS part_type
+FROM system.parts
+WHERE database = 'mv_uniq' AND active
+GROUP BY table
+ORDER BY table;
+   ┌─table──────┬─active_parts─┬─────rows─┬─part_type─┐
+1. │ events     │            1 │ 36000000 │ Wide      │
+2. │ rollup_10m │            1 │   144000 │ Wide      │
+3. │ rollup_1m  │            1 │  1436078 │ Wide      │
+   └────────────┴──────────────┴──────────┴───────────┘
+------------------- 02-load.sql: 105 s
+
+=================== 03-state-size.sql
+-- 03-state-size.sql: how big one state is, by state function, distinct values per group and input type.
+-- length(CAST(state AS String)) is the serialized state, the bytes a rollup row stores for it.
+-- Independent of the rollup tables; values come from numbers().
+
+-- (a) Bytes per state by distinct values per group (input UInt64, sipHash64 of distinct integers).
+SELECT
+    n                                                        AS distinct_values,
+    length(CAST(uniqState(v) AS String))                     AS uniq,
+    length(CAST(uniqCombinedState(v) AS String))             AS uniqCombined,
+    length(CAST(uniqCombinedState(12)(v) AS String))         AS uniqCombined_12,
+    length(CAST(uniqHLL12State(v) AS String))                AS uniqHLL12,
+    length(CAST(uniqExactState(v) AS String))                AS uniqExact
+FROM
+(
+    SELECT n, sipHash64(number) AS v
+    FROM numbers(1000000)
+    ARRAY JOIN arrayFilter(x -> number < x, [1, 10, 30, 100, 300, 600, 700, 1000, 3000, 10000, 30000, 100000, 1000000]) AS n
+)
+GROUP BY n
+ORDER BY n;
+    ┌─distinct_values─┬───uniq─┬─uniqCombined─┬─uniqCombined_12─┬─uniqHLL12─┬─uniqExact─┐
+ 1. │               1 │      7 │            6 │               6 │        10 │         9 │
+ 2. │              10 │     43 │           42 │              42 │        82 │        81 │
+ 3. │              30 │    123 │          122 │             122 │      2651 │       241 │
+ 4. │             100 │    403 │          402 │             402 │      2651 │       801 │
+ 5. │             300 │   1204 │         1203 │            2651 │      2651 │      2402 │
+ 6. │             600 │   2404 │         2403 │            2651 │      2651 │      4802 │
+ 7. │             700 │   2804 │         2803 │            2651 │      2651 │      5602 │
+ 8. │            1000 │   4004 │         4003 │            2651 │      2651 │      8002 │
+ 9. │            3000 │  12004 │        12003 │            2651 │      2651 │     24002 │
+10. │           10000 │  40004 │        81993 │            2651 │      2651 │     80002 │
+11. │           30000 │ 120005 │        81993 │            2651 │      2651 │    240003 │
+12. │          100000 │ 199815 │        81993 │            2651 │      2651 │    800003 │
+13. │         1000000 │ 251151 │        81993 │            2651 │      2651 │   8000003 │ -- 8.00 million
+    └─────────────────┴────────┴──────────────┴─────────────────┴───────────┴───────────┘
+-- (b) The same distinct values as String (32 hex characters), Nullable(String), UInt64 and UInt32.
+-- Bytes per state; one row per state function and distinct count.
+SELECT fn, n AS distinct_values, s_str AS String, s_nstr AS Nullable_String, s_u64 AS UInt64, s_u32 AS UInt32
+FROM
+(
+    SELECT
+        n,
+        ['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12', 'uniqExact'] AS fns,
+        [length(CAST(uniqState(str) AS String)), length(CAST(uniqCombinedState(str) AS String)),
+         length(CAST(uniqCombinedState(12)(str) AS String)), length(CAST(uniqHLL12State(str) AS String)),
+         length(CAST(uniqExactState(str) AS String))] AS a_str,
+        [length(CAST(uniqState(nstr) AS String)), length(CAST(uniqCombinedState(nstr) AS String)),
+         length(CAST(uniqCombinedState(12)(nstr) AS String)), length(CAST(uniqHLL12State(nstr) AS String)),
+         length(CAST(uniqExactState(nstr) AS String))] AS a_nstr,
+        [length(CAST(uniqState(u64) AS String)), length(CAST(uniqCombinedState(u64) AS String)),
+         length(CAST(uniqCombinedState(12)(u64) AS String)), length(CAST(uniqHLL12State(u64) AS String)),
+         length(CAST(uniqExactState(u64) AS String))] AS a_u64,
+        [length(CAST(uniqState(u32) AS String)), length(CAST(uniqCombinedState(u32) AS String)),
+         length(CAST(uniqCombinedState(12)(u32) AS String)), length(CAST(uniqHLL12State(u32) AS String)),
+         length(CAST(uniqExactState(u32) AS String))] AS a_u32
+    FROM
+    (
+        SELECT n, hex(MD5(toString(number))) AS str, toNullable(hex(MD5(toString(number)))) AS nstr,
+               sipHash64(number) AS u64, toUInt32(number) AS u32
+        FROM numbers(10000)
+        ARRAY JOIN arrayFilter(x -> number < x, [100, 1000, 10000]) AS n
+    )
+    GROUP BY n
+)
+ARRAY JOIN fns AS fn, a_str AS s_str, a_nstr AS s_nstr, a_u64 AS s_u64, a_u32 AS s_u32
+ORDER BY indexOf(['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12', 'uniqExact'], fn), n;
+    ┌─fn───────────────┬─distinct_values─┬─String─┬─Nullable_String─┬─UInt64─┬─UInt32─┐
+ 1. │ uniq             │             100 │    403 │             404 │    403 │    403 │
+ 2. │ uniq             │            1000 │   4004 │            4005 │   4004 │   4004 │
+ 3. │ uniq             │           10000 │  40004 │           40005 │  40004 │  40004 │
+ 4. │ uniqCombined     │             100 │    802 │             803 │    402 │    402 │
+ 5. │ uniqCombined     │            1000 │   8003 │            8004 │   4003 │   4003 │
+ 6. │ uniqCombined     │           10000 │  98505 │           98506 │  81993 │  81993 │
+ 7. │ uniqCombined(12) │             100 │    802 │             803 │    402 │    402 │
+ 8. │ uniqCombined(12) │            1000 │   3291 │            3292 │   2651 │   2651 │
+ 9. │ uniqCombined(12) │           10000 │   3291 │            3292 │   2651 │   2651 │
+10. │ uniqHLL12        │             100 │   2651 │            2652 │   2651 │   2651 │
+11. │ uniqHLL12        │            1000 │   2651 │            2652 │   2651 │   2651 │
+12. │ uniqHLL12        │           10000 │   2651 │            2652 │   2651 │   2651 │
+13. │ uniqExact        │             100 │   1601 │            1602 │    801 │    401 │
+14. │ uniqExact        │            1000 │  16002 │           16003 │   8002 │   4002 │
+15. │ uniqExact        │           10000 │ 160002 │          160003 │  80002 │  40002 │
+    └──────────────────┴─────────────────┴────────┴─────────────────┴────────┴────────┘
+-- (c) Relative error against the true count: 10 groups per distinct count, disjoint values.
+-- uniqExact is the control: its error must be 0.
+SELECT fn, n AS distinct_values,
+       round(avg(abs(est - n) / n) * 100, 3) AS mean_err_pct,
+       round(max(abs(est - n) / n) * 100, 3) AS max_err_pct
+FROM
+(
+    SELECT g, n,
+           ['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12', 'uniqExact'] AS fns,
+           [uniq(v), uniqCombined(v), uniqCombined(12)(v), uniqHLL12(v), uniqExact(v)] AS ests
+    FROM
+    (
+        SELECT g, n, sipHash64(g, number) AS v
+        FROM numbers(1000000)
+        ARRAY JOIN arrayFilter(x -> number < x, [10, 100, 1000, 10000, 100000, 1000000]) AS n
+        ARRAY JOIN range(10) AS g
+    )
+    GROUP BY g, n
+)
+ARRAY JOIN fns AS fn, ests AS est
+GROUP BY fn, n
+ORDER BY indexOf(['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12', 'uniqExact'], fn), n;
+    ┌─fn───────────────┬─distinct_values─┬─mean_err_pct─┬─max_err_pct─┐
+ 1. │ uniq             │              10 │            0 │           0 │
+ 2. │ uniq             │             100 │            0 │           0 │
+ 3. │ uniq             │            1000 │            0 │           0 │
+ 4. │ uniq             │           10000 │            0 │           0 │
+ 5. │ uniq             │          100000 │        0.169 │       0.338 │
+ 6. │ uniq             │         1000000 │        0.266 │       0.488 │
+ 7. │ uniqCombined     │              10 │            0 │           0 │
+ 8. │ uniqCombined     │             100 │            0 │           0 │
+ 9. │ uniqCombined     │            1000 │            0 │           0 │
+10. │ uniqCombined     │           10000 │         0.14 │        0.43 │
+11. │ uniqCombined     │          100000 │        0.172 │       0.684 │
+12. │ uniqCombined     │         1000000 │        0.182 │       0.447 │
+13. │ uniqCombined(12) │              10 │            0 │           0 │
+14. │ uniqCombined(12) │             100 │            0 │           0 │
+15. │ uniqCombined(12) │            1000 │         1.04 │         1.7 │
+16. │ uniqCombined(12) │           10000 │        2.288 │         3.9 │
+17. │ uniqCombined(12) │          100000 │        1.701 │       4.689 │
+18. │ uniqCombined(12) │         1000000 │        1.116 │       3.369 │
+19. │ uniqHLL12        │              10 │            0 │           0 │
+20. │ uniqHLL12        │             100 │          0.8 │           2 │
+21. │ uniqHLL12        │            1000 │         1.03 │         2.3 │
+22. │ uniqHLL12        │           10000 │        3.168 │        5.12 │
+23. │ uniqHLL12        │          100000 │         0.97 │       2.707 │
+24. │ uniqHLL12        │         1000000 │         1.25 │       3.612 │
+25. │ uniqExact        │              10 │            0 │           0 │
+26. │ uniqExact        │             100 │            0 │           0 │
+27. │ uniqExact        │            1000 │            0 │           0 │
+28. │ uniqExact        │           10000 │            0 │           0 │
+29. │ uniqExact        │          100000 │            0 │           0 │
+30. │ uniqExact        │         1000000 │            0 │           0 │
+    └──────────────────┴─────────────────┴──────────────┴─────────────┘
+------------------- 03-state-size.sql: 1 s
+
+=================== 04-rollup-size.sql
+-- 04-rollup-size.sql: what the rollups hold and how many bytes each column takes on disk.
+
+-- Data size: raw rows and the two rollups (one active part each after 02-load.sql).
+SELECT table, sum(rows) AS rows,
+       formatReadableSize(sum(data_uncompressed_bytes)) AS uncompressed,
+       formatReadableSize(sum(data_compressed_bytes))   AS compressed,
+       any(part_type) AS part_type
+FROM system.parts
+WHERE database = 'mv_uniq' AND active
+GROUP BY table
+ORDER BY table;
+   ┌─table──────┬─────rows─┬─uncompressed─┬─compressed─┬─part_type─┐
+1. │ events     │ 36000000 │ 2.18 GiB     │ 1.69 GiB   │ Wide      │
+2. │ rollup_10m │   144000 │ 1.22 GiB     │ 924.88 MiB │ Wide      │
+3. │ rollup_1m  │  1436078 │ 2.91 GiB     │ 1.68 GiB   │ Wide      │
+   └────────────┴──────────┴──────────────┴────────────┴───────────┘
+-- Distinct users per rollup row (group): this decides the state size.
+SELECT table, count() AS groups,
+       quantilesExact(0.5, 0.9, 0.99)(u) AS p50_p90_p99, max(u) AS max_users, sum(u) AS sum_users
+FROM
+(
+    SELECT 'rollup_1m' AS table, uniqExactMerge(u_exact_u64) AS u FROM mv_uniq.rollup_1m GROUP BY bucket, kind, page
+    UNION ALL
+    SELECT 'rollup_10m', uniqExactMerge(u_exact_u64) FROM mv_uniq.rollup_10m GROUP BY bucket, kind, page
+)
+GROUP BY table
+ORDER BY table;
+   ┌─table──────┬──groups─┬─p50_p90_p99──┬─max_users─┬─sum_users─┐
+1. │ rollup_10m │  144000 │ [80,225,883] │     21959 │  19074489 │ -- 19.07 million
+2. │ rollup_1m  │ 1436078 │ [11,44,174]  │      5273 │  33179649 │ -- 33.18 million
+   └────────────┴─────────┴──────────────┴───────────┴───────────┘
+-- Declared codec of every column (all pinned in 01-setup.sql).
+SELECT table, groupUniqArray(compression_codec) AS codecs
+FROM system.columns
+WHERE database = 'mv_uniq' AND table IN ('rollup_1m', 'rollup_10m')
+GROUP BY table
+ORDER BY table;
+   ┌─table──────┬─codecs─────────┐
+1. │ rollup_10m │ ['CODEC(LZ4)'] │
+2. │ rollup_1m  │ ['CODEC(LZ4)'] │
+   └────────────┴────────────────┘
+-- State column types as the server stores them. On this build `uniq` carries a state version
+-- (`AggregateFunction(1, uniq, …)`) although 01-setup.sql declares `AggregateFunction(uniq, …)`.
+SELECT name, type
+FROM system.columns
+WHERE database = 'mv_uniq' AND table = 'rollup_1m' AND name LIKE 'u\\_%'
+ORDER BY position;
+   ┌─name─────────┬─type────────────────────────────────────────┐
+1. │ u_uniq_str   │ AggregateFunction(1, uniq, String)          │
+2. │ u_uniq_u64   │ AggregateFunction(1, uniq, UInt64)          │
+3. │ u_uniq_u32   │ AggregateFunction(1, uniq, UInt32)          │
+4. │ u_comb_u64   │ AggregateFunction(uniqCombined, UInt64)     │
+5. │ u_comb12_u64 │ AggregateFunction(uniqCombined(12), UInt64) │
+6. │ u_hll12_u64  │ AggregateFunction(uniqHLL12, UInt64)        │
+7. │ u_exact_str  │ AggregateFunction(uniqExact, String)        │
+8. │ u_exact_u64  │ AggregateFunction(uniqExact, UInt64)        │
+9. │ u_exact_u32  │ AggregateFunction(uniqExact, UInt32)        │
+   └──────────────┴─────────────────────────────────────────────┘
+-- Bytes per column. "rest" = the five columns every rollup has (bucket, kind, page, events, latency_sum).
+-- share_pct = this state column / (rest + this state column): its share of a rollup that holds only it.
+WITH cols AS
+(
+    SELECT table, column, sum(rows) AS rows,
+           sum(column_data_uncompressed_bytes) AS unc,
+           sum(column_data_compressed_bytes)   AS comp
+    FROM system.parts_columns
+    WHERE database = 'mv_uniq' AND table IN ('rollup_1m', 'rollup_10m') AND active
+    GROUP BY table, column
+),
+rest AS
+(
+    SELECT table, sum(comp) AS rest_comp
+    FROM cols
+    WHERE column IN ('bucket', 'kind', 'page', 'events', 'latency_sum')
+    GROUP BY table
+)
+SELECT c.table, c.column,
+       formatReadableSize(c.unc)  AS uncompressed,
+       formatReadableSize(c.comp) AS compressed,
+       round(c.unc / c.rows, 1)   AS bytes_per_row,
+       round(c.unc / c.comp, 2)   AS ratio,
+       if(c.column LIKE 'u\\_%', round(100 * c.comp / (r.rest_comp + c.comp), 1), NULL) AS share_pct
+FROM cols AS c
+INNER JOIN rest AS r USING (table)
+ORDER BY c.table, c.comp DESC;
+    ┌─table──────┬─column───────┬─uncompressed─┬─compressed─┬─bytes_per_row─┬──ratio─┬─share_pct─┐
+ 1. │ rollup_10m │ u_exact_str  │ 291.23 MiB   │ 292.38 MiB │        2120.6 │      1 │      99.5 │
+ 2. │ rollup_10m │ u_exact_u64  │ 145.70 MiB   │ 146.28 MiB │          1061 │      1 │        99 │
+ 3. │ rollup_10m │ u_uniq_str   │ 73.21 MiB    │ 73.50 MiB  │         533.1 │      1 │      98.1 │
+ 4. │ rollup_10m │ u_uniq_u64   │ 73.21 MiB    │ 73.50 MiB  │         533.1 │      1 │      98.1 │
+ 5. │ rollup_10m │ u_uniq_u32   │ 73.21 MiB    │ 73.50 MiB  │         533.1 │      1 │      98.1 │
+ 6. │ rollup_10m │ u_exact_u32  │ 72.94 MiB    │ 73.23 MiB  │         531.1 │      1 │      98.1 │
+ 7. │ rollup_10m │ u_comb_u64   │ 73.48 MiB    │ 72.21 MiB  │         535.1 │   1.02 │      98.1 │
+ 8. │ rollup_10m │ u_hll12_u64  │ 364.05 MiB   │ 61.56 MiB  │          2651 │   5.91 │      97.8 │
+ 9. │ rollup_10m │ u_comb12_u64 │ 74.28 MiB    │ 57.32 MiB  │         540.9 │    1.3 │      97.6 │
+10. │ rollup_10m │ latency_sum  │ 1.10 MiB     │ 928.80 KiB │             8 │   1.21 │      ᴺᵁᴸᴸ │
+11. │ rollup_10m │ events       │ 1.10 MiB     │ 433.13 KiB │             8 │    2.6 │      ᴺᵁᴸᴸ │
+12. │ rollup_10m │ page         │ 562.50 KiB   │ 72.80 KiB  │             4 │   7.73 │      ᴺᵁᴸᴸ │
+13. │ rollup_10m │ bucket       │ 562.50 KiB   │ 2.63 KiB   │             4 │ 213.49 │      ᴺᵁᴸᴸ │
+14. │ rollup_10m │ kind         │ 142.87 KiB   │ 2.12 KiB   │             1 │  67.39 │      ᴺᵁᴸᴸ │
+15. │ rollup_1m  │ u_exact_str  │ 507.67 MiB   │ 509.68 MiB │         370.7 │      1 │      97.5 │
+16. │ rollup_1m  │ u_exact_u64  │ 254.53 MiB   │ 255.54 MiB │         185.9 │      1 │      95.1 │
+17. │ rollup_1m  │ u_hll12_u64  │ 1.37 GiB     │ 173.57 MiB │        1022.6 │   8.07 │        93 │
+18. │ rollup_1m  │ u_uniq_str   │ 130.70 MiB   │ 131.22 MiB │          95.4 │      1 │      90.9 │
+19. │ rollup_1m  │ u_uniq_u64   │ 130.70 MiB   │ 131.22 MiB │          95.4 │      1 │      90.9 │
+20. │ rollup_1m  │ u_uniq_u32   │ 130.70 MiB   │ 131.22 MiB │          95.4 │      1 │      90.9 │
+21. │ rollup_1m  │ u_comb_u64   │ 129.33 MiB   │ 129.84 MiB │          94.4 │      1 │      90.8 │
+22. │ rollup_1m  │ u_exact_u32  │ 127.96 MiB   │ 128.47 MiB │          93.4 │      1 │      90.7 │
+23. │ rollup_1m  │ u_comb12_u64 │ 130.10 MiB   │ 120.10 MiB │            95 │   1.08 │      90.2 │
+24. │ rollup_1m  │ latency_sum  │ 10.96 MiB    │ 8.53 MiB   │             8 │   1.28 │      ᴺᵁᴸᴸ │
+25. │ rollup_1m  │ events       │ 10.96 MiB    │ 3.83 MiB   │             8 │   2.86 │      ᴺᵁᴸᴸ │
+26. │ rollup_1m  │ page         │ 5.48 MiB     │ 732.28 KiB │             4 │   7.66 │      ᴺᵁᴸᴸ │
+27. │ rollup_1m  │ bucket       │ 5.48 MiB     │ 26.14 KiB  │             4 │ 214.58 │      ᴺᵁᴸᴸ │
+28. │ rollup_1m  │ kind         │ 1.37 MiB     │ 9.91 KiB   │             1 │ 141.82 │      ᴺᵁᴸᴸ │
+    └────────────┴──────────────┴──────────────┴────────────┴───────────────┴────────┴───────────┘
+-- The 1-minute total for "rest" alone: the size of a 1-minute rollup that holds no distinct count.
+SELECT table, formatReadableSize(sum(column_data_compressed_bytes)) AS rest_compressed
+FROM system.parts_columns
+WHERE database = 'mv_uniq' AND table IN ('rollup_1m', 'rollup_10m') AND active
+  AND column IN ('bucket', 'kind', 'page', 'events', 'latency_sum')
+GROUP BY table
+ORDER BY table;
+   ┌─table──────┬─rest_compressed─┐
+1. │ rollup_10m │ 1.41 MiB        │
+2. │ rollup_1m  │ 13.11 MiB       │
+   └────────────┴─────────────────┘
+-- 10-minute rollup against the 1-minute rollup, per column: rows fall by ~10x, state bytes do not.
+SELECT column,
+       round(sumIf(column_data_compressed_bytes, table = 'rollup_10m')
+             / sumIf(column_data_compressed_bytes, table = 'rollup_1m'), 3) AS ratio_10m_to_1m
+FROM system.parts_columns
+WHERE database = 'mv_uniq' AND table IN ('rollup_1m', 'rollup_10m') AND active
+GROUP BY column
+ORDER BY ratio_10m_to_1m DESC;
+    ┌─column───────┬─ratio_10m_to_1m─┐
+ 1. │ u_exact_str  │           0.574 │
+ 2. │ u_exact_u64  │           0.572 │
+ 3. │ u_exact_u32  │            0.57 │
+ 4. │ u_uniq_u64   │            0.56 │
+ 5. │ u_uniq_u32   │            0.56 │
+ 6. │ u_uniq_str   │            0.56 │
+ 7. │ u_comb_u64   │           0.556 │
+ 8. │ u_comb12_u64 │           0.477 │
+ 9. │ u_hll12_u64  │           0.355 │
+10. │ kind         │           0.214 │
+11. │ events       │            0.11 │
+12. │ latency_sum  │           0.106 │
+13. │ bucket       │           0.101 │
+14. │ page         │           0.099 │
+    └──────────────┴─────────────────┘
+SELECT round(sumIf(rows, table = 'rollup_10m') / sumIf(rows, table = 'rollup_1m'), 3) AS rows_10m_to_1m
+FROM system.parts
+WHERE database = 'mv_uniq' AND active;
+   ┌─rows_10m_to_1m─┐
+1. │            0.1 │
+   └────────────────┘
+------------------- 04-rollup-size.sql: 2 s
+
+=================== 05-cascade-check.sql
+-- 05-cascade-check.sql: is the 10-minute rollup built from the 1-minute rollup right?
+
+-- Positive check: the cascaded 10-minute rollup against 10-minute groups computed straight from the
+-- raw rows. Both sides must have the same groups and events, uniqExact and uniq must match exactly.
+-- The approximate functions are compared too: a merged state need not give the same estimate as
+-- one built from all rows at once.
+SELECT
+    count()                                   AS groups,
+    countIf(r.bucket_ok = 0 OR d.bucket_ok = 0) AS one_side_only,
+    countIf(r.events != d.events)             AS events_diff,
+    countIf(r.exact != d.exact)               AS uniqExact_diff,
+    countIf(r.uq != d.uq)                     AS uniq_diff,
+    countIf(r.comb != d.comb)                 AS uniqCombined_diff,
+    countIf(r.comb12 != d.comb12)             AS uniqCombined12_diff,
+    countIf(r.hll12 != d.hll12)               AS uniqHLL12_diff,
+    -- where uniqCombined(12) differs: the true distinct counts of those groups and the largest gap
+    minIf(d.exact, r.comb12 != d.comb12)      AS comb12_diff_min_true,
+    maxIf(d.exact, r.comb12 != d.comb12)      AS comb12_diff_max_true,
+    maxIf(abs(toInt64(r.comb12) - toInt64(d.comb12)), r.comb12 != d.comb12) AS comb12_max_gap
+FROM
+(
+    SELECT bucket, kind, page, 1 AS bucket_ok,
+           sum(events)                          AS events,
+           uniqExactMerge(u_exact_u64)          AS exact,
+           uniqMerge(u_uniq_u64)                AS uq,
+           uniqCombinedMerge(u_comb_u64)        AS comb,
+           uniqCombinedMerge(12)(u_comb12_u64)  AS comb12,
+           uniqHLL12Merge(u_hll12_u64)          AS hll12
+    FROM mv_uniq.rollup_10m
+    GROUP BY bucket, kind, page
+) AS r
+FULL OUTER JOIN
+(
+    SELECT toStartOfTenMinutes(ts) AS bucket, kind, page, 1 AS bucket_ok,
+           count()                    AS events,
+           uniqExact(user_u64)        AS exact,
+           uniq(user_u64)             AS uq,
+           uniqCombined(user_u64)     AS comb,
+           uniqCombined(12)(user_u64) AS comb12,
+           uniqHLL12(user_u64)        AS hll12
+    FROM mv_uniq.events
+    GROUP BY bucket, kind, page
+) AS d USING (bucket, kind, page);
+   ┌─groups─┬─one_side_only─┬─events_diff─┬─uniqExact_diff─┬─uniq_diff─┬─uniqCombined_diff─┬─uniqCombined12_diff─┬─uniqHLL12_diff─┬─comb12_diff_min_true─┬─comb12_diff_max_true─┬─comb12_max_gap─┐
+1. │ 144000 │             0 │           0 │              0 │         0 │                 0 │                  20 │              0 │                  256 │                  256 │             10 │
+   └────────┴───────────────┴─────────────┴────────────────┴───────────┴───────────────────┴─────────────────────┴────────────────┴──────────────────────┴──────────────────────┴────────────────┘
+-- Negative control: adding up per-minute distinct counts is the mistake a cascade must not make.
+-- The same comparison has to find mismatches here, or the check above proves nothing.
+SELECT
+    count()                          AS groups,
+    countIf(s.summed != d.exact)     AS mismatched_groups,
+    round(avg(s.summed / d.exact), 3) AS avg_summed_to_true
+FROM
+(
+    SELECT toStartOfTenMinutes(bucket) AS b10, kind, page, sum(m) AS summed
+    FROM
+    (
+        SELECT bucket, kind, page, uniqExactMerge(u_exact_u64) AS m
+        FROM mv_uniq.rollup_1m
+        GROUP BY bucket, kind, page
+    )
+    GROUP BY b10, kind, page
+) AS s
+INNER JOIN
+(
+    SELECT toStartOfTenMinutes(ts) AS b10, kind, page, uniqExact(user_u64) AS exact
+    FROM mv_uniq.events
+    GROUP BY b10, kind, page
+) AS d USING (b10, kind, page);
+   ┌─groups─┬─mismatched_groups─┬─avg_summed_to_true─┐
+1. │ 144000 │            143945 │               1.53 │
+   └────────┴───────────────────┴────────────────────┘
+-- Repeatability: the same direct 10-minute computation three times, then twice with max_threads = 1.
+-- Each cell is a fingerprint of all 144,000 group results; a column whose value changes between
+-- runs gave different answers for the same data.
+SELECT 'run 1' AS run, max_threads_default AS threads,
+       groupBitXor(cityHash64(b, k, p, uq)) AS uniq_fp, groupBitXor(cityHash64(b, k, p, comb)) AS uniqCombined_fp,
+       groupBitXor(cityHash64(b, k, p, comb12)) AS uniqCombined12_fp, groupBitXor(cityHash64(b, k, p, hll12)) AS uniqHLL12_fp
+FROM (SELECT 'default' AS max_threads_default, toStartOfTenMinutes(ts) AS b, kind AS k, page AS p, uniq(user_u64) AS uq,
+             uniqCombined(user_u64) AS comb, uniqCombined(12)(user_u64) AS comb12, uniqHLL12(user_u64) AS hll12
+      FROM mv_uniq.events GROUP BY b, k, p)
+GROUP BY threads;
+   ┌─run───┬─threads─┬──────────────uniq_fp─┬──────uniqCombined_fp─┬────uniqCombined12_fp─┬────────uniqHLL12_fp─┐
+1. │ run 1 │ default │ 14097976524385229782 │ 17389973466893602741 │ 10020210900435509349 │ 1250008097529373254 │
+   └───────┴─────────┴──────────────────────┴──────────────────────┴──────────────────────┴─────────────────────┘
+SELECT 'run 2' AS run, max_threads_default AS threads,
+       groupBitXor(cityHash64(b, k, p, uq)) AS uniq_fp, groupBitXor(cityHash64(b, k, p, comb)) AS uniqCombined_fp,
+       groupBitXor(cityHash64(b, k, p, comb12)) AS uniqCombined12_fp, groupBitXor(cityHash64(b, k, p, hll12)) AS uniqHLL12_fp
+FROM (SELECT 'default' AS max_threads_default, toStartOfTenMinutes(ts) AS b, kind AS k, page AS p, uniq(user_u64) AS uq,
+             uniqCombined(user_u64) AS comb, uniqCombined(12)(user_u64) AS comb12, uniqHLL12(user_u64) AS hll12
+      FROM mv_uniq.events GROUP BY b, k, p)
+GROUP BY threads;
+   ┌─run───┬─threads─┬──────────────uniq_fp─┬──────uniqCombined_fp─┬───uniqCombined12_fp─┬────────uniqHLL12_fp─┐
+1. │ run 2 │ default │ 14097976524385229782 │ 17389973466893602741 │ 5014313133135991926 │ 1250008097529373254 │
+   └───────┴─────────┴──────────────────────┴──────────────────────┴─────────────────────┴─────────────────────┘
+SELECT 'run 3' AS run, max_threads_default AS threads,
+       groupBitXor(cityHash64(b, k, p, uq)) AS uniq_fp, groupBitXor(cityHash64(b, k, p, comb)) AS uniqCombined_fp,
+       groupBitXor(cityHash64(b, k, p, comb12)) AS uniqCombined12_fp, groupBitXor(cityHash64(b, k, p, hll12)) AS uniqHLL12_fp
+FROM (SELECT 'default' AS max_threads_default, toStartOfTenMinutes(ts) AS b, kind AS k, page AS p, uniq(user_u64) AS uq,
+             uniqCombined(user_u64) AS comb, uniqCombined(12)(user_u64) AS comb12, uniqHLL12(user_u64) AS hll12
+      FROM mv_uniq.events GROUP BY b, k, p)
+GROUP BY threads;
+   ┌─run───┬─threads─┬──────────────uniq_fp─┬──────uniqCombined_fp─┬───uniqCombined12_fp─┬────────uniqHLL12_fp─┐
+1. │ run 3 │ default │ 14097976524385229782 │ 17389973466893602741 │ 3414408935208913161 │ 1250008097529373254 │
+   └───────┴─────────┴──────────────────────┴──────────────────────┴─────────────────────┴─────────────────────┘
+SELECT 'run 4' AS run, max_threads_default AS threads,
+       groupBitXor(cityHash64(b, k, p, uq)) AS uniq_fp, groupBitXor(cityHash64(b, k, p, comb)) AS uniqCombined_fp,
+       groupBitXor(cityHash64(b, k, p, comb12)) AS uniqCombined12_fp, groupBitXor(cityHash64(b, k, p, hll12)) AS uniqHLL12_fp
+FROM (SELECT '1' AS max_threads_default, toStartOfTenMinutes(ts) AS b, kind AS k, page AS p, uniq(user_u64) AS uq,
+             uniqCombined(user_u64) AS comb, uniqCombined(12)(user_u64) AS comb12, uniqHLL12(user_u64) AS hll12
+      FROM mv_uniq.events GROUP BY b, k, p)
+GROUP BY threads
+SETTINGS max_threads = 1;
+   ┌─run───┬─threads─┬──────────────uniq_fp─┬──────uniqCombined_fp─┬───uniqCombined12_fp─┬────────uniqHLL12_fp─┐
+1. │ run 4 │ 1       │ 14097976524385229782 │ 17389973466893602741 │ 9631214394581110783 │ 1250008097529373254 │
+   └───────┴─────────┴──────────────────────┴──────────────────────┴─────────────────────┴─────────────────────┘
+SELECT 'run 5' AS run, max_threads_default AS threads,
+       groupBitXor(cityHash64(b, k, p, uq)) AS uniq_fp, groupBitXor(cityHash64(b, k, p, comb)) AS uniqCombined_fp,
+       groupBitXor(cityHash64(b, k, p, comb12)) AS uniqCombined12_fp, groupBitXor(cityHash64(b, k, p, hll12)) AS uniqHLL12_fp
+FROM (SELECT '1' AS max_threads_default, toStartOfTenMinutes(ts) AS b, kind AS k, page AS p, uniq(user_u64) AS uq,
+             uniqCombined(user_u64) AS comb, uniqCombined(12)(user_u64) AS comb12, uniqHLL12(user_u64) AS hll12
+      FROM mv_uniq.events GROUP BY b, k, p)
+GROUP BY threads
+SETTINGS max_threads = 1;
+   ┌─run───┬─threads─┬──────────────uniq_fp─┬──────uniqCombined_fp─┬───uniqCombined12_fp─┬────────uniqHLL12_fp─┐
+1. │ run 5 │ 1       │ 14097976524385229782 │ 17389973466893602741 │ 9631214394581110783 │ 1250008097529373254 │
+   └───────┴─────────┴──────────────────────┴──────────────────────┴─────────────────────┴─────────────────────┘
+------------------- 05-cascade-check.sql: 22 s
+
+=================== 06-topn.sql
+other containers before the timing runs (CPU%):
+  pgch-postgres 0.08%
+  pgch-clickhouse 5.99%
+  ttl308-2610 6.46%
+  ttl308-268 14.06%
+------------------- 06-topn.sql: 7 s
+
+=================== 07-topn-accuracy.sql
+-- 07-topn-accuracy.sql: does the state function change the answer?
+
+-- (a) The exact Top 10 and Bottom 10 for the last hour (uniqExact over the raw rows).
+SELECT
+    arraySlice(arraySort(t -> (-toInt64(t.2), t.1), groupArray((page, users))), 1, 10) AS top10_page_users,
+    arraySlice(arraySort(t -> (toInt64(t.2), t.1), groupArrayIf((page, users), events >= 1000)), 1, 10) AS bottom10_page_users
+FROM
+(
+    SELECT page, uniqExact(user_u64) AS users, count() AS events
+    FROM mv_uniq.events
+    WHERE ts >= '2026-11-01 02:00:00'
+    GROUP BY page
+);
+   ┌─top10_page_users─────────────────────────────────────────────────────────────────────────────┬─bottom10_page_users───────────────────────────────────────────────────────────────────────────────────┐
+1. │ [(0,24016),(1,7603),(2,5516),(3,4554),(4,3813),(5,3541),(6,3157),(7,2856),(8,2622),(9,2482)] │ [(1935,81),(1760,82),(1962,82),(1992,84),(1889,85),(1915,85),(1987,85),(1912,86),(1916,86),(1938,86)] │
+   └──────────────────────────────────────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────┘
+-- (b) Per page over the last hour, every state column of the 1-minute rollup against uniqExact(UInt64):
+-- relative error, and how many of the exact Top 10 / Bottom 10 pages it returns (and in the same order).
+WITH per_page AS
+(
+    SELECT page, sum(events) AS events,
+           uniqExactMerge(u_exact_u64) AS exact,
+           [uniqMerge(u_uniq_str), uniqMerge(u_uniq_u64), uniqMerge(u_uniq_u32),
+            uniqCombinedMerge(u_comb_u64), uniqCombinedMerge(12)(u_comb12_u64), uniqHLL12Merge(u_hll12_u64),
+            uniqExactMerge(u_exact_str), uniqExactMerge(u_exact_u32)] AS ests
+    FROM mv_uniq.rollup_1m
+    WHERE bucket >= '2026-11-01 02:00:00'
+    GROUP BY page
+)
+SELECT fn, pages, mean_err_pct, max_err_pct,
+       top10_same_pages, top10_same_order, bottom10_same_pages, bottom10_same_order
+FROM
+(
+SELECT
+    fn,
+    count() AS pages,
+    round(avg(abs(est - exact) / exact) * 100, 3) AS mean_err_pct,
+    round(max(abs(est - exact) / exact) * 100, 3) AS max_err_pct,
+    arraySlice(arrayMap(t -> t.2, arraySort(t -> (-toInt64(t.1), t.2), groupArray((est, page)))), 1, 10)   AS top_est,
+    arraySlice(arrayMap(t -> t.2, arraySort(t -> (-toInt64(t.1), t.2), groupArray((exact, page)))), 1, 10) AS top_exact,
+    arraySlice(arrayMap(t -> t.2, arraySort(t -> (toInt64(t.1), t.2), groupArrayIf((est, page), events >= 1000))), 1, 10)   AS bottom_est,
+    arraySlice(arrayMap(t -> t.2, arraySort(t -> (toInt64(t.1), t.2), groupArrayIf((exact, page), events >= 1000))), 1, 10) AS bottom_exact,
+    length(arrayIntersect(top_est, top_exact))       AS top10_same_pages,
+    top_est = top_exact                              AS top10_same_order,
+    length(arrayIntersect(bottom_est, bottom_exact)) AS bottom10_same_pages,
+    bottom_est = bottom_exact                        AS bottom10_same_order
+FROM per_page
+ARRAY JOIN ['uniq(String)', 'uniq(UInt64)', 'uniq(UInt32)', 'uniqCombined(UInt64)', 'uniqCombined(12)(UInt64)',
+            'uniqHLL12(UInt64)', 'uniqExact(String)', 'uniqExact(UInt32)'] AS fn, ests AS est
+GROUP BY fn
+ORDER BY indexOf(['uniq(String)', 'uniq(UInt64)', 'uniq(UInt32)', 'uniqCombined(UInt64)', 'uniqCombined(12)(UInt64)',
+                  'uniqHLL12(UInt64)', 'uniqExact(String)', 'uniqExact(UInt32)'], fn)
+);
+   ┌─fn───────────────────────┬─pages─┬─mean_err_pct─┬─max_err_pct─┬─top10_same_pages─┬─top10_same_order─┬─bottom10_same_pages─┬─bottom10_same_order─┐
+1. │ uniq(String)             │  2000 │            0 │           0 │               10 │                1 │                  10 │                   1 │
+2. │ uniq(UInt64)             │  2000 │            0 │           0 │               10 │                1 │                  10 │                   1 │
+3. │ uniq(UInt32)             │  2000 │            0 │           0 │               10 │                1 │                  10 │                   1 │
+4. │ uniqCombined(UInt64)     │  2000 │            0 │       0.237 │               10 │                1 │                  10 │                   1 │
+5. │ uniqCombined(12)(UInt64) │  2000 │        0.199 │       3.838 │               10 │                1 │                  10 │                   1 │
+6. │ uniqHLL12(UInt64)        │  2000 │        0.887 │       4.902 │               10 │                1 │                  10 │                   0 │
+7. │ uniqExact(String)        │  2000 │            0 │           0 │               10 │                1 │                  10 │                   1 │
+8. │ uniqExact(UInt32)        │  2000 │            0 │           0 │               10 │                1 │                  10 │                   1 │
+   └──────────────────────────┴───────┴──────────────┴─────────────┴──────────────────┴──────────────────┴─────────────────────┴─────────────────────┘
+-- (c) Error per rollup row (one group): the approximate states against uniqExact(UInt64) in the same row.
+SELECT level, fn,
+       round(avg(abs(est - exact) / exact) * 100, 3)             AS mean_err_pct,
+       round(quantileExact(0.99)(abs(est - exact) / exact) * 100, 3)  AS p99_err_pct,
+       round(max(abs(est - exact) / exact) * 100, 3)             AS max_err_pct,
+       round(countIf(est != exact) * 100 / count(), 2)           AS inexact_groups_pct
+FROM
+(
+    SELECT 'rollup_1m' AS level, uniqExactMerge(u_exact_u64) AS exact,
+           [uniqMerge(u_uniq_u64), uniqCombinedMerge(u_comb_u64), uniqCombinedMerge(12)(u_comb12_u64), uniqHLL12Merge(u_hll12_u64)] AS ests
+    FROM mv_uniq.rollup_1m
+    GROUP BY bucket, kind, page
+    UNION ALL
+    SELECT 'rollup_10m', uniqExactMerge(u_exact_u64),
+           [uniqMerge(u_uniq_u64), uniqCombinedMerge(u_comb_u64), uniqCombinedMerge(12)(u_comb12_u64), uniqHLL12Merge(u_hll12_u64)]
+    FROM mv_uniq.rollup_10m
+    GROUP BY bucket, kind, page
+)
+ARRAY JOIN ['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12'] AS fn, ests AS est
+GROUP BY level, fn
+ORDER BY level, indexOf(['uniq', 'uniqCombined', 'uniqCombined(12)', 'uniqHLL12'], fn);
+   ┌─level──────┬─fn───────────────┬─mean_err_pct─┬─p99_err_pct─┬─max_err_pct─┬─inexact_groups_pct─┐
+1. │ rollup_10m │ uniq             │            0 │           0 │           0 │                  0 │
+2. │ rollup_10m │ uniqCombined     │            0 │           0 │       0.445 │               0.02 │
+3. │ rollup_10m │ uniqCombined(12) │        0.076 │       1.807 │       4.505 │               7.47 │
+4. │ rollup_10m │ uniqHLL12        │        0.764 │       3.704 │      11.538 │              54.29 │
+5. │ rollup_1m  │ uniq             │            0 │           0 │           0 │                  0 │
+6. │ rollup_1m  │ uniqCombined     │            0 │           0 │           0 │                  0 │
+7. │ rollup_1m  │ uniqCombined(12) │        0.005 │           0 │       5.761 │               0.49 │
+8. │ rollup_1m  │ uniqHLL12        │        0.165 │       3.704 │          15 │               7.62 │
+   └────────────┴──────────────────┴──────────────┴─────────────┴─────────────┴────────────────────┘
+------------------- 07-topn-accuracy.sql: 9 s
+
+=================== 08-timing.sql
+-- 08-timing.sql: the 06-topn.sql runs from system.query_log (run.sh runs 06 five times; tools/hol once).
+-- read_from_disk = ProfileEvents ReadCompressedBytes (bytes read from compressed files, before decompression),
+-- decompressed = CompressedReadBufferBytes (the same data after decompression). query_log read_bytes is the
+-- in-memory size of the columns read (SelectedBytes), which for state columns is not their size on disk.
+
+SYSTEM FLUSH LOGS;
+SELECT
+    replaceOne(log_comment, 'topn ', '')                              AS probe,
+    count()                                                           AS runs,
+    median(query_duration_ms)                                         AS median_ms,
+    min(query_duration_ms)                                            AS min_ms,
+    any(read_rows)                                                    AS read_rows,
+    formatReadableSize(any(ProfileEvents['ReadCompressedBytes']))     AS read_from_disk,
+    formatReadableSize(any(ProfileEvents['CompressedReadBufferBytes'])) AS decompressed,
+    formatReadableSize(any(read_bytes))                               AS read_bytes_in_memory,
+    formatReadableSize(max(memory_usage))                             AS peak_memory
+FROM system.query_log
+WHERE type = 'QueryFinish' AND log_comment LIKE 'topn %'
+GROUP BY log_comment
+ORDER BY min(event_time_microseconds);
+    ┌─probe───────────────────────┬─runs─┬─median_ms─┬─min_ms─┬─read_rows─┬─read_from_disk─┬─decompressed─┬─read_bytes_in_memory─┬─peak_memory─┐
+ 1. │ 1m uniq(String)             │    5 │        72 │     58 │    485806 │ 45.91 MiB      │ 51.61 MiB    │ 55.60 MiB            │ 63.01 MiB   │
+ 2. │ 1m uniq(UInt64)             │    5 │        59 │     57 │    485806 │ 45.91 MiB      │ 51.60 MiB    │ 55.60 MiB            │ 62.94 MiB   │
+ 3. │ 1m uniq(UInt32)             │    5 │        60 │     58 │    485806 │ 45.91 MiB      │ 51.60 MiB    │ 55.60 MiB            │ 63.00 MiB   │
+ 4. │ 1m uniqCombined(UInt64)     │    5 │        56 │     52 │    485806 │ 45.44 MiB      │ 51.14 MiB    │ 48.18 MiB            │ 69.74 MiB   │
+ 5. │ 1m uniqCombined(12)(UInt64) │    5 │        49 │     44 │    485806 │ 42.14 MiB      │ 51.42 MiB    │ 48.18 MiB            │ 60.04 MiB   │
+ 6. │ 1m uniqHLL12(UInt64)        │    5 │       130 │    113 │    485806 │ 60.23 MiB      │ 480.46 MiB   │ 81.54 MiB            │ 108.85 MiB  │
+ 7. │ 1m uniqExact(String)        │    5 │        91 │     84 │    485806 │ 173.84 MiB     │ 179.03 MiB   │ 100.07 MiB           │ 228.21 MiB  │
+ 8. │ 1m uniqExact(UInt64)        │    5 │        59 │     52 │    485806 │ 87.93 MiB      │ 93.46 MiB    │ 96.37 MiB            │ 151.69 MiB  │
+ 9. │ 1m uniqExact(UInt32)        │    5 │        50 │     41 │    485806 │ 44.98 MiB      │ 50.67 MiB    │ 63.01 MiB            │ 87.67 MiB   │
+10. │ 10m uniq(UInt64)            │    5 │        38 │     38 │     48060 │ 24.83 MiB      │ 25.92 MiB    │ 5.50 MiB             │ 55.77 MiB   │
+11. │ 10m uniqExact(UInt64)       │    5 │        34 │     29 │     48060 │ 49.62 MiB      │ 50.61 MiB    │ 9.53 MiB             │ 111.34 MiB  │
+12. │ raw uniq(UInt64)            │    5 │        48 │     44 │  12005632 │ 124.97 MiB     │ 184.63 MiB   │ 183.19 MiB           │ 61.62 MiB   │
+13. │ raw uniqExact(UInt64)       │    5 │        50 │     47 │  12005632 │ 124.93 MiB     │ 184.50 MiB   │ 183.19 MiB           │ 157.16 MiB  │
+    └─────────────────────────────┴──────┴───────────┴────────┴───────────┴────────────────┴──────────────┴──────────────────────┴─────────────┘
+------------------- 08-timing.sql: 1 s
+
