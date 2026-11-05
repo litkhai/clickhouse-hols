@@ -16,7 +16,7 @@ Traditionally, such an alerting system required a complex architecture:
 
 ```mermaid
 flowchart LR
-    subgraph Traditional["전통적인 알림 아키텍처"]
+    subgraph Traditional["Traditional alerting architecture"]
         DB[(Database)] --> App[Application Server]
         App --> Queue[Message Queue]
         Queue --> Worker[Worker Process]
@@ -58,7 +58,7 @@ The core strength of the `url()` function is that you can **communicate with ext
 
 ```mermaid
 flowchart LR
-    subgraph Simplified["url() 함수를 활용한 단순화된 아키텍처"]
+    subgraph Simplified["Simplified architecture with the url() function"]
         CH[(ClickHouse)] -->|"INSERT INTO url(...)"| Slack[Slack Webhook]
     end
 
@@ -82,12 +82,12 @@ The `url()` function sends the HTTP request synchronously and has no built-in re
 
 ```mermaid
 flowchart TB
-    Query[INSERT 쿼리 실행] --> Request[HTTP POST 요청]
-    Request -->|"네트워크 오류"| Fail[요청 실패]
-    Request -->|"Slack 서버 다운"| Fail
-    Request -->|"타임아웃"| Fail
-    Fail --> Lost[메시지 유실 ❌]
-    Request -->|"성공"| OK[메시지 전달 ✅]
+    Query[INSERT query runs] --> Request[HTTP POST request]
+    Request -->|"Network error"| Fail[Request fails]
+    Request -->|"Slack server down"| Fail
+    Request -->|"Timeout"| Fail
+    Fail --> Lost[Message lost ❌]
+    Request -->|"Success"| OK[Message delivered ✅]
 
 ```
 
@@ -118,11 +118,11 @@ To build a reliable alerting system in production, consider the following comple
 
 ```mermaid
 flowchart LR
-    subgraph Enhanced["보완된 아키텍처"]
+    subgraph Enhanced["Hardened architecture"]
         CH[(ClickHouse)] -->|"url()"| Lambda[AWS Lambda]
-        Lambda -->|"재시도 로직"| Slack[Slack API]
-        Lambda -->|"실패 시"| DLQ[Dead Letter Queue]
-        DLQ -->|"재처리"| Lambda
+        Lambda -->|"Retry logic"| Slack[Slack API]
+        Lambda -->|"On failure"| DLQ[Dead Letter Queue]
+        DLQ -->|"Reprocess"| Lambda
     end
 
 ```
@@ -160,8 +160,8 @@ sequenceDiagram
     participant Channel as Slack Channel
 
     CH->>Slack: POST JSON payload
-    Slack->>Slack: 인증 및 검증
-    Slack->>Channel: 메시지 게시
+    Slack->>Slack: Authenticate and validate
+    Slack->>Channel: Post message
     Slack-->>CH: HTTP 200 OK
 
 ```
@@ -263,7 +263,7 @@ To implement periodic alerts with ClickHouse features alone, you need to combine
 
 ```mermaid
 flowchart LR
-    subgraph ClickHouse["ClickHouse 내부"]
+    subgraph ClickHouse["Inside ClickHouse"]
         Source[(Source Table)] --> rMV[Refreshable MV]
         rMV -->|"REFRESH EVERY N MINUTE"| URLTable[URL Engine Table]
     end
@@ -464,18 +464,18 @@ DROP TABLE slack_webhook_table;
 flowchart TB
     subgraph ClickHouse["ClickHouse"]
         Source[(Source Tables)]
-        Source --> rMV1[rMV: 1분 주기]
-        Source --> rMV2[rMV: 1시간 주기]
-        Source --> rMV3[rMV: 1일 주기]
+        Source --> rMV1[rMV: every minute]
+        Source --> rMV2[rMV: every hour]
+        Source --> rMV3[rMV: every day]
 
-        rMV1 --> URL1[URL Table: 모니터링]
-        rMV2 --> URL2[URL Table: 시간별 리포트]
-        rMV3 --> URL3[URL Table: 일일 리포트]
+        rMV1 --> URL1[URL Table: monitoring]
+        rMV2 --> URL2[URL Table: hourly report]
+        rMV3 --> URL3[URL Table: daily report]
     end
 
-    URL1 -->|POST| Slack1[#alerts 채널]
-    URL2 -->|POST| Slack2[#hourly-reports 채널]
-    URL3 -->|POST| Slack3[#daily-reports 채널]
+    URL1 -->|POST| Slack1[#alerts channel]
+    URL2 -->|POST| Slack2[#hourly-reports channel]
+    URL3 -->|POST| Slack3[#daily-reports channel]
 
 ```
 
