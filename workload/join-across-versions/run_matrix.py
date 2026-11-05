@@ -94,7 +94,7 @@ class Server:
         self.name = PREFIX + tag.replace(".", "-")
 
     def start(self):
-        sh("docker", "rm", "-f", self.name)
+        sh("docker", "rm", "-f", "-v", self.name)
         args = ["docker", "run", "-d", "--name", self.name, "--ulimit", "nofile=262144:262144",
                 "-e", "CLICKHOUSE_PASSWORD=", "-e", "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1"]
         if SECCOMP.exists():
@@ -109,7 +109,7 @@ class Server:
         raise RuntimeError("%s did not become ready" % self.name)
 
     def stop(self):
-        sh("docker", "rm", "-f", self.name)
+        sh("docker", "rm", "-f", "-v", self.name)
 
     def q(self, sql, query_id=None, fmt="TSVWithNames", timeout=TIMEOUT):
         cmd = ["docker", "exec", "-i", self.name, "clickhouse-client", "--format", fmt,

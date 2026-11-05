@@ -145,6 +145,70 @@ SELECT '════════ 9. Where the tokenizer sits among the others �
 
 SELECT groupArray(name) AS tokenizers_in_26_9 FROM (SELECT name FROM system.tokenizers ORDER BY name);
 
+SELECT '════════ 10. The ClickStack attribute type: Map(LowCardinality(String), String) ════════' AS section;
+
+-- ClickStack (HyperDX) stores attributes as Map(LowCardinality(String), String)
+-- — otel_logs.LogAttributes, ResourceAttributes, otel_traces.SpanAttributes —
+-- not the plain Map(String, String) used above. Does the index accept it?
+-- Yes: the CREATE below succeeds as written, with no cast and no workaround,
+-- and the equality reaches the index directly.
+
+DROP TABLE IF EXISTS kvp_cs;
+CREATE TABLE kvp_cs
+(
+    ts            DateTime,
+    LogAttributes Map(LowCardinality(String), String),
+    INDEX idx_attrs LogAttributes TYPE text(tokenizer = keyValuePairs) GRANULARITY 1
+)
+ENGINE = MergeTree ORDER BY ts;
+
+-- One million rows. service.name is clustered 100k rows to a value, cycling
+-- through four services, so about 3 of every 10 blocks can hold 'checkout'.
+INSERT INTO kvp_cs
+SELECT toDateTime('2026-09-01') + number,
+       map('service.name', ['checkout', 'search', 'auth', 'billing'][intDiv(number, 100000) % 4 + 1],
+           'env',          'prod',
+           'tenant',       concat('t', toString(intDiv(number, 100000))))
+FROM numbers(1000000);
+
+SELECT name, type_full FROM system.data_skipping_indices WHERE table = 'kvp_cs';
+
+SELECT '-- 10a. Positive: equality on one key reaches the index' AS note;
+
+SELECT count() FROM kvp_cs WHERE LogAttributes['service.name'] = 'checkout' SETTINGS log_comment = 'kvp_cs_count';
+
+-- A real SELECT, so the plan shows granule skipping rather than the
+-- ReadFromTextIndexCount shortcut from section 3.
+EXPLAIN indexes = 1
+SELECT ts FROM kvp_cs WHERE LogAttributes['service.name'] = 'checkout' ORDER BY ts LIMIT 3;
+
+SELECT ts FROM kvp_cs WHERE LogAttributes['service.name'] = 'checkout' ORDER BY ts DESC LIMIT 3
+SETTINGS log_comment = 'kvp_cs_select';
+
+SELECT '-- 10b. Negative: IN on the same column does not (section 7a again)' AS note;
+
+EXPLAIN indexes = 1
+SELECT count() FROM kvp_cs WHERE LogAttributes['service.name'] IN ('checkout', 'payment');
+
+SELECT count() FROM kvp_cs WHERE LogAttributes['service.name'] IN ('checkout', 'payment')
+SETTINGS log_comment = 'kvp_cs_in';
+
+SYSTEM FLUSH LOGS;
+
+SELECT replace(log_comment, 'kvp_cs_', '') AS query_, read_rows,
+       formatReadableSize(read_bytes) AS read_bytes_
+FROM system.query_log
+WHERE log_comment LIKE 'kvp_cs_%' AND type = 'QueryFinish'
+ORDER BY read_rows;
+
+-- Measured: the indexed count reads 1 row (16 B), the SELECT reads 16,384 rows
+-- (two granules, 80 KiB) because LIMIT 3 stops early, and IN reads all
+-- 1,000,000 rows (8.96 MiB). The EXPLAIN above shows Skip idx_attrs
+-- Granules: 40/123 for the equality and no Skip entry at all for IN.
+-- The takeaway for ClickStack tables: the LowCardinality key type is not an
+-- obstacle, and the same equality / IN rules as the plain Map apply.
+
 -- Cleanup left commented so you can keep poking at the tables.
 -- DROP TABLE IF EXISTS kvp;
 -- DROP TABLE IF EXISTS kvp_plain;
+-- DROP TABLE IF EXISTS kvp_cs;
