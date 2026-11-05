@@ -89,6 +89,7 @@ and [MOVED.md](MOVED.md).
 | [workload/projection](workload/projection/) | Projections for read patterns one sort key cannot serve |
 | [workload/projection-customsettings](workload/projection-customsettings/) | Projection behaviour under custom settings |
 | [workload/index-granularity-point-query](workload/index-granularity-point-query/) | Index granularity versus point-query latency |
+| [workload/index-across-versions](workload/index-across-versions/) | The same index SQL on six ClickHouse versions: primary-key prefix pruning, each skip index type, the `text` index, automatic minmax indices, the query condition cache, granules read |
 | [workload/async-insert-stress](workload/async-insert-stress/) | Async insert under stress |
 | [workload/json-stress-test](workload/json-stress-test/) | `JSON` type path limits: dynamic vs shared path cost |
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka partitioning aligned to the ClickHouse sort key |
@@ -309,6 +310,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [workload/projection](workload/projection/) | 단일 정렬 키로 커버되지 않는 읽기 패턴용 프로젝션 |
 | [workload/projection-customsettings](workload/projection-customsettings/) | 커스텀 설정에서의 프로젝션 동작 |
 | [workload/index-granularity-point-query](workload/index-granularity-point-query/) | 인덱스 granularity와 포인트 쿼리 지연 |
+| [workload/index-across-versions](workload/index-across-versions/) | 같은 인덱스 SQL을 ClickHouse 여섯 버전에서 실행: 기본 키 접두사 가지치기, skip index 종류별 동작, `text` 인덱스, 자동 minmax 인덱스, query condition cache, 읽은 granule |
 | [workload/async-insert-stress](workload/async-insert-stress/) | 비동기 삽입 스트레스 테스트 |
 | [workload/json-stress-test](workload/json-stress-test/) | `JSON` 타입 경로 한계: dynamic vs shared path 비용 |
 | [workload/kafka-partitioning-ingestion](workload/kafka-partitioning-ingestion/) | Kafka 파티셔닝과 ClickHouse 정렬 키 정합 |
