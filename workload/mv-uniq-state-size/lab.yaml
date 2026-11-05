@@ -8,7 +8,7 @@ verified_on: "26.10.3.7"
 web: true
 title_ko: "MV 롤업의 고유 수 상태 크기"
 summary_ko: "1분 롤업과 거기서 이어 만든 10분 롤업에서 uniq · uniqCombined · uniqHLL12 · uniqExact 상태의 크기와 오차, 최근 1시간 Top/Bottom 10 조회를 합성 데이터로 잽니다."
-title_en: "Distinct-count state size in MV rollups"
+title_en: "uniq state size in MV rollups"
 summary_en: "Size and error of uniq, uniqCombined, uniqHLL12 and uniqExact states in a 1-minute rollup and a cascading 10-minute rollup, and a last-hour Top/Bottom 10."
 category: core-architecture
 tags: [materialized-view, performance]
