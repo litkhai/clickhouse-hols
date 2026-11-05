@@ -36,3 +36,16 @@ FROM join_lab.contacts_big AS c
 INNER JOIN (SELECT customer_id, amount FROM join_lab.facts_big WHERE customer_id < 1000000) AS f
     ON c.customer_id = f.customer_id
 SETTINGS enable_lazy_columns_replication = 0;
+
+-- probe: 10-codec-columns value
+-- The codec the big tables' columns are stored with (00-data.sql pins CODEC(LZ4) on every column).
+SELECT groupUniqArray(compression_codec) AS column_codecs, count() AS columns
+FROM system.columns
+WHERE database = 'join_lab' AND table IN ('facts_big', 'customers_big', 'contacts_big');
+
+-- probe: 10-codec-parts value
+-- The parts' own default codec and the largest part after the timed probes above. A part's default codec
+-- applies only to columns without an explicit CODEC, so with the pin it does not change what was read.
+SELECT groupUniqArray(default_compression_codec) AS part_default_codecs, count() AS parts, max(bytes_on_disk) AS max_part_bytes
+FROM system.parts
+WHERE database = 'join_lab' AND table IN ('facts_big', 'customers_big', 'contacts_big') AND active;

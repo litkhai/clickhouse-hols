@@ -45,7 +45,7 @@ changelog: every cell in <a href="https://github.com/litkhai/clickhouse-hols/blo
 (including <code>query_log</code> rows, ProfileEvents and the first result rows) is in <code>results/&lt;version&gt;.json</code>.</p>
 <h3>Run it</h3>
 <pre><code class="language-bash">cd workload/join-across-versions
-./run_matrix.py                      # all six versions, about 8 minutes on a quiet machine; pulls nothing, images must exist
+./run_matrix.py                      # all six versions, about 4 minutes on a quiet machine (2026-11-05); pulls nothing, images must exist
 ./run_matrix.py --versions 26.10     # one version (prefix of a line in versions.txt)
 ./run_matrix.py --only 05            # one file or probe-id prefix; results merge into the JSON
 ./run_matrix.py --report-only        # rebuild RESULTS.md from results/*.json
@@ -100,7 +100,7 @@ A statement ends with <code>;</code> at the end of a line (no line may end in <c
 <tr>
 <td><code>06-memory-cap.sql</code></td>
 <td>uncapped peaks of the default, <code>hash</code>, <code>partial_merge</code>, <code>grace_hash</code>; <code>grace_hash</code> with 8 and 16 buckets and the default with <code>max_bytes_before_external_join</code>, under <code>max_memory_usage = 800000000</code></td>
-<td>which paths finish far below a cap their build side exceeds (5M <code>customers_big</code> rows, about 1.7 GiB uncapped)</td>
+<td>which paths finish far below a cap their build side exceeds (5M <code>customers_big</code> rows, 1.6 to 1.9 GiB uncapped)</td>
 </tr>
 <tr>
 <td><code>07-lazy-replication.sql</code></td>
@@ -119,8 +119,8 @@ A statement ends with <code>;</code> at the end of a line (no line may end in <c
 </tr>
 <tr>
 <td><code>10-scale.sql</code></td>
-<td>50M-row <code>facts_big</code> x 5M-row <code>customers_big</code>: big table left, big table right, star join, many-to-many wide column, the same with <code>enable_lazy_columns_replication = 0</code>; <code>repeat=5</code></td>
-<td>time differences above noise level (the big tables are created in <code>00-data.sql</code>, about 40 s of data load per version)</td>
+<td>50M-row <code>facts_big</code> x 5M-row <code>customers_big</code>: big table left, big table right, star join, many-to-many wide column, the same with <code>enable_lazy_columns_replication = 0</code>; <code>repeat=5</code>; two <code>value</code> probes (<code>10-codec-columns</code>, <code>10-codec-parts</code>) read back the codecs</td>
+<td>time differences above noise level (the big tables are created in <code>00-data.sql</code> with <code>CODEC(LZ4)</code> on every column, about 40 s of data load per version)</td>
 </tr>
 </tbody>
 </table>
@@ -128,8 +128,8 @@ A statement ends with <code>;</code> at the end of a line (no line may end in <c
 versions are the result, shown as <code>✗ Code N</code> (1 UNSUPPORTED_METHOD, 48 NOT_IMPLEMENTED, 62 SYNTAX_ERROR,
 115 UNKNOWN_SETTING, 241 MEMORY_LIMIT_EXCEEDED, 403 INVALID_JOIN_ON_EXPRESSION).</p>
 <h3>What changed between versions</h3>
-<p>Written only from <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/RESULTS.md">RESULTS.md</a> (run on 2026-11-04, 12 CPUs, 15.6 GiB Docker VM; other
-containers were running on the machine, so absolute times are noisy and are not used below).</p>
+<p>Written only from <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/RESULTS.md">RESULTS.md</a> (run on 2026-11-05, 12 CPUs, 15.6 GiB Docker VM; no other containers during the 24.8, 25.3 and 26.10 runs, a few idle
+<code>cap-final-*</code> containers of another task during 25.8, 26.3 and 26.8, so read times only for large gaps).</p>
 <ul>
 <li><strong>Non-equi <code>ON</code>.</strong> On 24.8.14.39 every non-equi form fails with Code 403 unless
   <code>allow_experimental_join_condition = 1</code> is set (<code>03-equi-ineq-inner-flag</code> runs, <code>03-equi-ineq-inner</code> does not). From 25.3.14.14 the
@@ -143,20 +143,20 @@ containers were running on the machine, so absolute times are noisy and are not 
 <li><strong>Runtime filters.</strong> <code>enable_join_runtime_filters</code> exists from 26.3.62.3 (default 1). The setting does not change <code>read_rows</code>; it changes how many rows reach
   the join: <code>JoinProbeTableRowCount</code> of <code>05-star-on</code> / <code>05-star-off</code> is 274,366 / 5,500,000 on 26.8.36.3 and 26.10.3.7 and 49,760 / 524,881 on 26.3.62.3.
   The <code>EXPLAIN</code> of <code>09-explain-runtime-filter</code> on 26.10.3.7 shows <code>Runtime filters: RF2(customer_id, id)</code> on the <code>facts</code> scan.</li>
-<li><strong>Star join build side.</strong> <code>05-star-default</code> on 26.3.62.3 builds the hash table from <code>facts</code>: <code>JoinBuildTableRowCount</code> is 5,000,001 and peak memory 215 MiB; on 26.8.36.3 and 26.10.3.7 it builds from 24,882 rows
-  (4 MiB). On 25.3 and 25.8 the build side is 500,001 rows.</li>
-<li><strong>Join side and memory.</strong> With the big table written on the right (<code>02-big-right-default</code>), 24.8.14.39 peaks at 182 MiB; 25.3.14.14 peaks at 78 MiB and
-  25.8 to 26.10 at 29 to 45 MiB. <code>query_plan_join_swap_table = 'false'</code> brings back 137 to 192 MiB on 25.3 to 26.10 (the setting does not exist on 24.8: Code 115).</li>
+<li><strong>Star join build side.</strong> <code>05-star-default</code> on 26.3.62.3 builds the hash table from <code>facts</code>: <code>JoinBuildTableRowCount</code> is 5,000,001 and peak memory 224 MiB; on 26.8.36.3 and 26.10.3.7 it builds from 24,882 rows
+  (3 MiB). On 25.3 and 25.8 the build side is 500,001 rows.</li>
+<li><strong>Join side and memory.</strong> With the big table written on the right (<code>02-big-right-default</code>), 24.8.14.39 peaks at 185 MiB; 25.3.14.14 peaks at 77 MiB and
+  25.8 to 26.10 at 29 to 46 MiB. <code>query_plan_join_swap_table = 'false'</code> brings back 130 to 192 MiB on 25.3 to 26.10 (the setting does not exist on 24.8: Code 115).</li>
 <li><strong>Memory cap and spilling (<code>06-memory-cap.sql</code>, <code>errors/01</code>).</strong> The build side is the 5M-row <code>customers_big</code> with its wide comment; the cap is <code>max_memory_usage = 800000000</code> (763 MiB).
-  Uncapped peaks, MiB: default 1725 to 1916 (2.3 to 2.5 times the cap), <code>hash</code> 1583 to 1802 (2.1 to 2.4 times), <code>grace_hash</code> with one bucket 1784 to 2198 (2.3 to 2.9 times), <code>partial_merge</code> 990 to 1004 (1.3 times).
+  Uncapped peaks, MiB: default 1662 to 1925 (2.2 to 2.5 times the cap), <code>hash</code> 1579 to 1815 (2.1 to 2.4 times), <code>grace_hash</code> with one bucket 1788 to 2231 (2.3 to 2.9 times), <code>partial_merge</code> 987 to 1009 (1.3 times).
   Under the cap, the default, <code>hash</code>, <code>partial_merge</code> and one-bucket <code>grace_hash</code> all fail with Code 241 on all six versions (<code>errors/01-memory-cap-defaults.sql</code>); writing out <code>max_bytes_ratio_before_external_join = 0.5</code>
-  gives Code 115 before 26.8 and Code 241 on 26.8 and 26.10. These paths finish: <code>grace_hash</code> with 16 buckets (275 to 316 MiB, 36 to 41 percent of the cap) and with 8 buckets (361 to 444 MiB, 47 to 58 percent) on all six versions, and the default with
-  <code>max_bytes_before_external_join = 200000000</code> (395 MiB, 52 percent of the cap) on 26.8.36.3 and 26.10.3.7 only (Code 115 before: the setting does not exist). On 26.10 the spill shows in ProfileEvents
+  gives Code 115 before 26.8 and Code 241 on 26.8 and 26.10. These paths finish: <code>grace_hash</code> with 16 buckets (277 to 305 MiB, 36 to 40 percent of the cap) and with 8 buckets (363 to 452 MiB, 48 to 59 percent) on all six versions, and the default with
+  <code>max_bytes_before_external_join = 200000000</code> (406 to 422 MiB, 53 to 55 percent of the cap) on 26.8.36.3 and 26.10.3.7 only (Code 115 before: the setting does not exist). On 26.10 the spill shows in ProfileEvents
   (<code>ExternalProcessingFilesTotal</code> 64, <code>JoinSpillingHashJoinSwitchedToGraceJoin</code> 1).</li>
 <li><strong>LATERAL forms (<code>errors/02</code>).</strong> The comma form and <code>CROSS JOIN LATERAL</code> give Code 62 on all six; a LATERAL subquery that does not reference the left side
   and <code>LIMIT ... WITH TIES</code> inside LATERAL give Code 62 on 24.8 to 26.8 and Code 48 on 26.10.3.7.</li>
-<li><strong>Time (<code>10-scale.sql</code>, 5 runs, median (min) in seconds).</strong> One machine (12 CPUs). Other containers were running (Langfuse stacks, a MinIO/Nessie stack, others; RESULTS.md lists them with their CPU% when each version started,
-  mostly small but <code>nessie</code> used 174% and a Langfuse ClickHouse 48 to 57% at some starts), so read only large gaps.</li>
+<li><strong>Time (<code>10-scale.sql</code>, 5 runs, median (min) in seconds).</strong> One machine (12 CPUs), run on 2026-11-05. The 25.8, 26.3 and 26.8 builds ran next to idle <code>cap-final-*</code> containers of another task
+  (22 to 56 percent of 1200% CPU in total at those versions' starts, listed in RESULTS.md), so read only large gaps.</li>
 </ul>
 <table>
 <thead>
@@ -173,57 +173,61 @@ containers were running on the machine, so absolute times are noisy and are not 
 <tbody>
 <tr>
 <td><code>10-big-left</code></td>
-<td>0.66 (0.31)</td>
-<td>0.43 (0.32)</td>
-<td>0.60 (0.44)</td>
-<td>0.61 (0.38)</td>
-<td>0.40 (0.32)</td>
+<td>0.30 (0.24)</td>
+<td>0.25 (0.22)</td>
 <td>0.23 (0.20)</td>
+<td>0.20 (0.18)</td>
+<td>0.15 (0.14)</td>
+<td>0.17 (0.11)</td>
 </tr>
 <tr>
 <td><code>10-big-right</code></td>
-<td>2.69 (2.48)</td>
-<td>0.43 (0.37)</td>
-<td>0.42 (0.29)</td>
-<td>0.31 (0.25)</td>
-<td>0.28 (0.21)</td>
-<td>0.20 (0.18)</td>
+<td>1.23 (1.16)</td>
+<td>0.22 (0.21)</td>
+<td>0.19 (0.17)</td>
+<td>0.20 (0.20)</td>
+<td>0.15 (0.14)</td>
+<td>0.11 (0.10)</td>
 </tr>
 <tr>
 <td><code>10-star</code></td>
-<td>0.51 (0.40)</td>
-<td>0.49 (0.45)</td>
-<td>0.35 (0.31)</td>
-<td>1.13 (0.63)</td>
-<td>0.11 (0.10)</td>
-<td>0.11 (0.09)</td>
+<td>0.33 (0.26)</td>
+<td>0.35 (0.30)</td>
+<td>0.25 (0.24)</td>
+<td>0.32 (0.31)</td>
+<td>0.05 (0.05)</td>
+<td>0.05 (0.05)</td>
 </tr>
 <tr>
 <td><code>10-many-to-many-wide</code></td>
-<td>0.64 (0.52)</td>
-<td>1.06 (0.88)</td>
-<td>0.54 (0.46)</td>
-<td>0.61 (0.54)</td>
-<td>1.28 (1.02)</td>
-<td>0.88 (0.73)</td>
+<td>0.47 (0.43)</td>
+<td>0.62 (0.57)</td>
+<td>0.34 (0.29)</td>
+<td>0.34 (0.31)</td>
+<td>0.30 (0.29)</td>
+<td>0.38 (0.32)</td>
 </tr>
 <tr>
 <td><code>10-many-to-many-wide-lazy-off</code></td>
 <td>Code 115</td>
 <td>Code 115</td>
 <td>Code 115</td>
-<td>0.73 (0.50)</td>
-<td>0.86 (0.56)</td>
-<td>0.90 (0.82)</td>
+<td>0.34 (0.32)</td>
+<td>0.32 (0.28)</td>
+<td>0.35 (0.32)</td>
 </tr>
 </tbody>
 </table>
-<p>The clear gaps: the big table on the right takes 2.5 to 2.7 s and 1882 MiB on 24.8 against at most 0.43 s and 582 MiB elsewhere; the star join on 26.3 peaks at 2802 MiB (1.13 s) and on 26.8 and 26.10 at 38 MiB (0.11 s).
-  For <code>10-many-to-many-wide</code>, 24.8 peaks at 602 MiB and 25.3 to 26.10 at 1426 to 1628 MiB. Its time on 26.8 (1.28 s, min 1.02) and 26.10 (0.88 s, min 0.73) is 1.4 to 2 times that of 24.8 (0.64 s, min 0.52). Turning lazy replication off does not change this on 26.8 and 26.10 (0.86 s and 0.90 s), so lazy replication is not the cause in this data; memory is also unchanged (1375 to 1481 MiB).
+<p>The clear gaps: the big table on the right takes 1.16 to 1.23 s and 1877 MiB on 24.8 against at most 0.22 s and 583 MiB elsewhere; the star join on 26.3 peaks at 2800 MiB (0.32 s) and on 26.8 and 26.10 at 37 to 43 MiB (0.05 s).
+  For <code>10-many-to-many-wide</code>, 24.8 peaks at 619 MiB and 25.3 to 26.10 at 1429 to 1670 MiB. Its time is 0.30 to 0.62 s on all six builds: 26.8 (0.30 s, min 0.29) and 26.10 (0.38 s, min 0.32) are not slower than 24.8 (0.47 s, min 0.43); only 25.3 (0.62 s, min 0.57) is above it.
+  The run of 2026-11-04, with other containers running, had shown 26.8 and 26.10 at 1.4 to 2 times 24.8; that gap does not reproduce. Turning lazy replication off changes the time by 0.03 s or less on 26.3, 26.8 and 26.10; memory is 28 to 64 MiB lower (1369 to 1478 MiB against 1429 to 1520 MiB).
+- <strong>Codec pin.</strong> From 26.9 a merged part of 100 MiB or more defaults to ZSTD(3) (<a href="https://github.com/ClickHouse/ClickHouse/pull/108786">ClickHouse#108786</a>); older builds use LZ4. <code>00-data.sql</code> pins <code>CODEC(LZ4)</code> on every column of the three big tables,
+  so the timings compare builds, not codecs. The two <code>value</code> probes read it back: <code>10-codec-columns</code> shows <code>CODEC(LZ4)</code> on all 10 columns on every build, and <code>10-codec-parts</code> shows part default codecs <code>['LZ4']</code> on 24.8 to 26.8 and <code>['LZ4','ZSTD(3)']</code> on 26.10
+  (11 parts, the largest 654130557 bytes). So on 26.10 merged parts did get a ZSTD(3) default during the run, and the pin is what kept the columns LZ4. Builds before 26.9 store LZ4 either way.
 - <strong>Syntax.</strong> <code>NATURAL JOIN</code> parses from 26.8.36.3 (Code 62 before); <code>LEFT JOIN LATERAL</code> only on 26.10.3.7 (with <code>allow_experimental_lateral_join = 1</code>).
   <code>ASOF</code>, <code>SEMI</code>, <code>ANTI</code>, <code>PASTE</code>, <code>USING</code> and <code>FULL</code> with <code>join_use_nulls</code> parse on all six.
 - <strong>Lazy replication.</strong> <code>enable_lazy_columns_replication</code> exists from 26.3.62.3 (default 1). Peak memory of <code>07-lazy-on</code> / <code>07-lazy-off</code>:
-  324 / 322 MiB on 26.3, 61 / 112 MiB on 26.8, 63 / 196 MiB on 26.10.
+  328 / 328 MiB on 26.3, 63 / 136 MiB on 26.8, 65 / 119 MiB on 26.10.
 - <strong><code>join_algorithm</code> default.</strong> <code>default</code> on 24.8.14.39; <code>direct,parallel_hash,hash</code> on 25.3 to 26.3; <code>direct,parallel_hash,hash,ie_join</code> on 26.8 and 26.10.
   <code>used_join_algorithms</code> is logged only on 26.10.3.7; for the older builds RESULTS.md lists the join processors found in <code>EXPLAIN PIPELINE</code>, which is not an algorithm name.</p>
 <p>Not examined: distributed or replicated joins, other table engines (<code>Join</code>, <code>Dictionary</code>), other data sizes, the
@@ -243,7 +247,7 @@ failures on 26.10 itself. <code>run_matrix.py</code> runs them after the top-lev
 <li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/04-used-join-algorithms-26-10.png"><code>images/04-used-join-algorithms-26-10.png</code></a> — <code>query_log.used_join_algorithms</code> for 11 probes on 26.10.3.7 (<code>03-arbitrary-left</code> empty)</li>
 </ul>
 <h3>Verified</h3>
-<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-04
+<p>Verified on 24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3 and 26.10.3.7, 2026-11-05
 (<code>./run_matrix.py</code>, all six; <code>tools/hol run</code> on 26.10.3.7).</p>
 <hr /></div>
   <div class="readme ko"><p>같은 JOIN SQL을 ClickHouse 여섯 빌드(LTS 24.8, 25.3, 25.8, 26.3, 26.8과 최신 stable 26.10)에서 실행합니다. 프로브·버전마다
@@ -252,7 +256,7 @@ failures on 26.10 itself. <code>run_matrix.py</code> runs them after the top-lev
 <code>results/&lt;version&gt;.json</code>에 있습니다.</p>
 <h3>실행</h3>
 <pre><code class="language-bash">cd workload/join-across-versions
-./run_matrix.py                      # 여섯 버전 전부, 한가한 머신에서 약 8분. 이미지를 받지 않으므로 미리 있어야 함
+./run_matrix.py                      # 여섯 버전 전부, 한가한 머신에서 약 4분(2026-11-05). 이미지를 받지 않으므로 미리 있어야 함
 ./run_matrix.py --versions 26.10     # 한 버전 (versions.txt 줄의 접두사)
 ./run_matrix.py --only 05            # 파일 또는 프로브 id 접두사. 결과는 JSON에 병합
 ./run_matrix.py --report-only        # results/*.json에서 RESULTS.md 재생성
@@ -306,7 +310,7 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 <tr>
 <td><code>06-memory-cap.sql</code></td>
 <td>기본, <code>hash</code>, <code>partial_merge</code>, <code>grace_hash</code>의 무제한 최대치. 버킷 8개·16개 <code>grace_hash</code>와 <code>max_bytes_before_external_join</code>을 둔 기본값. 모두 <code>max_memory_usage = 800000000</code></td>
-<td>빌드 쪽(500만 행 <code>customers_big</code>, 무제한 시 약 1.7 GiB)이 상한을 넘을 때 상한보다 한참 아래에서 끝나는 경로는 무엇인가</td>
+<td>빌드 쪽(500만 행 <code>customers_big</code>, 무제한 시 1.6~1.9 GiB)이 상한을 넘을 때 상한보다 한참 아래에서 끝나는 경로는 무엇인가</td>
 </tr>
 <tr>
 <td><code>07-lazy-replication.sql</code></td>
@@ -325,8 +329,8 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 </tr>
 <tr>
 <td><code>10-scale.sql</code></td>
-<td>5천만 행 <code>facts_big</code> x 500만 행 <code>customers_big</code>: 큰 테이블 왼쪽, 오른쪽, 스타 조인, 넓은 컬럼 다대다, <code>enable_lazy_columns_replication = 0</code> 버전. <code>repeat=5</code></td>
-<td>노이즈보다 큰 시간 차이 (큰 테이블은 <code>00-data.sql</code>에서 생성, 버전당 데이터 적재 약 40초)</td>
+<td>5천만 행 <code>facts_big</code> x 500만 행 <code>customers_big</code>: 큰 테이블 왼쪽, 오른쪽, 스타 조인, 넓은 컬럼 다대다, <code>enable_lazy_columns_replication = 0</code> 버전. <code>repeat=5</code>. <code>value</code> 프로브 둘(<code>10-codec-columns</code>, <code>10-codec-parts</code>)이 코덱을 다시 읽음</td>
+<td>노이즈보다 큰 시간 차이 (큰 테이블은 <code>00-data.sql</code>에서 모든 컬럼에 <code>CODEC(LZ4)</code>를 주고 생성, 버전당 데이터 적재 약 40초)</td>
 </tr>
 </tbody>
 </table>
@@ -334,8 +338,8 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 표시됩니다(1 UNSUPPORTED_METHOD, 48 NOT_IMPLEMENTED, 62 SYNTAX_ERROR, 115 UNKNOWN_SETTING, 241 MEMORY_LIMIT_EXCEEDED,
 403 INVALID_JOIN_ON_EXPRESSION).</p>
 <h3>버전 간 변화</h3>
-<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/RESULTS.md">RESULTS.md</a>만으로 작성했습니다(2026-11-04 실행, CPU 12개, Docker VM 15.6 GiB). 실행 중 다른 컨테이너가 같은 머신에서
-돌고 있어 절대 시간은 흔들리므로 아래에서 쓰지 않습니다.</p>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/RESULTS.md">RESULTS.md</a>만으로 작성했습니다(2026-11-05 실행, CPU 12개, Docker VM 15.6 GiB). 24.8, 25.3, 26.10 실행 중에는 다른 컨테이너가 없었고 25.8, 26.3, 26.8 실행 중에는
+다른 작업의 유휴 <code>cap-final-*</code> 컨테이너가 떠 있었으므로 시간은 큰 차이만 보십시오.</p>
 <ul>
 <li><strong>비동등 <code>ON</code>.</strong> 24.8.14.39에서는 <code>allow_experimental_join_condition = 1</code>이 없으면 모든 비동등 형태가 Code 403으로 실패합니다
   (<code>03-equi-ineq-inner-flag</code>는 실행되고 <code>03-equi-ineq-inner</code>는 안 됩니다). 25.3.14.14부터 범위, 임의 식 INNER, 동등+부등 형태는 플래그 없이 실행됩니다.
@@ -348,19 +352,19 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 <li><strong>런타임 필터.</strong> <code>enable_join_runtime_filters</code>는 26.3.62.3부터 있습니다(기본 1). 이 설정은 <code>read_rows</code>를 바꾸지 않고 조인에 들어오는 행 수를 바꿉니다:
   <code>05-star-on</code> / <code>05-star-off</code>의 <code>JoinProbeTableRowCount</code>는 26.8.36.3과 26.10.3.7에서 274,366 / 5,500,000, 26.3.62.3에서 49,760 / 524,881입니다.
   26.10.3.7의 <code>09-explain-runtime-filter</code> <code>EXPLAIN</code>에는 <code>facts</code> 스캔에 <code>Runtime filters: RF2(customer_id, id)</code>가 보입니다.</li>
-<li><strong>스타 조인 빌드 쪽.</strong> 26.3.62.3의 <code>05-star-default</code>는 <code>facts</code>로 해시 테이블을 만듭니다: <code>JoinBuildTableRowCount</code> 5,000,001, 최대 메모리 215 MiB.
-  26.8.36.3과 26.10.3.7은 24,882행(4 MiB)으로 만듭니다. 25.3과 25.8의 빌드 쪽은 500,001행입니다.</li>
-<li><strong>조인 쪽과 메모리.</strong> 큰 테이블을 오른쪽에 쓰면(<code>02-big-right-default</code>) 24.8.14.39는 최대 182 MiB, 25.3.14.14는 78 MiB, 25.8~26.10은 29~45 MiB입니다.
-  <code>query_plan_join_swap_table = 'false'</code>로 끄면 25.3~26.10에서 137~192 MiB로 돌아갑니다(24.8에는 설정이 없어 Code 115).</li>
+<li><strong>스타 조인 빌드 쪽.</strong> 26.3.62.3의 <code>05-star-default</code>는 <code>facts</code>로 해시 테이블을 만듭니다: <code>JoinBuildTableRowCount</code> 5,000,001, 최대 메모리 224 MiB.
+  26.8.36.3과 26.10.3.7은 24,882행(3 MiB)으로 만듭니다. 25.3과 25.8의 빌드 쪽은 500,001행입니다.</li>
+<li><strong>조인 쪽과 메모리.</strong> 큰 테이블을 오른쪽에 쓰면(<code>02-big-right-default</code>) 24.8.14.39는 최대 185 MiB, 25.3.14.14는 77 MiB, 25.8~26.10은 29~46 MiB입니다.
+  <code>query_plan_join_swap_table = 'false'</code>로 끄면 25.3~26.10에서 130~192 MiB로 돌아갑니다(24.8에는 설정이 없어 Code 115).</li>
 <li><strong>메모리 상한과 스필(<code>06-memory-cap.sql</code>, <code>errors/01</code>).</strong> 빌드 쪽은 넓은 comment가 있는 500만 행 <code>customers_big</code>이고 상한은 <code>max_memory_usage = 800000000</code>(763 MiB)입니다.
-  무제한 최대치(MiB): 기본 1725~1916(상한의 2.3~2.5배), <code>hash</code> 1583~1802(2.1~2.4배), 버킷 1개 <code>grace_hash</code> 1784~2198(2.3~2.9배), <code>partial_merge</code> 990~1004(1.3배).
+  무제한 최대치(MiB): 기본 1662~1925(상한의 2.2~2.5배), <code>hash</code> 1579~1815(2.1~2.4배), 버킷 1개 <code>grace_hash</code> 1788~2231(2.3~2.9배), <code>partial_merge</code> 987~1009(1.3배).
   상한 아래에서 기본, <code>hash</code>, <code>partial_merge</code>, 버킷 1개 <code>grace_hash</code>는 여섯 버전 모두 Code 241로 실패합니다(<code>errors/01-memory-cap-defaults.sql</code>). <code>max_bytes_ratio_before_external_join = 0.5</code>를 명시하면
-  26.8 이전은 Code 115, 26.8과 26.10은 Code 241입니다. 끝나는 경로: 버킷 16개 <code>grace_hash</code>(275~316 MiB, 상한의 36~41%)와 버킷 8개(361~444 MiB, 47~58%)는 여섯 버전 모두, <code>max_bytes_before_external_join = 200000000</code>을 둔
-  기본값(395 MiB, 상한의 52%)은 26.8.36.3과 26.10.3.7에서만(이전은 설정이 없어 Code 115). 26.10의 ProfileEvents에 스필이 보입니다(<code>ExternalProcessingFilesTotal</code> 64, <code>JoinSpillingHashJoinSwitchedToGraceJoin</code> 1).</li>
+  26.8 이전은 Code 115, 26.8과 26.10은 Code 241입니다. 끝나는 경로: 버킷 16개 <code>grace_hash</code>(277~305 MiB, 상한의 36~40%)와 버킷 8개(363~452 MiB, 48~59%)는 여섯 버전 모두, <code>max_bytes_before_external_join = 200000000</code>을 둔
+  기본값(406~422 MiB, 상한의 53~55%)은 26.8.36.3과 26.10.3.7에서만(이전은 설정이 없어 Code 115). 26.10의 ProfileEvents에 스필이 보입니다(<code>ExternalProcessingFilesTotal</code> 64, <code>JoinSpillingHashJoinSwitchedToGraceJoin</code> 1).</li>
 <li><strong>LATERAL 형태(<code>errors/02</code>).</strong> 쉼표 형태와 <code>CROSS JOIN LATERAL</code>은 여섯 버전 모두 Code 62, 왼쪽을 참조하지 않는 LATERAL 서브쿼리와
   LATERAL 안의 <code>LIMIT ... WITH TIES</code>는 24.8~26.8에서 Code 62, 26.10.3.7에서 Code 48입니다.</li>
-<li><strong>시간(<code>10-scale.sql</code>, 5회, 중앙값(최소) 초).</strong> 한 대의 머신(CPU 12개). 다른 컨테이너(Langfuse 스택, MinIO/Nessie 스택 등)가 돌고 있었고 RESULTS.md에 각 버전 시작 시점의 CPU%가 있습니다
-  (대부분 작지만 일부 시작 시점에 <code>nessie</code> 174%, Langfuse ClickHouse 48~57%), 그래서 큰 차이만 보십시오.</li>
+<li><strong>시간(<code>10-scale.sql</code>, 5회, 중앙값(최소) 초).</strong> 한 대의 머신(CPU 12개), 2026-11-05 실행. 25.8, 26.3, 26.8 빌드는 다른 작업의 유휴 <code>cap-final-*</code> 컨테이너와 함께 돌았고
+  (해당 버전 시작 시점 CPU 합계 1200% 중 22~56%, RESULTS.md에 있음) 그래서 큰 차이만 보십시오.</li>
 </ul>
 <table>
 <thead>
@@ -377,57 +381,61 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 <tbody>
 <tr>
 <td><code>10-big-left</code></td>
-<td>0.66 (0.31)</td>
-<td>0.43 (0.32)</td>
-<td>0.60 (0.44)</td>
-<td>0.61 (0.38)</td>
-<td>0.40 (0.32)</td>
+<td>0.30 (0.24)</td>
+<td>0.25 (0.22)</td>
 <td>0.23 (0.20)</td>
+<td>0.20 (0.18)</td>
+<td>0.15 (0.14)</td>
+<td>0.17 (0.11)</td>
 </tr>
 <tr>
 <td><code>10-big-right</code></td>
-<td>2.69 (2.48)</td>
-<td>0.43 (0.37)</td>
-<td>0.42 (0.29)</td>
-<td>0.31 (0.25)</td>
-<td>0.28 (0.21)</td>
-<td>0.20 (0.18)</td>
+<td>1.23 (1.16)</td>
+<td>0.22 (0.21)</td>
+<td>0.19 (0.17)</td>
+<td>0.20 (0.20)</td>
+<td>0.15 (0.14)</td>
+<td>0.11 (0.10)</td>
 </tr>
 <tr>
 <td><code>10-star</code></td>
-<td>0.51 (0.40)</td>
-<td>0.49 (0.45)</td>
-<td>0.35 (0.31)</td>
-<td>1.13 (0.63)</td>
-<td>0.11 (0.10)</td>
-<td>0.11 (0.09)</td>
+<td>0.33 (0.26)</td>
+<td>0.35 (0.30)</td>
+<td>0.25 (0.24)</td>
+<td>0.32 (0.31)</td>
+<td>0.05 (0.05)</td>
+<td>0.05 (0.05)</td>
 </tr>
 <tr>
 <td><code>10-many-to-many-wide</code></td>
-<td>0.64 (0.52)</td>
-<td>1.06 (0.88)</td>
-<td>0.54 (0.46)</td>
-<td>0.61 (0.54)</td>
-<td>1.28 (1.02)</td>
-<td>0.88 (0.73)</td>
+<td>0.47 (0.43)</td>
+<td>0.62 (0.57)</td>
+<td>0.34 (0.29)</td>
+<td>0.34 (0.31)</td>
+<td>0.30 (0.29)</td>
+<td>0.38 (0.32)</td>
 </tr>
 <tr>
 <td><code>10-many-to-many-wide-lazy-off</code></td>
 <td>Code 115</td>
 <td>Code 115</td>
 <td>Code 115</td>
-<td>0.73 (0.50)</td>
-<td>0.86 (0.56)</td>
-<td>0.90 (0.82)</td>
+<td>0.34 (0.32)</td>
+<td>0.32 (0.28)</td>
+<td>0.35 (0.32)</td>
 </tr>
 </tbody>
 </table>
-<p>뚜렷한 차이: 큰 테이블을 오른쪽에 쓰면 24.8은 2.5~2.7초·1882 MiB, 나머지는 최대 0.43초·582 MiB입니다. 스타 조인은 26.3에서 2802 MiB(1.13초), 26.8과 26.10에서 38 MiB(0.11초)입니다.
-  <code>10-many-to-many-wide</code>는 24.8이 602 MiB, 25.3~26.10이 1426~1628 MiB입니다. 시간은 26.8(1.28초, 최소 1.02)과 26.10(0.88초, 최소 0.73)이 24.8(0.64초, 최소 0.52)의 1.4~2배로. 지연 복제를 끄면 26.8과 26.10에서 시간이 달라지지 않으므로(0.86초, 0.90초) 이 데이터에서 지연 복제는 원인이 아니며 메모리도 같습니다(1375~1481 MiB).
+<p>뚜렷한 차이: 큰 테이블을 오른쪽에 쓰면 24.8은 1.16~1.23초·1877 MiB, 나머지는 최대 0.22초·583 MiB입니다. 스타 조인은 26.3에서 2800 MiB(0.32초), 26.8과 26.10에서 37~43 MiB(0.05초)입니다.
+  <code>10-many-to-many-wide</code>는 24.8이 619 MiB, 25.3~26.10이 1429~1670 MiB입니다. 시간은 여섯 빌드 모두 0.30~0.62초입니다. 26.8(0.30초, 최소 0.29)과 26.10(0.38초, 최소 0.32)은 24.8(0.47초, 최소 0.43)보다 느리지 않고, 24.8보다 위인 것은 25.3(0.62초, 최소 0.57)뿐입니다.
+  다른 컨테이너가 돌던 2026-11-04 실행에서는 26.8과 26.10이 24.8의 1.4~2배로 보였지만 그 차이는 재현되지 않았습니다. 지연 복제를 끄면 시간은 26.3, 26.8, 26.10 모두 0.03초 이하로 달라지고, 메모리는 28~64 MiB 낮습니다(1369~1478 MiB 대 1429~1520 MiB).
+- <strong>코덱 고정.</strong> 26.9부터 100 MiB 이상으로 병합된 파트는 기본 코덱이 ZSTD(3)입니다(<a href="https://github.com/ClickHouse/ClickHouse/pull/108786">ClickHouse#108786</a>). 이전 빌드는 LZ4입니다. <code>00-data.sql</code>은 큰 테이블 셋의 모든 컬럼에 <code>CODEC(LZ4)</code>를 주어
+  시간이 코덱이 아니라 빌드를 비교하게 했습니다. <code>value</code> 프로브 둘이 결과를 다시 읽습니다: <code>10-codec-columns</code>는 모든 빌드에서 컬럼 10개 전부 <code>CODEC(LZ4)</code>이고, <code>10-codec-parts</code>의 파트 기본 코덱은 24.8~26.8이 <code>['LZ4']</code>, 26.10이 <code>['LZ4','ZSTD(3)']</code>입니다
+  (파트 11개, 가장 큰 것 654130557바이트). 즉 26.10에서는 실행 중 병합된 파트가 ZSTD(3) 기본값을 받았고, 컬럼을 LZ4로 유지한 것은 이 고정입니다. 26.9 이전 빌드는 고정 여부와 상관없이 LZ4로 저장합니다.
 - <strong>문법.</strong> <code>NATURAL JOIN</code>은 26.8.36.3부터 파싱됩니다(이전은 Code 62). <code>LEFT JOIN LATERAL</code>은 26.10.3.7에서만(<code>allow_experimental_lateral_join = 1</code>).
   <code>ASOF</code>, <code>SEMI</code>, <code>ANTI</code>, <code>PASTE</code>, <code>USING</code>, <code>join_use_nulls</code>의 <code>FULL</code>은 여섯 버전 모두 파싱됩니다.
 - <strong>지연 복제.</strong> <code>enable_lazy_columns_replication</code>은 26.3.62.3부터 있습니다(기본 1). <code>07-lazy-on</code> / <code>07-lazy-off</code> 최대 메모리:
-  26.3 324 / 322 MiB, 26.8 61 / 112 MiB, 26.10 63 / 196 MiB.
+  26.3 328 / 328 MiB, 26.8 63 / 136 MiB, 26.10 65 / 119 MiB.
 - <strong><code>join_algorithm</code> 기본값.</strong> 24.8.14.39는 <code>default</code>, 25.3~26.3은 <code>direct,parallel_hash,hash</code>, 26.8과 26.10은 <code>direct,parallel_hash,hash,ie_join</code>.
   <code>used_join_algorithms</code>는 26.10.3.7에서만 기록됩니다. 이전 빌드는 RESULTS.md에 <code>EXPLAIN PIPELINE</code>에서 찾은 조인 프로세서를 적었으며 알고리즘 이름이 아닙니다.</p>
 <p>다루지 않은 것: 분산·복제 조인, 다른 테이블 엔진(<code>Join</code>, <code>Dictionary</code>), 다른 데이터 크기, <code>full_sorting_merge</code> 알고리즘.</p>
@@ -444,7 +452,7 @@ tools/hol run workload/join-across-versions   # 저장소 루트에서: 26.10에
 <li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/join-across-versions/images/04-used-join-algorithms-26-10.png"><code>images/04-used-join-algorithms-26-10.png</code></a> — 26.10.3.7에서 프로브 11개의 <code>query_log.used_join_algorithms</code>(<code>03-arbitrary-left</code>만 비어 있음)</li>
 </ul>
 <h3>검증</h3>
-<p>24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3, 26.10.3.7에서 2026-11-04에 검증
+<p>24.8.14.39, 25.3.14.14, 25.8.33.6, 26.3.62.3, 26.8.36.3, 26.10.3.7에서 2026-11-05에 검증
 (<code>./run_matrix.py</code> 여섯 버전 전부, <code>tools/hol run</code>은 26.10.3.7).</p></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/join-across-versions"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
   <nav class="pager"><a class="step prev" href="../../../labs/workload/rbac-workloadmanagement/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse RBAC &amp; Workload Management Lab</span></a><span class="step empty"></span></nav>

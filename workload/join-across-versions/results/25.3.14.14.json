@@ -7,7 +7,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.07,
+     "wall_s": 0.08,
      "sql": "DROP DATABASE IF EXISTS join_lab;"
     },
     {
@@ -15,7 +15,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "CREATE DATABASE join_lab;"
     },
     {
@@ -23,7 +23,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.06,
      "sql": "CREATE TABLE join_lab.facts\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
     },
     {
@@ -31,7 +31,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.61,
+     "wall_s": 0.35,
      "sql": "INSERT INTO join_lab.facts\nSELECT\n    number,\n    cityHash64(number, 1) % 500000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(5000000);"
     },
     {
@@ -39,7 +39,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.1,
+     "wall_s": 0.08,
      "sql": "CREATE TABLE join_lab.customers\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
     },
     {
@@ -47,7 +47,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.37,
+     "wall_s": 0.2,
      "sql": "INSERT INTO join_lab.customers\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(500000);"
     },
     {
@@ -55,7 +55,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.09,
+     "wall_s": 0.07,
      "sql": "CREATE TABLE join_lab.regions\n(\n    id   UInt8,\n    name String\n)\nENGINE = MergeTree\nORDER BY id;"
     },
     {
@@ -63,7 +63,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "INSERT INTO join_lab.regions\nSELECT number, concat('region-', toString(number)) FROM numbers(20);"
     },
     {
@@ -71,7 +71,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "CREATE TABLE join_lab.bands\n(\n    lo UInt32,\n    hi UInt32\n)\nENGINE = MergeTree\nORDER BY lo;"
     },
     {
@@ -79,7 +79,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "INSERT INTO join_lab.bands\nSELECT number * 100, (number + 1) * 100 FROM numbers(100);"
     },
     {
@@ -87,7 +87,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "CREATE TABLE join_lab.prices\n(\n    customer_id UInt32,\n    ts          DateTime,\n    price       UInt32\n)\nENGINE = MergeTree\nORDER BY (customer_id, ts);"
     },
     {
@@ -95,7 +95,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "INSERT INTO join_lab.prices\nSELECT\n    number % 2000,\n    toDateTime('2026-01-01 00:00:00') + intDiv(number, 2000) * 86400,\n    cityHash64(number, 7) % 1000\nFROM numbers(20000);"
     },
     {
@@ -103,7 +103,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.08,
+     "wall_s": 0.07,
      "sql": "CREATE TABLE join_lab.contacts\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
     },
     {
@@ -111,7 +111,7 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.71,
+     "wall_s": 0.39,
      "sql": "INSERT INTO join_lab.contacts\nSELECT\n    cityHash64(number, 8) % 100000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(1000000);"
     },
     {
@@ -119,15 +119,15 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.09,
-     "sql": "CREATE TABLE join_lab.facts_big\n(\n    id          UInt64,\n    customer_id UInt32,\n    amount      UInt32,\n    ts          DateTime\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE join_lab.facts_big\n(\n    id          UInt64 CODEC(LZ4),\n    customer_id UInt32 CODEC(LZ4),\n    amount      UInt32 CODEC(LZ4),\n    ts          DateTime CODEC(LZ4)\n)\nENGINE = MergeTree\nORDER BY (customer_id, id);"
     },
     {
      "id": "00-setup16",
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 4.24,
+     "wall_s": 2.9,
      "sql": "INSERT INTO join_lab.facts_big\nSELECT\n    number,\n    cityHash64(number, 1) % 5000000,\n    cityHash64(number, 2) % 10000,\n    toDateTime('2026-01-01 00:00:00') + (cityHash64(number, 3) % 2592000)\nFROM numbers(50000000);"
     },
     {
@@ -135,15 +135,15 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 1.22,
-     "sql": "CREATE TABLE join_lab.customers_big\n(\n    id           UInt32,\n    region       UInt8,\n    credit_limit UInt32,\n    comment      String\n)\nENGINE = MergeTree\nORDER BY id;"
+     "wall_s": 0.37,
+     "sql": "CREATE TABLE join_lab.customers_big\n(\n    id           UInt32 CODEC(LZ4),\n    region       UInt8 CODEC(LZ4),\n    credit_limit UInt32 CODEC(LZ4),\n    comment      String CODEC(LZ4)\n)\nENGINE = MergeTree\nORDER BY id;"
     },
     {
      "id": "00-setup18",
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 5.73,
+     "wall_s": 0.81,
      "sql": "INSERT INTO join_lab.customers_big\nSELECT\n    number,\n    cityHash64(number, 4) % 20,\n    cityHash64(number, 5) % 10000,\n    concat('customer-', toString(number), '-', repeat(hex(cityHash64(number, 6)), 12))\nFROM numbers(5000000);"
     },
     {
@@ -151,15 +151,15 @@
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 0.16,
-     "sql": "CREATE TABLE join_lab.contacts_big\n(\n    customer_id UInt32,\n    note        String\n)\nENGINE = MergeTree\nORDER BY customer_id;"
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE join_lab.contacts_big\n(\n    customer_id UInt32 CODEC(LZ4),\n    note        String CODEC(LZ4)\n)\nENGINE = MergeTree\nORDER BY customer_id;"
     },
     {
      "id": "00-setup20",
      "ok": true,
      "code": null,
      "message": "",
-     "wall_s": 3.45,
+     "wall_s": 1.29,
      "sql": "INSERT INTO join_lab.contacts_big\nSELECT\n    cityHash64(number, 8) % 1000000,\n    concat('note-', toString(number), '-', repeat(hex(cityHash64(number, 9)), 12))\nFROM numbers(5000000);"
     }
    ],
@@ -176,7 +176,7 @@
      "runs": [
       {
        "query_id": "01-default.1",
-       "wall_s": 0.129,
+       "wall_s": 0.107,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -184,8 +184,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 42,
-        "memory_usage": 89304231,
+        "query_duration_ms": 33,
+        "memory_usage": 88290671,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -203,7 +203,7 @@
       },
       {
        "query_id": "01-default.2",
-       "wall_s": 0.105,
+       "wall_s": 0.104,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -211,8 +211,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 33,
-        "memory_usage": 87499813,
+        "query_duration_ms": 29,
+        "memory_usage": 90089843,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -231,7 +231,7 @@
       },
       {
        "query_id": "01-default.3",
-       "wall_s": 0.112,
+       "wall_s": 0.11,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -239,8 +239,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 39,
-        "memory_usage": 84117603,
+        "query_duration_ms": 37,
+        "memory_usage": 80957435,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -260,12 +260,12 @@
      ],
      "status": "ok",
      "durations_ms": [
-      42,
       33,
-      39
+      29,
+      37
      ],
-     "duration_ms": 39,
-     "memory_usage": 89304231,
+     "duration_ms": 33,
+     "memory_usage": 90089843,
      "read_rows": 5500000,
      "read_bytes": 42500000,
      "written_rows": 0,
@@ -296,7 +296,7 @@
      "runs": [
       {
        "query_id": "01-hash.1",
-       "wall_s": 0.142,
+       "wall_s": 0.116,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -304,8 +304,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 67,
-        "memory_usage": 79272162,
+        "query_duration_ms": 37,
+        "memory_usage": 79698810,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -323,7 +323,7 @@
       },
       {
        "query_id": "01-hash.2",
-       "wall_s": 0.117,
+       "wall_s": 0.097,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -331,8 +331,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 40,
-        "memory_usage": 73020569,
+        "query_duration_ms": 28,
+        "memory_usage": 77798499,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -343,14 +343,14 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 500000,
-         "JoinProbeTableRowCount": 6868157,
+         "JoinProbeTableRowCount": 6857383,
          "JoinResultRowCount": 5000000
         }
        }
       },
       {
        "query_id": "01-hash.3",
-       "wall_s": 0.112,
+       "wall_s": 0.092,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -358,8 +358,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 38,
-        "memory_usage": 78714098,
+        "query_duration_ms": 27,
+        "memory_usage": 74307161,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -370,7 +370,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 500000,
-         "JoinProbeTableRowCount": 6868157,
+         "JoinProbeTableRowCount": 6871354,
          "JoinResultRowCount": 5000000
         }
        }
@@ -378,12 +378,12 @@
      ],
      "status": "ok",
      "durations_ms": [
-      67,
-      40,
-      38
+      37,
+      28,
+      27
      ],
-     "duration_ms": 40,
-     "memory_usage": 79272162,
+     "duration_ms": 28,
+     "memory_usage": 79698810,
      "read_rows": 5500000,
      "read_bytes": 42500000,
      "written_rows": 0,
@@ -391,7 +391,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 500000,
-      "JoinProbeTableRowCount": 6868157,
+      "JoinProbeTableRowCount": 6871354,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -413,7 +413,7 @@
      "runs": [
       {
        "query_id": "01-parallel-hash.1",
-       "wall_s": 0.399,
+       "wall_s": 0.102,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -421,8 +421,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 300,
-        "memory_usage": 88013605,
+        "query_duration_ms": 30,
+        "memory_usage": 87083837,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -441,7 +441,7 @@
       },
       {
        "query_id": "01-parallel-hash.2",
-       "wall_s": 0.226,
+       "wall_s": 0.118,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -449,8 +449,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 73,
-        "memory_usage": 97056061,
+        "query_duration_ms": 42,
+        "memory_usage": 80548653,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -469,7 +469,7 @@
       },
       {
        "query_id": "01-parallel-hash.3",
-       "wall_s": 0.266,
+       "wall_s": 0.108,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n5000000\t25002447488\t20\n",
        "rows": [
@@ -477,8 +477,8 @@
         "5000000\t25002447488\t20"
        ],
        "log": {
-        "query_duration_ms": 63,
-        "memory_usage": 78763155,
+        "query_duration_ms": 31,
+        "memory_usage": 88655357,
         "read_rows": 5500000,
         "read_bytes": 42500000,
         "written_rows": 0,
@@ -498,12 +498,12 @@
      ],
      "status": "ok",
      "durations_ms": [
-      300,
-      73,
-      63
+      30,
+      42,
+      31
      ],
-     "duration_ms": 73,
-     "memory_usage": 97056061,
+     "duration_ms": 31,
+     "memory_usage": 88655357,
      "read_rows": 5500000,
      "read_bytes": 42500000,
      "written_rows": 0,
@@ -539,7 +539,7 @@
      "runs": [
       {
        "query_id": "02-big-left-control.1",
-       "wall_s": 0.165,
+       "wall_s": 0.091,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -547,8 +547,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 77,
-        "memory_usage": 72876313,
+        "query_duration_ms": 22,
+        "memory_usage": 81416165,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -566,7 +566,7 @@
       },
       {
        "query_id": "02-big-left-control.2",
-       "wall_s": 0.23,
+       "wall_s": 0.099,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -574,8 +574,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 55,
-        "memory_usage": 70760824,
+        "query_duration_ms": 22,
+        "memory_usage": 72756605,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -586,7 +586,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 500000,
-         "JoinProbeTableRowCount": 6882509,
+         "JoinProbeTableRowCount": 6868157,
          "JoinResultRowCount": 5000000
         }
        }
@@ -594,11 +594,11 @@
      ],
      "status": "ok",
      "durations_ms": [
-      77,
-      55
+      22,
+      22
      ],
-     "duration_ms": 66.0,
-     "memory_usage": 72876313,
+     "duration_ms": 22.0,
+     "memory_usage": 81416165,
      "read_rows": 5500000,
      "read_bytes": 42000000,
      "written_rows": 0,
@@ -606,7 +606,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 500000,
-      "JoinProbeTableRowCount": 6882509,
+      "JoinProbeTableRowCount": 6868157,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -628,7 +628,7 @@
      "runs": [
       {
        "query_id": "02-big-right-default.1",
-       "wall_s": 0.18,
+       "wall_s": 0.085,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -636,8 +636,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 50,
-        "memory_usage": 77346543,
+        "query_duration_ms": 17,
+        "memory_usage": 75834057,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -655,7 +655,7 @@
       },
       {
        "query_id": "02-big-right-default.2",
-       "wall_s": 0.15,
+       "wall_s": 0.091,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -663,8 +663,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 65,
-        "memory_usage": 82037923,
+        "query_duration_ms": 22,
+        "memory_usage": 80472779,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -675,7 +675,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 500000,
-         "JoinProbeTableRowCount": 6832214,
+         "JoinProbeTableRowCount": 6868157,
          "JoinResultRowCount": 5000000
         }
        }
@@ -683,11 +683,11 @@
      ],
      "status": "ok",
      "durations_ms": [
-      50,
-      65
+      17,
+      22
      ],
-     "duration_ms": 57.5,
-     "memory_usage": 82037923,
+     "duration_ms": 19.5,
+     "memory_usage": 80472779,
      "read_rows": 5500000,
      "read_bytes": 42000000,
      "written_rows": 0,
@@ -695,7 +695,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 500000,
-      "JoinProbeTableRowCount": 6832214,
+      "JoinProbeTableRowCount": 6868157,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -717,7 +717,7 @@
      "runs": [
       {
        "query_id": "02-big-right-no-swap.1",
-       "wall_s": 0.289,
+       "wall_s": 0.156,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -725,8 +725,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 201,
-        "memory_usage": 190410123,
+        "query_duration_ms": 83,
+        "memory_usage": 188301957,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -737,14 +737,14 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 5000000,
-         "JoinProbeTableRowCount": 2679048,
+         "JoinProbeTableRowCount": 3091401,
          "JoinResultRowCount": 5000000
         }
        }
       },
       {
        "query_id": "02-big-right-no-swap.2",
-       "wall_s": 0.286,
+       "wall_s": 0.154,
        "rc": 0,
        "stdout": "rows\ttotal\n5000000\t25002447488\n",
        "rows": [
@@ -752,8 +752,8 @@
         "5000000\t25002447488"
        ],
        "log": {
-        "query_duration_ms": 205,
-        "memory_usage": 188535223,
+        "query_duration_ms": 82,
+        "memory_usage": 187974384,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -764,7 +764,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 5000000,
-         "JoinProbeTableRowCount": 3092787,
+         "JoinProbeTableRowCount": 3092243,
          "JoinResultRowCount": 5000000
         }
        }
@@ -772,11 +772,11 @@
      ],
      "status": "ok",
      "durations_ms": [
-      201,
-      205
+      83,
+      82
      ],
-     "duration_ms": 203.0,
-     "memory_usage": 190410123,
+     "duration_ms": 82.5,
+     "memory_usage": 188301957,
      "read_rows": 5500000,
      "read_bytes": 42000000,
      "written_rows": 0,
@@ -784,7 +784,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 5000000,
-      "JoinProbeTableRowCount": 3092787,
+      "JoinProbeTableRowCount": 3092243,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -813,7 +813,7 @@
      "runs": [
       {
        "query_id": "03-range-inner",
-       "wall_s": 0.135,
+       "wall_s": 0.076,
        "rc": 0,
        "stdout": "lo\tn\n0\t1044\n100\t1009\n200\t956\n300\t1025\n400\t1011\n",
        "rows": [
@@ -825,8 +825,8 @@
         "400\t1011"
        ],
        "log": {
-        "query_duration_ms": 44,
-        "memory_usage": 195936,
+        "query_duration_ms": 13,
+        "memory_usage": 625332,
         "read_rows": 5000100,
         "read_bytes": 44448612,
         "written_rows": 0,
@@ -837,7 +837,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 100,
-         "JoinProbeTableRowCount": 2702503,
+         "JoinProbeTableRowCount": 3786180,
          "JoinResultRowCount": 10000000
         }
        }
@@ -845,10 +845,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      44
+      13
      ],
-     "duration_ms": 44,
-     "memory_usage": 195936,
+     "duration_ms": 13,
+     "memory_usage": 625332,
      "read_rows": 5000100,
      "read_bytes": 44448612,
      "written_rows": 0,
@@ -856,7 +856,7 @@
      "result_rows": 5,
      "events": {
       "JoinBuildTableRowCount": 100,
-      "JoinProbeTableRowCount": 2702503,
+      "JoinProbeTableRowCount": 3786180,
       "JoinResultRowCount": 10000000
      },
      "rows": [
@@ -882,7 +882,7 @@
      "runs": [
       {
        "query_id": "03-arbitrary-inner",
-       "wall_s": 0.097,
+       "wall_s": 0.077,
        "rc": 0,
        "stdout": "n\n19152\n",
        "rows": [
@@ -891,7 +891,7 @@
        ],
        "log": {
         "query_duration_ms": 10,
-        "memory_usage": 775024,
+        "memory_usage": 725288,
         "read_rows": 5000100,
         "read_bytes": 44448212,
         "written_rows": 0,
@@ -902,7 +902,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 100,
-         "JoinProbeTableRowCount": 3786180,
+         "JoinProbeTableRowCount": 2702503,
          "JoinResultRowCount": 10000000
         }
        }
@@ -913,7 +913,7 @@
       10
      ],
      "duration_ms": 10,
-     "memory_usage": 775024,
+     "memory_usage": 725288,
      "read_rows": 5000100,
      "read_bytes": 44448212,
      "written_rows": 0,
@@ -921,7 +921,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 100,
-      "JoinProbeTableRowCount": 3786180,
+      "JoinProbeTableRowCount": 2702503,
       "JoinResultRowCount": 10000000
      },
      "rows": [
@@ -943,7 +943,7 @@
      "runs": [
       {
        "query_id": "03-arbitrary-left",
-       "wall_s": 0.077,
+       "wall_s": 0.067,
        "rc": 147,
        "code": 403,
        "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression [Predcates: () Residual filter: ((less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8)))]. (INVALID_JOIN_ON_EXPRESSION)",
@@ -978,7 +978,7 @@
      "runs": [
       {
        "query_id": "03-arbitrary-left-flag",
-       "wall_s": 0.074,
+       "wall_s": 0.071,
        "rc": 147,
        "code": 403,
        "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression [Predcates: () Residual filter: ((less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8)))]. (INVALID_JOIN_ON_EXPRESSION)",
@@ -1013,7 +1013,7 @@
      "runs": [
       {
        "query_id": "03-equi-ineq-inner",
-       "wall_s": 0.139,
+       "wall_s": 0.096,
        "rc": 0,
        "stdout": "n\ttotal\n2502540\t16685903732\n",
        "rows": [
@@ -1021,8 +1021,8 @@
         "2502540\t16685903732"
        ],
        "log": {
-        "query_duration_ms": 57,
-        "memory_usage": 88438601,
+        "query_duration_ms": 30,
+        "memory_usage": 89238666,
         "read_rows": 5500000,
         "read_bytes": 44000000,
         "written_rows": 0,
@@ -1041,10 +1041,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      57
+      30
      ],
-     "duration_ms": 57,
-     "memory_usage": 88438601,
+     "duration_ms": 30,
+     "memory_usage": 89238666,
      "read_rows": 5500000,
      "read_bytes": 44000000,
      "written_rows": 0,
@@ -1074,7 +1074,7 @@
      "runs": [
       {
        "query_id": "03-equi-ineq-inner-flag",
-       "wall_s": 0.119,
+       "wall_s": 0.104,
        "rc": 0,
        "stdout": "n\ttotal\n2502540\t16685903732\n",
        "rows": [
@@ -1082,8 +1082,8 @@
         "2502540\t16685903732"
        ],
        "log": {
-        "query_duration_ms": 36,
-        "memory_usage": 89205988,
+        "query_duration_ms": 29,
+        "memory_usage": 90023111,
         "read_rows": 5500000,
         "read_bytes": 44000000,
         "written_rows": 0,
@@ -1103,10 +1103,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      36
+      29
      ],
-     "duration_ms": 36,
-     "memory_usage": 89205988,
+     "duration_ms": 29,
+     "memory_usage": 90023111,
      "read_rows": 5500000,
      "read_bytes": 44000000,
      "written_rows": 0,
@@ -1137,7 +1137,7 @@
      "runs": [
       {
        "query_id": "03-equi-ineq-left",
-       "wall_s": 0.199,
+       "wall_s": 0.143,
        "rc": 0,
        "stdout": "n\tno_match_or_zero\n5000000\t2497797\n",
        "rows": [
@@ -1145,8 +1145,8 @@
         "5000000\t2497797"
        ],
        "log": {
-        "query_duration_ms": 103,
-        "memory_usage": 143953100,
+        "query_duration_ms": 72,
+        "memory_usage": 147406405,
         "read_rows": 5500000,
         "read_bytes": 44000000,
         "written_rows": 0,
@@ -1165,10 +1165,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      103
+      72
      ],
-     "duration_ms": 103,
-     "memory_usage": 143953100,
+     "duration_ms": 72,
+     "memory_usage": 147406405,
      "read_rows": 5500000,
      "read_bytes": 44000000,
      "written_rows": 0,
@@ -1205,7 +1205,7 @@
      "runs": [
       {
        "query_id": "04-exists",
-       "wall_s": 0.07,
+       "wall_s": 0.063,
        "rc": 1,
        "code": 1,
        "message": "Received from localhost:9000. DB::Exception: Resolved identifier 'c.id' in parent scope to expression 'c.id' with correlated column 'id'. In scope (SELECT _CAST(1, 'UInt64') FROM (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.i",
@@ -1240,7 +1240,7 @@
      "runs": [
       {
        "query_id": "04-exists-no-substitution",
-       "wall_s": 0.082,
+       "wall_s": 0.066,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting correlated_subqueries_substitute_equivalent_expressions is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -1263,7 +1263,7 @@
      "runs": [
       {
        "query_id": "04-not-exists",
-       "wall_s": 0.076,
+       "wall_s": 0.062,
        "rc": 1,
        "code": 1,
        "message": "Received from localhost:9000. DB::Exception: Resolved identifier 'c.id' in parent scope to expression 'c.id' with correlated column 'id'. In scope (SELECT _CAST(1, 'UInt64') FROM (SELECT 1 FROM join_lab.facts AS f WHERE (f.customer_id = c.i",
@@ -1300,7 +1300,7 @@
      "runs": [
       {
        "query_id": "04-scalar-select-list",
-       "wall_s": 0.085,
+       "wall_s": 0.061,
        "rc": 1,
        "code": 1,
        "message": "Received from localhost:9000. DB::Exception: Resolved identifier 'c.id' in parent scope to expression 'c.id' with correlated column 'id'. In scope (SELECT max(f.amount) FROM join_lab.facts AS f WHERE f.customer_id = c.id) AS mx. (UNSUPPORTE",
@@ -1342,7 +1342,7 @@
      "runs": [
       {
        "query_id": "05-star-default",
-       "wall_s": 0.122,
+       "wall_s": 0.1,
        "rc": 0,
        "stdout": "n\ttotal\n249471\t1245583791\n",
        "rows": [
@@ -1350,8 +1350,8 @@
         "249471\t1245583791"
        ],
        "log": {
-        "query_duration_ms": 47,
-        "memory_usage": 89319526,
+        "query_duration_ms": 34,
+        "memory_usage": 87934546,
         "read_rows": 5500020,
         "read_bytes": 42500370,
         "written_rows": 0,
@@ -1370,10 +1370,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      47
+      34
      ],
-     "duration_ms": 47,
-     "memory_usage": 89319526,
+     "duration_ms": 34,
+     "memory_usage": 87934546,
      "read_rows": 5500020,
      "read_bytes": 42500370,
      "written_rows": 0,
@@ -1405,7 +1405,7 @@
      "runs": [
       {
        "query_id": "05-star-on",
-       "wall_s": 0.081,
+       "wall_s": 0.073,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -1430,7 +1430,7 @@
      "runs": [
       {
        "query_id": "05-star-off",
-       "wall_s": 0.073,
+       "wall_s": 0.069,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -1455,7 +1455,7 @@
      "runs": [
       {
        "query_id": "05-direct-default",
-       "wall_s": 0.088,
+       "wall_s": 0.078,
        "rc": 0,
        "stdout": "n\ttotal\n5014\t24939811\n",
        "rows": [
@@ -1463,8 +1463,8 @@
         "5014\t24939811"
        ],
        "log": {
-        "query_duration_ms": 13,
-        "memory_usage": 34306512,
+        "query_duration_ms": 10,
+        "memory_usage": 42705730,
         "read_rows": 5500000,
         "read_bytes": 42000000,
         "written_rows": 0,
@@ -1483,10 +1483,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      13
+      10
      ],
-     "duration_ms": 13,
-     "memory_usage": 34306512,
+     "duration_ms": 10,
+     "memory_usage": 42705730,
      "read_rows": 5500000,
      "read_bytes": 42000000,
      "written_rows": 0,
@@ -1518,7 +1518,7 @@
      "runs": [
       {
        "query_id": "05-direct-on",
-       "wall_s": 0.077,
+       "wall_s": 0.067,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -1543,7 +1543,7 @@
      "runs": [
       {
        "query_id": "05-direct-off",
-       "wall_s": 0.075,
+       "wall_s": 0.064,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -1573,7 +1573,7 @@
      "runs": [
       {
        "query_id": "06-uncapped",
-       "wall_s": 1.2,
+       "wall_s": 0.457,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1581,8 +1581,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 1081,
-        "memory_usage": 1907126168,
+        "query_duration_ms": 351,
+        "memory_usage": 1943939288,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1601,10 +1601,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      1081
+      351
      ],
-     "duration_ms": 1081,
-     "memory_usage": 1907126168,
+     "duration_ms": 351,
+     "memory_usage": 1943939288,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
@@ -1636,7 +1636,7 @@
      "runs": [
       {
        "query_id": "06-uncapped-hash",
-       "wall_s": 1.48,
+       "wall_s": 0.634,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1644,8 +1644,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 1366,
-        "memory_usage": 1889642457,
+        "query_duration_ms": 546,
+        "memory_usage": 1903453815,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1656,7 +1656,7 @@
         "type": "QueryFinish",
         "events": {
          "JoinBuildTableRowCount": 5000000,
-         "JoinProbeTableRowCount": 9319197,
+         "JoinProbeTableRowCount": 8879496,
          "JoinResultRowCount": 5000000
         }
        }
@@ -1664,10 +1664,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      1366
+      546
      ],
-     "duration_ms": 1366,
-     "memory_usage": 1889642457,
+     "duration_ms": 546,
+     "memory_usage": 1903453815,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
@@ -1675,7 +1675,7 @@
      "result_rows": 1,
      "events": {
       "JoinBuildTableRowCount": 5000000,
-      "JoinProbeTableRowCount": 9319197,
+      "JoinProbeTableRowCount": 8879496,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -1699,7 +1699,7 @@
      "runs": [
       {
        "query_id": "06-uncapped-partial-merge",
-       "wall_s": 2.395,
+       "wall_s": 1.631,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1707,8 +1707,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 2223,
-        "memory_usage": 1037817490,
+        "query_duration_ms": 1514,
+        "memory_usage": 1037262395,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1718,15 +1718,15 @@
         "query_id": "06-uncapped-partial-merge",
         "type": "QueryFinish",
         "events": {
-         "ExternalProcessingCompressedBytesTotal": 300762108,
+         "ExternalProcessingCompressedBytesTotal": 300755480,
          "ExternalProcessingUncompressedBytesTotal": 2146903172,
          "ExternalProcessingFilesTotal": 614,
          "ExternalJoinWritePart": 614,
          "ExternalJoinMerge": 1,
-         "ExternalJoinCompressedBytes": 300762108,
+         "ExternalJoinCompressedBytes": 300755480,
          "ExternalJoinUncompressedBytes": 2146903172,
          "JoinBuildTableRowCount": 5000000,
-         "JoinProbeTableRowCount": 14537648,
+         "JoinProbeTableRowCount": 14552000,
          "JoinResultRowCount": 5000000
         }
        }
@@ -1734,25 +1734,25 @@
      ],
      "status": "ok",
      "durations_ms": [
-      2223
+      1514
      ],
-     "duration_ms": 2223,
-     "memory_usage": 1037817490,
+     "duration_ms": 1514,
+     "memory_usage": 1037262395,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
      "written_bytes": 0,
      "result_rows": 1,
      "events": {
-      "ExternalProcessingCompressedBytesTotal": 300762108,
+      "ExternalProcessingCompressedBytesTotal": 300755480,
       "ExternalProcessingUncompressedBytesTotal": 2146903172,
       "ExternalProcessingFilesTotal": 614,
       "ExternalJoinWritePart": 614,
       "ExternalJoinMerge": 1,
-      "ExternalJoinCompressedBytes": 300762108,
+      "ExternalJoinCompressedBytes": 300755480,
       "ExternalJoinUncompressedBytes": 2146903172,
       "JoinBuildTableRowCount": 5000000,
-      "JoinProbeTableRowCount": 14537648,
+      "JoinProbeTableRowCount": 14552000,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -1776,7 +1776,7 @@
      "runs": [
       {
        "query_id": "06-uncapped-grace-hash",
-       "wall_s": 1.828,
+       "wall_s": 0.503,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1784,8 +1784,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 1688,
-        "memory_usage": 2304255007,
+        "query_duration_ms": 386,
+        "memory_usage": 2339603904,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1797,7 +1797,7 @@
         "events": {
          "ExternalProcessingFilesTotal": 2,
          "JoinBuildTableRowCount": 5000000,
-         "JoinProbeTableRowCount": 8616568,
+         "JoinProbeTableRowCount": 8565342,
          "JoinResultRowCount": 5000000
         }
        }
@@ -1805,10 +1805,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      1688
+      386
      ],
-     "duration_ms": 1688,
-     "memory_usage": 2304255007,
+     "duration_ms": 386,
+     "memory_usage": 2339603904,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
@@ -1817,7 +1817,7 @@
      "events": {
       "ExternalProcessingFilesTotal": 2,
       "JoinBuildTableRowCount": 5000000,
-      "JoinProbeTableRowCount": 8616568,
+      "JoinProbeTableRowCount": 8565342,
       "JoinResultRowCount": 5000000
      },
      "rows": [
@@ -1843,7 +1843,7 @@
      "runs": [
       {
        "query_id": "06-grace-hash-8-buckets-capped",
-       "wall_s": 3.373,
+       "wall_s": 1.048,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1851,8 +1851,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 3084,
-        "memory_usage": 464418829,
+        "query_duration_ms": 948,
+        "memory_usage": 473595221,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1872,10 +1872,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      3084
+      948
      ],
-     "duration_ms": 3084,
-     "memory_usage": 464418829,
+     "duration_ms": 948,
+     "memory_usage": 473595221,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
@@ -1910,7 +1910,7 @@
      "runs": [
       {
        "query_id": "06-grace-hash-16-buckets-capped",
-       "wall_s": 2.0,
+       "wall_s": 0.937,
        "rc": 0,
        "stdout": "n\th\n5000000\t13815302554278746036\n",
        "rows": [
@@ -1918,8 +1918,8 @@
         "5000000\t13815302554278746036"
        ],
        "log": {
-        "query_duration_ms": 1849,
-        "memory_usage": 331082349,
+        "query_duration_ms": 837,
+        "memory_usage": 316205585,
         "read_rows": 10000000,
         "read_bytes": 1128423434,
         "written_rows": 0,
@@ -1939,10 +1939,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      1849
+      837
      ],
-     "duration_ms": 1849,
-     "memory_usage": 331082349,
+     "duration_ms": 837,
+     "memory_usage": 316205585,
      "read_rows": 10000000,
      "read_bytes": 1128423434,
      "written_rows": 0,
@@ -1977,7 +1977,7 @@
      "runs": [
       {
        "query_id": "06-default-spill-capped",
-       "wall_s": 0.11,
+       "wall_s": 0.083,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_before_external_sort','max",
@@ -2005,7 +2005,7 @@
      "runs": [
       {
        "query_id": "07-lazy-default.1",
-       "wall_s": 0.309,
+       "wall_s": 0.115,
        "rc": 0,
        "stdout": "n\th\n2001816\t2735429605406549434\n",
        "rows": [
@@ -2013,8 +2013,8 @@
         "2001816\t2735429605406549434"
        ],
        "log": {
-        "query_duration_ms": 184,
-        "memory_usage": 470287642,
+        "query_duration_ms": 47,
+        "memory_usage": 435869334,
         "read_rows": 2032192,
         "read_bytes": 229179338,
         "written_rows": 0,
@@ -2032,7 +2032,7 @@
       },
       {
        "query_id": "07-lazy-default.2",
-       "wall_s": 0.255,
+       "wall_s": 0.106,
        "rc": 0,
        "stdout": "n\th\n2001816\t2735429605406549434\n",
        "rows": [
@@ -2040,8 +2040,8 @@
         "2001816\t2735429605406549434"
        ],
        "log": {
-        "query_duration_ms": 143,
-        "memory_usage": 438061216,
+        "query_duration_ms": 36,
+        "memory_usage": 474496066,
         "read_rows": 2032192,
         "read_bytes": 229179338,
         "written_rows": 0,
@@ -2061,11 +2061,11 @@
      ],
      "status": "ok",
      "durations_ms": [
-      184,
-      143
+      47,
+      36
      ],
-     "duration_ms": 163.5,
-     "memory_usage": 470287642,
+     "duration_ms": 41.5,
+     "memory_usage": 474496066,
      "read_rows": 2032192,
      "read_bytes": 229179338,
      "written_rows": 0,
@@ -2096,7 +2096,7 @@
      "runs": [
       {
        "query_id": "07-lazy-on.1",
-       "wall_s": 0.093,
+       "wall_s": 0.068,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -2119,7 +2119,7 @@
      "runs": [
       {
        "query_id": "07-lazy-off.1",
-       "wall_s": 0.097,
+       "wall_s": 0.07,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -2147,7 +2147,7 @@
      "runs": [
       {
        "query_id": "08-asof-left",
-       "wall_s": 0.086,
+       "wall_s": 0.08,
        "rc": 0,
        "stdout": "n\ttotal\n4049\t2031692\n",
        "rows": [
@@ -2155,8 +2155,8 @@
         "4049\t2031692"
        ],
        "log": {
-        "query_duration_ms": 5,
-        "memory_usage": 1780517,
+        "query_duration_ms": 8,
+        "memory_usage": 1466872,
         "read_rows": 60960,
         "read_bytes": 633216,
         "written_rows": 0,
@@ -2175,10 +2175,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      5
+      8
      ],
-     "duration_ms": 5,
-     "memory_usage": 1780517,
+     "duration_ms": 8,
+     "memory_usage": 1466872,
      "read_rows": 60960,
      "read_bytes": 633216,
      "written_rows": 0,
@@ -2208,7 +2208,7 @@
      "runs": [
       {
        "query_id": "08-left-semi",
-       "wall_s": 0.084,
+       "wall_s": 0.076,
        "rc": 0,
        "stdout": "n\n20\n",
        "rows": [
@@ -2216,8 +2216,8 @@
         "20"
        ],
        "log": {
-        "query_duration_ms": 6,
-        "memory_usage": 397060,
+        "query_duration_ms": 4,
+        "memory_usage": 381224,
         "read_rows": 500020,
         "read_bytes": 500020,
         "written_rows": 0,
@@ -2236,10 +2236,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      6
+      4
      ],
-     "duration_ms": 6,
-     "memory_usage": 397060,
+     "duration_ms": 4,
+     "memory_usage": 381224,
      "read_rows": 500020,
      "read_bytes": 500020,
      "written_rows": 0,
@@ -2269,7 +2269,7 @@
      "runs": [
       {
        "query_id": "08-left-anti",
-       "wall_s": 0.094,
+       "wall_s": 0.07,
        "rc": 0,
        "stdout": "n\n10\n",
        "rows": [
@@ -2278,7 +2278,7 @@
        ],
        "log": {
         "query_duration_ms": 4,
-        "memory_usage": 456311,
+        "memory_usage": 366542,
         "read_rows": 500020,
         "read_bytes": 500020,
         "written_rows": 0,
@@ -2300,7 +2300,7 @@
       4
      ],
      "duration_ms": 4,
-     "memory_usage": 456311,
+     "memory_usage": 366542,
      "read_rows": 500020,
      "read_bytes": 500020,
      "written_rows": 0,
@@ -2330,7 +2330,7 @@
      "runs": [
       {
        "query_id": "08-paste",
-       "wall_s": 0.077,
+       "wall_s": 0.066,
        "rc": 0,
        "stdout": "n\ttotal\n5\t110\n",
        "rows": [
@@ -2338,8 +2338,8 @@
         "5\t110"
        ],
        "log": {
-        "query_duration_ms": 2,
-        "memory_usage": 148744,
+        "query_duration_ms": 1,
+        "memory_usage": 146216,
         "read_rows": 10,
         "read_bytes": 80,
         "written_rows": 0,
@@ -2354,10 +2354,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      2
+      1
      ],
-     "duration_ms": 2,
-     "memory_usage": 148744,
+     "duration_ms": 1,
+     "memory_usage": 146216,
      "read_rows": 10,
      "read_bytes": 80,
      "written_rows": 0,
@@ -2382,7 +2382,7 @@
      "runs": [
       {
        "query_id": "08-natural",
-       "wall_s": 0.084,
+       "wall_s": 0.064,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 86 (NATURAL) (line 3, col 1): NATURAL JOIN (SELECT number AS id, number * 3 AS b FROM numbers(5)) AS r;. Expected one of: FINAL, SAMPLE, table, table function, subquery or list of joined tables, array join, ",
@@ -2405,7 +2405,7 @@
      "runs": [
       {
        "query_id": "08-using",
-       "wall_s": 0.085,
+       "wall_s": 0.067,
        "rc": 0,
        "stdout": "n\n3\n",
        "rows": [
@@ -2413,8 +2413,8 @@
         "3"
        ],
        "log": {
-        "query_duration_ms": 4,
-        "memory_usage": 34259648,
+        "query_duration_ms": 2,
+        "memory_usage": 34259712,
         "read_rows": 8,
         "read_bytes": 64,
         "written_rows": 0,
@@ -2433,10 +2433,10 @@
      ],
      "status": "ok",
      "durations_ms": [
-      4
+      2
      ],
-     "duration_ms": 4,
-     "memory_usage": 34259648,
+     "duration_ms": 2,
+     "memory_usage": 34259712,
      "read_rows": 8,
      "read_bytes": 64,
      "written_rows": 0,
@@ -2466,7 +2466,7 @@
      "runs": [
       {
        "query_id": "08-full-join-use-nulls",
-       "wall_s": 0.074,
+       "wall_s": 0.063,
        "rc": 0,
        "stdout": "n\tleft_nulls\tright_nulls\n8\t3\t3\n",
        "rows": [
@@ -2475,7 +2475,7 @@
        ],
        "log": {
         "query_duration_ms": 2,
-        "memory_usage": 94184,
+        "memory_usage": 91096,
         "read_rows": 10,
         "read_bytes": 80,
         "written_rows": 0,
@@ -2497,7 +2497,7 @@
       2
      ],
      "duration_ms": 2,
-     "memory_usage": 94184,
+     "memory_usage": 91096,
      "read_rows": 10,
      "read_bytes": 80,
      "written_rows": 0,
@@ -2527,7 +2527,7 @@
      "runs": [
       {
        "query_id": "08-lateral-left",
-       "wall_s": 0.088,
+       "wall_s": 0.061,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 94 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
@@ -2557,7 +2557,7 @@
      "runs": [
       {
        "query_id": "09-explain-runtime-filter",
-       "wall_s": 0.083,
+       "wall_s": 0.069,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_join_runtime_filters is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -2582,7 +2582,7 @@
      "runs": [
       {
        "query_id": "09-explain-lateral",
-       "wall_s": 0.077,
+       "wall_s": 0.067,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 114 (c) (line 4, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.id LIMIT 2) AS l ON true",
@@ -2607,13 +2607,13 @@
      "runs": [
       {
        "query_id": "09-explain-left-arbitrary",
-       "wall_s": 0.082,
+       "wall_s": 0.07,
        "rc": 147,
        "code": 403,
        "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression [Predcates: () Residual filter: ((less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8)))]. (INVALID_JOIN_ON_EXPRESSION)",
        "stderr": "Received exception from server (version 25.3.14):\nCode: 403. DB::Exception: Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression [Predcates: () Residual filter: ((less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8)))]. (INVALID_JOIN_ON_EXPRESSION)\n(query: EXPLAIN actions = 1\nSELECT count() AS n, countIf(b.hi = 0) AS unmatched\nFROM (SELECT amount FROM join_lab.facts WHERE id < 100000) AS f\nLEFT JOIN join_lab.bands AS b ON abs(f.amount - b.lo) < 10;)\n",
        "log": {
-        "query_duration_ms": 2,
+        "query_duration_ms": 1,
         "memory_usage": 0,
         "read_rows": 0,
         "read_bytes": 0,
@@ -2631,7 +2631,7 @@
      "code": 403,
      "message": "Received from localhost:9000. DB::Exception: Cannot determine join keys in JOIN ON expression [Predcates: () Residual filter: ((less(abs(minus(__table1.amount, __table3.lo)), 10_UInt8)))]. (INVALID_JOIN_ON_EXPRESSION)",
      "memory_usage": 0,
-     "duration_ms": 2,
+     "duration_ms": 1,
      "events": {}
     }
    ]
@@ -2647,7 +2647,7 @@
      "runs": [
       {
        "query_id": "10-big-left.1",
-       "wall_s": 0.907,
+       "wall_s": 0.331,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2655,8 +2655,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 795,
-        "memory_usage": 603172124,
+        "query_duration_ms": 259,
+        "memory_usage": 596641324,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2674,7 +2674,7 @@
       },
       {
        "query_id": "10-big-left.2",
-       "wall_s": 0.5,
+       "wall_s": 0.33,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2682,8 +2682,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 377,
-        "memory_usage": 600523939,
+        "query_duration_ms": 254,
+        "memory_usage": 604143688,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2702,7 +2702,7 @@
       },
       {
        "query_id": "10-big-left.3",
-       "wall_s": 0.412,
+       "wall_s": 0.299,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2710,8 +2710,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 323,
-        "memory_usage": 602512814,
+        "query_duration_ms": 221,
+        "memory_usage": 605919998,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2730,7 +2730,7 @@
       },
       {
        "query_id": "10-big-left.4",
-       "wall_s": 0.593,
+       "wall_s": 0.3,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2738,8 +2738,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 504,
-        "memory_usage": 609432541,
+        "query_duration_ms": 227,
+        "memory_usage": 602056667,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2758,7 +2758,7 @@
       },
       {
        "query_id": "10-big-left.5",
-       "wall_s": 0.536,
+       "wall_s": 0.386,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2766,8 +2766,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 430,
-        "memory_usage": 602199021,
+        "query_duration_ms": 318,
+        "memory_usage": 605690912,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2787,14 +2787,14 @@
      ],
      "status": "ok",
      "durations_ms": [
-      795,
-      377,
-      323,
-      504,
-      430
+      259,
+      254,
+      221,
+      227,
+      318
      ],
-     "duration_ms": 430,
-     "memory_usage": 609432541,
+     "duration_ms": 254,
+     "memory_usage": 605919998,
      "read_rows": 55000000,
      "read_bytes": 425000000,
      "written_rows": 0,
@@ -2825,7 +2825,7 @@
      "runs": [
       {
        "query_id": "10-big-right.1",
-       "wall_s": 0.701,
+       "wall_s": 0.316,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2833,8 +2833,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 575,
-        "memory_usage": 601852666,
+        "query_duration_ms": 238,
+        "memory_usage": 600529433,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2852,7 +2852,7 @@
       },
       {
        "query_id": "10-big-right.2",
-       "wall_s": 0.656,
+       "wall_s": 0.284,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2860,8 +2860,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 529,
-        "memory_usage": 603094190,
+        "query_duration_ms": 212,
+        "memory_usage": 599832128,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2880,7 +2880,7 @@
       },
       {
        "query_id": "10-big-right.3",
-       "wall_s": 0.595,
+       "wall_s": 0.307,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2888,8 +2888,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 423,
-        "memory_usage": 600836072,
+        "query_duration_ms": 230,
+        "memory_usage": 601579287,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2908,7 +2908,7 @@
       },
       {
        "query_id": "10-big-right.4",
-       "wall_s": 0.534,
+       "wall_s": 0.296,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2916,8 +2916,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 430,
-        "memory_usage": 607008643,
+        "query_duration_ms": 219,
+        "memory_usage": 607909754,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2936,7 +2936,7 @@
       },
       {
        "query_id": "10-big-right.5",
-       "wall_s": 0.497,
+       "wall_s": 0.298,
        "rc": 0,
        "stdout": "rows\ttotal\tregions\n50000000\t249969458420\t20\n",
        "rows": [
@@ -2944,8 +2944,8 @@
         "50000000\t249969458420\t20"
        ],
        "log": {
-        "query_duration_ms": 366,
-        "memory_usage": 597798544,
+        "query_duration_ms": 219,
+        "memory_usage": 603351533,
         "read_rows": 55000000,
         "read_bytes": 425000000,
         "written_rows": 0,
@@ -2965,14 +2965,14 @@
      ],
      "status": "ok",
      "durations_ms": [
-      575,
-      529,
-      423,
-      430,
-      366
+      238,
+      212,
+      230,
+      219,
+      219
      ],
-     "duration_ms": 430,
-     "memory_usage": 607008643,
+     "duration_ms": 219,
+     "memory_usage": 607909754,
      "read_rows": 55000000,
      "read_bytes": 425000000,
      "written_rows": 0,
@@ -3005,7 +3005,7 @@
      "runs": [
       {
        "query_id": "10-star.1",
-       "wall_s": 0.588,
+       "wall_s": 0.408,
        "rc": 0,
        "stdout": "n\ttotal\n2498193\t12493613699\n",
        "rows": [
@@ -3013,8 +3013,8 @@
         "2498193\t12493613699"
        ],
        "log": {
-        "query_duration_ms": 495,
-        "memory_usage": 612105016,
+        "query_duration_ms": 334,
+        "memory_usage": 611713928,
         "read_rows": 55000020,
         "read_bytes": 425000370,
         "written_rows": 0,
@@ -3032,7 +3032,7 @@
       },
       {
        "query_id": "10-star.2",
-       "wall_s": 0.647,
+       "wall_s": 0.575,
        "rc": 0,
        "stdout": "n\ttotal\n2498193\t12493613699\n",
        "rows": [
@@ -3040,8 +3040,8 @@
         "2498193\t12493613699"
        ],
        "log": {
-        "query_duration_ms": 541,
-        "memory_usage": 612221988,
+        "query_duration_ms": 493,
+        "memory_usage": 611484079,
         "read_rows": 55000020,
         "read_bytes": 425000370,
         "written_rows": 0,
@@ -3060,7 +3060,7 @@
       },
       {
        "query_id": "10-star.3",
-       "wall_s": 0.642,
+       "wall_s": 0.438,
        "rc": 0,
        "stdout": "n\ttotal\n2498193\t12493613699\n",
        "rows": [
@@ -3068,8 +3068,8 @@
         "2498193\t12493613699"
        ],
        "log": {
-        "query_duration_ms": 547,
-        "memory_usage": 613534589,
+        "query_duration_ms": 351,
+        "memory_usage": 609675544,
         "read_rows": 55000020,
         "read_bytes": 425000370,
         "written_rows": 0,
@@ -3088,7 +3088,7 @@
       },
       {
        "query_id": "10-star.4",
-       "wall_s": 0.534,
+       "wall_s": 0.447,
        "rc": 0,
        "stdout": "n\ttotal\n2498193\t12493613699\n",
        "rows": [
@@ -3096,8 +3096,8 @@
         "2498193\t12493613699"
        ],
        "log": {
-        "query_duration_ms": 448,
-        "memory_usage": 611148575,
+        "query_duration_ms": 366,
+        "memory_usage": 609046710,
         "read_rows": 55000020,
         "read_bytes": 425000370,
         "written_rows": 0,
@@ -3116,7 +3116,7 @@
       },
       {
        "query_id": "10-star.5",
-       "wall_s": 0.549,
+       "wall_s": 0.397,
        "rc": 0,
        "stdout": "n\ttotal\n2498193\t12493613699\n",
        "rows": [
@@ -3124,8 +3124,8 @@
         "2498193\t12493613699"
        ],
        "log": {
-        "query_duration_ms": 464,
-        "memory_usage": 609599339,
+        "query_duration_ms": 305,
+        "memory_usage": 614476287,
         "read_rows": 55000020,
         "read_bytes": 425000370,
         "written_rows": 0,
@@ -3145,14 +3145,14 @@
      ],
      "status": "ok",
      "durations_ms": [
-      495,
-      541,
-      547,
-      448,
-      464
+      334,
+      493,
+      351,
+      366,
+      305
      ],
-     "duration_ms": 495,
-     "memory_usage": 613534589,
+     "duration_ms": 351,
+     "memory_usage": 614476287,
      "read_rows": 55000020,
      "read_bytes": 425000370,
      "written_rows": 0,
@@ -3183,7 +3183,7 @@
      "runs": [
       {
        "query_id": "10-many-to-many-wide.1",
-       "wall_s": 1.01,
+       "wall_s": 0.774,
        "rc": 0,
        "stdout": "n\th\n50010956\t1549438289860116752\n",
        "rows": [
@@ -3191,8 +3191,8 @@
         "50010956\t1549438289860116752"
        ],
        "log": {
-        "query_duration_ms": 904,
-        "memory_usage": 1697117066,
+        "query_duration_ms": 669,
+        "memory_usage": 1751635231,
         "read_rows": 15027008,
         "read_bytes": 1128524626,
         "written_rows": 0,
@@ -3210,7 +3210,7 @@
       },
       {
        "query_id": "10-many-to-many-wide.2",
-       "wall_s": 1.266,
+       "wall_s": 0.745,
        "rc": 0,
        "stdout": "n\th\n50010956\t1549438289860116752\n",
        "rows": [
@@ -3218,8 +3218,8 @@
         "50010956\t1549438289860116752"
        ],
        "log": {
-        "query_duration_ms": 1064,
-        "memory_usage": 1707976434,
+        "query_duration_ms": 624,
+        "memory_usage": 1667949986,
         "read_rows": 15027008,
         "read_bytes": 1128524626,
         "written_rows": 0,
@@ -3238,7 +3238,7 @@
       },
       {
        "query_id": "10-many-to-many-wide.3",
-       "wall_s": 1.045,
+       "wall_s": 0.736,
        "rc": 0,
        "stdout": "n\th\n50010956\t1549438289860116752\n",
        "rows": [
@@ -3246,8 +3246,8 @@
         "50010956\t1549438289860116752"
        ],
        "log": {
-        "query_duration_ms": 882,
-        "memory_usage": 1666244018,
+        "query_duration_ms": 625,
+        "memory_usage": 1703921353,
         "read_rows": 15027008,
         "read_bytes": 1128524626,
         "written_rows": 0,
@@ -3266,7 +3266,7 @@
       },
       {
        "query_id": "10-many-to-many-wide.4",
-       "wall_s": 1.222,
+       "wall_s": 0.684,
        "rc": 0,
        "stdout": "n\th\n50010956\t1549438289860116752\n",
        "rows": [
@@ -3274,8 +3274,8 @@
         "50010956\t1549438289860116752"
        ],
        "log": {
-        "query_duration_ms": 1080,
-        "memory_usage": 1653058740,
+        "query_duration_ms": 592,
+        "memory_usage": 1676275681,
         "read_rows": 15027008,
         "read_bytes": 1128524626,
         "written_rows": 0,
@@ -3294,7 +3294,7 @@
       },
       {
        "query_id": "10-many-to-many-wide.5",
-       "wall_s": 2.341,
+       "wall_s": 0.668,
        "rc": 0,
        "stdout": "n\th\n50010956\t1549438289860116752\n",
        "rows": [
@@ -3302,8 +3302,8 @@
         "50010956\t1549438289860116752"
        ],
        "log": {
-        "query_duration_ms": 2203,
-        "memory_usage": 1697469070,
+        "query_duration_ms": 575,
+        "memory_usage": 1638674589,
         "read_rows": 15027008,
         "read_bytes": 1128524626,
         "written_rows": 0,
@@ -3323,14 +3323,14 @@
      ],
      "status": "ok",
      "durations_ms": [
-      904,
-      1064,
-      882,
-      1080,
-      2203
+      669,
+      624,
+      625,
+      592,
+      575
      ],
-     "duration_ms": 1064,
-     "memory_usage": 1707976434,
+     "duration_ms": 624,
+     "memory_usage": 1751635231,
      "read_rows": 15027008,
      "read_bytes": 1128524626,
      "written_rows": 0,
@@ -3361,7 +3361,7 @@
      "runs": [
       {
        "query_id": "10-many-to-many-wide-lazy-off.1",
-       "wall_s": 0.097,
+       "wall_s": 0.084,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting enable_lazy_columns_replication is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings. (UNKNOWN_SETTING)",
@@ -3375,6 +3375,106 @@
      "memory_usage": null,
      "duration_ms": null,
      "events": null
+    },
+    {
+     "id": "10-codec-columns",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT groupUniqArray(compression_codec) AS column_codecs, count() AS columns\nFROM system.columns\nWHERE database = 'join_lab' AND table IN ('facts_big', 'customers_big', 'contacts_big');",
+     "runs": [
+      {
+       "query_id": "10-codec-columns",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "column_codecs\tcolumns\n['CODEC(LZ4)']\t10\n",
+       "rows": [
+        "column_codecs\tcolumns",
+        "['CODEC(LZ4)']\t10"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 79904,
+        "read_rows": 10,
+        "read_bytes": 562,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-codec-columns",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 79904,
+     "read_rows": 10,
+     "read_bytes": 562,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "column_codecs\tcolumns",
+      "['CODEC(LZ4)']\t10"
+     ],
+     "stdout": "column_codecs\tcolumns\n['CODEC(LZ4)']\t10\n"
+    },
+    {
+     "id": "10-codec-parts",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT groupUniqArray(default_compression_codec) AS part_default_codecs, count() AS parts, max(bytes_on_disk) AS max_part_bytes\nFROM system.parts\nWHERE database = 'join_lab' AND table IN ('facts_big', 'customers_big', 'contacts_big') AND active;",
+     "runs": [
+      {
+       "query_id": "10-codec-parts",
+       "wall_s": 0.081,
+       "rc": 0,
+       "stdout": "part_default_codecs\tparts\tmax_part_bytes\n['LZ4']\t15\t526553527\n",
+       "rows": [
+        "part_default_codecs\tparts\tmax_part_bytes",
+        "['LZ4']\t15\t526553527"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 58736,
+        "read_rows": 15,
+        "read_bytes": 875,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "query_id": "10-codec-parts",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 58736,
+     "read_rows": 15,
+     "read_bytes": 875,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "events": {},
+     "rows": [
+      "part_default_codecs\tparts\tmax_part_bytes",
+      "['LZ4']\t15\t526553527"
+     ],
+     "stdout": "part_default_codecs\tparts\tmax_part_bytes\n['LZ4']\t15\t526553527\n"
     }
    ]
   },
@@ -3391,16 +3491,16 @@
      "runs": [
       {
        "query_id": "e01-default-capped",
-       "wall_s": 0.361,
+       "wall_s": 0.136,
        "rc": 241,
        "code": 241,
-       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.69 MiB (attempt to allocate chunk of 5.12 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.69 MiB (attempt to allocate chunk of 5.12 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;)\n",
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 772.14 MiB (attempt to allocate chunk of 5.10 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 772.14 MiB (attempt to allocate chunk of 5.10 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000;)\n",
        "log": {
-        "query_duration_ms": 269,
-        "memory_usage": 798979598,
-        "read_rows": 983040,
-        "read_bytes": 217847218,
+        "query_duration_ms": 65,
+        "memory_usage": 799484690,
+        "read_rows": 1015808,
+        "read_bytes": 225142618,
         "written_rows": 0,
         "written_bytes": 0,
         "result_rows": 0,
@@ -3408,7 +3508,7 @@
         "query_id": "e01-default-capped",
         "type": "ExceptionWhileProcessing",
         "events": {
-         "JoinBuildTableRowCount": 614400,
+         "JoinBuildTableRowCount": 679936,
          "HashJoinPreallocatedElementsInHashTables": 5000000
         }
        }
@@ -3416,11 +3516,11 @@
      ],
      "status": "error",
      "code": 241,
-     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.69 MiB (attempt to allocate chunk of 5.12 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-     "memory_usage": 798979598,
-     "duration_ms": 269,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 772.14 MiB (attempt to allocate chunk of 5.10 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+     "memory_usage": 799484690,
+     "duration_ms": 65,
      "events": {
-      "JoinBuildTableRowCount": 614400,
+      "JoinBuildTableRowCount": 679936,
       "HashJoinPreallocatedElementsInHashTables": 5000000
      }
     },
@@ -3434,7 +3534,7 @@
      "runs": [
       {
        "query_id": "e01-default-ratio-explicit",
-       "wall_s": 0.106,
+       "wall_s": 0.089,
        "rc": 115,
        "code": 115,
        "message": "Received from localhost:9000. DB::Exception: Setting max_bytes_ratio_before_external_join is neither a builtin setting nor started with the prefix 'SQL_' registered for user-defined settings: Maybe you meant ['max_bytes_ratio_before_externa",
@@ -3459,16 +3559,16 @@
      "runs": [
       {
        "query_id": "e01-hash-capped",
-       "wall_s": 0.319,
+       "wall_s": 0.155,
        "rc": 241,
        "code": 241,
        "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.09 GiB (attempt to allocate chunk of 509.91 MiB bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
        "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.09 GiB (attempt to allocate chunk of 509.91 MiB bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'hash';)\n",
        "log": {
-        "query_duration_ms": 234,
-        "memory_usage": 638944478,
+        "query_duration_ms": 81,
+        "memory_usage": 639592639,
         "read_rows": 2203648,
-        "read_bytes": 488351554,
+        "read_bytes": 488359770,
         "written_rows": 0,
         "written_bytes": 0,
         "result_rows": 0,
@@ -3484,8 +3584,8 @@
      "status": "error",
      "code": 241,
      "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 1.09 GiB (attempt to allocate chunk of 509.91 MiB bytes), maximum: 762.94 MiB.: While executing FillingRightJoinSide. (MEMORY_LIMIT_EXCEEDED)",
-     "memory_usage": 638944478,
-     "duration_ms": 234,
+     "memory_usage": 639592639,
+     "duration_ms": 81,
      "events": {
       "JoinBuildTableRowCount": 2105344
      }
@@ -3500,16 +3600,16 @@
      "runs": [
       {
        "query_id": "e01-partial-merge-capped",
-       "wall_s": 0.308,
+       "wall_s": 0.117,
        "rc": 241,
        "code": 241,
-       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.77 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.77 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';)\n",
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 764.07 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 764.07 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'partial_merge';)\n",
        "log": {
-        "query_duration_ms": 201,
-        "memory_usage": 798067174,
-        "read_rows": 3569553,
-        "read_bytes": 791273912,
+        "query_duration_ms": 40,
+        "memory_usage": 798417684,
+        "read_rows": 3530752,
+        "read_bytes": 782598898,
         "written_rows": 0,
         "written_bytes": 0,
         "result_rows": 0,
@@ -3517,18 +3617,18 @@
         "query_id": "e01-partial-merge-capped",
         "type": "ExceptionWhileProcessing",
         "events": {
-         "JoinBuildTableRowCount": 3495825
+         "JoinBuildTableRowCount": 3448832
         }
        }
       }
      ],
      "status": "error",
      "code": 241,
-     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.77 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-     "memory_usage": 798067174,
-     "duration_ms": 201,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 764.07 MiB (attempt to allocate chunk of 5.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+     "memory_usage": 798417684,
+     "duration_ms": 40,
      "events": {
-      "JoinBuildTableRowCount": 3495825
+      "JoinBuildTableRowCount": 3448832
      }
     },
     {
@@ -3541,16 +3641,16 @@
      "runs": [
       {
        "query_id": "e01-grace-hash-1-bucket-capped",
-       "wall_s": 0.287,
+       "wall_s": 0.153,
        "rc": 241,
        "code": 241,
-       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.93 MiB (attempt to allocate chunk of 4.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.93 MiB (attempt to allocate chunk of 4.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';)\n",
+       "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.53 MiB (attempt to allocate chunk of 4.21 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+       "stderr": "Received exception from server (version 25.3.14):\nCode: 241. DB::Exception: Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.53 MiB (attempt to allocate chunk of 4.21 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)\n(query: SELECT count() AS n, sum(cityHash64(c.comment)) AS h\nFROM join_lab.facts AS f\nINNER JOIN join_lab.customers_big AS c ON f.customer_id = c.id\nSETTINGS max_memory_usage = 800000000, join_algorithm = 'grace_hash';)\n",
        "log": {
-        "query_duration_ms": 192,
-        "memory_usage": 798727120,
-        "read_rows": 2408448,
-        "read_bytes": 533748874,
+        "query_duration_ms": 80,
+        "memory_usage": 799351800,
+        "read_rows": 2416640,
+        "read_bytes": 535591762,
         "written_rows": 0,
         "written_bytes": 0,
         "result_rows": 0,
@@ -3559,19 +3659,19 @@
         "type": "ExceptionWhileProcessing",
         "events": {
          "ExternalProcessingFilesTotal": 2,
-         "JoinBuildTableRowCount": 2072576
+         "JoinBuildTableRowCount": 2105344
         }
        }
       }
      ],
      "status": "error",
      "code": 241,
-     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 765.93 MiB (attempt to allocate chunk of 4.20 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
-     "memory_usage": 798727120,
-     "duration_ms": 192,
+     "message": "Received from localhost:9000. DB::Exception: Query memory limit exceeded: would use 766.53 MiB (attempt to allocate chunk of 4.21 MiB bytes), maximum: 762.94 MiB.: While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_",
+     "memory_usage": 799351800,
+     "duration_ms": 80,
      "events": {
       "ExternalProcessingFilesTotal": 2,
-      "JoinBuildTableRowCount": 2072576
+      "JoinBuildTableRowCount": 2105344
      }
     }
    ]
@@ -3587,7 +3687,7 @@
      "runs": [
       {
        "query_id": "e02-lateral-comma",
-       "wall_s": 0.133,
+       "wall_s": 0.073,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 65 (c) (line 2, col 45): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
@@ -3610,7 +3710,7 @@
      "runs": [
       {
        "query_id": "e02-lateral-cross-join",
-       "wall_s": 0.12,
+       "wall_s": 0.076,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 75 (c) (line 3, col 28): c.id FROM join_lab.customers AS c WHERE c.region = r.id LIMIT 2) AS l",
@@ -3633,7 +3733,7 @@
      "runs": [
       {
        "query_id": "e02-lateral-uncorrelated",
-       "wall_s": 0.096,
+       "wall_s": 0.068,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c ORDER BY c.id LIMIT 2) AS l ON true",
@@ -3656,7 +3756,7 @@
      "runs": [
       {
        "query_id": "e02-lateral-with-ties",
-       "wall_s": 0.168,
+       "wall_s": 0.07,
        "rc": 62,
        "code": 62,
        "message": "Syntax error: failed at position 74 (c) (line 3, col 27): c.id FROM join_lab.customers AS c WHERE c.region = r.id ORDER BY c.credit_limit LIMIT 2 WITH TIES) AS l ON true",
@@ -3877,38 +3977,14 @@
  },
  "tag": "25.3.14.14",
  "version": "25.3.14.14",
- "date": "2026-11-04",
+ "date": "2026-11-05",
  "machine": {
   "ncpu": 12,
   "mem_bytes": 16745496576,
   "others": [
-   "dlfix-clickhouse",
-   "langfuse-hols-v4-clickhouse-1",
-   "langfuse-hols-v4-langfuse-web-1",
-   "langfuse-hols-v4-langfuse-worker-1",
-   "langfuse-hols-v4-minio-1",
-   "langfuse-hols-v4-postgres-1",
-   "langfuse-hols-v4-redis-1",
-   "langfuse-hols-v4audit-minio-1",
-   "langfuse-hols-v4audit-postgres-1",
-   "minio",
-   "postgres-hive",
-   "prompt-enc-openbao-1",
-   "systables-oss-268"
+   "cap-final-26-8-36-3"
   ],
-  "others_cpu": {
-   "systables-oss-268": 3.42,
-   "langfuse-hols-v4-langfuse-web-1": 1.04,
-   "langfuse-hols-v4-langfuse-worker-1": 4.5,
-   "dlfix-clickhouse": 3.98,
-   "postgres-hive": 0.0,
-   "minio": 0.02,
-   "prompt-enc-openbao-1": 0.61,
-   "langfuse-hols-v4-clickhouse-1": 10.77,
-   "langfuse-hols-v4-postgres-1": 0.0,
-   "langfuse-hols-v4-redis-1": 0.37,
-   "langfuse-hols-v4-minio-1": 13.67
-  }
+  "others_cpu": {}
  },
- "elapsed_s": 71
+ "elapsed_s": 37
 }
