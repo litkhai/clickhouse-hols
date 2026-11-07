@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Harness: khai-harness core@49e8c24 · context public · bilingual yes
+> Harness: khai-harness core@28ca273 · context public · bilingual yes
 
 Instructions for coding agents working in this repository.
 
@@ -26,9 +26,11 @@ committing** — it holds the couplings that have already broken `main`. The sho
 - 노트 사이트에는 `lab.yaml`에 `web: true`와 `title_ko`·`summary_ko`·`category`가 있는 실습만 실립니다(`tools/lab.schema.md`). `build_site.py`가 `docs/labs.json`을 쓰고 `site` 잡이 검사합니다. 소유자가 실습별로 정하지 않은 `web`은 설정하지 않습니다.
 - 공통 절차(검증 문구, 이슈·PR, 모델 역할, 시크릿)는 아래 생성 구간에 있습니다.
 
-<!-- harness:core start — khai-harness core@49e8c24 · context public · 손으로 고치지 마세요 -->
+<!-- harness:core start — khai-harness core@28ca273 · context public · 손으로 고치지 마세요 -->
 **Context: public.** Public sources only — nothing from company connectors, internal hosts, internal wikis or
 private repositories, and no link to them. gitleaks must pass before every commit. Claims name what was run.
+
+Cursor/Grok: read `../khai-harness/runtime/cursor/README.md`; if `~/.config/khai-harness/active` is missing, say so.
 
 ## core — procedure for every repository and agent
 
