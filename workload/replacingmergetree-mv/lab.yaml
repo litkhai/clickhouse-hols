@@ -1,0 +1,14 @@
+target: oss
+tier: T0
+clickhouse: "26.10.3.7"
+services: [clickhouse]
+verified_on: "26.10.3.7"
+
+# Publishing keys (tools/lab.schema.md) — new lab 2026-11-07 (#135), published with its notes article
+web: true
+title_ko: "ReplacingMergeTree 위 집계 MV가 틀어지는 경우와 대책"
+summary_ko: "증분 MV가 ReplacingMergeTree의 재삽입 · 늦은 버전 · 그룹 변경 · 삭제 · 재시도를 모두 세는 것을 재현하고, 키 단위 argMax · 상쇄 행 · refreshable MV · 파티션 재빌드 · FINAL의 정확성과 비용, 병합 여유를 잽니다."
+title_en: "Aggregating MVs over ReplacingMergeTree"
+summary_en: "An incremental MV over ReplacingMergeTree counts re-inserted, late, regrouped, deleted and retried rows; per-key argMax, retraction rows, refreshable MVs, partition rebuilds and FINAL compared for correctness, cost and merge headroom."
+category: core-architecture
+tags: [mergetree, materialized-view, updates-deletes]

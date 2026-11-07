@@ -1,0 +1,5141 @@
+{
+ "files": {
+  "01-double-count.sql": {
+   "setup": [
+    {
+     "id": "01-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "01-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "01-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders\n(\n    order_id UInt64,\n    day      Date,\n    status   LowCardinality(String),\n    amount   UInt64,\n    ver      UInt64\n)\nENGINE = ReplacingMergeTree(ver)\nORDER BY order_id;"
+    },
+    {
+     "id": "01-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_sum\n(\n    day    Date,\n    orders UInt64,\n    amount UInt64\n)\nENGINE = SummingMergeTree\nORDER BY day;"
+    },
+    {
+     "id": "01-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS\nSELECT day, count() AS orders, sum(amount) AS amount\nFROM rmt_mv.orders\nGROUP BY day;"
+    },
+    {
+     "id": "01-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_agg\n(\n    day    Date,\n    orders AggregateFunction(uniqExact, UInt64),\n    amount AggregateFunction(sum, UInt64)\n)\nENGINE = AggregatingMergeTree\nORDER BY day;"
+    },
+    {
+     "id": "01-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_agg_mv TO rmt_mv.daily_agg AS\nSELECT day, uniqExactState(order_id) AS orders, sumState(amount) AS amount\nFROM rmt_mv.orders\nGROUP BY day;"
+    },
+    {
+     "id": "01-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 1), (2, '2026-11-01', 'paid', 200, 1), (3, '2026-11-01', 'paid', 300, 1);"
+    },
+    {
+     "id": "01-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.16,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 150, 2);"
+    },
+    {
+     "id": "01-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 250, 2);"
+    },
+    {
+     "id": "01-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 220, 3);"
+    },
+    {
+     "id": "01-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.orders FINAL;"
+    },
+    {
+     "id": "01-setup20",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.daily_sum FINAL;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "01-source-final",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL;",
+     "runs": [
+      {
+       "query_id": "01-source-final",
+       "wall_s": 0.086,
+       "rc": 0,
+       "stdout": "orders\tamount\n3\t670\n",
+       "rows": [
+        "orders\tamount",
+        "3\t670"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 352929,
+        "read_rows": 12,
+        "read_bytes": 288,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-source-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 352929,
+     "read_rows": 12,
+     "read_bytes": 288,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "3\t670"
+     ],
+     "stdout": "orders\tamount\n3\t670\n"
+    },
+    {
+     "id": "01-source-plain",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders;",
+     "runs": [
+      {
+       "query_id": "01-source-plain",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "orders\tamount\n6\t1220\n",
+       "rows": [
+        "orders\tamount",
+        "6\t1220"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 229384,
+        "read_rows": 6,
+        "read_bytes": 48,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-source-plain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 229384,
+     "read_rows": 6,
+     "read_bytes": 48,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "6\t1220"
+     ],
+     "stdout": "orders\tamount\n6\t1220\n"
+    },
+    {
+     "id": "01-target-sum",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;",
+     "runs": [
+      {
+       "query_id": "01-target-sum",
+       "wall_s": 0.075,
+       "rc": 0,
+       "stdout": "orders\tamount\n6\t1220\n",
+       "rows": [
+        "orders\tamount",
+        "6\t1220"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 237960,
+        "read_rows": 4,
+        "read_bytes": 64,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-target-sum",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 237960,
+     "read_rows": 4,
+     "read_bytes": 64,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "6\t1220"
+     ],
+     "stdout": "orders\tamount\n6\t1220\n"
+    },
+    {
+     "id": "01-target-agg",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT uniqExactMerge(orders) AS orders, sumMerge(amount) AS amount FROM rmt_mv.daily_agg;",
+     "runs": [
+      {
+       "query_id": "01-target-agg",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "orders\tamount\n3\t1220\n",
+       "rows": [
+        "orders\tamount",
+        "3\t1220"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 243008,
+        "read_rows": 4,
+        "read_bytes": 832,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-target-agg",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 243008,
+     "read_rows": 4,
+     "read_bytes": 832,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "3\t1220"
+     ],
+     "stdout": "orders\tamount\n3\t1220\n"
+    },
+    {
+     "id": "01-target-rows",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, orders, amount, _part FROM rmt_mv.daily_sum ORDER BY _part;",
+     "runs": [
+      {
+       "query_id": "01-target-rows",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "day\torders\tamount\t_part\n2026-11-01\t3\t600\tall_1_1_1\n2026-11-01\t1\t150\tall_2_2_1\n2026-11-01\t1\t250\tall_3_3_1\n2026-11-01\t1\t220\tall_4_4_1\n",
+       "rows": [
+        "day\torders\tamount\t_part",
+        "2026-11-01\t3\t600\tall_1_1_1",
+        "2026-11-01\t1\t150\tall_2_2_1",
+        "2026-11-01\t1\t250\tall_3_3_1",
+        "2026-11-01\t1\t220\tall_4_4_1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 234666,
+        "read_rows": 4,
+        "read_bytes": 72,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 4,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-target-rows",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 234666,
+     "read_rows": 4,
+     "read_bytes": 72,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 4,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount\t_part",
+      "2026-11-01\t3\t600\tall_1_1_1",
+      "2026-11-01\t1\t150\tall_2_2_1",
+      "2026-11-01\t1\t250\tall_3_3_1",
+      "2026-11-01\t1\t220\tall_4_4_1"
+     ],
+     "stdout": "day\torders\tamount\t_part\n2026-11-01\t3\t600\tall_1_1_1\n2026-11-01\t1\t150\tall_2_2_1\n2026-11-01\t1\t250\tall_3_3_1\n2026-11-01\t1\t220\tall_4_4_1\n"
+    },
+    {
+     "id": "01-after-optimize-source-plain",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders;",
+     "runs": [
+      {
+       "query_id": "01-after-optimize-source-plain",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "orders\tamount\n3\t670\n",
+       "rows": [
+        "orders\tamount",
+        "3\t670"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 168576,
+        "read_rows": 3,
+        "read_bytes": 24,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-after-optimize-source-plain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 168576,
+     "read_rows": 3,
+     "read_bytes": 24,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "3\t670"
+     ],
+     "stdout": "orders\tamount\n3\t670\n"
+    },
+    {
+     "id": "01-after-optimize-target-sum",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;",
+     "runs": [
+      {
+       "query_id": "01-after-optimize-target-sum",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "orders\tamount\n6\t1220\n",
+       "rows": [
+        "orders\tamount",
+        "6\t1220"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 234408,
+        "read_rows": 4,
+        "read_bytes": 64,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-after-optimize-target-sum",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 234408,
+     "read_rows": 4,
+     "read_bytes": 64,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "6\t1220"
+     ],
+     "stdout": "orders\tamount\n6\t1220\n"
+    },
+    {
+     "id": "01-after-optimize-both-target-sum",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;",
+     "runs": [
+      {
+       "query_id": "01-after-optimize-both-target-sum",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "orders\tamount\n6\t1220\n",
+       "rows": [
+        "orders\tamount",
+        "6\t1220"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 172728,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "01-after-optimize-both-target-sum",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 172728,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "6\t1220"
+     ],
+     "stdout": "orders\tamount\n6\t1220\n"
+    }
+   ]
+  },
+  "02-late-and-ties.sql": {
+   "setup": [
+    {
+     "id": "02-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "02-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "02-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders\n(\n    order_id UInt64,\n    day      Date,\n    status   LowCardinality(String),\n    amount   UInt64,\n    ver      UInt64\n)\nENGINE = ReplacingMergeTree(ver)\nORDER BY order_id;"
+    },
+    {
+     "id": "02-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "02-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY day;"
+    },
+    {
+     "id": "02-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.order_state\n(\n    order_id UInt64,\n    day      AggregateFunction(argMax, Date, UInt64),\n    status   AggregateFunction(argMax, LowCardinality(String), UInt64),\n    amount   AggregateFunction(argMax, UInt64, UInt64),\n    max_ver  SimpleAggregateFunction(max, UInt64)\n)\nENGINE = Ag"
+    },
+    {
+     "id": "02-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.order_state_mv TO rmt_mv.order_state AS\nSELECT order_id,\n       argMaxState(day, ver)    AS day,\n       argMaxState(status, ver) AS status,\n       argMaxState(amount, ver) AS amount,\n       max(ver)                 AS max_ver   -- not `AS ver`: the alias would shadow "
+    },
+    {
+     "id": "02-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 100, 1);"
+    },
+    {
+     "id": "02-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 130, 3);"
+    },
+    {
+     "id": "02-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 120, 2);"
+    },
+    {
+     "id": "02-setup14",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (20, '2026-11-01', 'paid', 500, 7);"
+    },
+    {
+     "id": "02-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (20, '2026-11-01', 'paid', 900, 7);"
+    },
+    {
+     "id": "02-setup18",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.order_state FINAL;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "02-late-source-final",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL;",
+     "runs": [
+      {
+       "query_id": "02-late-source-final",
+       "wall_s": 0.092,
+       "rc": 0,
+       "stdout": "orders\tamount\n1\t130\n",
+       "rows": [
+        "orders\tamount",
+        "1\t130"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 207515,
+        "read_rows": 3,
+        "read_bytes": 72,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-late-source-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 207515,
+     "read_rows": 3,
+     "read_bytes": 72,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "1\t130"
+     ],
+     "stdout": "orders\tamount\n1\t130\n"
+    },
+    {
+     "id": "02-late-target-sum",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;",
+     "runs": [
+      {
+       "query_id": "02-late-target-sum",
+       "wall_s": 0.09,
+       "rc": 0,
+       "stdout": "orders\tamount\n3\t350\n",
+       "rows": [
+        "orders\tamount",
+        "3\t350"
+       ],
+       "log": {
+        "query_duration_ms": 8,
+        "memory_usage": 230832,
+        "read_rows": 3,
+        "read_bytes": 48,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-late-target-sum",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      8
+     ],
+     "duration_ms": 8,
+     "memory_usage": 230832,
+     "read_rows": 3,
+     "read_bytes": 48,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "3\t350"
+     ],
+     "stdout": "orders\tamount\n3\t350\n"
+    },
+    {
+     "id": "02-late-order-state",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount\nFROM (SELECT order_id, argMaxMerge(amount) AS amount FROM rmt_mv.order_state GROUP BY order_id);",
+     "runs": [
+      {
+       "query_id": "02-late-order-state",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "orders\tamount\n1\t130\n",
+       "rows": [
+        "orders\tamount",
+        "1\t130"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 337824,
+        "read_rows": 3,
+        "read_bytes": 144,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-late-order-state",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 337824,
+     "read_rows": 3,
+     "read_bytes": 144,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "1\t130"
+     ],
+     "stdout": "orders\tamount\n1\t130\n"
+    },
+    {
+     "id": "02-tie-source-final",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT amount FROM rmt_mv.orders FINAL WHERE order_id = 20;",
+     "runs": [
+      {
+       "query_id": "02-tie-source-final",
+       "wall_s": 0.084,
+       "rc": 0,
+       "stdout": "amount\n900\n",
+       "rows": [
+        "amount",
+        "900"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 185610,
+        "read_rows": 2,
+        "read_bytes": 48,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-tie-source-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 185610,
+     "read_rows": 2,
+     "read_bytes": 48,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "amount",
+      "900"
+     ],
+     "stdout": "amount\n900\n"
+    },
+    {
+     "id": "02-tie-order-state",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT argMaxMerge(amount) AS amount FROM rmt_mv.order_state WHERE order_id = 20;",
+     "runs": [
+      {
+       "query_id": "02-tie-order-state",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "amount\n900\n",
+       "rows": [
+        "amount",
+        "900"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 224968,
+        "read_rows": 2,
+        "read_bytes": 96,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-tie-order-state",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 224968,
+     "read_rows": 2,
+     "read_bytes": 96,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "amount",
+      "900"
+     ],
+     "stdout": "amount\n900\n"
+    },
+    {
+     "id": "02-tie-order-state-merged",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT argMaxMerge(amount) AS amount FROM rmt_mv.order_state WHERE order_id = 20;",
+     "runs": [
+      {
+       "query_id": "02-tie-order-state-merged",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "amount\n500\n",
+       "rows": [
+        "amount",
+        "500"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 189336,
+        "read_rows": 2,
+        "read_bytes": 96,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "02-tie-order-state-merged",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 189336,
+     "read_rows": 2,
+     "read_bytes": 96,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "amount",
+      "500"
+     ],
+     "stdout": "amount\n500\n"
+    }
+   ]
+  },
+  "03-group-change-delete.sql": {
+   "setup": [
+    {
+     "id": "03-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "03-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "03-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders\n(\n    order_id   UInt64,\n    day        Date,\n    status     LowCardinality(String),\n    amount     UInt64,\n    ver        UInt64,\n    is_deleted UInt8\n)\nENGINE = ReplacingMergeTree(ver, is_deleted)\nORDER BY order_id\n-- table setting, needed only for OPTIMIZE … FINAL CLEAN"
+    },
+    {
+     "id": "03-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.by_status (status LowCardinality(String), orders Int64, amount Int64)\nENGINE = SummingMergeTree ORDER BY status;"
+    },
+    {
+     "id": "03-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.by_status_mv TO rmt_mv.by_status AS\nSELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY status;"
+    },
+    {
+     "id": "03-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.by_status_live (status LowCardinality(String), orders Int64, amount Int64)\nENGINE = SummingMergeTree ORDER BY status;"
+    },
+    {
+     "id": "03-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.by_status_live_mv TO rmt_mv.by_status_live AS\nSELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY status;"
+    },
+    {
+     "id": "03-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'pending', 100, 1, 0), (2, '2026-11-01', 'pending', 200, 1, 0), (3, '2026-11-01', 'pending', 300, 1, 0);"
+    },
+    {
+     "id": "03-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 2, 0);"
+    },
+    {
+     "id": "03-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.13,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 200, 2, 0);"
+    },
+    {
+     "id": "03-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'refunded', 200, 3, 0);"
+    },
+    {
+     "id": "03-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (3, '2026-11-01', 'pending', 300, 2, 1);"
+    },
+    {
+     "id": "03-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.orders FINAL;"
+    },
+    {
+     "id": "03-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.orders FINAL CLEANUP;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "03-source-final",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY status ORDER BY status;",
+     "runs": [
+      {
+       "query_id": "03-source-final",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "status\torders\tamount\npaid\t1\t100\nrefunded\t1\t200\n",
+       "rows": [
+        "status\torders\tamount",
+        "paid\t1\t100",
+        "refunded\t1\t200"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 434408,
+        "read_rows": 13,
+        "read_bytes": 482,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-source-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 434408,
+     "read_rows": 13,
+     "read_bytes": 482,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "status\torders\tamount",
+      "paid\t1\t100",
+      "refunded\t1\t200"
+     ],
+     "stdout": "status\torders\tamount\npaid\t1\t100\nrefunded\t1\t200\n"
+    },
+    {
+     "id": "03-target-unfiltered",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT status, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.by_status GROUP BY status ORDER BY status;",
+     "runs": [
+      {
+       "query_id": "03-target-unfiltered",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "status\torders\tamount\npaid\t2\t300\npending\t4\t900\nrefunded\t1\t200\n",
+       "rows": [
+        "status\torders\tamount",
+        "paid\t2\t300",
+        "pending\t4\t900",
+        "refunded\t1\t200"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 343691,
+        "read_rows": 5,
+        "read_bytes": 195,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 3,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-target-unfiltered",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 343691,
+     "read_rows": 5,
+     "read_bytes": 195,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 3,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "status\torders\tamount",
+      "paid\t2\t300",
+      "pending\t4\t900",
+      "refunded\t1\t200"
+     ],
+     "stdout": "status\torders\tamount\npaid\t2\t300\npending\t4\t900\nrefunded\t1\t200\n"
+    },
+    {
+     "id": "03-target-live",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT status, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.by_status_live GROUP BY status ORDER BY status;",
+     "runs": [
+      {
+       "query_id": "03-target-live",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "status\torders\tamount\npaid\t2\t300\npending\t3\t600\nrefunded\t1\t200\n",
+       "rows": [
+        "status\torders\tamount",
+        "paid\t2\t300",
+        "pending\t3\t600",
+        "refunded\t1\t200"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 330032,
+        "read_rows": 4,
+        "read_bytes": 155,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 3,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-target-live",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 330032,
+     "read_rows": 4,
+     "read_bytes": 155,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 3,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "status\torders\tamount",
+      "paid\t2\t300",
+      "pending\t3\t600",
+      "refunded\t1\t200"
+     ],
+     "stdout": "status\torders\tamount\npaid\t2\t300\npending\t3\t600\nrefunded\t1\t200\n"
+    },
+    {
+     "id": "03-deleted-plain",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.orders WHERE order_id = 3;",
+     "runs": [
+      {
+       "query_id": "03-deleted-plain",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "count()\n2\n",
+       "rows": [
+        "count()",
+        "2"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 210480,
+        "read_rows": 4,
+        "read_bytes": 40,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-deleted-plain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 210480,
+     "read_rows": 4,
+     "read_bytes": 40,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "2"
+     ],
+     "stdout": "count()\n2\n"
+    },
+    {
+     "id": "03-deleted-after-optimize",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.orders WHERE order_id = 3;",
+     "runs": [
+      {
+       "query_id": "03-deleted-after-optimize",
+       "wall_s": 0.08,
+       "rc": 0,
+       "stdout": "count()\n1\n",
+       "rows": [
+        "count()",
+        "1"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 183968,
+        "read_rows": 3,
+        "read_bytes": 24,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-deleted-after-optimize",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 183968,
+     "read_rows": 3,
+     "read_bytes": 24,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "1"
+     ],
+     "stdout": "count()\n1\n"
+    },
+    {
+     "id": "03-deleted-after-cleanup",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.orders WHERE order_id = 3;",
+     "runs": [
+      {
+       "query_id": "03-deleted-after-cleanup",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 183968,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "03-deleted-after-cleanup",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 183968,
+     "read_rows": 0,
+     "read_bytes": 0,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    }
+   ]
+  },
+  "04-blocks-and-retries.sql": {
+   "setup": [
+    {
+     "id": "04-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "04-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "04-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders (order_id UInt64, day Date, amount UInt64, ver UInt64)\nENGINE = ReplacingMergeTree(ver) ORDER BY order_id;"
+    },
+    {
+     "id": "04-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "04-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY day;"
+    },
+    {
+     "id": "04-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.13,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 100, 1), (1, '2026-11-01', 150, 2), (2, '2026-11-01', 200, 1);"
+    },
+    {
+     "id": "04-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.o_nowin (order_id UInt64, day Date, amount UInt64, ver UInt64)\nENGINE = ReplacingMergeTree(ver) ORDER BY order_id;"
+    },
+    {
+     "id": "04-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.d_nowin (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "04-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.d_nowin_mv TO rmt_mv.d_nowin AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.o_nowin GROUP BY day;"
+    },
+    {
+     "id": "04-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_nowin VALUES (1, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_nowin VALUES (1, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.o_win (order_id UInt64, day Date, amount UInt64, ver UInt64)\nENGINE = ReplacingMergeTree(ver) ORDER BY order_id\nSETTINGS non_replicated_deduplication_window = 100;"
+    },
+    {
+     "id": "04-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.d_win (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day\nSETTINGS non_replicated_deduplication_window = 100;"
+    },
+    {
+     "id": "04-setup18",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.d_win_mv TO rmt_mv.d_win AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.o_win GROUP BY day;"
+    },
+    {
+     "id": "04-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_win VALUES (1, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup20",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_win VALUES (1, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup22",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_win VALUES (2, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup24",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_win SETTINGS deduplicate_blocks_in_dependent_materialized_views = 0 VALUES (3, '2026-11-01', 100, 1);"
+    },
+    {
+     "id": "04-setup25",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.o_win SETTINGS deduplicate_blocks_in_dependent_materialized_views = 0 VALUES (3, '2026-11-01', 100, 1);"
+    }
+   ],
+   "probes": [
+    {
+     "id": "04-inblock-source-rows",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.orders;",
+     "runs": [
+      {
+       "query_id": "04-inblock-source-rows",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "count()\n2\n",
+       "rows": [
+        "count()",
+        "2"
+       ],
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 122760,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-inblock-source-rows",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      0
+     ],
+     "duration_ms": 0,
+     "memory_usage": 122760,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "2"
+     ],
+     "stdout": "count()\n2\n"
+    },
+    {
+     "id": "04-inblock-target",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;",
+     "runs": [
+      {
+       "query_id": "04-inblock-target",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "orders\tamount\n3\t450\n",
+       "rows": [
+        "orders\tamount",
+        "3\t450"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 172848,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-inblock-target",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 172848,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "3\t450"
+     ],
+     "stdout": "orders\tamount\n3\t450\n"
+    },
+    {
+     "id": "04-retry-nowindow-source-final",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.o_nowin FINAL;",
+     "runs": [
+      {
+       "query_id": "04-retry-nowindow-source-final",
+       "wall_s": 0.085,
+       "rc": 0,
+       "stdout": "orders\tamount\n1\t100\n",
+       "rows": [
+        "orders\tamount",
+        "1\t100"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 200546,
+        "read_rows": 2,
+        "read_bytes": 48,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-retry-nowindow-source-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 200546,
+     "read_rows": 2,
+     "read_bytes": 48,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "1\t100"
+     ],
+     "stdout": "orders\tamount\n1\t100\n"
+    },
+    {
+     "id": "04-retry-nowindow-target",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_nowin;",
+     "runs": [
+      {
+       "query_id": "04-retry-nowindow-target",
+       "wall_s": 0.078,
+       "rc": 0,
+       "stdout": "orders\tamount\n2\t200\n",
+       "rows": [
+        "orders\tamount",
+        "2\t200"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 204240,
+        "read_rows": 2,
+        "read_bytes": 32,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-retry-nowindow-target",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 204240,
+     "read_rows": 2,
+     "read_bytes": 32,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "2\t200"
+     ],
+     "stdout": "orders\tamount\n2\t200\n"
+    },
+    {
+     "id": "04-retry-window-target",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;",
+     "runs": [
+      {
+       "query_id": "04-retry-window-target",
+       "wall_s": 0.083,
+       "rc": 0,
+       "stdout": "orders\tamount\n1\t100\n",
+       "rows": [
+        "orders\tamount",
+        "1\t100"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 172176,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-retry-window-target",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 172176,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "1\t100"
+     ],
+     "stdout": "orders\tamount\n1\t100\n"
+    },
+    {
+     "id": "04-same-mv-output-target",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;",
+     "runs": [
+      {
+       "query_id": "04-same-mv-output-target",
+       "wall_s": 0.085,
+       "rc": 0,
+       "stdout": "orders\tamount\n2\t200\n",
+       "rows": [
+        "orders\tamount",
+        "2\t200"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 199600,
+        "read_rows": 2,
+        "read_bytes": 32,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-same-mv-output-target",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 199600,
+     "read_rows": 2,
+     "read_bytes": 32,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "2\t200"
+     ],
+     "stdout": "orders\tamount\n2\t200\n"
+    },
+    {
+     "id": "04-retry-dbidmv0-source",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.o_win;",
+     "runs": [
+      {
+       "query_id": "04-retry-dbidmv0-source",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "count()\n3\n",
+       "rows": [
+        "count()",
+        "3"
+       ],
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 123080,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-retry-dbidmv0-source",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      0
+     ],
+     "duration_ms": 0,
+     "memory_usage": 123080,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "3"
+     ],
+     "stdout": "count()\n3\n"
+    },
+    {
+     "id": "04-retry-dbidmv0-target",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;",
+     "runs": [
+      {
+       "query_id": "04-retry-dbidmv0-target",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "orders\tamount\n4\t400\n",
+       "rows": [
+        "orders\tamount",
+        "4\t400"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 236424,
+        "read_rows": 4,
+        "read_bytes": 64,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "04-retry-dbidmv0-target",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 236424,
+     "read_rows": 4,
+     "read_bytes": 64,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "orders\tamount",
+      "4\t400"
+     ],
+     "stdout": "orders\tamount\n4\t400\n"
+    }
+   ]
+  },
+  "05-strategies.sql": {
+   "setup": [
+    {
+     "id": "05-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "05-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "05-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders\n(\n    order_id   UInt64,\n    day        Date,\n    status     LowCardinality(String),\n    amount     UInt64,\n    ver        UInt64,\n    is_deleted UInt8\n)\nENGINE = ReplacingMergeTree(ver, is_deleted)\nORDER BY order_id;"
+    },
+    {
+     "id": "05-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE rmt_mv.daily_naive (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "05-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_naive_mv TO rmt_mv.daily_naive AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day;"
+    },
+    {
+     "id": "05-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.order_state\n(\n    order_id   UInt64,\n    day        AggregateFunction(argMax, Date, UInt64),\n    amount     AggregateFunction(argMax, UInt64, UInt64),\n    is_deleted AggregateFunction(argMax, UInt8, UInt64)\n)\nENGINE = AggregatingMergeTree ORDER BY order_id;"
+    },
+    {
+     "id": "05-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.order_state_mv TO rmt_mv.order_state AS\nSELECT order_id, argMaxState(day, ver) AS day, argMaxState(amount, ver) AS amount, argMaxState(is_deleted, ver) AS is_deleted\nFROM rmt_mv.orders GROUP BY order_id;"
+    },
+    {
+     "id": "05-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_rmv_t (day Date, orders UInt64, amount UInt64)\nENGINE = MergeTree ORDER BY day;"
+    },
+    {
+     "id": "05-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_rmv REFRESH EVERY 1 HOUR TO rmt_mv.daily_rmv_t EMPTY AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;"
+    },
+    {
+     "id": "05-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_part (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree PARTITION BY day ORDER BY day;"
+    },
+    {
+     "id": "05-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_part_mv TO rmt_mv.daily_part AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day;"
+    },
+    {
+     "id": "05-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_part_stage AS rmt_mv.daily_part;"
+    },
+    {
+     "id": "05-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.order_changes (order_id UInt64, day Date, amount UInt64, sign Int8, ver UInt64)\nENGINE = MergeTree ORDER BY (order_id, ver);"
+    },
+    {
+     "id": "05-setup14",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_signed (day Date, orders Int64, amount Int64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "05-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_signed_mv TO rmt_mv.daily_signed AS\nSELECT day, sum(sign) AS orders, sum(toInt64(amount) * sign) AS amount FROM rmt_mv.order_changes GROUP BY day;"
+    },
+    {
+     "id": "05-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 1, 0), (2, '2026-11-01', 'pending', 200, 1, 0), (3, '2026-11-01', 'paid', 300, 1, 0), (4, '2026-11-01', 'paid', 400, 1, 0), (5, '2026-11-01', 'paid', 500, 1, 0);"
+    },
+    {
+     "id": "05-setup17",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.16,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 150, 2, 0);"
+    },
+    {
+     "id": "05-setup18",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.16,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 220, 3, 0);"
+    },
+    {
+     "id": "05-setup19",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (3, '2026-11-02', 'paid', 300, 2, 0);"
+    },
+    {
+     "id": "05-setup20",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (4, '2026-11-01', 'paid', 400, 2, 1);"
+    },
+    {
+     "id": "05-setup21",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'pending', 210, 2, 0);"
+    },
+    {
+     "id": "05-setup22",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.order_changes VALUES (1, '2026-11-01', 100, 1, 1), (2, '2026-11-01', 200, 1, 1), (3, '2026-11-01', 300, 1, 1), (4, '2026-11-01', 400, 1, 1), (5, '2026-11-01', 500, 1, 1);"
+    },
+    {
+     "id": "05-setup23",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.order_changes VALUES (1, '2026-11-01', 100, -1, 2), (1, '2026-11-01', 150, 1, 2);"
+    },
+    {
+     "id": "05-setup24",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.order_changes VALUES (2, '2026-11-01', 200, -1, 3), (2, '2026-11-01', 220, 1, 3);"
+    },
+    {
+     "id": "05-setup25",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.16,
+     "sql": "INSERT INTO rmt_mv.order_changes VALUES (3, '2026-11-01', 300, -1, 2), (3, '2026-11-02', 300, 1, 2);"
+    },
+    {
+     "id": "05-setup26",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.15,
+     "sql": "INSERT INTO rmt_mv.order_changes VALUES (4, '2026-11-01', 400, -1, 2);"
+    },
+    {
+     "id": "05-setup32",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "SYSTEM REFRESH VIEW rmt_mv.daily_rmv;"
+    },
+    {
+     "id": "05-setup33",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "SYSTEM WAIT VIEW rmt_mv.daily_rmv;"
+    },
+    {
+     "id": "05-setup36",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.13,
+     "sql": "INSERT INTO rmt_mv.daily_part_stage SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL WHERE day IN ('2026-11-01', '2026-11-02') GROUP BY day;"
+    },
+    {
+     "id": "05-setup37",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "ALTER TABLE rmt_mv.daily_part REPLACE PARTITION '2026-11-01' FROM rmt_mv.daily_part_stage;"
+    },
+    {
+     "id": "05-setup38",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "ALTER TABLE rmt_mv.daily_part REPLACE PARTITION '2026-11-02' FROM rmt_mv.daily_part_stage;"
+    },
+    {
+     "id": "05-setup39",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "TRUNCATE TABLE rmt_mv.daily_part_stage;"
+    },
+    {
+     "id": "05-setup42",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "OPTIMIZE TABLE rmt_mv.orders FINAL;"
+    },
+    {
+     "id": "05-setup44",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.14,
+     "sql": "INSERT INTO rmt_mv.orders VALUES (5, '2026-11-01', 'paid', 550, 2, 0);"
+    }
+   ],
+   "probes": [
+    {
+     "id": "05-truth-final",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-truth-final",
+       "wall_s": 0.086,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 717784,
+        "read_rows": 5,
+        "read_bytes": 55,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-truth-final",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 717784,
+     "read_rows": 5,
+     "read_bytes": 55,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-N-naive",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_naive GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-N-naive",
+       "wall_s": 0.075,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t8\t2080\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t8\t2080",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 1830432,
+        "read_rows": 5,
+        "read_bytes": 90,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-N-naive",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 1830432,
+     "read_rows": 5,
+     "read_bytes": 90,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t8\t2080",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t8\t2080\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-A-order-state",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, count() AS orders, sum(amount) AS amount\nFROM\n(\n    SELECT order_id, argMaxMerge(day) AS day, argMaxMerge(amount) AS amount, argMaxMerge(is_deleted) AS is_deleted\n    FROM rmt_mv.order_state GROUP BY order_id\n)\nWHERE is_deleted = 0\nGROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-A-order-state",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 817946,
+        "read_rows": 5,
+        "read_bytes": 840,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-A-order-state",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 817946,
+     "read_rows": 5,
+     "read_bytes": 840,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-B-signed",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_signed GROUP BY day HAVING orders != 0 ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-B-signed",
+       "wall_s": 0.075,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 1848650,
+        "read_rows": 6,
+        "read_bytes": 92,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-B-signed",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 1848650,
+     "read_rows": 6,
+     "read_bytes": 92,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-C-rmv-before-refresh",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() FROM rmt_mv.daily_rmv_t;",
+     "runs": [
+      {
+       "query_id": "05-C-rmv-before-refresh",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "count()\n0\n",
+       "rows": [
+        "count()",
+        "0"
+       ],
+       "log": {
+        "query_duration_ms": 0,
+        "memory_usage": 123448,
+        "read_rows": 1,
+        "read_bytes": 16,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-C-rmv-before-refresh",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      0
+     ],
+     "duration_ms": 0,
+     "memory_usage": 123448,
+     "read_rows": 1,
+     "read_bytes": 16,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "count()",
+      "0"
+     ],
+     "stdout": "count()\n0\n"
+    },
+    {
+     "id": "05-C-rmv-after-refresh",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, orders, amount FROM rmt_mv.daily_rmv_t ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-C-rmv-after-refresh",
+       "wall_s": 0.075,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 156016,
+        "read_rows": 2,
+        "read_bytes": 36,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-C-rmv-after-refresh",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 156016,
+     "read_rows": 2,
+     "read_bytes": 36,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-D-part-before",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_part GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-D-part-before",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t8\t2080\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t8\t2080",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 1834544,
+        "read_rows": 5,
+        "read_bytes": 90,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-D-part-before",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 1834544,
+     "read_rows": 5,
+     "read_bytes": 90,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t8\t2080",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t8\t2080\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-D-part-after",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_part GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-D-part-after",
+       "wall_s": 0.073,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 1272721,
+        "read_rows": 2,
+        "read_bytes": 36,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-D-part-after",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 1272721,
+     "read_rows": 2,
+     "read_bytes": 36,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-E-argmax-source",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, count() AS orders, sum(amount) AS amount\nFROM\n(\n    SELECT order_id, argMax(day, ver) AS day, argMax(amount, ver) AS amount, argMax(is_deleted, ver) AS is_deleted\n    FROM rmt_mv.orders GROUP BY order_id\n)\nWHERE is_deleted = 0\nGROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-E-argmax-source",
+       "wall_s": 0.077,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 822506,
+        "read_rows": 5,
+        "read_bytes": 135,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-E-argmax-source",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 822506,
+     "read_rows": 5,
+     "read_bytes": 135,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-F-after-optimize-plain",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-F-after-optimize-plain",
+       "wall_s": 0.071,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t3\t870",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 734269,
+        "read_rows": 5,
+        "read_bytes": 55,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-F-after-optimize-plain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 734269,
+     "read_rows": 5,
+     "read_bytes": 55,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t3\t870",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t3\t870\n2026-11-02\t1\t300\n"
+    },
+    {
+     "id": "05-F-next-insert-plain",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day ORDER BY day;",
+     "runs": [
+      {
+       "query_id": "05-F-next-insert-plain",
+       "wall_s": 0.07,
+       "rc": 0,
+       "stdout": "day\torders\tamount\n2026-11-01\t4\t1420\n2026-11-02\t1\t300\n",
+       "rows": [
+        "day\torders\tamount",
+        "2026-11-01\t4\t1420",
+        "2026-11-02\t1\t300"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 1285528,
+        "read_rows": 6,
+        "read_bytes": 65,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 2,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "05-F-next-insert-plain",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      2
+     ],
+     "duration_ms": 2,
+     "memory_usage": 1285528,
+     "read_rows": 6,
+     "read_bytes": 65,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 2,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\torders\tamount",
+      "2026-11-01\t4\t1420",
+      "2026-11-02\t1\t300"
+     ],
+     "stdout": "day\torders\tamount\n2026-11-01\t4\t1420\n2026-11-02\t1\t300\n"
+    }
+   ]
+  },
+  "06-scale.sql": {
+   "setup": [
+    {
+     "id": "06-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "06-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "06-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders\n(\n    order_id   UInt64,\n    day        Date,\n    status     LowCardinality(String),\n    amount     UInt64,\n    ver        UInt64,\n    is_deleted UInt8\n)\nENGINE = ReplacingMergeTree(ver, is_deleted)\nORDER BY order_id;"
+    },
+    {
+     "id": "06-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE rmt_mv.daily_naive (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    },
+    {
+     "id": "06-setup05",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_naive_mv TO rmt_mv.daily_naive AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day;"
+    },
+    {
+     "id": "06-setup06",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.order_state\n(\n    order_id   UInt64,\n    day        AggregateFunction(argMax, Date, UInt64),\n    amount     AggregateFunction(argMax, UInt64, UInt64),\n    is_deleted AggregateFunction(argMax, UInt8, UInt64)\n)\nENGINE = AggregatingMergeTree ORDER BY order_id;"
+    },
+    {
+     "id": "06-setup07",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.order_state_mv TO rmt_mv.order_state AS\nSELECT order_id, argMaxState(day, ver) AS day, argMaxState(amount, ver) AS amount, argMaxState(is_deleted, ver) AS is_deleted\nFROM rmt_mv.orders GROUP BY order_id;"
+    },
+    {
+     "id": "06-setup08",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_rmv_t (day Date, orders UInt64, amount UInt64)\nENGINE = MergeTree ORDER BY day;"
+    },
+    {
+     "id": "06-setup09",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "CREATE TABLE rmt_mv.daily_stage (day Date, orders UInt64, amount UInt64)\nENGINE = MergeTree PARTITION BY day ORDER BY day;"
+    },
+    {
+     "id": "06-setup10",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "SYSTEM STOP MERGES rmt_mv.orders;"
+    },
+    {
+     "id": "06-setup11",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 7.91,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number, toDate('2026-10-01') + number % 30, ['paid', 'pending', 'refunded'][number % 3 + 1], 1000 + number % 9000, 1, 0\nFROM numbers(10000000)\nSETTINGS max_insert_block_size = 1048576, min_insert_block_size_rows = 1048576, min_insert_block_size_bytes = 0;"
+    },
+    {
+     "id": "06-setup12",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 1.41,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number * 5, toDate('2026-10-01') + (number * 5) % 30, ['paid', 'pending', 'refunded'][(number * 5) % 3 + 1], 1000 + (number * 5) % 9000 + 1, 2, 0\nFROM numbers(2000000);"
+    },
+    {
+     "id": "06-setup13",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 1.71,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number * 5 + 1, toDate('2026-10-01') + ((number * 5 + 1) % 30 + 1) % 30, 'paid', 1000 + (number * 5 + 1) % 9000, 3, 0\nFROM numbers(2000000);"
+    },
+    {
+     "id": "06-setup14",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.76,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number * 10, toDate('2026-10-01') + (number * 10) % 30, ['paid', 'pending', 'refunded'][(number * 10) % 3 + 1], 1000 + (number * 10) % 9000 + 2, 4, 0\nFROM numbers(1000000);"
+    },
+    {
+     "id": "06-setup15",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.86,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number * 10, toDate('2026-10-01') + (number * 10) % 30, ['paid', 'pending', 'refunded'][(number * 10) % 3 + 1], 1000 + (number * 10) % 9000 + 7, 3, 0\nFROM numbers(1000000);"
+    },
+    {
+     "id": "06-setup16",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.24,
+     "sql": "INSERT INTO rmt_mv.orders\nSELECT number * 50 + 3, toDate('2026-10-01') + (number * 50 + 3) % 30, ['paid', 'pending', 'refunded'][(number * 50 + 3) % 3 + 1], 1000 + (number * 50 + 3) % 9000, 5, 1\nFROM numbers(200000);"
+    },
+    {
+     "id": "06-setup26",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE TABLE rmt_mv.w_nomv AS rmt_mv.orders;"
+    },
+    {
+     "id": "06-setup27",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.w_naive AS rmt_mv.orders;"
+    },
+    {
+     "id": "06-setup28",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.w_perkey AS rmt_mv.orders;"
+    },
+    {
+     "id": "06-setup29",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.w_naive_t AS rmt_mv.daily_naive;"
+    },
+    {
+     "id": "06-setup30",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.w_perkey_t AS rmt_mv.order_state;"
+    },
+    {
+     "id": "06-setup31",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.w_naive_mv TO rmt_mv.w_naive_t AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.w_naive WHERE is_deleted = 0 GROUP BY day;"
+    },
+    {
+     "id": "06-setup32",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.09,
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.w_perkey_mv TO rmt_mv.w_perkey_t AS\nSELECT order_id, argMaxState(day, ver) AS day, argMaxState(amount, ver) AS amount, argMaxState(is_deleted, ver) AS is_deleted\nFROM rmt_mv.w_perkey GROUP BY order_id;"
+    },
+    {
+     "id": "06-setup36",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "SYSTEM START MERGES rmt_mv.orders;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "06-parts-before",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS parts, sum(rows) AS rows FROM system.parts WHERE database = 'rmt_mv' AND table = 'orders' AND active;",
+     "runs": [
+      {
+       "query_id": "06-parts-before",
+       "wall_s": 0.095,
+       "rc": 0,
+       "stdout": "parts\trows\n16\t16200000\n",
+       "rows": [
+        "parts\trows",
+        "16\t16200000"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 203615,
+        "read_rows": 16,
+        "read_bytes": 592,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-parts-before",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 203615,
+     "read_rows": 16,
+     "read_bytes": 592,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "parts\trows",
+      "16\t16200000"
+     ],
+     "stdout": "parts\trows\n16\t16200000\n"
+    },
+    {
+     "id": "06-totals",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT 'truth (FINAL)' AS design, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL\nUNION ALL\nSELECT 'N naive MV', sum(orders), sum(amount) FROM rmt_mv.daily_naive\nUNION ALL\nSELECT 'A per-key state', count(), sum(amount) FROM (SELECT order_id, argMaxMerge(amount) AS amount, argMaxMerge(is_deleted) AS d FROM rmt_mv.order_state GROUP BY order_id) WHERE d = 0\nUNION ALL\nSELECT 'E argMax on source', count(), sum(amount) FROM (SELECT order_id, argMax(amount, ver) AS amount, argMax(is_deleted, ver) AS d FROM rmt_mv.orders GROUP BY order_id) WHERE d = 0\nUNION ALL\nSELECT 'plain read, no FINAL', count(), sum(amount) FROM rmt_mv.orders WHERE is_deleted = 0;",
+     "runs": [
+      {
+       "query_id": "06-totals",
+       "wall_s": 3.188,
+       "rc": 0,
+       "stdout": "design\torders\tamount\nN naive MV\t16000000\t87981600000\nplain read, no FINAL\t16000000\t87981600000\ntruth (FINAL)\t9800000\t53898480000\nE argMax on source\t9800000\t53898480000\nA per-key state\t9800000\t53898480000\n",
+       "rows": [
+        "design\torders\tamount",
+        "N naive MV\t16000000\t87981600000",
+        "plain read, no FINAL\t16000000\t87981600000",
+        "truth (FINAL)\t9800000\t53898480000",
+        "E argMax on source\t9800000\t53898480000",
+        "A per-key state\t9800000\t53898480000"
+       ],
+       "log": {
+        "query_duration_ms": 3111,
+        "memory_usage": 2448549755,
+        "read_rows": 63232290,
+        "read_bytes": 2087091488,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 5,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-totals",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 16,
+         "ExternalProcessingCompressedBytesTotal": 331436642,
+         "ExternalProcessingUncompressedBytesTotal": 1137120321,
+         "ExternalProcessingFilesTotal": 37,
+         "ExternalAggregationWritePart": 37,
+         "ExternalAggregationMerge": 2,
+         "ExternalAggregationCompressedBytes": 331436642,
+         "ExternalAggregationUncompressedBytes": 1137120321,
+         "AdaptiveAggregationSharedTableSpills": 22
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3111
+     ],
+     "duration_ms": 3111,
+     "memory_usage": 2448549755,
+     "read_rows": 63232290,
+     "read_bytes": 2087091488,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 5,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 16,
+      "ExternalProcessingCompressedBytesTotal": 331436642,
+      "ExternalProcessingUncompressedBytesTotal": 1137120321,
+      "ExternalProcessingFilesTotal": 37,
+      "ExternalAggregationWritePart": 37,
+      "ExternalAggregationMerge": 2,
+      "ExternalAggregationCompressedBytes": 331436642,
+      "ExternalAggregationUncompressedBytes": 1137120321,
+      "AdaptiveAggregationSharedTableSpills": 22
+     },
+     "rows": [
+      "design\torders\tamount",
+      "N naive MV\t16000000\t87981600000",
+      "plain read, no FINAL\t16000000\t87981600000",
+      "truth (FINAL)\t9800000\t53898480000",
+      "E argMax on source\t9800000\t53898480000",
+      "A per-key state\t9800000\t53898480000"
+     ],
+     "stdout": "design\torders\tamount\nN naive MV\t16000000\t87981600000\nplain read, no FINAL\t16000000\t87981600000\ntruth (FINAL)\t9800000\t53898480000\nE argMax on source\t9800000\t53898480000\nA per-key state\t9800000\t53898480000\n"
+    },
+    {
+     "id": "06-read-naive",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, sum(orders), sum(amount) FROM rmt_mv.daily_naive GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-naive.1",
+       "wall_s": 0.1,
+       "rc": 0,
+       "stdout": "day\tsum(orders)\tsum(amount)\n2026-10-01\t1333336\t7316138660\n2026-10-02\t333334\t1828534664\n2026-10-03\t666668\t3657402662\n2026-10-04\t333334\t1829201332\n2026-10-05\t333334\t1829534666\n2026-10-06\t666668\t3660069334\n2026-10-07\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t1333332\t7329464010\n2026-10-12\t333333\t1831866003\n2026-10-13\t666666\t3664065339\n2026-10-14\t333333\t1832532669\n2026-10-15\t333333\t1832866002\n2026-10-16\t666666\t3666732003\n2026-10-17\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t1333332\t7342797330\n2026-10-22\t333333\t1835199333\n2026-10-23\t666666\t3670731999\n2026-10-24\t333333\t1835865999\n2026-10-25\t333333\t1836199332\n2026-10-26\t666666\t3673398663\n2026-10-27\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tsum(orders)\tsum(amount)",
+        "2026-10-01\t1333336\t7316138660",
+        "2026-10-02\t333334\t1828534664",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t333334\t1829201332",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t666668\t3660069334",
+        "2026-10-07\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t1333332\t7329464010",
+        "2026-10-12\t333333\t1831866003",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t333333\t1832532669",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t666666\t3666732003",
+        "2026-10-17\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667"
+       ],
+       "log": {
+        "query_duration_ms": 3,
+        "memory_usage": 1831608,
+        "read_rows": 48,
+        "read_bytes": 864,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 30,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-naive.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-naive.2",
+       "wall_s": 0.074,
+       "rc": 0,
+       "stdout": "day\tsum(orders)\tsum(amount)\n2026-10-01\t1333336\t7316138660\n2026-10-02\t333334\t1828534664\n2026-10-03\t666668\t3657402662\n2026-10-04\t333334\t1829201332\n2026-10-05\t333334\t1829534666\n2026-10-06\t666668\t3660069334\n2026-10-07\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t1333332\t7329464010\n2026-10-12\t333333\t1831866003\n2026-10-13\t666666\t3664065339\n2026-10-14\t333333\t1832532669\n2026-10-15\t333333\t1832866002\n2026-10-16\t666666\t3666732003\n2026-10-17\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t1333332\t7342797330\n2026-10-22\t333333\t1835199333\n2026-10-23\t666666\t3670731999\n2026-10-24\t333333\t1835865999\n2026-10-25\t333333\t1836199332\n2026-10-26\t666666\t3673398663\n2026-10-27\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tsum(orders)\tsum(amount)",
+        "2026-10-01\t1333336\t7316138660",
+        "2026-10-02\t333334\t1828534664",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t333334\t1829201332",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t666668\t3660069334",
+        "2026-10-07\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t1333332\t7329464010",
+        "2026-10-12\t333333\t1831866003",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t333333\t1832532669",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t666666\t3666732003",
+        "2026-10-17\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667"
+       ],
+       "log": {
+        "query_duration_ms": 2,
+        "memory_usage": 1824161,
+        "read_rows": 48,
+        "read_bytes": 864,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 30,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-naive.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-naive.3",
+       "wall_s": 0.076,
+       "rc": 0,
+       "stdout": "day\tsum(orders)\tsum(amount)\n2026-10-01\t1333336\t7316138660\n2026-10-02\t333334\t1828534664\n2026-10-03\t666668\t3657402662\n2026-10-04\t333334\t1829201332\n2026-10-05\t333334\t1829534666\n2026-10-06\t666668\t3660069334\n2026-10-07\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t1333332\t7329464010\n2026-10-12\t333333\t1831866003\n2026-10-13\t666666\t3664065339\n2026-10-14\t333333\t1832532669\n2026-10-15\t333333\t1832866002\n2026-10-16\t666666\t3666732003\n2026-10-17\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t1333332\t7342797330\n2026-10-22\t333333\t1835199333\n2026-10-23\t666666\t3670731999\n2026-10-24\t333333\t1835865999\n2026-10-25\t333333\t1836199332\n2026-10-26\t666666\t3673398663\n2026-10-27\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tsum(orders)\tsum(amount)",
+        "2026-10-01\t1333336\t7316138660",
+        "2026-10-02\t333334\t1828534664",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t333334\t1829201332",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t666668\t3660069334",
+        "2026-10-07\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t1333332\t7329464010",
+        "2026-10-12\t333333\t1831866003",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t333333\t1832532669",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t666666\t3666732003",
+        "2026-10-17\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 1829288,
+        "read_rows": 48,
+        "read_bytes": 864,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 30,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-naive.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3,
+      2,
+      1
+     ],
+     "duration_ms": 2,
+     "memory_usage": 1831608,
+     "read_rows": 48,
+     "read_bytes": 864,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 30,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\tsum(orders)\tsum(amount)",
+      "2026-10-01\t1333336\t7316138660",
+      "2026-10-02\t333334\t1828534664",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t333334\t1829201332",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t666668\t3660069334",
+      "2026-10-07\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t1333332\t7329464010",
+      "2026-10-12\t333333\t1831866003",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t333333\t1832532669",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t666666\t3666732003",
+      "2026-10-17\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667"
+     ],
+     "stdout": "day\tsum(orders)\tsum(amount)\n2026-10-01\t1333336\t7316138660\n2026-10-02\t333334\t1828534664\n2026-10-03\t666668\t3657402662\n2026-10-04\t333334\t1829201332\n2026-10-05\t333334\t1829534666\n2026-10-06\t666668\t3660069334\n2026-10-07\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t1333332\t7329464010\n2026-10-12\t333333\t1831866003\n2026-10-13\t666666\t3664065339\n2026-10-14\t333333\t1832532669\n2026-10-15\t333333\t1832866002\n2026-10-16\t666666\t3666732003\n2026-10-17\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t1333332\t7342797330\n2026-10-22\t333333\t1835199333\n2026-10-23\t666666\t3670731999\n2026-10-24\t333333\t1835865999\n2026-10-25\t333333\t1836199332\n2026-10-26\t666666\t3673398663\n2026-10-27\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-read-final",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-final.1",
+       "wall_s": 0.301,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 224,
+        "memory_usage": 75790156,
+        "read_rows": 16298304,
+        "read_bytes": 423972288,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-final.2",
+       "wall_s": 0.285,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 210,
+        "memory_usage": 75847466,
+        "read_rows": 16298304,
+        "read_bytes": 423972288,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-final.3",
+       "wall_s": 0.289,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 213,
+        "memory_usage": 76720834,
+        "read_rows": 16298304,
+        "read_bytes": 423972288,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      224,
+      210,
+      213
+     ],
+     "duration_ms": 213,
+     "memory_usage": 76720834,
+     "read_rows": 16298304,
+     "read_bytes": 423972288,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\tcount()\tsum(amount)",
+      "2026-10-01\t333334\t1828867998",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t266667\t1467360681",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t333333\t1832199336",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t266667\t1464027321",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667",
+      "2026-10-21\t333333\t1835532666",
+      "2026-10-23\t666666\t3670731999",
+      "2026-10-24\t266666\t1470691998",
+      "2026-10-25\t333333\t1836199332"
+     ],
+     "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-read-order-state",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, count(), sum(amount)\nFROM (SELECT order_id, argMaxMerge(day) AS day, argMaxMerge(amount) AS amount, argMaxMerge(is_deleted) AS d FROM rmt_mv.order_state GROUP BY order_id)\nWHERE d = 0 GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-order-state.1",
+       "wall_s": 3.163,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 3089,
+        "memory_usage": 1932214517,
+        "read_rows": 14733938,
+        "read_bytes": 2475301584,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-order-state.1",
+        "type": "QueryFinish",
+        "events": {
+         "ExternalProcessingCompressedBytesTotal": 218050465,
+         "ExternalProcessingUncompressedBytesTotal": 713931961,
+         "ExternalProcessingFilesTotal": 30,
+         "ExternalAggregationWritePart": 30,
+         "ExternalAggregationMerge": 1,
+         "ExternalAggregationCompressedBytes": 218050465,
+         "ExternalAggregationUncompressedBytes": 713931961,
+         "AdaptiveAggregationSharedTableSpills": 5
+        }
+       }
+      },
+      {
+       "query_id": "06-read-order-state.2",
+       "wall_s": 3.619,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 3537,
+        "memory_usage": 1799616047,
+        "read_rows": 14733938,
+        "read_bytes": 2475301584,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-order-state.2",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 9,
+         "ExternalProcessingCompressedBytesTotal": 215653078,
+         "ExternalProcessingUncompressedBytesTotal": 713968679,
+         "ExternalProcessingFilesTotal": 31,
+         "ExternalAggregationWritePart": 31,
+         "ExternalAggregationMerge": 1,
+         "ExternalAggregationCompressedBytes": 215653078,
+         "ExternalAggregationUncompressedBytes": 713968679,
+         "AdaptiveAggregationSharedTableSpills": 5
+        }
+       }
+      },
+      {
+       "query_id": "06-read-order-state.3",
+       "wall_s": 3.226,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 3142,
+        "memory_usage": 2589224430,
+        "read_rows": 14733938,
+        "read_bytes": 2475301584,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-order-state.3",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 1,
+         "ExternalProcessingCompressedBytesTotal": 216497505,
+         "ExternalProcessingUncompressedBytesTotal": 712087863,
+         "ExternalProcessingFilesTotal": 23,
+         "ExternalAggregationWritePart": 23,
+         "ExternalAggregationMerge": 1,
+         "ExternalAggregationCompressedBytes": 216497505,
+         "ExternalAggregationUncompressedBytes": 712087863,
+         "AdaptiveAggregationSharedTableSpills": 5
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      3089,
+      3537,
+      3142
+     ],
+     "duration_ms": 3142,
+     "memory_usage": 2589224430,
+     "read_rows": 14733938,
+     "read_bytes": 2475301584,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {
+      "AnalyzePatchRangesMicroseconds": 1,
+      "ExternalProcessingCompressedBytesTotal": 216497505,
+      "ExternalProcessingUncompressedBytesTotal": 712087863,
+      "ExternalProcessingFilesTotal": 23,
+      "ExternalAggregationWritePart": 23,
+      "ExternalAggregationMerge": 1,
+      "ExternalAggregationCompressedBytes": 216497505,
+      "ExternalAggregationUncompressedBytes": 712087863,
+      "AdaptiveAggregationSharedTableSpills": 5
+     },
+     "rows": [
+      "day\tcount()\tsum(amount)",
+      "2026-10-01\t333334\t1828867998",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t266667\t1467360681",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t333333\t1832199336",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t266667\t1464027321",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667",
+      "2026-10-21\t333333\t1835532666",
+      "2026-10-23\t666666\t3670731999",
+      "2026-10-24\t266666\t1470691998",
+      "2026-10-25\t333333\t1836199332"
+     ],
+     "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-read-argmax-source",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, count(), sum(amount)\nFROM (SELECT order_id, argMax(day, ver) AS day, argMax(amount, ver) AS amount, argMax(is_deleted, ver) AS d FROM rmt_mv.orders GROUP BY order_id)\nWHERE d = 0 GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-argmax-source.1",
+       "wall_s": 0.486,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 406,
+        "memory_usage": 863203555,
+        "read_rows": 16200000,
+        "read_bytes": 421400000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-argmax-source.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-argmax-source.2",
+       "wall_s": 0.465,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 386,
+        "memory_usage": 865920733,
+        "read_rows": 16200000,
+        "read_bytes": 421400000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-argmax-source.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-argmax-source.3",
+       "wall_s": 0.671,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 581,
+        "memory_usage": 845216929,
+        "read_rows": 16200000,
+        "read_bytes": 421400000,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-argmax-source.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      406,
+      386,
+      581
+     ],
+     "duration_ms": 406,
+     "memory_usage": 865920733,
+     "read_rows": 16200000,
+     "read_bytes": 421400000,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\tcount()\tsum(amount)",
+      "2026-10-01\t333334\t1828867998",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t266667\t1467360681",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t333333\t1832199336",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t266667\t1464027321",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667",
+      "2026-10-21\t333333\t1835532666",
+      "2026-10-23\t666666\t3670731999",
+      "2026-10-24\t266666\t1470691998",
+      "2026-10-25\t333333\t1836199332"
+     ],
+     "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-rmv-full-refresh",
+     "repeat": 1,
+     "flags": [],
+     "sql": "INSERT INTO rmt_mv.daily_rmv_t SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL GROUP BY day;",
+     "runs": [
+      {
+       "query_id": "06-rmv-full-refresh",
+       "wall_s": 0.348,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 253,
+        "memory_usage": 97068197,
+        "read_rows": 16347456,
+        "read_bytes": 425258432,
+        "written_rows": 24,
+        "written_bytes": 432,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-rmv-full-refresh",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      253
+     ],
+     "duration_ms": 253,
+     "memory_usage": 97068197,
+     "read_rows": 16347456,
+     "read_bytes": 425258432,
+     "written_rows": 24,
+     "written_bytes": 432,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-rebuild-one-day",
+     "repeat": 1,
+     "flags": [],
+     "sql": "INSERT INTO rmt_mv.daily_stage SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL WHERE day = '2026-10-15' GROUP BY day;",
+     "runs": [
+      {
+       "query_id": "06-rebuild-one-day",
+       "wall_s": 0.338,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 256,
+        "memory_usage": 99160831,
+        "read_rows": 16347456,
+        "read_bytes": 425258432,
+        "written_rows": 1,
+        "written_bytes": 18,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-rebuild-one-day",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      256
+     ],
+     "duration_ms": 256,
+     "memory_usage": 99160831,
+     "read_rows": 16347456,
+     "read_bytes": 425258432,
+     "written_rows": 1,
+     "written_bytes": 18,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-storage",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT table, sum(rows) AS rows, count() AS parts, formatReadableSize(sum(data_compressed_bytes)) AS compressed\nFROM system.parts WHERE database = 'rmt_mv' AND active AND table IN ('orders', 'daily_naive', 'order_state')\nGROUP BY table ORDER BY table;",
+     "runs": [
+      {
+       "query_id": "06-storage",
+       "wall_s": 0.079,
+       "rc": 0,
+       "stdout": "table\trows\tparts\tcompressed\ndaily_naive\t30\t1\t401.00 B\norder_state\t14733938\t5\t111.80 MiB\norders\t16200000\t16\t105.49 MiB\n",
+       "rows": [
+        "table\trows\tparts\tcompressed",
+        "daily_naive\t30\t1\t401.00 B",
+        "order_state\t14733938\t5\t111.80 MiB",
+        "orders\t16200000\t16\t105.49 MiB"
+       ],
+       "log": {
+        "query_duration_ms": 4,
+        "memory_usage": 294312,
+        "read_rows": 22,
+        "read_bytes": 1020,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 3,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-storage",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      4
+     ],
+     "duration_ms": 4,
+     "memory_usage": 294312,
+     "read_rows": 22,
+     "read_bytes": 1020,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 3,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "table\trows\tparts\tcompressed",
+      "daily_naive\t30\t1\t401.00 B",
+      "order_state\t14733938\t5\t111.80 MiB",
+      "orders\t16200000\t16\t105.49 MiB"
+     ],
+     "stdout": "table\trows\tparts\tcompressed\ndaily_naive\t30\t1\t401.00 B\norder_state\t14733938\t5\t111.80 MiB\norders\t16200000\t16\t105.49 MiB\n"
+    },
+    {
+     "id": "06-insert-nomv",
+     "repeat": 1,
+     "flags": [],
+     "sql": "INSERT INTO rmt_mv.w_nomv SELECT number * 5, toDate('2026-10-01') + (number * 5) % 30, 'paid', 1000 + number % 9000, 2, 0 FROM numbers(2000000);",
+     "runs": [
+      {
+       "query_id": "06-insert-nomv",
+       "wall_s": 0.242,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 162,
+        "memory_usage": 149201487,
+        "read_rows": 2000000,
+        "read_bytes": 16000000,
+        "written_rows": 2000000,
+        "written_bytes": 56000620,
+        "result_rows": 2000000,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-insert-nomv",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      162
+     ],
+     "duration_ms": 162,
+     "memory_usage": 149201487,
+     "read_rows": 2000000,
+     "read_bytes": 16000000,
+     "written_rows": 2000000,
+     "written_bytes": 56000620,
+     "result_rows": 2000000,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-insert-naive-mv",
+     "repeat": 1,
+     "flags": [],
+     "sql": "INSERT INTO rmt_mv.w_naive SELECT number * 5, toDate('2026-10-01') + (number * 5) % 30, 'paid', 1000 + number % 9000, 2, 0 FROM numbers(2000000);",
+     "runs": [
+      {
+       "query_id": "06-insert-naive-mv",
+       "wall_s": 0.259,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 173,
+        "memory_usage": 151110415,
+        "read_rows": 4000000,
+        "read_bytes": 38000000,
+        "written_rows": 2000012,
+        "written_bytes": 56000836,
+        "result_rows": 2000012,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-insert-naive-mv",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      173
+     ],
+     "duration_ms": 173,
+     "memory_usage": 151110415,
+     "read_rows": 4000000,
+     "read_bytes": 38000000,
+     "written_rows": 2000012,
+     "written_bytes": 56000836,
+     "result_rows": 2000012,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-insert-perkey-mv",
+     "repeat": 1,
+     "flags": [],
+     "sql": "INSERT INTO rmt_mv.w_perkey SELECT number * 5, toDate('2026-10-01') + (number * 5) % 30, 'paid', 1000 + number % 9000, 2, 0 FROM numbers(2000000);",
+     "runs": [
+      {
+       "query_id": "06-insert-perkey-mv",
+       "wall_s": 1.415,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 1336,
+        "memory_usage": 1097201294,
+        "read_rows": 4000000,
+        "read_bytes": 70000000,
+        "written_rows": 4000000,
+        "written_bytes": 390369844,
+        "result_rows": 4000000,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-insert-perkey-mv",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1336
+     ],
+     "duration_ms": 1336,
+     "memory_usage": 1097201294,
+     "read_rows": 4000000,
+     "read_bytes": 70000000,
+     "written_rows": 4000000,
+     "written_bytes": 390369844,
+     "result_rows": 4000000,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-optimize-final",
+     "repeat": 1,
+     "flags": [],
+     "sql": "OPTIMIZE TABLE rmt_mv.orders FINAL;",
+     "runs": [
+      {
+       "query_id": "06-optimize-final",
+       "wall_s": 1.972,
+       "rc": 0,
+       "stdout": "",
+       "rows": [],
+       "log": {
+        "query_duration_ms": 1892,
+        "memory_usage": 71640,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-optimize-final",
+        "type": "QueryFinish",
+        "events": {
+         "MergerMutatorsGetPartsForMergeElapsedMicroseconds": 20
+        }
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1892
+     ],
+     "duration_ms": 1892,
+     "memory_usage": 71640,
+     "read_rows": 0,
+     "read_bytes": 0,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 0,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {
+      "MergerMutatorsGetPartsForMergeElapsedMicroseconds": 20
+     },
+     "rows": [],
+     "stdout": ""
+    },
+    {
+     "id": "06-parts-after",
+     "repeat": 1,
+     "flags": [
+      "value"
+     ],
+     "sql": "SELECT count() AS parts, sum(rows) AS rows FROM system.parts WHERE database = 'rmt_mv' AND table = 'orders' AND active;",
+     "runs": [
+      {
+       "query_id": "06-parts-after",
+       "wall_s": 0.08,
+       "rc": 0,
+       "stdout": "parts\trows\n1\t10000000\n",
+       "rows": [
+        "parts\trows",
+        "1\t10000000"
+       ],
+       "log": {
+        "query_duration_ms": 1,
+        "memory_usage": 196607,
+        "read_rows": 1,
+        "read_bytes": 37,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 1,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-parts-after",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      1
+     ],
+     "duration_ms": 1,
+     "memory_usage": 196607,
+     "read_rows": 1,
+     "read_bytes": 37,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 1,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "parts\trows",
+      "1\t10000000"
+     ],
+     "stdout": "parts\trows\n1\t10000000\n"
+    },
+    {
+     "id": "06-read-final-1part",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-final-1part.1",
+       "wall_s": 0.105,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 26,
+        "memory_usage": 6730259,
+        "read_rows": 10000000,
+        "read_bytes": 100799837,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final-1part.1",
+        "type": "QueryFinish",
+        "events": {
+         "AnalyzePatchRangesMicroseconds": 28
+        }
+       }
+      },
+      {
+       "query_id": "06-read-final-1part.2",
+       "wall_s": 0.103,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 23,
+        "memory_usage": 6721675,
+        "read_rows": 10000000,
+        "read_bytes": 100799837,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final-1part.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-final-1part.3",
+       "wall_s": 0.099,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 25,
+        "memory_usage": 6721835,
+        "read_rows": 10000000,
+        "read_bytes": 100799837,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-final-1part.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      26,
+      23,
+      25
+     ],
+     "duration_ms": 25,
+     "memory_usage": 6730259,
+     "read_rows": 10000000,
+     "read_bytes": 100799837,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\tcount()\tsum(amount)",
+      "2026-10-01\t333334\t1828867998",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t266667\t1467360681",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t333333\t1832199336",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t266667\t1464027321",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667",
+      "2026-10-21\t333333\t1835532666",
+      "2026-10-23\t666666\t3670731999",
+      "2026-10-24\t266666\t1470691998",
+      "2026-10-25\t333333\t1836199332"
+     ],
+     "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-read-plain-1part",
+     "repeat": 3,
+     "flags": [],
+     "sql": "SELECT day, count(), sum(amount) FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day ORDER BY day FORMAT Null;",
+     "runs": [
+      {
+       "query_id": "06-read-plain-1part.1",
+       "wall_s": 0.096,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 22,
+        "memory_usage": 6747707,
+        "read_rows": 10000000,
+        "read_bytes": 100800155,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-plain-1part.1",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-plain-1part.2",
+       "wall_s": 0.104,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 23,
+        "memory_usage": 6747707,
+        "read_rows": 10000000,
+        "read_bytes": 100800155,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-plain-1part.2",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      },
+      {
+       "query_id": "06-read-plain-1part.3",
+       "wall_s": 0.099,
+       "rc": 0,
+       "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n",
+       "rows": [
+        "day\tcount()\tsum(amount)",
+        "2026-10-01\t333334\t1828867998",
+        "2026-10-03\t666668\t3657402662",
+        "2026-10-04\t266667\t1467360681",
+        "2026-10-05\t333334\t1829534666",
+        "2026-10-06\t333334\t1830201334",
+        "2026-10-08\t666668\t3660736002",
+        "2026-10-09\t333334\t1830868002",
+        "2026-10-10\t333334\t1831201336",
+        "2026-10-11\t333333\t1832199336",
+        "2026-10-13\t666666\t3664065339",
+        "2026-10-14\t266667\t1464027321",
+        "2026-10-15\t333333\t1832866002",
+        "2026-10-16\t333333\t1833532668",
+        "2026-10-18\t666666\t3667398669",
+        "2026-10-19\t333333\t1834199334",
+        "2026-10-20\t333333\t1834532667",
+        "2026-10-21\t333333\t1835532666",
+        "2026-10-23\t666666\t3670731999",
+        "2026-10-24\t266666\t1470691998",
+        "2026-10-25\t333333\t1836199332"
+       ],
+       "log": {
+        "query_duration_ms": 22,
+        "memory_usage": 6747707,
+        "read_rows": 10000000,
+        "read_bytes": 100800155,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 24,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-read-plain-1part.3",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      22,
+      23,
+      22
+     ],
+     "duration_ms": 22,
+     "memory_usage": 6747707,
+     "read_rows": 10000000,
+     "read_bytes": 100800155,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 24,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "day\tcount()\tsum(amount)",
+      "2026-10-01\t333334\t1828867998",
+      "2026-10-03\t666668\t3657402662",
+      "2026-10-04\t266667\t1467360681",
+      "2026-10-05\t333334\t1829534666",
+      "2026-10-06\t333334\t1830201334",
+      "2026-10-08\t666668\t3660736002",
+      "2026-10-09\t333334\t1830868002",
+      "2026-10-10\t333334\t1831201336",
+      "2026-10-11\t333333\t1832199336",
+      "2026-10-13\t666666\t3664065339",
+      "2026-10-14\t266667\t1464027321",
+      "2026-10-15\t333333\t1832866002",
+      "2026-10-16\t333333\t1833532668",
+      "2026-10-18\t666666\t3667398669",
+      "2026-10-19\t333333\t1834199334",
+      "2026-10-20\t333333\t1834532667",
+      "2026-10-21\t333333\t1835532666",
+      "2026-10-23\t666666\t3670731999",
+      "2026-10-24\t266666\t1470691998",
+      "2026-10-25\t333333\t1836199332"
+     ],
+     "stdout": "day\tcount()\tsum(amount)\n2026-10-01\t333334\t1828867998\n2026-10-03\t666668\t3657402662\n2026-10-04\t266667\t1467360681\n2026-10-05\t333334\t1829534666\n2026-10-06\t333334\t1830201334\n2026-10-08\t666668\t3660736002\n2026-10-09\t333334\t1830868002\n2026-10-10\t333334\t1831201336\n2026-10-11\t333333\t1832199336\n2026-10-13\t666666\t3664065339\n2026-10-14\t266667\t1464027321\n2026-10-15\t333333\t1832866002\n2026-10-16\t333333\t1833532668\n2026-10-18\t666666\t3667398669\n2026-10-19\t333333\t1834199334\n2026-10-20\t333333\t1834532667\n2026-10-21\t333333\t1835532666\n2026-10-23\t666666\t3670731999\n2026-10-24\t266666\t1470691998\n2026-10-25\t333333\t1836199332\n2026-10-26\t333333\t1836865998\n2026-10-28\t666666\t3674065329\n2026-10-29\t333333\t1837532664\n2026-10-30\t333333\t1837865997\n"
+    },
+    {
+     "id": "06-totals-after-optimize",
+     "repeat": 1,
+     "flags": [
+      "show"
+     ],
+     "sql": "SELECT 'truth (FINAL)' AS design, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL\nUNION ALL\nSELECT 'plain read, no FINAL', count(), sum(amount) FROM rmt_mv.orders WHERE is_deleted = 0\nUNION ALL\nSELECT 'N naive MV', sum(orders), sum(amount) FROM rmt_mv.daily_naive;",
+     "runs": [
+      {
+       "query_id": "06-totals-after-optimize",
+       "wall_s": 0.112,
+       "rc": 0,
+       "stdout": "design\torders\tamount\nN naive MV\t16000000\t87981600000\ntruth (FINAL)\t9800000\t53898480000\nplain read, no FINAL\t9800000\t53898480000\n",
+       "rows": [
+        "design\torders\tamount",
+        "N naive MV\t16000000\t87981600000",
+        "truth (FINAL)\t9800000\t53898480000",
+        "plain read, no FINAL\t9800000\t53898480000"
+       ],
+       "log": {
+        "query_duration_ms": 35,
+        "memory_usage": 4988257,
+        "read_rows": 20000030,
+        "read_bytes": 161600472,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 3,
+        "exception_code": 0,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "06-totals-after-optimize",
+        "type": "QueryFinish",
+        "events": {}
+       }
+      }
+     ],
+     "status": "ok",
+     "durations_ms": [
+      35
+     ],
+     "duration_ms": 35,
+     "memory_usage": 4988257,
+     "read_rows": 20000030,
+     "read_bytes": 161600472,
+     "written_rows": 0,
+     "written_bytes": 0,
+     "result_rows": 3,
+     "used_join_algorithms": [],
+     "used_join_kinds": [],
+     "used_number_of_joins": 0,
+     "events": {},
+     "rows": [
+      "design\torders\tamount",
+      "N naive MV\t16000000\t87981600000",
+      "truth (FINAL)\t9800000\t53898480000",
+      "plain read, no FINAL\t9800000\t53898480000"
+     ],
+     "stdout": "design\torders\tamount\nN naive MV\t16000000\t87981600000\ntruth (FINAL)\t9800000\t53898480000\nplain read, no FINAL\t9800000\t53898480000\n"
+    }
+   ]
+  },
+  "99-cleanup.sql": {
+   "setup": [
+    {
+     "id": "99-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    }
+   ],
+   "probes": []
+  },
+  "errors/01-mv-final.sql": {
+   "setup": [
+    {
+     "id": "01-setup01",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.07,
+     "sql": "DROP DATABASE IF EXISTS rmt_mv;"
+    },
+    {
+     "id": "01-setup02",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE DATABASE rmt_mv;"
+    },
+    {
+     "id": "01-setup03",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.orders (order_id UInt64, day Date, amount UInt64, ver UInt64)\nENGINE = ReplacingMergeTree(ver) ORDER BY order_id;"
+    },
+    {
+     "id": "01-setup04",
+     "ok": true,
+     "code": null,
+     "message": "",
+     "wall_s": 0.08,
+     "sql": "CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)\nENGINE = SummingMergeTree ORDER BY day;"
+    }
+   ],
+   "probes": [
+    {
+     "id": "e01-mv-with-final",
+     "repeat": 1,
+     "flags": [],
+     "sql": "CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;",
+     "runs": [
+      {
+       "query_id": "e01-mv-with-final",
+       "wall_s": 0.081,
+       "rc": 141,
+       "code": 397,
+       "message": "Received from localhost:9000. DB::Exception: MATERIALIZED VIEW cannot have PREWHERE, SAMPLE or FINAL: While processing CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv UUID '9c2f43a7-f358-4bcd-b3c5-e5cb97031977' TO rmt_mv.daily_sum (`day` Date,",
+       "stderr": "Received exception from server (version 26.10.3):\nCode: 397. DB::Exception: Received from localhost:9000. DB::Exception: MATERIALIZED VIEW cannot have PREWHERE, SAMPLE or FINAL: While processing CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv UUID '9c2f43a7-f358-4bcd-b3c5-e5cb97031977' TO rmt_mv.daily_sum (`day` Date, `orders` UInt64, `amount` UInt64) AS SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day. (QUERY_IS_NOT_SUPPORTED_IN_MATERIALIZED_VIEW)\n(query: CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS\nSELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;)\n",
+       "log": {
+        "query_duration_ms": 5,
+        "memory_usage": 161400,
+        "read_rows": 0,
+        "read_bytes": 0,
+        "written_rows": 0,
+        "written_bytes": 0,
+        "result_rows": 0,
+        "exception_code": 397,
+        "used_join_algorithms": [],
+        "used_join_kinds": [],
+        "used_number_of_joins": 0,
+        "query_id": "e01-mv-with-final",
+        "type": "ExceptionBeforeStart",
+        "events": {}
+       }
+      }
+     ],
+     "status": "error",
+     "code": 397,
+     "message": "Received from localhost:9000. DB::Exception: MATERIALIZED VIEW cannot have PREWHERE, SAMPLE or FINAL: While processing CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv UUID '9c2f43a7-f358-4bcd-b3c5-e5cb97031977' TO rmt_mv.daily_sum (`day` Date,",
+     "memory_usage": 161400,
+     "duration_ms": 5,
+     "events": {}
+    }
+   ]
+  }
+ },
+ "settings": {
+  "01-double-count.sql": [
+   {
+    "name": "deduplicate_blocks_in_dependent_materialized_views",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   },
+   {
+    "name": "optimize_on_insert",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   }
+  ],
+  "02-late-and-ties.sql": [],
+  "03-group-change-delete.sql": [
+   {
+    "name": "allow_experimental_replacing_merge_with_cleanup",
+    "exists": true,
+    "value": "0",
+    "tier": "table, Experimental"
+   },
+   {
+    "name": "enable_replacing_merge_with_cleanup_for_min_age_to_force_merge",
+    "exists": true,
+    "value": "0",
+    "tier": "table, Experimental"
+   }
+  ],
+  "04-blocks-and-retries.sql": [
+   {
+    "name": "optimize_on_insert",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   },
+   {
+    "name": "insert_deduplicate",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   },
+   {
+    "name": "deduplicate_blocks_in_dependent_materialized_views",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   },
+   {
+    "name": "non_replicated_deduplication_window",
+    "exists": true,
+    "value": "0",
+    "tier": "table, Production"
+   },
+   {
+    "name": "replicated_deduplication_window",
+    "exists": true,
+    "value": "10000",
+    "tier": "table, Production"
+   }
+  ],
+  "05-strategies.sql": [],
+  "06-scale.sql": [
+   {
+    "name": "optimize_move_to_prewhere_if_final",
+    "exists": true,
+    "value": "1",
+    "tier": "Production"
+   },
+   {
+    "name": "max_threads",
+    "exists": true,
+    "value": "auto(12)",
+    "tier": "Production"
+   },
+   {
+    "name": "max_final_threads",
+    "exists": true,
+    "value": "auto(12)",
+    "tier": "Production"
+   }
+  ],
+  "99-cleanup.sql": [],
+  "errors/01-mv-final.sql": []
+ },
+ "tag": "26.10.3.7",
+ "version": "26.10.3.7",
+ "date": "2026-11-07",
+ "machine": {
+  "ncpu": 12,
+  "mem_bytes": 8319172608,
+  "others": [
+   "ch1",
+   "ch2",
+   "sc-keeper"
+  ],
+  "others_cpu": {
+   "ch1": 18.53,
+   "sc-keeper": 0.92
+  }
+ },
+ "elapsed_s": 55
+}
