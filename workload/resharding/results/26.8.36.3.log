@@ -1,0 +1,108 @@
+ClickHouse 26.8.36.3; ROWS=12,000,000; 2026-11-07 13:44:54 KST
+other containers running: 0
+
+# selftest: does the per-partition check fire?
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 4.0 s
+   check untouched: PASS — partitions 7/7, mismatched 0
+   check one row doubled: FAIL — partitions 7/7, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (1894738, 1894737)
+   check that row deleted: FAIL — partitions 7/7, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (1894736, 1894736)
+   one value changed in 202608: count equal True, hash equal False
+
+# A. add shard 3, bias writes with <weight>
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 3.6 s
+   point lookups with optimize_skip_unused_shards=1: 0/200 users differ, 0 rows not returned
+   config picked up without a reload command: {'ch-s1r1': 0.92, 'ch-s2r1': 0.93, 'ch-s2r2': 0.93, 'ch-s3r1': 0.93, 'ch-s3r2': 0.94, 'ch-s1r2': 1.14}
+   3,000,000 new rows by shard (weights 1:1:2): {1: 751983, 2: 747167, 3: 1500850}
+   point lookups with optimize_skip_unused_shards=1: 97/200 users differ, 5,849 rows not returned
+   check rs: PASS — partitions 7/7, mismatched 0, probe acked 2400/2400 dup 0
+   new rows check: PASS ['3000000', '4581819497228877775']
+   rows per shard before {1: 6002487, 2: 5997513, 3: 0} after {1: 6755667, 2: 6745787, 3: 1500946}
+
+# D. relocate whole partitions: FETCH PARTITION + ATTACH + DROP (and MOVE PARTITION TO TABLE as a staging step)
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 3.7 s
+   shard 3 in cluster old with weight 0
+   point lookups with optimize_skip_unused_shards=1: 0/200 users differ, 0 rows not returned
+   202605 s1->s3 fetch-first: fetch 0.05 s, attach 0.05 s, drop 0.05 s
+   202606 s1->s3 fetch-first: fetch 0.03 s, attach 0.05 s, drop 0.05 s
+   202607 s2->s3 move-first: move 0.16 s, fetch 0.09 s, attach 0.04 s
+   202608 s2->s3 move-first: move 0.12 s, fetch 0.07 s, attach 0.08 s
+   prober saw doubled rows 10.1–10.12 s (up to 979,299)
+   prober saw doubled rows 12.22–12.24 s (up to 947,634)
+   prober saw missing rows 14.35–14.35 s (up to 978,703)
+   prober saw missing rows 14.41–14.56 s (up to 978,703)
+   prober saw missing rows 14.61–14.61 s (up to 333,879)
+   prober saw missing rows 14.67–14.67 s (up to 333,879)
+   prober saw missing rows 14.72–14.72 s (up to 333,879)
+   prober saw missing rows 16.75–16.75 s (up to 979,022)
+   prober saw missing rows 16.79–16.97 s (up to 979,022)
+   probe rows by shard (shard 3 weight 0): {1: 2242, 2: 2158}
+   check rs: PASS — partitions 7/7, mismatched 0, probe acked 4400/4400 dup 0
+   point lookups with optimize_skip_unused_shards=1: 200/200 users differ, 3,876 rows not returned
+   rows per shard before {1: 6002487, 2: 5997513, 3: 0} after {1: 4077796, 2: 4041946, 3: 3884658}
+
+# failure: kill the source replica that a remote() copy is reading from (ch-s2r2)
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 3.5 s
+
+## partition 202605, 1,957,895 rows, insert_deduplication_token = None, blocks default
+   killed rs-ch-s2r2 at read_rows 980023; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 300000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202605: 0 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 0/1, mismatched 1
+     202605: expected (count, uniq) (1957895, 1957895) got None
+   check after retrying (no token) without dropping: PASS — partitions 1/1, mismatched 0
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202606, 1,894,737 rows, insert_deduplication_token = None, blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000, 'receive_timeout': 30}
+   killed rs-ch-s2r2 at read_rows 949406; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 30000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202606: 968,497 of 1,894,737 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (968497, 968497)
+   check after retrying (no token) without dropping: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (2863234, 1894737)
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202607, 1,957,895 rows, insert_deduplication_token = 'reshard-202607', blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000, 'receive_timeout': 30}
+   killed rs-ch-s2r2 at read_rows 981947; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 30000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202607: 973,316 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202607: expected (count, uniq) (1957895, 1957895) got (973316, 973316)
+   check after retrying (same token) without dropping: FAIL — partitions 1/1, mismatched 1
+     202607: expected (count, uniq) (1957895, 1957895) got (2159171, 1952523)
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+   prober while copies ran and the replica was down: {'reads': 2390, 'read_errors': 0, 'read_p50_ms': 25.4, 'read_p95_ms': 37.0, 'read_max_ms': 160.7, 'reads_off_by': 0, 'reads_doubled': 0, 'reads_missing': 0, 'max_extra_rows': 0, 'max_missing_rows': 0, 'writes': 1908, 'write_errors': 0, 'write_p50_ms': 23.3, 'write_p95_ms': 47.8, 'write_max_ms': 1034.0, 'read_error_samples': [], 'write_error_samples': []}
+   probe rows written to rs during the failures: acked 96400/96400, dup 0
+
+# B. INSERT … SELECT from remote() into a new 3-shard layout, partition by partition
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 4.0 s
+   copied 202605: 1,957,895 rows in 0.4 s
+   copied 202606: 1,894,737 rows in 0.55 s
+   copied 202607: 1,957,895 rows in 0.42 s
+   copied 202608: 1,957,895 rows in 0.4 s
+   copied 202609: 1,894,736 rows in 0.4 s
+   copied 202610: 1,957,895 rows in 0.43 s
+   check rs_new before cut-over: FAIL — partitions 6/7, mismatched 1, probe acked 0/2700 dup 0
+     202611: expected (count, uniq) (378947, 378947) got None
+   cut-over: writes frozen 0.31 s (hot partition 202611, 378,947 base rows + probe rows, copy 0.17 s)
+   check rs_new: PASS — partitions 7/7, mismatched 0, probe acked 4700/4700 dup 0
+   point lookups with optimize_skip_unused_shards=1: 0/200 users differ, 0 rows not returned
+   rows per shard before {1: 6002487, 2: 5997513, 3: 0} after {1: 4017368, 2: 3973248, 3: 4014084}
+
+## fault injection on rs_new (event_id 3852632, partition 202607)
+   check after doubling one row: FAIL — partitions 7/7, mismatched 1, probe acked 4700/4700 dup 0
+     202607: expected (count, uniq) (1957895, 1957895) got (1957896, 1957895)
+   check after deleting it (both copies): FAIL — partitions 7/7, mismatched 1, probe acked 4700/4700 dup 0
+     202607: expected (count, uniq) (1957895, 1957895) got (1957894, 1957894)
+   check after re-copying it once: PASS — partitions 7/7, mismatched 0, probe acked 4700/4700 dup 0
+
+done

@@ -1,0 +1,79 @@
+ClickHouse 26.8.36.3; ROWS=12,000,000; 2026-11-07 13:18:58 KST
+other containers running: 7
+
+# selftest: does the per-partition check fire?
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 4.5 s
+   check untouched: PASS — partitions 7/7, mismatched 0
+   check one row doubled: FAIL — partitions 7/7, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (1894738, 1894737)
+   check that row deleted: FAIL — partitions 7/7, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (1894736, 1894736)
+   one value changed in 202608: count equal True, hash equal False
+
+# A. add shard 3, bias writes with <weight>
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 3.8 s
+   point lookups with optimize_skip_unused_shards=1: 0/200 users differ, 0 rows not returned
+   config picked up without a reload command: {'ch-s1r1': 1.57, 'ch-s2r1': 1.58, 'ch-s2r2': 1.58, 'ch-s1r2': 1.79, 'ch-s3r1': 1.79, 'ch-s3r2': 2.0}
+   3,000,000 new rows by shard (weights 1:1:2): {1: 751983, 2: 747167, 3: 1500850}
+   point lookups with optimize_skip_unused_shards=1: 97/200 users differ, 5,849 rows not returned
+   check rs: PASS — partitions 7/7, mismatched 0, probe acked 2600/2600 dup 0
+   new rows check: PASS ['3000000', '4581819497228877775']
+   rows per shard before {1: 6002487, 2: 5997513, 3: 0} after {1: 6755736, 2: 6745856, 3: 1501008}
+
+# D. relocate whole partitions: FETCH PARTITION + ATTACH + DROP (and MOVE PARTITION TO TABLE as a staging step)
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 4.0 s
+   shard 3 in cluster old with weight 0
+   point lookups with optimize_skip_unused_shards=1: 0/200 users differ, 0 rows not returned
+   202605 s1->s3 fetch-first: fetch 0.25 s, attach 0.13 s, drop 0.22 s
+   202606 s1->s3 fetch-first: fetch 0.15 s, attach 0.06 s, drop 0.1 s
+   202607 s2->s3 move-first: move 0.17 s, fetch 0.06 s, attach 0.04 s
+   202608 s2->s3 move-first: move 0.1 s, fetch 0.11 s, attach 0.04 s
+   prober saw doubled rows 10.34–10.34 s (up to 857,347)
+   prober saw doubled rows 10.53–10.53 s (up to 979,299)
+   prober saw missing rows 10.62–10.62 s (up to 857,347)
+   prober saw doubled rows 12.85–12.85 s (up to 947,634)
+   prober saw missing rows 14.99–14.99 s (up to 978,703)
+   prober saw missing rows 15.06–15.31 s (up to 978,703)
+   prober saw missing rows 17.33–17.5 s (up to 979,022)
+   prober saw missing rows 17.56–17.56 s (up to 979,022)
+   probe rows by shard (shard 3 weight 0): {1: 2295, 2: 2205}
+   check rs: PASS — partitions 7/7, mismatched 0, probe acked 4500/4500 dup 0
+   point lookups with optimize_skip_unused_shards=1: 200/200 users differ, 3,876 rows not returned
+   rows per shard before {1: 6002487, 2: 5997513, 3: 0} after {1: 4077849, 2: 4041993, 3: 3884658}
+
+# failure: kill the source replica that a remote() copy is reading from (ch-s2r2)
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 4.0 s
+
+## partition 202605, 1,957,895 rows, insert_deduplication_token = None, blocks default
+   killed rs-ch-s2r2 at read_rows 983040; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 300000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202605: 0 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 0/1, mismatched 1
+     202605: expected (count, uniq) (1957895, 1957895) got None
+   check after retrying (no token) without dropping: PASS — partitions 1/1, mismatched 0
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202606, 1,894,737 rows, insert_deduplication_token = None, blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000, 'receive_timeout': 30}
+   killed rs-ch-s2r2 at read_rows 966656; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 30000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202606: 1,070,651 of 1,894,737 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (1070651, 1070651)
+   check after retrying (no token) without dropping: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (2965388, 1894737)
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202607, 1,957,895 rows, insert_deduplication_token = 'reshard-202607', blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000, 'receive_timeout': 30}
+   killed rs-ch-s2r2 at read_rows 983040; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 30000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202607: 1,073,184 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202607: expected (count, uniq) (1957895, 1957895) got (1073184, 1073184)
+   check after retrying (same token) without dropping: FAIL — partitions 1/1, mismatched 1
+     202607: expected (count, uniq) (1957895, 1957895) got (1960631, 1944417)
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0

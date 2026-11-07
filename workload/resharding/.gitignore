@@ -1,0 +1,5 @@
+# written by run.py
+conf.d/clusters.xml
+# run transcripts are results: keep them despite the root *.log rule
+!results/*.log
+!results/earlier-runs/*.log

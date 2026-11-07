@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resharding a self-managed ClickHouse cluster: 2 → 3 shards · ClickHouse HOLs</title>
+<meta name="description" content="Resharding a self-managed ClickHouse cluster: 2 → 3 shards — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/resharding</code>
+    
+  </nav>
+  <div class="readme en"><h1>Resharding a self-managed ClickHouse cluster: 2 → 3 shards</h1>
+<hr />
+<p>ClickHouse OSS does not rebalance shards. The "Rebalancing Data" guide says so in its first sentence and lists four
+manual ways, in order of preference (read 2026-11-07 at ClickHouse/ClickHouse <code>e73957f</code>,
+<code>docs/guides/oss/deployment-and-scaling/scaling-clusters.mdx</code>). This lab runs them on a local cluster — ClickHouse
+Keeper, two shards of two replicas, then a third shard — and measures each one: rows per shard before and after,
+how long it took, what a background reader and writer saw during the move, and a per-partition check of what was
+copied. One failure case kills a source replica in the middle of a copy.</p>
+<p><strong>Verified on ClickHouse 26.8.36.3 (LTS), 2026-11-07</strong> — one end-to-end <code>run.py all</code> started 13:44 KST, server and Keeper
+from the <code>clickhouse/clickhouse-server:26.8.36.3</code> image, Docker Desktop VM with 12 CPUs and 7.7 GiB, no other containers
+running. Nothing here has been run on another version. Earlier runs the same day are in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/resharding/results/earlier-runs"><code>results/earlier-runs/</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What moves</th>
+<th>Run here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. New shard + <code>&lt;weight&gt;</code></td>
+<td>nothing; new writes are biased to the new shard</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>B. <code>INSERT … SELECT</code> from <code>remote()</code> into a new 3-shard layout</td>
+<td>every row, re-hashed</td>
+<td>yes (<code>remote</code>, not <code>remoteSecure</code>)</td>
+</tr>
+<tr>
+<td>C. <code>clickhouse-copier</code></td>
+<td>every row</td>
+<td><strong>no</strong> — moved out of the bundle in 24.3, "no longer supported" (see below)</td>
+</tr>
+<tr>
+<td>D. <code>FETCH PARTITION</code> + <code>ATTACH</code> + <code>DROP</code> (and <code>MOVE PARTITION TO TABLE</code> as a staging step)</td>
+<td>whole partitions</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<h3>Run it</h3>
+<p>Needs Docker (about 3–4 GB free for the seven containers) and Python 3; no Python packages.</p>
+<pre><code class="language-bash">cd workload/resharding
+python3 run.py up          # Keeper + 6 servers; HTTP on 127.0.0.1:18201-18206
+python3 run.py all         # selftest, A, D, failure, B -&gt; results/&lt;version&gt;.json and .log (about 17 min, 6 of them waiting on timeouts)
+python3 report.py          # RESULTS.md and images/d-reads-&lt;version&gt;.svg from the JSON
+python3 run.py down        # removes containers and volumes
+</code></pre>
+<p><code>python3 run.py a</code> (or <code>b</code>, <code>d</code>, <code>fail</code>, <code>selftest</code>) runs one option from a fresh 2-shard state and writes
+<code>results/&lt;version&gt;-&lt;option&gt;.json</code>; <code>python3 run.py resume b d</code> runs steps into the existing <code>results/&lt;version&gt;.json</code>.
+<code>ROWS=600000 python3 run.py all</code> is a quick pass. <code>CH_IMAGE=…</code> picks another image for <code>up</code>.</p>
+<h3>Set-up</h3>
+<ul>
+<li><code>docker-compose.yml</code>: <code>keeper</code> (single node, 512 MiB) and <code>ch-s{1,2,3}r{1,2}</code>, each capped at 2 CPUs and 900 MiB
+  (<code>ch-s1r1</code>, which runs every copy and the prober, 1,400 MiB). The six
+  servers share <code>conf.d/</code> and <code>users.d/</code>; <code>{shard}</code> and <code>{replica}</code> come from the container environment
+  (<code>&lt;shard from_env="SHARD"/&gt;</code>).</li>
+<li><code>conf.d/clusters.xml</code> is written by <code>run.py</code> (not tracked). Cluster <code>old</code> starts as shards 1–2; cluster <code>new3</code> is
+  shards 1–3. Every option starts from the same state: database <code>rs</code>, 12,000,000 rows from 2026-05-01 to 2026-11-07
+  (7 monthly partitions), <code>ReplicatedMergeTree</code> partitioned by <code>toYYYYMM(ts)</code>, <code>Distributed(old, rs, events_local, cityHash64(user_id))</code>.</li>
+<li>In B the "new cluster" is database <code>rs_new</code> on the same six servers (<code>Distributed(new3, …)</code>). A real new cluster
+  has its own disks and network; here the copy competes with the source for the same CPUs and disks.</li>
+<li><strong>Prober</strong> (<code>Prober</code> in <code>run.py</code>): a reader runs <code>SELECT count()</code> of the base rows through the Distributed table
+  every 0.2 s (every 0.02 s in D), and a writer inserts 50 rows every 0.25 s with <code>distributed_foreground_insert = 1</code>.
+  Both go to <code>ch-s1r1</code>. A read is "doubled" or "missing" when its count differs from the snapshot.</li>
+<li><strong>Check</strong> (<code>check</code> in <code>run.py</code>): per partition <code>count()</code>, <code>uniqExact(event_id)</code> and
+  <code>sum(cityHash64(&lt;all columns&gt;))</code> of the base rows against the snapshot taken before the move, after
+  <code>SYSTEM SYNC REPLICA</code> on every replica; plus every acknowledged probe row present exactly once. The selftest
+  proves it fires: one row inserted twice, then deleted, then one value changed with the count unchanged.</li>
+</ul>
+<h3>Results</h3>
+<p>Full tables: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/RESULTS.md">RESULTS.md</a>. Rows per shard (shard 1 / 2 / 3, local <code>count()</code> on the first replica, including the
+prober's rows):</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Before</th>
+<th>After</th>
+<th>Took</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. weights 1:1:2 + 3,000,000 new rows</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>6,755,667 / 6,745,787 / 1,500,946</td>
+<td>config picked up in 0.92–1.14 s</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>B. <code>remote()</code> copy, 6 partitions online + hot partition in a write freeze</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>4,017,368 / 3,973,248 / 4,014,084</td>
+<td>2.6 s bulk, 0.31 s write freeze</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>D. 2 partitions from each old shard to shard 3</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>4,077,796 / 4,041,946 / 3,884,658</td>
+<td>0.10–0.30 s per partition</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>A.</strong> Rewriting <code>clusters.xml</code> on the host was enough; every server showed shard 3 after 0.92–1.14 s without
+  <code>SYSTEM RELOAD CONFIG</code> (earlier runs: 0.92–1.15 s, 1.57–2.00 s). The 3,000,000 new rows went 751,983 / 747,167 /
+  1,500,850; the old rows did not move. Point lookups with <code>optimize_skip_unused_shards = 1</code> went wrong: 97 of 200 users
+  got fewer rows than without it (5,849 rows not returned), because the sharding expression now sends half of the users
+  to a shard that does not hold their old rows. Before the change, 0 of 200 differed.</li>
+<li><strong>B.</strong> Each partition of about 1.9 million rows copied in 0.40–0.55 s. The check before the cut-over failed as it
+  should: the hot partition (202611) was not there yet and none of the 2,700 rows the writer had acknowledged during
+  the copy were in the new table. Freezing writes, copying 202611 (378,947 rows + probe rows) and switching took
+  0.31 s; then the check passed, the replicas of each shard agreed, and point lookups with
+  <code>optimize_skip_unused_shards = 1</code> were right for 200 of 200 users. The reader and writer saw no errors.</li>
+<li><strong>D.</strong> <code>FETCH PARTITION</code> from the other shard's Keeper path, <code>ATTACH</code>, then <code>DROP</code> on the source took 0.10 s per
+  partition; a reader every 20 ms saw the partition <strong>doubled</strong> in 2 reads each time. <code>MOVE PARTITION … TO TABLE</code> a
+  staging table first, then fetching from the staging table's path, took 0.27–0.30 s and readers saw the partition
+  <strong>missing</strong> for 0.2–0.4 s. Replicas widen the window: after <code>ATTACH</code>, reads alternated between 0 and −333,879 rows
+  while the second replica of shard 3 was still fetching. Weight 0 for shard 3 was accepted and kept hashed writes off
+  it (probe rows 2,242 / 2,158 / 0). Afterwards every point lookup with <code>optimize_skip_unused_shards = 1</code> was wrong
+  (200 of 200 users, 3,876 rows not returned): placement now follows the partition, not the hash.</li>
+<li><strong>C.</strong> Not run. <code>clickhouse-copier</code> was moved to ClickHouse/copier in 24.3 (changelog v24.3.1.2672-lts: "no longer
+  included in the bundle"); that repository's README says "This tool is no longer supported" and has one release,
+  <code>final</code> (2024-03-11).</li>
+</ul>
+<p><img alt="reads during D" src="images/d-reads-26.8.36.3.svg" /></p>
+<h3>Failure: a source replica killed during a copy</h3>
+<p><code>docker kill rs-ch-s2r2</code> when the copy had read half of a partition. The copy read replica 2 of each shard first
+(<code>remote('ch-s1r2|ch-s1r1,ch-s2r2|ch-s2r1', …)</code>, <code>load_balancing = 'in_order'</code>) and wrote to replica 1, so the killed node
+was only a source. Copies were throttled to 2 MB/s (<code>max_network_bandwidth</code>; unthrottled a partition took ~0.4 s). Each
+variant: kill, retry once with the replica still down, bring it back, <code>DROP PARTITION</code> on the new table, copy again.</p>
+<table>
+<thead>
+<tr>
+<th>Partition</th>
+<th>Copy settings</th>
+<th>Failure</th>
+<th>Left behind</th>
+<th>Retry as is</th>
+<th><code>DROP PARTITION</code> + copy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>202605 (1,957,895)</td>
+<td>default blocks, default <code>receive_timeout</code> (300 s)</td>
+<td>Code 209 after 300 s</td>
+<td>0</td>
+<td>PASS</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>202606 (1,894,737)</td>
+<td>100,000-row blocks, <code>receive_timeout = 30</code></td>
+<td>Code 209 after 30 s</td>
+<td>968,497</td>
+<td>FAIL: 2,863,234 rows (1,894,737 distinct)</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>202607 (1,957,895)</td>
+<td>as above + <code>insert_deduplication_token</code></td>
+<td>Code 209 after 30 s</td>
+<td>973,316</td>
+<td>FAIL: 2,159,171 rows (1,952,523 distinct)</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>A killed container does not close the connection: the copy waited the whole <code>receive_timeout</code> and failed with
+  <code>SOCKET_TIMEOUT</code>; it did not fail over to the other replica listed with <code>|</code>. The retry, started with the replica down,
+  connected to the live one.</li>
+<li>With default block sizes nothing was left behind (each destination shard had fewer rows than
+  <code>min_insert_block_size_rows</code>, 1,048,449, so no part had been written yet — an inference, not measured).</li>
+<li>A retry without dropping doubled rows; a retry with the same <code>insert_deduplication_token</code> both doubled and lost rows.
+  Across four runs of that variant on 2026-11-07 it was exact once (<code>results/earlier-runs/</code>). Only
+  <code>DROP PARTITION</code> + copy was right every time.</li>
+<li>The prober's 2,390 reads and 1,908 writes during the failures all succeeded; the 96,400 acknowledged rows were all in
+  the old table exactly once.</li>
+</ul>
+<h3>Screens</h3>
+<p>ClickHouse's built-in <code>/play</code> on <code>ch-s1r1</code> at the end of the run (state after B), captured with the notes site's
+<code>scripts/capture-play.mjs</code>:</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/01-clusters.webp"><code>images/01-clusters.webp</code></a> — <code>system.clusters</code>: <code>old</code> = shards 1–2, <code>new3</code> = shards 1–3, weights 1</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/02-rows-per-shard.webp"><code>images/02-rows-per-shard.webp</code></a> — base rows per shard: old 6,002,487 / 5,997,513, new 4,015,791 / 3,971,684 / 4,012,525</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/03-partition-check.webp"><code>images/03-partition-check.webp</code></a> — the per-partition check on <code>rs_new.events</code>, 7 partitions, <code>rows</code> = <code>ids</code></li>
+</ul>
+<h3>Not verified here</h3>
+<ul>
+<li><code>remoteSecure</code>: the lab has no TLS. It is <code>remote</code> over the secure native port; not run.</li>
+<li><code>clickhouse-copier</code>: not built or run (see C).</li>
+<li>A graceful restart, a network partition, or a destination replica failing; only a source replica was killed.</li>
+<li>Any version other than 26.8.36.3; a multi-node Keeper; a Keeper outage; a source with its own disks and network
+  (B shares the six servers); data larger than 12,000,000 rows (the times above are for ~2 million-row partitions
+  on one machine and do not predict a production copy).</li>
+<li>A write freeze for a hot partition much larger than 378,947 rows, and a watermark-based catch-up instead of a freeze.</li>
+<li>Materialized views, projections, dictionaries or <code>ON CLUSTER</code> DDL running during the move.</li>
+</ul>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.py</code></td>
+<td>the lab: topology, data, prober, check, options A/B/D, failure case, selftest</td>
+</tr>
+<tr>
+<td><code>report.py</code></td>
+<td><code>results/&lt;version&gt;.json</code> → <code>RESULTS.md</code>, <code>images/d-reads-&lt;version&gt;.svg</code></td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code>, <code>conf.d/</code>, <code>users.d/</code>, <code>keeper/</code></td>
+<td>the cluster</td>
+</tr>
+<tr>
+<td><code>results/</code></td>
+<td>JSON and transcript of each run</td>
+</tr>
+<tr>
+<td><code>images/</code></td>
+<td>the D timeline and the screens</td>
+</tr>
+</tbody>
+</table>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse OSS는 샤드를 재분배하지 않습니다. 문서의 "Rebalancing Data" 가이드가 첫 문장에서 그렇게 말하고, 수작업 방법 네
+가지를 선호 순서대로 듭니다(2026-11-07, ClickHouse/ClickHouse <code>e73957f</code>의
+<code>docs/guides/oss/deployment-and-scaling/scaling-clusters.mdx</code>). 이 실습은 로컬 클러스터(ClickHouse Keeper, 레플리카 2개인
+샤드 2개, 그다음 세 번째 샤드)에서 그 방법들을 실행하고 샤드별 행 수, 걸린 시간, 이동 중 백그라운드 읽기 · 쓰기가 본 것,
+파티션별 검증을 잽니다. 장애 사례로 복사 도중 원본 레플리카를 죽입니다.</p>
+<p><strong>검증: ClickHouse 26.8.36.3(LTS), 2026-11-07.</strong> 13:44 KST에 시작한 <code>run.py all</code> 한 번, 서버와 Keeper 모두
+<code>clickhouse/clickhouse-server:26.8.36.3</code> 이미지, Docker Desktop VM(12 CPU · 7.7 GiB), 다른 컨테이너 없음. 다른 버전에서는
+실행하지 않았습니다. 같은 날 앞선 실행은 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/resharding/results/earlier-runs"><code>results/earlier-runs/</code></a>에 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>옮기는 것</th>
+<th>여기서 실행</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. 새 샤드 + <code>&lt;weight&gt;</code></td>
+<td>없음. 새 쓰기만 새 샤드로 기울임</td>
+<td>예</td>
+</tr>
+<tr>
+<td>B. <code>remote()</code>에서 <code>INSERT … SELECT</code>로 새 3샤드 배치에</td>
+<td>모든 행, 다시 해시</td>
+<td>예(<code>remote</code>, <code>remoteSecure</code>는 아님)</td>
+</tr>
+<tr>
+<td>C. <code>clickhouse-copier</code></td>
+<td>모든 행</td>
+<td><strong>아니요</strong> — 24.3에서 번들에서 빠졌고 "no longer supported"</td>
+</tr>
+<tr>
+<td>D. <code>FETCH PARTITION</code> + <code>ATTACH</code> + <code>DROP</code>(스테이징으로 <code>MOVE PARTITION TO TABLE</code>)</td>
+<td>파티션 단위</td>
+<td>예</td>
+</tr>
+</tbody>
+</table>
+<h3>실행</h3>
+<p>Docker(컨테이너 7개에 약 3–4 GB 여유)와 Python 3만 있으면 됩니다. Python 패키지는 필요 없습니다.</p>
+<pre><code class="language-bash">cd workload/resharding
+python3 run.py up          # Keeper + 서버 6대, HTTP 127.0.0.1:18201-18206
+python3 run.py all         # selftest, A, D, 장애, B -&gt; results/&lt;version&gt;.json · .log (약 17분, 그중 6분은 타임아웃 대기)
+python3 report.py          # JSON에서 RESULTS.md와 images/d-reads-&lt;version&gt;.svg
+python3 run.py down        # 컨테이너와 볼륨 삭제
+</code></pre>
+<p><code>python3 run.py a</code>(또는 <code>b</code>, <code>d</code>, <code>fail</code>, <code>selftest</code>)는 새 2샤드 상태에서 방법 하나만 실행하고
+<code>results/&lt;version&gt;-&lt;option&gt;.json</code>을 씁니다. <code>python3 run.py resume b d</code>는 기존 <code>results/&lt;version&gt;.json</code>에 이어서 실행합니다.
+<code>ROWS=600000 python3 run.py all</code>은 빠른 확인용입니다.</p>
+<h3>구성</h3>
+<ul>
+<li><code>docker-compose.yml</code>: <code>keeper</code>(노드 하나, 512 MiB)와 <code>ch-s{1,2,3}r{1,2}</code>, 서버마다 2 CPU · 900 MiB 상한(복사와 프로버를
+  실행하는 <code>ch-s1r1</code>만 1,400 MiB). 여섯 서버가 <code>conf.d/</code> ·
+  <code>users.d/</code>를 같이 쓰고 <code>{shard}</code> · <code>{replica}</code>는 컨테이너 환경 변수에서 옵니다.</li>
+<li><code>conf.d/clusters.xml</code>은 <code>run.py</code>가 씁니다(추적하지 않음). 클러스터 <code>old</code>는 샤드 1–2로 시작하고 <code>new3</code>는 샤드 1–3입니다.
+  모든 방법이 같은 상태에서 시작합니다: 데이터베이스 <code>rs</code>, 2026-05-01–2026-11-07의 1,200만 행(월 파티션 7개),
+  <code>toYYYYMM(ts)</code>로 파티션한 <code>ReplicatedMergeTree</code>, <code>Distributed(old, rs, events_local, cityHash64(user_id))</code>.</li>
+<li>B의 "새 클러스터"는 같은 여섯 서버 위의 데이터베이스 <code>rs_new</code>입니다. 실제 새 클러스터는 디스크와 네트워크가 따로지만
+  여기서는 복사가 원본과 같은 CPU · 디스크를 나눠 씁니다.</li>
+<li><strong>프로버</strong>: 읽기는 0.2초마다(D에서는 0.02초) Distributed 테이블로 기준 행의 <code>count()</code>, 쓰기는 0.25초마다 50행을
+  <code>distributed_foreground_insert = 1</code>로 넣습니다. 둘 다 <code>ch-s1r1</code>로 갑니다. 읽은 수가 스냅숏과 다르면 "doubled" · "missing"입니다.</li>
+<li><strong>검증</strong>: 모든 레플리카에서 <code>SYSTEM SYNC REPLICA</code> 뒤, 파티션별 <code>count()</code> · <code>uniqExact(event_id)</code> ·
+  <code>sum(cityHash64(&lt;모든 컬럼&gt;))</code>을 이동 전 스냅숏과 비교하고, 확인 응답을 받은 프로브 행이 정확히 한 번씩 있는지 봅니다.
+  selftest가 검증이 실제로 잡는지 증명합니다(행 하나 두 번 넣기, 지우기, 행 수는 같고 값 하나만 바꾸기).</li>
+</ul>
+<h3>결과</h3>
+<p>전체 표: <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/RESULTS.md">RESULTS.md</a>. 샤드별 행 수(샤드 1 / 2 / 3, 첫 레플리카의 로컬 <code>count()</code>, 프로브 행 포함):</p>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>전</th>
+<th>후</th>
+<th>걸린 시간</th>
+<th>검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. 가중치 1:1:2 + 새 행 300만</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>6,755,667 / 6,745,787 / 1,500,946</td>
+<td>설정 반영 0.92–1.14초</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>B. <code>remote()</code> 복사, 파티션 6개 온라인 + 쓰기 동결 중 핫 파티션</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>4,017,368 / 3,973,248 / 4,014,084</td>
+<td>일괄 2.6초, 쓰기 동결 0.31초</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>D. 옛 샤드마다 파티션 2개를 샤드 3으로</td>
+<td>6,002,487 / 5,997,513 / 0</td>
+<td>4,077,796 / 4,041,946 / 3,884,658</td>
+<td>파티션마다 0.10–0.30초</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>A.</strong> 호스트에서 <code>clusters.xml</code>을 고치는 것으로 충분했습니다. <code>SYSTEM RELOAD CONFIG</code> 없이 0.92–1.14초 뒤 모든 서버가
+  샤드 3을 보였습니다(앞선 실행 0.92–1.15초, 1.57–2.00초). 새 행 300만은 751,983 / 747,167 / 1,500,850으로 갔고 옛 행은
+  움직이지 않았습니다. <code>optimize_skip_unused_shards = 1</code> 점 조회는 틀렸습니다. 사용자 200명 중 97명이 설정 없이보다 적은
+  행을 받았습니다(5,849행 누락). 샤딩 식이 이제 사용자 절반을 옛 행이 없는 샤드로 보내기 때문입니다. 변경 전에는 0명이었습니다.</li>
+<li><strong>B.</strong> 약 190만 행 파티션 하나가 0.40–0.55초에 복사됐습니다. 컷오버 전 검증은 예상대로 실패했습니다. 핫 파티션
+  (202611)이 아직 없었고, 복사 중 쓰기가 확인 응답을 받은 2,700행이 새 테이블에 하나도 없었습니다. 쓰기를 멈추고 202611
+  (378,947행 + 프로브 행)을 복사하고 전환하는 데 0.31초가 걸렸고, 그 뒤 검증 PASS, 샤드마다 레플리카 행 수 일치,
+  <code>optimize_skip_unused_shards = 1</code> 점 조회 200명 모두 정확했습니다. 읽기 · 쓰기 오류는 없었습니다.</li>
+<li><strong>D.</strong> 다른 샤드의 Keeper 경로에서 <code>FETCH PARTITION</code>, <code>ATTACH</code>, 원본에서 <code>DROP</code>이 파티션마다 0.10초였고, 20ms마다 읽는
+  쪽이 매번 읽기 2번에서 그 파티션을 <strong>두 번</strong> 봤습니다. 먼저 <code>MOVE PARTITION … TO TABLE</code>로 스테이징 테이블에 옮긴 뒤 그
+  경로에서 가져오면 0.27–0.30초였고 읽는 쪽은 0.2–0.4초 동안 그 파티션을 <strong>못</strong> 봤습니다. 레플리카가 구간을 넓혔습니다.
+  <code>ATTACH</code> 뒤 샤드 3의 두 번째 레플리카가 아직 가져오는 동안 읽기가 0과 −333,879행을 오갔습니다. 샤드 3의 가중치 0은
+  허용됐고 해시 쓰기가 샤드 3으로 가지 않았습니다(프로브 행 2,242 / 2,158 / 0). 이동 뒤 <code>optimize_skip_unused_shards = 1</code>
+  점 조회는 모든 사용자에서 틀렸습니다(200명 중 200명, 3,876행 누락). 행 위치가 해시가 아니라 파티션을 따르기 때문입니다.</li>
+<li><strong>C.</strong> 실행하지 않았습니다. <code>clickhouse-copier</code>는 24.3에서 ClickHouse/copier로 옮겨졌고(변경 이력 v24.3.1.2672-lts,
+  "no longer included in the bundle"), 그 저장소 README는 "This tool is no longer supported"이며 릴리스는 <code>final</code>
+  (2024-03-11) 하나입니다.</li>
+</ul>
+<p><img alt="D 동안의 읽기" src="images/d-reads-26.8.36.3.svg" /></p>
+<h3>장애: 복사 중 원본 레플리카 종료</h3>
+<p>복사가 파티션 절반을 읽었을 때 <code>docker kill rs-ch-s2r2</code>. 복사는 샤드마다 레플리카 2를 먼저 읽고
+(<code>remote('ch-s1r2|ch-s1r1,ch-s2r2|ch-s2r1', …)</code>, <code>load_balancing = 'in_order'</code>) 레플리카 1에 쓰므로 죽인 노드는 원본일
+뿐입니다. 복사는 초당 2 MB로 늦췄습니다(<code>max_network_bandwidth</code>, 제한 없이는 파티션 하나 약 0.4초). 변형마다 죽이기,
+레플리카가 죽은 채로 한 번 재실행, 레플리카 복구, 새 테이블에서 <code>DROP PARTITION</code>, 다시 복사.</p>
+<table>
+<thead>
+<tr>
+<th>파티션</th>
+<th>복사 설정</th>
+<th>실패</th>
+<th>남은 행</th>
+<th>그대로 재실행</th>
+<th><code>DROP PARTITION</code> + 복사</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>202605(1,957,895)</td>
+<td>기본 블록, 기본 <code>receive_timeout</code>(300초)</td>
+<td>300초 뒤 Code 209</td>
+<td>0</td>
+<td>PASS</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>202606(1,894,737)</td>
+<td>블록 10만 행, <code>receive_timeout = 30</code></td>
+<td>30초 뒤 Code 209</td>
+<td>968,497</td>
+<td>FAIL: 2,863,234행(고유 1,894,737)</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>202607(1,957,895)</td>
+<td>위와 같음 + <code>insert_deduplication_token</code></td>
+<td>30초 뒤 Code 209</td>
+<td>973,316</td>
+<td>FAIL: 2,159,171행(고유 1,952,523)</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>죽은 컨테이너는 연결을 닫지 않습니다. 복사는 <code>receive_timeout</code>을 다 기다린 뒤 <code>SOCKET_TIMEOUT</code>으로 실패했고 <code>|</code>로 둔
+  다른 레플리카로 넘어가지 않았습니다. 레플리카가 죽은 채로 시작한 재실행은 살아 있는 레플리카로 연결했습니다.</li>
+<li>기본 블록 크기에서는 아무것도 남지 않았습니다(대상 샤드마다 받은 행이 <code>min_insert_block_size_rows</code> 1,048,449보다 적어
+  아직 파트를 쓰기 전이었던 것으로 추정, 측정하지 않음).</li>
+<li>지우지 않고 재실행하면 중복됐고, 같은 <code>insert_deduplication_token</code>으로 재실행하면 중복과 누락이 섞였습니다. 2026-11-07에
+  이 변형을 네 번 돌려 한 번만 정확했습니다(<code>results/earlier-runs/</code>). <code>DROP PARTITION</code> + 복사만 매번 정확했습니다.</li>
+<li>장애 동안 프로버의 읽기 2,390번 · 쓰기 1,908번은 모두 성공했고, 확인 응답을 받은 96,400행은 모두 옛 테이블에 정확히
+  한 번씩 있었습니다.</li>
+</ul>
+<h3>화면</h3>
+<p>실행이 끝난 뒤(B 이후 상태) <code>ch-s1r1</code>의 내장 <code>/play</code>, 노트 사이트의 <code>scripts/capture-play.mjs</code>로 캡처했습니다.</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/01-clusters.webp"><code>images/01-clusters.webp</code></a> — <code>system.clusters</code>: <code>old</code> = 샤드 1–2, <code>new3</code> = 샤드 1–3, 가중치 1</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/02-rows-per-shard.webp"><code>images/02-rows-per-shard.webp</code></a> — 샤드별 기준 행: 옛 6,002,487 / 5,997,513, 새 4,015,791 / 3,971,684 / 4,012,525</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/images/03-partition-check.webp"><code>images/03-partition-check.webp</code></a> — <code>rs_new.events</code>의 파티션별 검증, 파티션 7개, <code>rows</code> = <code>ids</code></li>
+</ul>
+<h3>여기서 확인하지 않은 것</h3>
+<ul>
+<li><code>remoteSecure</code>: 실습에 TLS가 없습니다. 보안 네이티브 포트 위의 <code>remote</code>이며 실행하지 않았습니다.</li>
+<li><code>clickhouse-copier</code>: 빌드하거나 실행하지 않았습니다.</li>
+<li>우아한 재시작, 네트워크 분리, 대상 레플리카 장애. 죽인 것은 원본 레플리카 하나뿐입니다.</li>
+<li>26.8.36.3 외 버전, 여러 노드 Keeper, Keeper 장애, 디스크와 네트워크가 따로인 원본(B는 여섯 서버를 같이 씀),
+  1,200만 행보다 큰 데이터(위 시간은 한 대의 머신에서 약 200만 행 파티션 기준이고 운영 환경 복사 시간을 예측하지 않음).</li>
+<li>378,947행보다 훨씬 큰 핫 파티션의 쓰기 동결, 동결 대신 워터마크로 따라잡기.</li>
+<li>이동 중 materialized view, projection, 딕셔너리, <code>ON CLUSTER</code> DDL.</li>
+</ul>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.py</code></td>
+<td>실습 본체: 토폴로지, 데이터, 프로버, 검증, 방법 A/B/D, 장애 사례, selftest</td>
+</tr>
+<tr>
+<td><code>report.py</code></td>
+<td><code>results/&lt;version&gt;.json</code> → <code>RESULTS.md</code>, <code>images/d-reads-&lt;version&gt;.svg</code></td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code>, <code>conf.d/</code>, <code>users.d/</code>, <code>keeper/</code></td>
+<td>클러스터</td>
+</tr>
+<tr>
+<td><code>results/</code></td>
+<td>실행별 JSON과 기록</td>
+</tr>
+<tr>
+<td><code>images/</code></td>
+<td>D 타임라인과 화면</td>
+</tr>
+</tbody>
+</table></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/resharding"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/replacingmergetree-mv/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Aggregating materialized views over ReplacingMergeTree</span></a><a class="step next" href="../../../labs/workload/mv-uniq-state-size/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Distinct-count state size in materialized-view rollups</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Keeper + 6 ClickHouse servers: shards 1-2 (the "old" cluster, 2 replicas each) and shard 3 (added during the lab).
+# Sized for an 8 GB Docker VM: each server is capped at 2 CPUs and 900 MiB (ch-s1r1 1400 MiB); conf.d/common.xml lowers the caches.
+# HTTP is published on 127.0.0.1 only (18201-18206); the default user has no password inside this lab network.
+x-ch: &ch
+  image: ${CH_IMAGE:-clickhouse/clickhouse-server:26.8.36.3}
+  depends_on: [keeper]
+  mem_limit: 900m
+  cpus: 2
+  ulimits: { nofile: { soft: 262144, hard: 262144 } }
+  environment: &chenv
+    CLICKHOUSE_SKIP_USER_SETUP: "1"
+  volumes:
+    - ./conf.d:/etc/clickhouse-server/config.d:ro
+    - ./users.d:/etc/clickhouse-server/users.d:ro
+
+services:
+  keeper:
+    image: ${CH_IMAGE:-clickhouse/clickhouse-server:26.8.36.3}
+    container_name: rs-keeper
+    hostname: keeper
+    entrypoint: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper.xml"]
+    mem_limit: 512m
+    cpus: 1
+    volumes:
+      - ./keeper/keeper.xml:/etc/clickhouse-keeper/keeper.xml:ro
+
+  # ch-s1r1 runs every copy and the prober: 900 MiB was not enough for a 2-million-row INSERT … SELECT after a few resets
+  ch-s1r1: { <<: *ch, mem_limit: 1400m, container_name: rs-ch-s1r1, hostname: ch-s1r1, ports: ["127.0.0.1:18201:8123"], environment: { <<: *chenv, SHARD: "01", REPLICA: ch-s1r1 } }
+  ch-s1r2: { <<: *ch, container_name: rs-ch-s1r2, hostname: ch-s1r2, ports: ["127.0.0.1:18202:8123"], environment: { <<: *chenv, SHARD: "01", REPLICA: ch-s1r2 } }
+  ch-s2r1: { <<: *ch, container_name: rs-ch-s2r1, hostname: ch-s2r1, ports: ["127.0.0.1:18203:8123"], environment: { <<: *chenv, SHARD: "02", REPLICA: ch-s2r1 } }
+  ch-s2r2: { <<: *ch, container_name: rs-ch-s2r2, hostname: ch-s2r2, ports: ["127.0.0.1:18204:8123"], environment: { <<: *chenv, SHARD: "02", REPLICA: ch-s2r2 } }
+  ch-s3r1: { <<: *ch, container_name: rs-ch-s3r1, hostname: ch-s3r1, ports: ["127.0.0.1:18205:8123"], environment: { <<: *chenv, SHARD: "03", REPLICA: ch-s3r1 } }
+  ch-s3r2: { <<: *ch, container_name: rs-ch-s3r2, hostname: ch-s3r2, ports: ["127.0.0.1:18206:8123"], environment: { <<: *chenv, SHARD: "03", REPLICA: ch-s3r2 } }

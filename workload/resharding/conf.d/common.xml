@@ -1,0 +1,30 @@
+<!-- Shared by all six servers. Per-node values come from the container environment (SHARD, REPLICA). -->
+<clickhouse>
+    <logger><level>warning</level><console>1</console></logger>
+    <listen_host>0.0.0.0</listen_host>
+    <macros>
+        <shard from_env="SHARD"/>
+        <replica from_env="REPLICA"/>
+    </macros>
+    <zookeeper>
+        <node><host>keeper</host><port>9181</port></node>
+    </zookeeper>
+    <distributed_ddl><path>/clickhouse/task_queue/ddl</path></distributed_ddl>
+    <!-- 900 MiB containers: keep the server under the cgroup limit and shrink the caches -->
+    <max_server_memory_usage_to_ram_ratio>0.8</max_server_memory_usage_to_ram_ratio>
+    <mark_cache_size>67108864</mark_cache_size>
+    <index_mark_cache_size>0</index_mark_cache_size>
+    <uncompressed_cache_size>0</uncompressed_cache_size>
+    <primary_index_cache_size>33554432</primary_index_cache_size>
+    <!-- system log tables are not needed and cost memory and merges -->
+    <text_log remove="1"/>
+    <trace_log remove="1"/>
+    <metric_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <latency_log remove="1"/>
+    <error_log remove="1"/>
+    <query_metric_log remove="1"/>
+    <processors_profile_log remove="1"/>
+    <opentelemetry_span_log remove="1"/>
+    <background_schedule_pool_log remove="1"/>
+</clickhouse>
