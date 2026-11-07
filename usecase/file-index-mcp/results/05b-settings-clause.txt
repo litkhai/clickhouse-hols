@@ -1,0 +1,3 @@
+# by hand, 2026-11-07, same container as results/ai
+Code: 164. DB::Exception: Received from localhost:9000. DB::Exception: Cannot modify 'log_comment' setting in readonly mode. (READONLY)
+1

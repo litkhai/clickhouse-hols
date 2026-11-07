@@ -1,0 +1,11 @@
+before: live paths ['1','2'] in every table
+purge_ttl: live paths [], physical rows 0
+purge_ttl_where: live paths ['0','1','2'], physical rows 3
+purge_delete: live paths ['1','2'], physical rows 2
+purge_cleanup: live paths ['1','2'], physical rows 2
+   ┌─table───────────┬─event_type─┬─merge_reason─┬─parts─┐
+1. │ purge_cleanup   │ MergeParts │ RegularMerge │     1 │
+2. │ purge_delete    │ MutatePart │ NotAMerge    │     2 │
+3. │ purge_ttl       │ MutatePart │ NotAMerge    │     2 │
+4. │ purge_ttl_where │ MutatePart │ NotAMerge    │     2 │
+   └─────────────────┴────────────┴──────────────┴───────┘

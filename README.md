@@ -64,6 +64,7 @@ and [MOVED.md](MOVED.md).
 | [usecase/customer360](usecase/customer360/) | Customer 360 modelling |
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: Cloud performance validation at billions of rows |
 | [usecase/fulltext-search](usecase/fulltext-search/) | Bilingual (ko/en) full-text search over support tickets |
+| [usecase/file-index-mcp](usecase/file-index-mcp/) | A file tree indexed into ClickHouse and queried read-only by an AI through mcp-clickhouse: view SQL security, delete detection, `readonly` limits, MCP timeout and concurrency, prompts with and without query rules (OSS 26.10, synthetic tree) |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | Korean keyword search for RAG: text-index tokenizers, a Kiwi morpheme column, hybrid retrieval (OSS 26.9) |
 | [usecase/langfuse-decryption-audit](usecase/langfuse-decryption-audit/) | Who decrypted which Langfuse field, when and why: OpenBao Transit with per-user JWT login, a decryption service that requires a reason, an insert-only ClickHouse audit table reconciled with OpenBao's audit file (open-source stack; OSS 26.8) |
 | [usecase/langfuse-prompt-encryption-perf](usecase/langfuse-prompt-encryption-perf/) | What encrypting Langfuse prompts in ClickHouse costs: SQL encrypt(), executable UDFs with an envelope key or a KMS call per batch/value, the AES_256_GCM_SIV codec and an encrypting ingestion callback, measured on writes, reads, storage and a real Langfuse (OSS 26.8, OpenBao) |
@@ -289,6 +290,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [usecase/customer360](usecase/customer360/) | Customer 360 모델링 |
 | [usecase/device-360](usecase/device-360/) | Device360 PoC: 수십억 행 규모 Cloud 성능 검증 |
 | [usecase/fulltext-search](usecase/fulltext-search/) | 한/영 이중 언어 지원 티켓 전문 검색 |
+| [usecase/file-index-mcp](usecase/file-index-mcp/) | 파일 트리를 ClickHouse에 색인하고 AI가 mcp-clickhouse로 읽기 전용 조회: 뷰 SQL security, 삭제 감지, `readonly` 상한, MCP 시간 제한·동시 실행, 질의 규칙 유무에 따른 프롬프트 결과 (OSS 26.10, 합성 트리) |
 | [usecase/korean-rag-tokenizers](usecase/korean-rag-tokenizers/) | 한국어 RAG 키워드 검색: text index 토크나이저, Kiwi 형태소 컬럼, 하이브리드 검색 (OSS 26.9) |
 | [usecase/langfuse-decryption-audit](usecase/langfuse-decryption-audit/) | Langfuse 필드를 누가, 언제, 왜 복호화했는지: 사용자 JWT로 로그인하는 OpenBao Transit, 사유를 요구하는 복호화 서비스, OpenBao 감사 파일과 대조하는 추가 전용 ClickHouse 감사 테이블 (오픈소스 구성, OSS 26.8) |
 | [usecase/langfuse-prompt-encryption-perf](usecase/langfuse-prompt-encryption-perf/) | Langfuse prompt를 ClickHouse에서 암호화하는 비용: SQL encrypt(), envelope 키 또는 묶음·값마다 KMS를 부르는 executable UDF, AES_256_GCM_SIV 코덱, 암호화하는 수집 callback을 쓰기·읽기·저장·실제 Langfuse에서 측정 (OSS 26.8, OpenBao) |

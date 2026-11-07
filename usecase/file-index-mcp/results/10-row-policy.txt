@@ -1,0 +1,4 @@
+ai_reader_rp (policy is_deleted = 0, final = 1): ['1','2']
+indexer (no policy, final = 0): (4,1)
+admin (no policy): 4
+ai_reader_rp turns FINAL off -> Code: 164. DB::Exception: Received from localhost:9000. DB::Exception: Cannot modify 'final' setting in readonly mode. (READONLY)

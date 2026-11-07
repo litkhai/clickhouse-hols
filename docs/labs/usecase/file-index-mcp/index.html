@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File index in ClickHouse, queried read-only by an AI through mcp-clickhouse · ClickHouse HOLs</title>
+<meta name="description" content="File index in ClickHouse, queried read-only by an AI through mcp-clickhouse — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>usecase/file-index-mcp</code>
+    
+  </nav>
+  <div class="readme en"><h1>File index in ClickHouse, queried read-only by an AI through mcp-clickhouse</h1>
+<hr />
+<p>A batch job walks a file tree and writes one row per file (name, size, type, mtime, hash, optional
+text) into ClickHouse. An AI assistant answers questions about that tree through
+<a href="https://github.com/ClickHouse/mcp-clickhouse">mcp-clickhouse</a>, signed in as a user that can only read
+one view. The design follows a common how-to for this pattern: a <code>ReplacingMergeTree</code> keyed on
+<code>(root, path)</code>, a view with <code>FINAL</code> that hides deleted rows, delete detection after a full scan, a
+<code>readonly</code> user granted the view only, and a project prompt with query rules. This lab runs each piece of it and
+records where it holds and where it does not.</p>
+<p><strong>Verified on ClickHouse 26.10.3.7</strong> (<code>clickhouse/clickhouse-server:26.10.3.7</code>), 2026-11-07, <code>run.sh</code>
+steps 00–11 (run 2, 04:55 UTC; run 1 at 04:06 UTC had steps 00–08 and is the one the AI runs and the
+<code>images/</code> captures used — the two differ only in timings and scan ids), with mcp-clickhouse 0.7.0 over stdio, clickhouse-connect 1.12.0, the <code>mcp</code> Python SDK 2.3.0
+as a client, and <code>ai_prompts.sh</code> with Claude Code 2.1.220 in print mode (model alias <code>sonnet</code>).
+Machine: Docker Desktop on macOS, 12 CPUs, 8 GB; the container was capped at 3 GB, and other labs'
+containers were running at the same time, so timings are indicative only.
+The file tree is synthetic (<code>gen_tree.py</code>, seed 42): 21,033 files, 892.6 GB logical size in
+sparse files, 360 MB on disk. No real files were indexed.</p>
+<h3>Results</h3>
+<table>
+<thead>
+<tr>
+<th>What was checked</th>
+<th>Result (26.10.3.7, mcp-clickhouse 0.7.0)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The view as usually written (<code>CREATE VIEW … AS SELECT … FINAL</code>) + <code>GRANT SELECT ON fileidx.files</code> only</td>
+<td><strong><code>ACCESS_DENIED</code></strong> for the reader: <code>default_normal_view_sql_security = INVOKER</code>, so the reader also needs <code>SELECT</code> on the base table</td>
+</tr>
+<tr>
+<td>Same view with <code>DEFINER = fileidx_view_owner SQL SECURITY DEFINER</code> (owner: <code>HOST NONE</code>, <code>SELECT</code> on the base table only)</td>
+<td>Reader reads the view; reading the base table directly is still <code>ACCESS_DENIED</code></td>
+</tr>
+<tr>
+<td>Cost of the DEFINER view</td>
+<td>A primary-key lookup read <strong>25,691 rows</strong> through the view, 4,650 on the base table with <code>FINAL</code>. <code>EXPLAIN</code> shows <code>ReadFromSealedView</code> with the filter above it: the predicate is not pushed into the view</td>
+</tr>
+<tr>
+<td>No-view alternative: <code>ReplacingMergeTree(indexed_at, is_deleted)</code>, column grants, user setting <code>final = 1</code></td>
+<td>Same 21,028 visible rows, <strong>4,651 rows</strong> read for the lookup; <code>SETTINGS final = 0</code> refused (<code>READONLY</code>), an ungranted column refused</td>
+</tr>
+<tr>
+<td>Same full scan run twice</td>
+<td>Base table 42,066 rows, view 21,033. The usual "duplicates in the base table should be 0" check returns <strong>21,033</strong> before merges; the same check through the view returns 0</td>
+</tr>
+<tr>
+<td>Incremental scan (<code>mtime &gt; last scan</code>) after 5 deletes, 1 rename, 1 edit</td>
+<td>Picks up the edit only (1 row). <code>mv</code> keeps the mtime, so the renamed file is missing until a full scan</td>
+</tr>
+<tr>
+<td>Delete-detection SQL after that incremental scan</td>
+<td>Would mark <strong>21,032 of 21,033</strong> live files deleted; <code>indexer.py</code> refuses <code>DETECT_DELETES=1</code> unless <code>MODE=full</code></td>
+</tr>
+<tr>
+<td>Full scan + delete detection</td>
+<td>6 rows marked (5 deletes + the old path of the rename); view = files on disk = 21,028</td>
+</tr>
+<tr>
+<td>Read-only user, <code>clickhouse-client</code></td>
+<td><code>SELECT</code> on the view OK; <code>INSERT</code>, <code>DROP TABLE</code>, <code>DROP VIEW</code>, <code>CREATE TABLE</code> → <code>ACCESS_DENIED</code> (497); <code>SET max_result_rows = 0</code> → <code>READONLY</code> (164); <code>SELECT</code> of every path → <code>TOO_MANY_ROWS_OR_BYTES</code> (396) at 20,000; control: the same <code>INSERT</code> as <code>indexer</code> succeeds</td>
+</tr>
+<tr>
+<td>Same through mcp-clickhouse</td>
+<td>Same errors (12 of 12 probe checks pass). <code>list_tables fileidx</code> shows only <code>files</code></td>
+</tr>
+<tr>
+<td><code>readonly = 1</code> and query <code>SETTINGS</code></td>
+<td>Any <code>SETTINGS</code> clause is refused, even <code>log_comment</code>; <code>SETTINGS readonly = 1</code> (the user's own value, which mcp-clickhouse sends) is accepted — checked by hand, <code>results/05b-settings-clause.txt</code></td>
+</tr>
+<tr>
+<td>The built-in <code>/play</code> UI as <code>ai_reader</code></td>
+<td>Refused before the query runs: <code>Cannot modify 'add_http_cors_header' setting in readonly mode</code> (<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/file-index-mcp/images/05-play-readonly-user.png">images/05-play-readonly-user.png</a>)</td>
+</tr>
+<tr>
+<td>MCP timeout (<code>CLICKHOUSE_MCP_QUERY_TIMEOUT=3</code>, a ~12 s query)</td>
+<td>Error after 3.1 s, and the server-side query <strong>was cancelled</strong> (<code>QUERY_WAS_CANCELLED</code> after 2,994 ms in run 1, 2,984 ms in run 2, via the MCP server's <code>KILL QUERY</code>). Control: the same query completes in 11.6 s (run 1) / 13.9 s (run 2) under the default 30 s</td>
+</tr>
+<tr>
+<td>Three calls at once on one MCP session</td>
+<td>Run 1: 2.8 s for one, 2.8 s for three; run 2: 2.3 s and 3.2 s. <strong>Not serial</strong> (<code>CLICKHOUSE_MCP_MAX_WORKERS</code> defaults to 10)</td>
+</tr>
+<tr>
+<td>Skip indexes (<code>EXPLAIN indexes = 1</code>)</td>
+<td><code>ngrambf_v1</code> on <code>name</code>: used by <code>LIKE '%contract%'</code>, <strong>not</strong> by <code>positionCaseInsensitive</code> or <code>multiSearchAnyCaseInsensitive</code>. <code>tokenbf_v1</code> and <code>text</code> on <code>text_excerpt</code>: used by <code>hasToken</code> and <code>LIKE</code>, not by <code>positionCaseInsensitive</code></td>
+</tr>
+<tr>
+<td>10M keys, 1M updated, 100k deleted (step 09): key lookup, 3 runs</td>
+<td><code>DEFINER</code> view <strong>342–377 ms, 11,140,960 rows read</strong>; no-view (<code>is_deleted</code> + <code>final = 1</code>) 3–8 ms, 81,920 rows; row policy + <code>final = 1</code> 4–5 ms, 40,960 rows; admin <code>FINAL</code> 3–4 ms, 40,960 rows. Prefix (<code>startsWith(path, 'd1234/')</code>): view 343–367 ms vs 3–5 ms. Whole-table <code>GROUP BY ext</code>: all four 403–442 ms. Live rows 9,900,000 in every design</td>
+</tr>
+<tr>
+<td>Row policy <code>USING is_deleted = 0</code> + <code>final = 1</code> (step 10), live version in one part, newer marker in another</td>
+<td>Reader sees <code>['1','2']</code>: the policy filters <strong>after</strong> <code>FINAL</code>. <code>indexer</code> and admin (no policy) see all 4 rows, marker included (<code>users_without_row_policies_can_read_rows</code> default). <code>SETTINGS final = 0</code> refused</td>
+</tr>
+<tr>
+<td>Cleaning up delete markers (step 11), live rows 10 days old, marker 9 days old, in two parts</td>
+<td><code>MODIFY TTL indexed_at + INTERVAL 1 DAY</code>: <strong>every live row deleted</strong> (view empty). <code>… DELETE WHERE is_deleted = 1</code>: applied per part (<code>MutatePart</code>), the marker goes and the <strong>deleted file comes back</strong> (<code>['0','1','2']</code>). <code>DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at &lt; …)</code>: <code>['1','2']</code>, key gone. <code>ReplacingMergeTree(ver, is_deleted)</code> + <code>OPTIMIZE … FINAL CLEANUP</code> (experimental setting): <code>['1','2']</code></td>
+</tr>
+</tbody>
+</table>
+<p>The AI runs (<code>ai_prompts.sh</code>) are in <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/file-index-mcp/results/ai">results/ai/</a>, one markdown transcript per prompt with
+every SQL the assistant sent and what came back. See <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/file-index-mcp/AI.md">AI.md</a> for the summary: six prompts with
+the rules were answered from aggregates and checked correct except one GiB conversion the model did itself
+(559.35 for 559.32); without the rules, one run generalised from a 200-row sample to a wrong statement, and
+one sent a <code>SELECT</code> with no <code>LIMIT</code> that <code>max_result_rows</code> stopped.</p>
+<p><code>images/</code> holds the <code>/play</code> screens taken after the run (admin user except 05): the two <code>ACCESS_DENIED</code>
+rows of step 01, rows read in step 07, the step 08 timeout and concurrency in <code>query_log</code>, the AI's
+queries around the refused <code>SELECT</code>, and <code>/play</code> refusing <code>ai_reader</code>.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">./run.sh            # container, schema, users, tree, scans, controls, MCP probe, scale, row policy, cleanup → results/00..11
+./ai_prompts.sh     # optional: 8 prompts through Claude Code + mcp-clickhouse → results/ai/
+./run.sh down       # remove the container and work/
+</code></pre>
+<p><code>run.sh</code> needs Docker, Python 3 and <a href="https://docs.astral.sh/uv/">uv</a>. Passwords are random per run and
+stay in <code>work/.lab.env</code> (gitignored). <code>ai_prompts.sh</code> uses your own Claude Code login; each prompt is
+capped with <code>--max-budget-usd</code> (default 0.50).</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gen_tree.py</code></td>
+<td>Synthetic tree: office files, contracts, sparse media/ISO/ZIP, duplicate groups, empty and temp files, a folder with 17,000 photos, a deep path, mtimes 2019–2026 with a spike in 2025-03</td>
+</tr>
+<tr>
+<td><code>indexer.py</code></td>
+<td>Full or incremental scan, batched <code>INSERT</code>, optional BLAKE2b hash (<code>HASH_MAX_MB=8</code>) and text excerpt (<code>TEXT_MAX_KB=4</code>, <code>.txt</code>/<code>.md</code> only), delete detection after a full scan</td>
+</tr>
+<tr>
+<td><code>sql/01-schema.sql</code></td>
+<td>Database and <code>ReplacingMergeTree(indexed_at)</code> table</td>
+</tr>
+<tr>
+<td><code>sql/02-view-invoker.sql</code></td>
+<td>The view as usually written (fails for a view-only reader on 26.10)</td>
+</tr>
+<tr>
+<td><code>sql/03-users.sql</code></td>
+<td><code>indexer</code> (<code>SELECT</code>, <code>INSERT</code> on the table) and <code>ai_reader</code> (<code>readonly = 1</code>, limits, view only)</td>
+</tr>
+<tr>
+<td><code>sql/04-view-definer.sql</code></td>
+<td>The fix: a <code>DEFINER</code> view owned by a user that cannot log in</td>
+</tr>
+<tr>
+<td><code>sql/05-skip-indexes.sql</code></td>
+<td><code>tokenbf_v1</code>, <code>ngrambf_v1</code> (deprecated in the current docs) and a <code>text</code> index</td>
+</tr>
+<tr>
+<td><code>sql/06-no-view.sql</code></td>
+<td>The no-view alternative</td>
+</tr>
+<tr>
+<td><code>sql/07-ground-truth.sql</code></td>
+<td>Admin checks of the numbers in the AI answers</td>
+</tr>
+<tr>
+<td><code>sql/08-scale.sql</code>, <code>sql/09-row-policy.sql</code>, <code>sql/10-purge.sql</code></td>
+<td>Steps 09–11: 10M keys in three designs, row policy order, delete-marker cleanup</td>
+</tr>
+<tr>
+<td><code>mcp_probe.py</code></td>
+<td>mcp-clickhouse over stdio without an AI: tools, grants, limits, timeout, concurrency</td>
+</tr>
+<tr>
+<td><code>project-prompt.md</code></td>
+<td>Context and query rules given to the assistant (Korean)</td>
+</tr>
+<tr>
+<td><code>prompts.tsv</code>, <code>ai_prompts.sh</code>, <code>render_transcript.py</code></td>
+<td>The prompts, the Claude Code runs, the transcripts</td>
+</tr>
+</tbody>
+</table>
+<h3>Not covered</h3>
+<ul>
+<li>ClickHouse Cloud, TLS, and any MCP client other than Claude Code in print mode.</li>
+<li>Real storage (NAS, SMB, cloud mounts), permissions errors while walking, or text extraction from PDF/Office files.</li>
+<li>Directories as rows (<code>is_dir</code> is always 0 here, as in the skeleton this lab follows).</li>
+<li>Scale: 21,033 rows fit in three granules, so the skip-index results show which predicates <em>can</em> use an index, not how much they save. Step 09 measures the three access designs at 10M keys on generated rows, not files; skip indexes were not measured there.</li>
+<li><code>results/09-scale.txt</code> labels the active part count <code>rows</code> (6 parts, 136.68 MiB compressed).</li>
+<li><code>claude mcp add</code> was not run (it writes to the user's Claude Code config); the runs pass the same server through <code>--mcp-config</code>.</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>배치 작업이 파일 트리를 돌며 파일마다 한 행(이름, 크기, 유형, 수정 시각, 해시, 선택적으로 본문)을
+ClickHouse에 씁니다. AI 도우미는 <a href="https://github.com/ClickHouse/mcp-clickhouse">mcp-clickhouse</a>로
+뷰 하나만 읽을 수 있는 사용자로 접속해 그 트리에 대한 질문에 답합니다. 설계는 이 패턴의 흔한
+안내를 따릅니다: <code>(root, path)</code> 키의 <code>ReplacingMergeTree</code>, <code>FINAL</code>로 읽고 삭제 행을 숨기는 뷰, 전체
+스캔 뒤 삭제 감지, 뷰만 받은 <code>readonly</code> 사용자, 질의 규칙을 담은 프로젝트 프롬프트. 이 실습은
+그 각각을 실행해 맞는 곳과 맞지 않는 곳을 기록합니다.</p>
+<p><strong>ClickHouse 26.10.3.7</strong>(<code>clickhouse/clickhouse-server:26.10.3.7</code>)에서 2026-11-07 <code>run.sh</code> 00–11단계로
+검증했습니다(2차 실행, 04:55 UTC. 04:06 UTC의 1차 실행은 00–08단계였고 AI 실행과 <code>images/</code> 화면은 1차 컨테이너에서 —
+두 실행은 시간과 scan id만 다름). mcp-clickhouse 0.7.0(stdio), clickhouse-connect 1.12.0, 클라이언트로 <code>mcp</code> Python SDK
+2.3.0, <code>ai_prompts.sh</code>는 Claude Code 2.1.220 print 모드(모델 별칭 <code>sonnet</code>). 장비: macOS Docker Desktop,
+CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이너가 함께 돌고 있어 시간은 참고용입니다.
+파일 트리는 합성입니다(<code>gen_tree.py</code>, seed 42): 파일 21,033개, sparse 파일로 논리 크기 892.6 GB,
+디스크 사용 360 MB. 실제 파일은 색인하지 않았습니다.</p>
+<h3>결과</h3>
+<table>
+<thead>
+<tr>
+<th>확인한 것</th>
+<th>결과 (26.10.3.7, mcp-clickhouse 0.7.0)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>흔히 쓰는 뷰(<code>CREATE VIEW … AS SELECT … FINAL</code>) + <code>GRANT SELECT ON fileidx.files</code>만</td>
+<td>읽는 사용자에게 <strong><code>ACCESS_DENIED</code></strong>: <code>default_normal_view_sql_security = INVOKER</code>라 원본 테이블 <code>SELECT</code>도 필요</td>
+</tr>
+<tr>
+<td>같은 뷰를 <code>DEFINER = fileidx_view_owner SQL SECURITY DEFINER</code>로(소유자: <code>HOST NONE</code>, 원본 <code>SELECT</code>만)</td>
+<td>뷰는 읽힘. 원본 테이블 직접 조회는 여전히 <code>ACCESS_DENIED</code></td>
+</tr>
+<tr>
+<td>DEFINER 뷰의 비용</td>
+<td>기본 키 조회가 뷰로 <strong>25,691행</strong>, 원본 <code>FINAL</code>로 4,650행을 읽음. <code>EXPLAIN</code>은 필터가 <code>ReadFromSealedView</code> 위에 있음 — 조건이 뷰 안으로 내려가지 않음</td>
+</tr>
+<tr>
+<td>뷰 없는 대안: <code>ReplacingMergeTree(indexed_at, is_deleted)</code>, 컬럼 권한, 사용자 설정 <code>final = 1</code></td>
+<td>보이는 행 21,028개로 같음, 조회에 <strong>4,651행</strong>. <code>SETTINGS final = 0</code>은 거부(<code>READONLY</code>), 권한 없는 컬럼도 거부</td>
+</tr>
+<tr>
+<td>같은 전체 스캔 두 번</td>
+<td>원본 42,066행, 뷰 21,033행. 흔한 "원본 테이블 중복 0이어야 정상" 검사는 병합 전 <strong>21,033</strong>, 뷰로 같은 검사는 0</td>
+</tr>
+<tr>
+<td>삭제 5 · 이름 변경 1 · 수정 1 뒤 증분 스캔(<code>mtime &gt; 지난 스캔</code>)</td>
+<td>수정 1건만 들어옴. <code>mv</code>는 mtime을 유지해 바뀐 이름은 전체 스캔 전까지 없음</td>
+</tr>
+<tr>
+<td>그 증분 스캔 뒤의 삭제 감지 SQL</td>
+<td>살아 있는 파일 <strong>21,033개 중 21,032개</strong>를 삭제로 표시했을 것. <code>indexer.py</code>는 <code>MODE=full</code>이 아니면 <code>DETECT_DELETES=1</code>을 거부</td>
+</tr>
+<tr>
+<td>전체 스캔 + 삭제 감지</td>
+<td>6행 표시(삭제 5 + 이름 바뀐 파일의 옛 경로). 뷰 = 디스크 = 21,028</td>
+</tr>
+<tr>
+<td>읽기 전용 사용자, <code>clickhouse-client</code></td>
+<td>뷰 <code>SELECT</code> 성공. <code>INSERT</code>, <code>DROP TABLE</code>, <code>DROP VIEW</code>, <code>CREATE TABLE</code> → <code>ACCESS_DENIED</code>(497). <code>SET max_result_rows = 0</code> → <code>READONLY</code>(164). 전체 경로 <code>SELECT</code> → 2만 행에서 <code>TOO_MANY_ROWS_OR_BYTES</code>(396). 대조: 같은 <code>INSERT</code>를 <code>indexer</code>로는 성공</td>
+</tr>
+<tr>
+<td>mcp-clickhouse로 같은 것</td>
+<td>같은 오류(프로브 12개 모두 통과). <code>list_tables fileidx</code>에는 <code>files</code>만 보임</td>
+</tr>
+<tr>
+<td><code>readonly = 1</code>과 쿼리 <code>SETTINGS</code></td>
+<td><code>SETTINGS</code> 절은 <code>log_comment</code>까지 모두 거부. <code>SETTINGS readonly = 1</code>(사용자 자신의 값, mcp-clickhouse가 보내는 것)은 받아들여짐 — 손으로 확인, <code>results/05b-settings-clause.txt</code></td>
+</tr>
+<tr>
+<td>내장 <code>/play</code> UI를 <code>ai_reader</code>로</td>
+<td>쿼리 전에 거부: <code>Cannot modify 'add_http_cors_header' setting in readonly mode</code>(<a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/file-index-mcp/images/05-play-readonly-user.png">images/05-play-readonly-user.png</a>)</td>
+</tr>
+<tr>
+<td>MCP 시간 제한(<code>CLICKHOUSE_MCP_QUERY_TIMEOUT=3</code>, 약 12초 쿼리)</td>
+<td>3.1초에 오류, 서버 쪽 쿼리는 <strong>취소됨</strong>(<code>query_log</code>에 1차 2,994 ms · 2차 2,984 ms 뒤 <code>QUERY_WAS_CANCELLED</code>, MCP 서버의 <code>KILL QUERY</code>). 대조: 기본 30초에서는 같은 쿼리가 11.6초(1차) · 13.9초(2차)에 끝남</td>
+</tr>
+<tr>
+<td>MCP 세션 하나에 호출 세 개 동시</td>
+<td>1차: 하나 2.8초, 셋 2.8초. 2차: 2.3초, 3.2초 — <strong>직렬이 아님</strong>(<code>CLICKHOUSE_MCP_MAX_WORKERS</code> 기본 10)</td>
+</tr>
+<tr>
+<td>skip index(<code>EXPLAIN indexes = 1</code>)</td>
+<td><code>name</code>의 <code>ngrambf_v1</code>: <code>LIKE '%contract%'</code>는 사용, <code>positionCaseInsensitive</code>·<code>multiSearchAnyCaseInsensitive</code>는 <strong>사용 안 함</strong>. <code>text_excerpt</code>의 <code>tokenbf_v1</code>·<code>text</code>: <code>hasToken</code>·<code>LIKE</code>는 사용, <code>positionCaseInsensitive</code>는 사용 안 함</td>
+</tr>
+<tr>
+<td>키 1,000만 · 갱신 100만 · 삭제 10만(09단계): 기본 키 조회 3회</td>
+<td><code>DEFINER</code> 뷰 <strong>342–377 ms, 11,140,960행 읽음</strong>. 뷰 없음(<code>is_deleted</code> + <code>final = 1</code>) 3–8 ms, 81,920행. 행 정책 + <code>final = 1</code> 4–5 ms, 40,960행. 관리자 <code>FINAL</code> 3–4 ms, 40,960행. 접두사(<code>startsWith(path, 'd1234/')</code>): 뷰 343–367 ms 대 3–5 ms. 전체 <code>GROUP BY ext</code>: 넷 모두 403–442 ms. 살아 있는 행은 모든 설계에서 9,900,000</td>
+</tr>
+<tr>
+<td>행 정책 <code>USING is_deleted = 0</code> + <code>final = 1</code>(10단계), 살아 있는 버전과 더 새 표식이 다른 파트에</td>
+<td>읽는 사용자는 <code>['1','2']</code>: 정책은 <code>FINAL</code> <strong>뒤에</strong> 걸림. 정책이 없는 <code>indexer</code>·관리자는 표식까지 4행 모두 봄(<code>users_without_row_policies_can_read_rows</code> 기본값). <code>SETTINGS final = 0</code> 거부</td>
+</tr>
+<tr>
+<td>삭제 표식 정리(11단계), 10일 전 살아 있는 행과 9일 전 표식이 다른 파트에</td>
+<td><code>MODIFY TTL indexed_at + INTERVAL 1 DAY</code>: <strong>살아 있는 행까지 모두 삭제</strong>(뷰 비어 있음). <code>… DELETE WHERE is_deleted = 1</code>: 파트마다 적용(<code>MutatePart</code>)되어 표식만 지워지고 <strong>지운 파일이 되살아남</strong>(<code>['0','1','2']</code>). <code>DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at &lt; …)</code>: <code>['1','2']</code>, 키가 사라짐. <code>ReplacingMergeTree(ver, is_deleted)</code> + <code>OPTIMIZE … FINAL CLEANUP</code>(실험적 설정): <code>['1','2']</code></td>
+</tr>
+</tbody>
+</table>
+<p>AI 실행(<code>ai_prompts.sh</code>) 결과는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/file-index-mcp/results/ai">results/ai/</a>에 프롬프트마다 마크다운 기록으로 있습니다.
+도우미가 보낸 SQL과 돌아온 결과가 모두 들어 있고, 요약은 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/usecase/file-index-mcp/AI.md">AI.md</a>에 있습니다: 규칙을 준 프롬프트 여섯 개는
+집계로 답했고, 모델이 직접 한 GiB 환산 하나(559.32를 559.35로)를 빼면 맞았습니다. 규칙이 없을 때는 한 번은
+200행 표본에서 틀린 일반화를 했고, 한 번은 <code>LIMIT</code> 없는 <code>SELECT</code>를 보냈다가 <code>max_result_rows</code>에 막혔습니다.</p>
+<p><code>images/</code>에는 실행 뒤 찍은 <code>/play</code> 화면이 있습니다(05 말고는 관리자): 01단계의 <code>ACCESS_DENIED</code> 두 행,
+07단계의 읽은 행 수, 08단계 시간 제한·동시 실행의 <code>query_log</code>, 거부된 <code>SELECT</code> 앞뒤의 AI 쿼리,
+<code>ai_reader</code>를 거부하는 <code>/play</code>.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">./run.sh            # 컨테이너, 스키마, 사용자, 트리, 스캔, 대조, MCP 프로브, 규모, 행 정책, 정리 → results/00..11
+./ai_prompts.sh     # 선택: Claude Code + mcp-clickhouse로 프롬프트 8개 → results/ai/
+./run.sh down       # 컨테이너와 work/ 삭제
+</code></pre>
+<p><code>run.sh</code>에는 Docker, Python 3, <a href="https://docs.astral.sh/uv/">uv</a>가 필요합니다. 비밀번호는 실행마다 무작위로
+만들어 <code>work/.lab.env</code>(gitignore)에만 둡니다. <code>ai_prompts.sh</code>는 각자의 Claude Code 로그인을 쓰고, 프롬프트마다
+<code>--max-budget-usd</code>(기본 0.50)로 상한을 둡니다.</p>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gen_tree.py</code></td>
+<td>합성 트리: 사무 문서, 계약서, sparse 미디어·ISO·ZIP, 중복 묶음, 빈 파일·임시 파일, 사진 17,000장 폴더, 깊은 경로, 2019–2026 수정 시각과 2025-03의 급증</td>
+</tr>
+<tr>
+<td><code>indexer.py</code></td>
+<td>전체·증분 스캔, 묶음 <code>INSERT</code>, 선택적 BLAKE2b 해시(<code>HASH_MAX_MB=8</code>)와 본문 앞부분(<code>TEXT_MAX_KB=4</code>, <code>.txt</code>/<code>.md</code>만), 전체 스캔 뒤 삭제 감지</td>
+</tr>
+<tr>
+<td><code>sql/01-schema.sql</code></td>
+<td>데이터베이스와 <code>ReplacingMergeTree(indexed_at)</code> 테이블</td>
+</tr>
+<tr>
+<td><code>sql/02-view-invoker.sql</code></td>
+<td>흔히 쓰는 뷰(26.10에서 뷰만 받은 사용자는 못 읽음)</td>
+</tr>
+<tr>
+<td><code>sql/03-users.sql</code></td>
+<td><code>indexer</code>(테이블 <code>SELECT</code>·<code>INSERT</code>)와 <code>ai_reader</code>(<code>readonly = 1</code>, 상한, 뷰만)</td>
+</tr>
+<tr>
+<td><code>sql/04-view-definer.sql</code></td>
+<td>고친 것: 로그인할 수 없는 사용자가 소유한 <code>DEFINER</code> 뷰</td>
+</tr>
+<tr>
+<td><code>sql/05-skip-indexes.sql</code></td>
+<td><code>tokenbf_v1</code>, <code>ngrambf_v1</code>(현재 문서에서 deprecated)과 <code>text</code> 인덱스</td>
+</tr>
+<tr>
+<td><code>sql/06-no-view.sql</code></td>
+<td>뷰 없는 대안</td>
+</tr>
+<tr>
+<td><code>sql/07-ground-truth.sql</code></td>
+<td>AI 답의 수치를 관리자로 확인</td>
+</tr>
+<tr>
+<td><code>sql/08-scale.sql</code>, <code>sql/09-row-policy.sql</code>, <code>sql/10-purge.sql</code></td>
+<td>09–11단계: 세 설계의 키 1,000만 개, 행 정책 순서, 삭제 표식 정리</td>
+</tr>
+<tr>
+<td><code>mcp_probe.py</code></td>
+<td>AI 없이 stdio로 mcp-clickhouse 확인: 도구, 권한, 상한, 시간 제한, 동시 실행</td>
+</tr>
+<tr>
+<td><code>project-prompt.md</code></td>
+<td>도우미에게 주는 맥락과 질의 규칙(한국어)</td>
+</tr>
+<tr>
+<td><code>prompts.tsv</code>, <code>ai_prompts.sh</code>, <code>render_transcript.py</code></td>
+<td>프롬프트, Claude Code 실행, 기록</td>
+</tr>
+</tbody>
+</table>
+<h3>다루지 않은 것</h3>
+<ul>
+<li>ClickHouse Cloud, TLS, Claude Code print 모드 외의 MCP 클라이언트.</li>
+<li>실제 스토리지(NAS, SMB, 클라우드 마운트), 순회 중 권한 오류, PDF·Office 본문 추출.</li>
+<li>디렉터리 행(<code>is_dir</code>는 이 실습이 따르는 골격처럼 항상 0).</li>
+<li>규모: 21,033행은 granule 세 개라 skip index 결과는 어떤 조건이 인덱스를 <em>쓸 수 있는지</em>만 보여 주고 얼마나 줄이는지는 아님. 09단계는 파일이 아니라 생성한 행으로 세 접근 설계를 키 1,000만 개에서 쟀고, skip index는 거기서 재지 않음.</li>
+<li><code>results/09-scale.txt</code>의 <code>rows</code> 열은 활성 파트 수임(파트 6개, 압축 136.68 MiB).</li>
+<li><code>claude mcp add</code>는 실행하지 않음(사용자의 Claude Code 설정에 씀). 실행은 같은 서버를 <code>--mcp-config</code>로 넘김.</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/file-index-mcp"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/usecase/fulltext-search/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Full-Text Search Lab with ClickHouse — Bilingual (ko/en) Support Ticket Search</span></a><a class="step next" href="../../../labs/usecase/korean-rag-tokenizers/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Korean keyword search for RAG — tokenizers, a morpheme column, hybrid retrieval</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

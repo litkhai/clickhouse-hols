@@ -1,0 +1,18 @@
+   ┌─rows─┬─compressed─┐
+1. │    6 │ 136.68 MiB │
+   └──────┴────────────┘
+live rows: view 9900000  no-view 9900000  policy 9900000  admin 9900000
+    ┌─run──────────────┬─min_ms─┬─max_ms─┬─read_rows─┬─n─┐
+ 1. │ sc-agg-base      │    413 │    422 │  11140960 │ 3 │
+ 2. │ sc-agg-noview    │    403 │    431 │  11044294 │ 3 │
+ 3. │ sc-agg-policy    │    420 │    424 │  11140960 │ 3 │
+ 4. │ sc-agg-view      │    431 │    442 │  11140960 │ 3 │
+ 5. │ sc-pk-base       │      3 │      4 │     40960 │ 3 │
+ 6. │ sc-pk-noview     │      3 │      8 │     81920 │ 3 │
+ 7. │ sc-pk-policy     │      4 │      5 │     40960 │ 3 │
+ 8. │ sc-pk-view       │    342 │    377 │  11140960 │ 3 │
+ 9. │ sc-prefix-base   │      3 │      3 │     40960 │ 3 │
+10. │ sc-prefix-noview │      3 │      4 │     49152 │ 3 │
+11. │ sc-prefix-policy │      4 │      5 │     40960 │ 3 │
+12. │ sc-prefix-view   │    343 │    367 │  11140960 │ 3 │
+    └──────────────────┴────────┴────────┴───────────┴───┘

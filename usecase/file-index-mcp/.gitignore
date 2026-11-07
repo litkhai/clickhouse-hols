@@ -1,0 +1,4 @@
+work/
+.lab.env
+# raw Claude Code logs carry local paths and session ids; the rendered .md transcripts are committed
+results/ai/*.jsonl
