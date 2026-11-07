@@ -15,7 +15,8 @@ one view. The design follows a common how-to for this pattern: a `ReplacingMerge
 records where it holds and where it does not.
 
 **Verified on ClickHouse 26.10.3.7** (`clickhouse/clickhouse-server:26.10.3.7`), 2026-11-07, `run.sh`
-steps 00–08, with mcp-clickhouse 0.7.0 over stdio, clickhouse-connect 1.12.0, the `mcp` Python SDK 2.3.0
+steps 00–11 (run 2, 04:55 UTC; run 1 at 04:06 UTC had steps 00–08 and is the one the AI runs and the
+`images/` captures used — the two differ only in timings and scan ids), with mcp-clickhouse 0.7.0 over stdio, clickhouse-connect 1.12.0, the `mcp` Python SDK 2.3.0
 as a client, and `ai_prompts.sh` with Claude Code 2.1.220 in print mode (model alias `sonnet`).
 Machine: Docker Desktop on macOS, 12 CPUs, 8 GB; the container was capped at 3 GB, and other labs'
 containers were running at the same time, so timings are indicative only.
@@ -38,9 +39,12 @@ sparse files, 360 MB on disk. No real files were indexed.
 | Same through mcp-clickhouse | Same errors (12 of 12 probe checks pass). `list_tables fileidx` shows only `files` |
 | `readonly = 1` and query `SETTINGS` | Any `SETTINGS` clause is refused, even `log_comment`; `SETTINGS readonly = 1` (the user's own value, which mcp-clickhouse sends) is accepted — checked by hand, `results/05b-settings-clause.txt` |
 | The built-in `/play` UI as `ai_reader` | Refused before the query runs: `Cannot modify 'add_http_cors_header' setting in readonly mode` ([images/05-play-readonly-user.png](images/05-play-readonly-user.png)) |
-| MCP timeout (`CLICKHOUSE_MCP_QUERY_TIMEOUT=3`, a ~12 s query) | Error after 3.1 s, and the server-side query **was cancelled** (`QUERY_WAS_CANCELLED` after 2,994 ms in `query_log`, via the server's `KILL QUERY`). Control: the same query completes in 11.6 s under the default 30 s |
-| Three calls at once on one MCP session | 2.8 s for one, 2.8 s for three: **not serial** (`CLICKHOUSE_MCP_MAX_WORKERS` defaults to 10) |
+| MCP timeout (`CLICKHOUSE_MCP_QUERY_TIMEOUT=3`, a ~12 s query) | Error after 3.1 s, and the server-side query **was cancelled** (`QUERY_WAS_CANCELLED` after 2,994 ms in run 1, 2,984 ms in run 2, via the MCP server's `KILL QUERY`). Control: the same query completes in 11.6 s (run 1) / 13.9 s (run 2) under the default 30 s |
+| Three calls at once on one MCP session | Run 1: 2.8 s for one, 2.8 s for three; run 2: 2.3 s and 3.2 s. **Not serial** (`CLICKHOUSE_MCP_MAX_WORKERS` defaults to 10) |
 | Skip indexes (`EXPLAIN indexes = 1`) | `ngrambf_v1` on `name`: used by `LIKE '%contract%'`, **not** by `positionCaseInsensitive` or `multiSearchAnyCaseInsensitive`. `tokenbf_v1` and `text` on `text_excerpt`: used by `hasToken` and `LIKE`, not by `positionCaseInsensitive` |
+| 10M keys, 1M updated, 100k deleted (step 09): key lookup, 3 runs | `DEFINER` view **342–377 ms, 11,140,960 rows read**; no-view (`is_deleted` + `final = 1`) 3–8 ms, 81,920 rows; row policy + `final = 1` 4–5 ms, 40,960 rows; admin `FINAL` 3–4 ms, 40,960 rows. Prefix (`startsWith(path, 'd1234/')`): view 343–367 ms vs 3–5 ms. Whole-table `GROUP BY ext`: all four 403–442 ms. Live rows 9,900,000 in every design |
+| Row policy `USING is_deleted = 0` + `final = 1` (step 10), live version in one part, newer marker in another | Reader sees `['1','2']`: the policy filters **after** `FINAL`. `indexer` and admin (no policy) see all 4 rows, marker included (`users_without_row_policies_can_read_rows` default). `SETTINGS final = 0` refused |
+| Cleaning up delete markers (step 11), live rows 10 days old, marker 9 days old, in two parts | `MODIFY TTL indexed_at + INTERVAL 1 DAY`: **every live row deleted** (view empty). `… DELETE WHERE is_deleted = 1`: applied per part (`MutatePart`), the marker goes and the **deleted file comes back** (`['0','1','2']`). `DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at < …)`: `['1','2']`, key gone. `ReplacingMergeTree(ver, is_deleted)` + `OPTIMIZE … FINAL CLEANUP` (experimental setting): `['1','2']` |
 
 The AI runs (`ai_prompts.sh`) are in [results/ai/](results/ai/), one markdown transcript per prompt with
 every SQL the assistant sent and what came back. See [AI.md](AI.md) for the summary: six prompts with
@@ -55,7 +59,7 @@ queries around the refused `SELECT`, and `/play` refusing `ai_reader`.
 ### Run it
 
 ```bash
-./run.sh            # container, schema, users, tree, scans, controls, MCP probe → results/00..08
+./run.sh            # container, schema, users, tree, scans, controls, MCP probe, scale, row policy, cleanup → results/00..11
 ./ai_prompts.sh     # optional: 8 prompts through Claude Code + mcp-clickhouse → results/ai/
 ./run.sh down       # remove the container and work/
 ```
@@ -77,6 +81,7 @@ capped with `--max-budget-usd` (default 0.50).
 | `sql/05-skip-indexes.sql` | `tokenbf_v1`, `ngrambf_v1` (deprecated in the current docs) and a `text` index |
 | `sql/06-no-view.sql` | The no-view alternative |
 | `sql/07-ground-truth.sql` | Admin checks of the numbers in the AI answers |
+| `sql/08-scale.sql`, `sql/09-row-policy.sql`, `sql/10-purge.sql` | Steps 09–11: 10M keys in three designs, row policy order, delete-marker cleanup |
 | `mcp_probe.py` | mcp-clickhouse over stdio without an AI: tools, grants, limits, timeout, concurrency |
 | `project-prompt.md` | Context and query rules given to the assistant (Korean) |
 | `prompts.tsv`, `ai_prompts.sh`, `render_transcript.py` | The prompts, the Claude Code runs, the transcripts |
@@ -86,7 +91,8 @@ capped with `--max-budget-usd` (default 0.50).
 - ClickHouse Cloud, TLS, and any MCP client other than Claude Code in print mode.
 - Real storage (NAS, SMB, cloud mounts), permissions errors while walking, or text extraction from PDF/Office files.
 - Directories as rows (`is_dir` is always 0 here, as in the skeleton this lab follows).
-- Scale: 21,033 rows fit in three granules, so the skip-index results show which predicates *can* use an index, not how much they save.
+- Scale: 21,033 rows fit in three granules, so the skip-index results show which predicates *can* use an index, not how much they save. Step 09 measures the three access designs at 10M keys on generated rows, not files; skip indexes were not measured there.
+- `results/09-scale.txt` labels the active part count `rows` (6 parts, 136.68 MiB compressed).
 - `claude mcp add` was not run (it writes to the user's Claude Code config); the runs pass the same server through `--mcp-config`.
 
 ---
@@ -100,8 +106,9 @@ ClickHouse에 씁니다. AI 도우미는 [mcp-clickhouse](https://github.com/Cli
 스캔 뒤 삭제 감지, 뷰만 받은 `readonly` 사용자, 질의 규칙을 담은 프로젝트 프롬프트. 이 실습은
 그 각각을 실행해 맞는 곳과 맞지 않는 곳을 기록합니다.
 
-**ClickHouse 26.10.3.7**(`clickhouse/clickhouse-server:26.10.3.7`)에서 2026-11-07 `run.sh` 00–08단계로
-검증했습니다. mcp-clickhouse 0.7.0(stdio), clickhouse-connect 1.12.0, 클라이언트로 `mcp` Python SDK
+**ClickHouse 26.10.3.7**(`clickhouse/clickhouse-server:26.10.3.7`)에서 2026-11-07 `run.sh` 00–11단계로
+검증했습니다(2차 실행, 04:55 UTC. 04:06 UTC의 1차 실행은 00–08단계였고 AI 실행과 `images/` 화면은 1차 컨테이너에서 —
+두 실행은 시간과 scan id만 다름). mcp-clickhouse 0.7.0(stdio), clickhouse-connect 1.12.0, 클라이언트로 `mcp` Python SDK
 2.3.0, `ai_prompts.sh`는 Claude Code 2.1.220 print 모드(모델 별칭 `sonnet`). 장비: macOS Docker Desktop,
 CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이너가 함께 돌고 있어 시간은 참고용입니다.
 파일 트리는 합성입니다(`gen_tree.py`, seed 42): 파일 21,033개, sparse 파일로 논리 크기 892.6 GB,
@@ -123,9 +130,12 @@ CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이
 | mcp-clickhouse로 같은 것 | 같은 오류(프로브 12개 모두 통과). `list_tables fileidx`에는 `files`만 보임 |
 | `readonly = 1`과 쿼리 `SETTINGS` | `SETTINGS` 절은 `log_comment`까지 모두 거부. `SETTINGS readonly = 1`(사용자 자신의 값, mcp-clickhouse가 보내는 것)은 받아들여짐 — 손으로 확인, `results/05b-settings-clause.txt` |
 | 내장 `/play` UI를 `ai_reader`로 | 쿼리 전에 거부: `Cannot modify 'add_http_cors_header' setting in readonly mode`([images/05-play-readonly-user.png](images/05-play-readonly-user.png)) |
-| MCP 시간 제한(`CLICKHOUSE_MCP_QUERY_TIMEOUT=3`, 약 12초 쿼리) | 3.1초에 오류, 서버 쪽 쿼리는 **취소됨**(`query_log`에 2,994 ms 뒤 `QUERY_WAS_CANCELLED`, 서버의 `KILL QUERY`). 대조: 기본 30초에서는 같은 쿼리가 11.6초에 끝남 |
-| MCP 세션 하나에 호출 세 개 동시 | 하나 2.8초, 셋 2.8초 — **직렬이 아님**(`CLICKHOUSE_MCP_MAX_WORKERS` 기본 10) |
+| MCP 시간 제한(`CLICKHOUSE_MCP_QUERY_TIMEOUT=3`, 약 12초 쿼리) | 3.1초에 오류, 서버 쪽 쿼리는 **취소됨**(`query_log`에 1차 2,994 ms · 2차 2,984 ms 뒤 `QUERY_WAS_CANCELLED`, MCP 서버의 `KILL QUERY`). 대조: 기본 30초에서는 같은 쿼리가 11.6초(1차) · 13.9초(2차)에 끝남 |
+| MCP 세션 하나에 호출 세 개 동시 | 1차: 하나 2.8초, 셋 2.8초. 2차: 2.3초, 3.2초 — **직렬이 아님**(`CLICKHOUSE_MCP_MAX_WORKERS` 기본 10) |
 | skip index(`EXPLAIN indexes = 1`) | `name`의 `ngrambf_v1`: `LIKE '%contract%'`는 사용, `positionCaseInsensitive`·`multiSearchAnyCaseInsensitive`는 **사용 안 함**. `text_excerpt`의 `tokenbf_v1`·`text`: `hasToken`·`LIKE`는 사용, `positionCaseInsensitive`는 사용 안 함 |
+| 키 1,000만 · 갱신 100만 · 삭제 10만(09단계): 기본 키 조회 3회 | `DEFINER` 뷰 **342–377 ms, 11,140,960행 읽음**. 뷰 없음(`is_deleted` + `final = 1`) 3–8 ms, 81,920행. 행 정책 + `final = 1` 4–5 ms, 40,960행. 관리자 `FINAL` 3–4 ms, 40,960행. 접두사(`startsWith(path, 'd1234/')`): 뷰 343–367 ms 대 3–5 ms. 전체 `GROUP BY ext`: 넷 모두 403–442 ms. 살아 있는 행은 모든 설계에서 9,900,000 |
+| 행 정책 `USING is_deleted = 0` + `final = 1`(10단계), 살아 있는 버전과 더 새 표식이 다른 파트에 | 읽는 사용자는 `['1','2']`: 정책은 `FINAL` **뒤에** 걸림. 정책이 없는 `indexer`·관리자는 표식까지 4행 모두 봄(`users_without_row_policies_can_read_rows` 기본값). `SETTINGS final = 0` 거부 |
+| 삭제 표식 정리(11단계), 10일 전 살아 있는 행과 9일 전 표식이 다른 파트에 | `MODIFY TTL indexed_at + INTERVAL 1 DAY`: **살아 있는 행까지 모두 삭제**(뷰 비어 있음). `… DELETE WHERE is_deleted = 1`: 파트마다 적용(`MutatePart`)되어 표식만 지워지고 **지운 파일이 되살아남**(`['0','1','2']`). `DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at < …)`: `['1','2']`, 키가 사라짐. `ReplacingMergeTree(ver, is_deleted)` + `OPTIMIZE … FINAL CLEANUP`(실험적 설정): `['1','2']` |
 
 AI 실행(`ai_prompts.sh`) 결과는 [results/ai/](results/ai/)에 프롬프트마다 마크다운 기록으로 있습니다.
 도우미가 보낸 SQL과 돌아온 결과가 모두 들어 있고, 요약은 [AI.md](AI.md)에 있습니다: 규칙을 준 프롬프트 여섯 개는
@@ -139,7 +149,7 @@ AI 실행(`ai_prompts.sh`) 결과는 [results/ai/](results/ai/)에 프롬프트�
 ### 실행
 
 ```bash
-./run.sh            # 컨테이너, 스키마, 사용자, 트리, 스캔, 대조, MCP 프로브 → results/00..08
+./run.sh            # 컨테이너, 스키마, 사용자, 트리, 스캔, 대조, MCP 프로브, 규모, 행 정책, 정리 → results/00..11
 ./ai_prompts.sh     # 선택: Claude Code + mcp-clickhouse로 프롬프트 8개 → results/ai/
 ./run.sh down       # 컨테이너와 work/ 삭제
 ```
@@ -161,6 +171,7 @@ AI 실행(`ai_prompts.sh`) 결과는 [results/ai/](results/ai/)에 프롬프트�
 | `sql/05-skip-indexes.sql` | `tokenbf_v1`, `ngrambf_v1`(현재 문서에서 deprecated)과 `text` 인덱스 |
 | `sql/06-no-view.sql` | 뷰 없는 대안 |
 | `sql/07-ground-truth.sql` | AI 답의 수치를 관리자로 확인 |
+| `sql/08-scale.sql`, `sql/09-row-policy.sql`, `sql/10-purge.sql` | 09–11단계: 세 설계의 키 1,000만 개, 행 정책 순서, 삭제 표식 정리 |
 | `mcp_probe.py` | AI 없이 stdio로 mcp-clickhouse 확인: 도구, 권한, 상한, 시간 제한, 동시 실행 |
 | `project-prompt.md` | 도우미에게 주는 맥락과 질의 규칙(한국어) |
 | `prompts.tsv`, `ai_prompts.sh`, `render_transcript.py` | 프롬프트, Claude Code 실행, 기록 |
@@ -170,5 +181,6 @@ AI 실행(`ai_prompts.sh`) 결과는 [results/ai/](results/ai/)에 프롬프트�
 - ClickHouse Cloud, TLS, Claude Code print 모드 외의 MCP 클라이언트.
 - 실제 스토리지(NAS, SMB, 클라우드 마운트), 순회 중 권한 오류, PDF·Office 본문 추출.
 - 디렉터리 행(`is_dir`는 이 실습이 따르는 골격처럼 항상 0).
-- 규모: 21,033행은 granule 세 개라 skip index 결과는 어떤 조건이 인덱스를 *쓸 수 있는지*만 보여 주고 얼마나 줄이는지는 아님.
+- 규모: 21,033행은 granule 세 개라 skip index 결과는 어떤 조건이 인덱스를 *쓸 수 있는지*만 보여 주고 얼마나 줄이는지는 아님. 09단계는 파일이 아니라 생성한 행으로 세 접근 설계를 키 1,000만 개에서 쟀고, skip index는 거기서 재지 않음.
+- `results/09-scale.txt`의 `rows` 열은 활성 파트 수임(파트 6개, 압축 136.68 MiB).
 - `claude mcp add`는 실행하지 않음(사용자의 Claude Code 설정에 씀). 실행은 같은 서버를 `--mcp-config`로 넘김.

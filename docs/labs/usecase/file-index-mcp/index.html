@@ -46,7 +46,8 @@ one view. The design follows a common how-to for this pattern: a <code>Replacing
 <code>readonly</code> user granted the view only, and a project prompt with query rules. This lab runs each piece of it and
 records where it holds and where it does not.</p>
 <p><strong>Verified on ClickHouse 26.10.3.7</strong> (<code>clickhouse/clickhouse-server:26.10.3.7</code>), 2026-11-07, <code>run.sh</code>
-steps 00–08, with mcp-clickhouse 0.7.0 over stdio, clickhouse-connect 1.12.0, the <code>mcp</code> Python SDK 2.3.0
+steps 00–11 (run 2, 04:55 UTC; run 1 at 04:06 UTC had steps 00–08 and is the one the AI runs and the
+<code>images/</code> captures used — the two differ only in timings and scan ids), with mcp-clickhouse 0.7.0 over stdio, clickhouse-connect 1.12.0, the <code>mcp</code> Python SDK 2.3.0
 as a client, and <code>ai_prompts.sh</code> with Claude Code 2.1.220 in print mode (model alias <code>sonnet</code>).
 Machine: Docker Desktop on macOS, 12 CPUs, 8 GB; the container was capped at 3 GB, and other labs'
 containers were running at the same time, so timings are indicative only.
@@ -111,15 +112,27 @@ sparse files, 360 MB on disk. No real files were indexed.</p>
 </tr>
 <tr>
 <td>MCP timeout (<code>CLICKHOUSE_MCP_QUERY_TIMEOUT=3</code>, a ~12 s query)</td>
-<td>Error after 3.1 s, and the server-side query <strong>was cancelled</strong> (<code>QUERY_WAS_CANCELLED</code> after 2,994 ms in <code>query_log</code>, via the server's <code>KILL QUERY</code>). Control: the same query completes in 11.6 s under the default 30 s</td>
+<td>Error after 3.1 s, and the server-side query <strong>was cancelled</strong> (<code>QUERY_WAS_CANCELLED</code> after 2,994 ms in run 1, 2,984 ms in run 2, via the MCP server's <code>KILL QUERY</code>). Control: the same query completes in 11.6 s (run 1) / 13.9 s (run 2) under the default 30 s</td>
 </tr>
 <tr>
 <td>Three calls at once on one MCP session</td>
-<td>2.8 s for one, 2.8 s for three: <strong>not serial</strong> (<code>CLICKHOUSE_MCP_MAX_WORKERS</code> defaults to 10)</td>
+<td>Run 1: 2.8 s for one, 2.8 s for three; run 2: 2.3 s and 3.2 s. <strong>Not serial</strong> (<code>CLICKHOUSE_MCP_MAX_WORKERS</code> defaults to 10)</td>
 </tr>
 <tr>
 <td>Skip indexes (<code>EXPLAIN indexes = 1</code>)</td>
 <td><code>ngrambf_v1</code> on <code>name</code>: used by <code>LIKE '%contract%'</code>, <strong>not</strong> by <code>positionCaseInsensitive</code> or <code>multiSearchAnyCaseInsensitive</code>. <code>tokenbf_v1</code> and <code>text</code> on <code>text_excerpt</code>: used by <code>hasToken</code> and <code>LIKE</code>, not by <code>positionCaseInsensitive</code></td>
+</tr>
+<tr>
+<td>10M keys, 1M updated, 100k deleted (step 09): key lookup, 3 runs</td>
+<td><code>DEFINER</code> view <strong>342–377 ms, 11,140,960 rows read</strong>; no-view (<code>is_deleted</code> + <code>final = 1</code>) 3–8 ms, 81,920 rows; row policy + <code>final = 1</code> 4–5 ms, 40,960 rows; admin <code>FINAL</code> 3–4 ms, 40,960 rows. Prefix (<code>startsWith(path, 'd1234/')</code>): view 343–367 ms vs 3–5 ms. Whole-table <code>GROUP BY ext</code>: all four 403–442 ms. Live rows 9,900,000 in every design</td>
+</tr>
+<tr>
+<td>Row policy <code>USING is_deleted = 0</code> + <code>final = 1</code> (step 10), live version in one part, newer marker in another</td>
+<td>Reader sees <code>['1','2']</code>: the policy filters <strong>after</strong> <code>FINAL</code>. <code>indexer</code> and admin (no policy) see all 4 rows, marker included (<code>users_without_row_policies_can_read_rows</code> default). <code>SETTINGS final = 0</code> refused</td>
+</tr>
+<tr>
+<td>Cleaning up delete markers (step 11), live rows 10 days old, marker 9 days old, in two parts</td>
+<td><code>MODIFY TTL indexed_at + INTERVAL 1 DAY</code>: <strong>every live row deleted</strong> (view empty). <code>… DELETE WHERE is_deleted = 1</code>: applied per part (<code>MutatePart</code>), the marker goes and the <strong>deleted file comes back</strong> (<code>['0','1','2']</code>). <code>DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at &lt; …)</code>: <code>['1','2']</code>, key gone. <code>ReplacingMergeTree(ver, is_deleted)</code> + <code>OPTIMIZE … FINAL CLEANUP</code> (experimental setting): <code>['1','2']</code></td>
 </tr>
 </tbody>
 </table>
@@ -132,7 +145,7 @@ one sent a <code>SELECT</code> with no <code>LIMIT</code> that <code>max_result_
 rows of step 01, rows read in step 07, the step 08 timeout and concurrency in <code>query_log</code>, the AI's
 queries around the refused <code>SELECT</code>, and <code>/play</code> refusing <code>ai_reader</code>.</p>
 <h3>Run it</h3>
-<pre><code class="language-bash">./run.sh            # container, schema, users, tree, scans, controls, MCP probe → results/00..08
+<pre><code class="language-bash">./run.sh            # container, schema, users, tree, scans, controls, MCP probe, scale, row policy, cleanup → results/00..11
 ./ai_prompts.sh     # optional: 8 prompts through Claude Code + mcp-clickhouse → results/ai/
 ./run.sh down       # remove the container and work/
 </code></pre>
@@ -185,6 +198,10 @@ capped with <code>--max-budget-usd</code> (default 0.50).</p>
 <td>Admin checks of the numbers in the AI answers</td>
 </tr>
 <tr>
+<td><code>sql/08-scale.sql</code>, <code>sql/09-row-policy.sql</code>, <code>sql/10-purge.sql</code></td>
+<td>Steps 09–11: 10M keys in three designs, row policy order, delete-marker cleanup</td>
+</tr>
+<tr>
 <td><code>mcp_probe.py</code></td>
 <td>mcp-clickhouse over stdio without an AI: tools, grants, limits, timeout, concurrency</td>
 </tr>
@@ -203,7 +220,8 @@ capped with <code>--max-budget-usd</code> (default 0.50).</p>
 <li>ClickHouse Cloud, TLS, and any MCP client other than Claude Code in print mode.</li>
 <li>Real storage (NAS, SMB, cloud mounts), permissions errors while walking, or text extraction from PDF/Office files.</li>
 <li>Directories as rows (<code>is_dir</code> is always 0 here, as in the skeleton this lab follows).</li>
-<li>Scale: 21,033 rows fit in three granules, so the skip-index results show which predicates <em>can</em> use an index, not how much they save.</li>
+<li>Scale: 21,033 rows fit in three granules, so the skip-index results show which predicates <em>can</em> use an index, not how much they save. Step 09 measures the three access designs at 10M keys on generated rows, not files; skip indexes were not measured there.</li>
+<li><code>results/09-scale.txt</code> labels the active part count <code>rows</code> (6 parts, 136.68 MiB compressed).</li>
 <li><code>claude mcp add</code> was not run (it writes to the user's Claude Code config); the runs pass the same server through <code>--mcp-config</code>.</li>
 </ul>
 <hr /></div>
@@ -213,8 +231,9 @@ ClickHouse에 씁니다. AI 도우미는 <a href="https://github.com/ClickHouse/
 안내를 따릅니다: <code>(root, path)</code> 키의 <code>ReplacingMergeTree</code>, <code>FINAL</code>로 읽고 삭제 행을 숨기는 뷰, 전체
 스캔 뒤 삭제 감지, 뷰만 받은 <code>readonly</code> 사용자, 질의 규칙을 담은 프로젝트 프롬프트. 이 실습은
 그 각각을 실행해 맞는 곳과 맞지 않는 곳을 기록합니다.</p>
-<p><strong>ClickHouse 26.10.3.7</strong>(<code>clickhouse/clickhouse-server:26.10.3.7</code>)에서 2026-11-07 <code>run.sh</code> 00–08단계로
-검증했습니다. mcp-clickhouse 0.7.0(stdio), clickhouse-connect 1.12.0, 클라이언트로 <code>mcp</code> Python SDK
+<p><strong>ClickHouse 26.10.3.7</strong>(<code>clickhouse/clickhouse-server:26.10.3.7</code>)에서 2026-11-07 <code>run.sh</code> 00–11단계로
+검증했습니다(2차 실행, 04:55 UTC. 04:06 UTC의 1차 실행은 00–08단계였고 AI 실행과 <code>images/</code> 화면은 1차 컨테이너에서 —
+두 실행은 시간과 scan id만 다름). mcp-clickhouse 0.7.0(stdio), clickhouse-connect 1.12.0, 클라이언트로 <code>mcp</code> Python SDK
 2.3.0, <code>ai_prompts.sh</code>는 Claude Code 2.1.220 print 모드(모델 별칭 <code>sonnet</code>). 장비: macOS Docker Desktop,
 CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이너가 함께 돌고 있어 시간은 참고용입니다.
 파일 트리는 합성입니다(<code>gen_tree.py</code>, seed 42): 파일 21,033개, sparse 파일로 논리 크기 892.6 GB,
@@ -278,15 +297,27 @@ CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이
 </tr>
 <tr>
 <td>MCP 시간 제한(<code>CLICKHOUSE_MCP_QUERY_TIMEOUT=3</code>, 약 12초 쿼리)</td>
-<td>3.1초에 오류, 서버 쪽 쿼리는 <strong>취소됨</strong>(<code>query_log</code>에 2,994 ms 뒤 <code>QUERY_WAS_CANCELLED</code>, 서버의 <code>KILL QUERY</code>). 대조: 기본 30초에서는 같은 쿼리가 11.6초에 끝남</td>
+<td>3.1초에 오류, 서버 쪽 쿼리는 <strong>취소됨</strong>(<code>query_log</code>에 1차 2,994 ms · 2차 2,984 ms 뒤 <code>QUERY_WAS_CANCELLED</code>, MCP 서버의 <code>KILL QUERY</code>). 대조: 기본 30초에서는 같은 쿼리가 11.6초(1차) · 13.9초(2차)에 끝남</td>
 </tr>
 <tr>
 <td>MCP 세션 하나에 호출 세 개 동시</td>
-<td>하나 2.8초, 셋 2.8초 — <strong>직렬이 아님</strong>(<code>CLICKHOUSE_MCP_MAX_WORKERS</code> 기본 10)</td>
+<td>1차: 하나 2.8초, 셋 2.8초. 2차: 2.3초, 3.2초 — <strong>직렬이 아님</strong>(<code>CLICKHOUSE_MCP_MAX_WORKERS</code> 기본 10)</td>
 </tr>
 <tr>
 <td>skip index(<code>EXPLAIN indexes = 1</code>)</td>
 <td><code>name</code>의 <code>ngrambf_v1</code>: <code>LIKE '%contract%'</code>는 사용, <code>positionCaseInsensitive</code>·<code>multiSearchAnyCaseInsensitive</code>는 <strong>사용 안 함</strong>. <code>text_excerpt</code>의 <code>tokenbf_v1</code>·<code>text</code>: <code>hasToken</code>·<code>LIKE</code>는 사용, <code>positionCaseInsensitive</code>는 사용 안 함</td>
+</tr>
+<tr>
+<td>키 1,000만 · 갱신 100만 · 삭제 10만(09단계): 기본 키 조회 3회</td>
+<td><code>DEFINER</code> 뷰 <strong>342–377 ms, 11,140,960행 읽음</strong>. 뷰 없음(<code>is_deleted</code> + <code>final = 1</code>) 3–8 ms, 81,920행. 행 정책 + <code>final = 1</code> 4–5 ms, 40,960행. 관리자 <code>FINAL</code> 3–4 ms, 40,960행. 접두사(<code>startsWith(path, 'd1234/')</code>): 뷰 343–367 ms 대 3–5 ms. 전체 <code>GROUP BY ext</code>: 넷 모두 403–442 ms. 살아 있는 행은 모든 설계에서 9,900,000</td>
+</tr>
+<tr>
+<td>행 정책 <code>USING is_deleted = 0</code> + <code>final = 1</code>(10단계), 살아 있는 버전과 더 새 표식이 다른 파트에</td>
+<td>읽는 사용자는 <code>['1','2']</code>: 정책은 <code>FINAL</code> <strong>뒤에</strong> 걸림. 정책이 없는 <code>indexer</code>·관리자는 표식까지 4행 모두 봄(<code>users_without_row_policies_can_read_rows</code> 기본값). <code>SETTINGS final = 0</code> 거부</td>
+</tr>
+<tr>
+<td>삭제 표식 정리(11단계), 10일 전 살아 있는 행과 9일 전 표식이 다른 파트에</td>
+<td><code>MODIFY TTL indexed_at + INTERVAL 1 DAY</code>: <strong>살아 있는 행까지 모두 삭제</strong>(뷰 비어 있음). <code>… DELETE WHERE is_deleted = 1</code>: 파트마다 적용(<code>MutatePart</code>)되어 표식만 지워지고 <strong>지운 파일이 되살아남</strong>(<code>['0','1','2']</code>). <code>DELETE FROM … WHERE (root, path) IN (… FINAL WHERE is_deleted = 1 AND indexed_at &lt; …)</code>: <code>['1','2']</code>, 키가 사라짐. <code>ReplacingMergeTree(ver, is_deleted)</code> + <code>OPTIMIZE … FINAL CLEANUP</code>(실험적 설정): <code>['1','2']</code></td>
 </tr>
 </tbody>
 </table>
@@ -298,7 +329,7 @@ CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이
 07단계의 읽은 행 수, 08단계 시간 제한·동시 실행의 <code>query_log</code>, 거부된 <code>SELECT</code> 앞뒤의 AI 쿼리,
 <code>ai_reader</code>를 거부하는 <code>/play</code>.</p>
 <h3>실행</h3>
-<pre><code class="language-bash">./run.sh            # 컨테이너, 스키마, 사용자, 트리, 스캔, 대조, MCP 프로브 → results/00..08
+<pre><code class="language-bash">./run.sh            # 컨테이너, 스키마, 사용자, 트리, 스캔, 대조, MCP 프로브, 규모, 행 정책, 정리 → results/00..11
 ./ai_prompts.sh     # 선택: Claude Code + mcp-clickhouse로 프롬프트 8개 → results/ai/
 ./run.sh down       # 컨테이너와 work/ 삭제
 </code></pre>
@@ -351,6 +382,10 @@ CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이
 <td>AI 답의 수치를 관리자로 확인</td>
 </tr>
 <tr>
+<td><code>sql/08-scale.sql</code>, <code>sql/09-row-policy.sql</code>, <code>sql/10-purge.sql</code></td>
+<td>09–11단계: 세 설계의 키 1,000만 개, 행 정책 순서, 삭제 표식 정리</td>
+</tr>
+<tr>
 <td><code>mcp_probe.py</code></td>
 <td>AI 없이 stdio로 mcp-clickhouse 확인: 도구, 권한, 상한, 시간 제한, 동시 실행</td>
 </tr>
@@ -369,7 +404,8 @@ CPU 12개, 8 GB. 컨테이너는 3 GB로 제한했고 다른 실습의 컨테이
 <li>ClickHouse Cloud, TLS, Claude Code print 모드 외의 MCP 클라이언트.</li>
 <li>실제 스토리지(NAS, SMB, 클라우드 마운트), 순회 중 권한 오류, PDF·Office 본문 추출.</li>
 <li>디렉터리 행(<code>is_dir</code>는 이 실습이 따르는 골격처럼 항상 0).</li>
-<li>규모: 21,033행은 granule 세 개라 skip index 결과는 어떤 조건이 인덱스를 <em>쓸 수 있는지</em>만 보여 주고 얼마나 줄이는지는 아님.</li>
+<li>규모: 21,033행은 granule 세 개라 skip index 결과는 어떤 조건이 인덱스를 <em>쓸 수 있는지</em>만 보여 주고 얼마나 줄이는지는 아님. 09단계는 파일이 아니라 생성한 행으로 세 접근 설계를 키 1,000만 개에서 쟀고, skip index는 거기서 재지 않음.</li>
+<li><code>results/09-scale.txt</code>의 <code>rows</code> 열은 활성 파트 수임(파트 6개, 압축 136.68 MiB).</li>
 <li><code>claude mcp add</code>는 실행하지 않음(사용자의 Claude Code 설정에 씀). 실행은 같은 서버를 <code>--mcp-config</code>로 넘김.</li>
 </ul></div>
   <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/usecase/file-index-mcp"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>

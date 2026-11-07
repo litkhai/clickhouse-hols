@@ -151,4 +151,61 @@ echo "== 07 primary-key lookup: rows read through the view, the base table, and 
 echo "== 08 MCP probe (mcp-clickhouse $MCP_VERSION over stdio, user ai_reader)"
 uv run -q --python 3.12 --with "mcp==$MCP_SDK_VERSION" python mcp_probe.py 2>&1 | tee "$R/08-mcp-probe.txt"
 
+echo "== 09 10M keys: DEFINER view vs no-view (is_deleted + final) vs row policy (+ final)"
+{
+  sed "s/__AI_PASSWORD__/$AI_PW/" sql/08-scale.sql | docker exec -i "$NAME" clickhouse-client --password "$ADMIN_PW" --multiquery
+  ch -q "SELECT count() AS rows, formatReadableSize(sum(data_compressed_bytes)) AS compressed FROM system.parts WHERE database = 'fileidx_scale' AND table = 'file_index' AND active" $P
+  as() { docker exec "$NAME" clickhouse-client --user "$1" --password "$AI_PW" -q "$2" </dev/null; }
+  for q in "pk|count() FROM T WHERE root = 'docs' AND path = 'd1234/f1234566.mp4'" \
+           "prefix|count() FROM T WHERE root = 'docs' AND startsWith(path, 'd1234/')" \
+           "agg|ext, count(), sum(size) FROM T GROUP BY ext ORDER BY ext"; do
+    k=${q%%|*}; body=${q#*|}
+    for _ in 1 2 3; do
+      as ai_reader    "SELECT ${body//T/fileidx_scale.files} /* sc-$k-view */" >/dev/null
+      as ai_reader_b  "SELECT ${body//T/fileidx_scale.file_index_b} /* sc-$k-noview */" >/dev/null
+      as ai_reader_rp "SELECT ${body//T/fileidx_scale.file_index} /* sc-$k-policy */" >/dev/null
+      ch -q "SELECT ${body//T/fileidx_scale.file_index FINAL} /* sc-$k-base */" >/dev/null   # admin, includes delete markers in agg
+    done
+  done
+  echo "live rows: view $(as ai_reader 'SELECT count() FROM fileidx_scale.files')  no-view $(as ai_reader_b 'SELECT count() FROM fileidx_scale.file_index_b')  policy $(as ai_reader_rp 'SELECT count() FROM fileidx_scale.file_index')  admin $(ch -q 'SELECT count() FROM fileidx_scale.file_index FINAL WHERE is_deleted = 0')"
+  ch -q "SYSTEM FLUSH LOGS"
+  ch -q "SELECT extract(query, 'sc-[a-z]+-[a-z]+') AS run, min(query_duration_ms) AS min_ms, max(query_duration_ms) AS max_ms, any(read_rows) AS read_rows, count() AS n
+         FROM system.query_log WHERE type = 'QueryFinish' AND match(query, 'sc-[a-z]+-[a-z]+ ') AND query NOT LIKE '%system.query_log%'
+         GROUP BY run ORDER BY run" $P
+  ch --multiquery -q "DROP ROW POLICY live_only ON fileidx_scale.file_index; DROP DATABASE fileidx_scale SYNC; DROP USER scale_view_owner"
+} 2>&1 | tee "$R/09-scale.txt"
+
+echo "== 10 row policy: filtered after FINAL? what do users without a policy see?"
+{
+  chf sql/09-row-policy.sql
+  echo "ai_reader_rp (policy is_deleted = 0, final = 1): $(docker exec "$NAME" clickhouse-client --user ai_reader_rp --password "$AI_PW" -q "SELECT groupArray(path) FROM (SELECT path FROM fileidx.rp_test ORDER BY path)" </dev/null)"
+  echo "indexer (no policy, final = 0): $(docker exec "$NAME" clickhouse-client --user indexer --password "$IDX_PW" -q "SELECT tuple(count(), countIf(is_deleted = 1)) FROM fileidx.rp_test" </dev/null)"
+  echo "admin (no policy): $(ch -q "SELECT count() FROM fileidx.rp_test")"
+  expect_fail "ai_reader_rp turns FINAL off" docker exec "$NAME" clickhouse-client --user ai_reader_rp --password "$AI_PW" -q "SELECT count() FROM fileidx.rp_test SETTINGS final = 0"
+  ch --multiquery -q "DROP ROW POLICY live_only ON fileidx.rp_test; DROP TABLE fileidx.rp_test SYNC"
+} 2>&1 | tee "$R/10-row-policy.txt"
+
+echo "== 11 cleaning up delete markers: TTL, TTL ... WHERE is_deleted = 1, DELETE of all versions, CLEANUP"
+{
+  chf sql/10-purge.sql
+  live() { ch -q "SELECT groupArray(path) FROM (SELECT path FROM fileidx.$1 FINAL WHERE is_deleted = 0 ORDER BY path)"; }
+  for t in purge_ttl purge_ttl_where purge_delete purge_cleanup; do
+    ch --multiquery -q "SYSTEM STOP MERGES fileidx.$t;
+      INSERT INTO fileidx.$t (root, path, name, ext, size, mtime, is_dir, depth, scan_id, indexed_at) SELECT 'r', toString(number), toString(number), '', 1, now(), 0, 0, 1, now() - INTERVAL 10 DAY FROM numbers(3);
+      INSERT INTO fileidx.$t (root, path, name, ext, size, mtime, is_dir, depth, scan_id, is_deleted, indexed_at) VALUES ('r', '0', '0', '', 1, now(), 0, 0, 2, 1, now() - INTERVAL 9 DAY);"
+  done
+  echo "before: live paths $(live purge_ttl) in every table"
+  ch --multiquery -q "SYSTEM START MERGES fileidx.purge_ttl; ALTER TABLE fileidx.purge_ttl MODIFY TTL indexed_at + INTERVAL 1 DAY SETTINGS mutations_sync = 2"
+  ch --multiquery -q "SYSTEM START MERGES fileidx.purge_ttl_where; ALTER TABLE fileidx.purge_ttl_where MODIFY TTL indexed_at + INTERVAL 1 DAY DELETE WHERE is_deleted = 1 SETTINGS mutations_sync = 2"
+  ch --multiquery -q "SYSTEM START MERGES fileidx.purge_delete; DELETE FROM fileidx.purge_delete WHERE (root, path) IN (SELECT root, path FROM fileidx.purge_delete FINAL WHERE is_deleted = 1 AND indexed_at < now() - INTERVAL 1 DAY)"
+  ch --multiquery -q "SYSTEM START MERGES fileidx.purge_cleanup; OPTIMIZE TABLE fileidx.purge_cleanup FINAL CLEANUP"
+  for t in purge_ttl purge_ttl_where purge_delete purge_cleanup; do
+    echo "$t: live paths $(live $t), physical rows $(ch -q "SELECT count() FROM fileidx.$t")"
+  done
+  ch -q "SYSTEM FLUSH LOGS"
+  ch -q "SELECT table, event_type, merge_reason, count() AS parts FROM system.part_log WHERE database = 'fileidx' AND table LIKE 'purge_%'
+         AND event_type IN ('MergeParts', 'MutatePart') GROUP BY table, event_type, merge_reason ORDER BY table" $P
+  ch --multiquery -q "DROP TABLE fileidx.purge_ttl SYNC; DROP TABLE fileidx.purge_ttl_where SYNC; DROP TABLE fileidx.purge_delete SYNC; DROP TABLE fileidx.purge_cleanup SYNC"
+} 2>&1 | tee "$R/11-purge.txt"
+
 echo "done. AI prompts: ./ai_prompts.sh   teardown: ./run.sh down"
