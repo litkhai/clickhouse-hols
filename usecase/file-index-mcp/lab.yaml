@@ -1,9 +1,9 @@
 # Publishing keys only (tools/lab.schema.md): the lab needs Python and uv, so tools/hol does not run it.
 # Owner's choice, 2026-11-07 ("둘 다 추가"); article case-study/file-index-clickhouse-mcp.
 web: true
-title_ko: "파일 색인을 ClickHouse에 넣고 AI가 MCP로 읽기 전용 조회"
-summary_ko: "합성 파일 트리를 ReplacingMergeTree에 색인하고 AI가 mcp-clickhouse로 읽게 한 실습: 뷰 SQL security, 삭제 감지, readonly 상한, MCP 시간 제한·동시 실행, 키 1,000만 개 설계 비교, 삭제 표식 정리 (ClickHouse 26.10.3.7)"
-title_en: "File index in ClickHouse, queried read-only by an AI through mcp-clickhouse"
-summary_en: "A synthetic file tree in ReplacingMergeTree read by an AI through mcp-clickhouse: view SQL security, delete detection, readonly limits, MCP timeout and concurrency, three designs at 10M keys, delete-marker cleanup (ClickHouse 26.10.3.7)"
+title_ko: "파일 색인 + ClickHouse + 읽기 전용 MCP"
+summary_ko: "합성 파일 트리를 ReplacingMergeTree에 색인하고 AI가 mcp-clickhouse로 읽게 한 실습: 뷰 권한, 삭제 감지, readonly, MCP 시간 제한, 키 1,000만 개 설계, 표식 정리 (26.10)"
+title_en: "File index and read-only MCP"
+summary_en: "A synthetic file tree in ReplacingMergeTree, read by an AI via mcp-clickhouse: view grants, deletes, readonly, MCP timeouts, 10M-key designs (26.10)"
 category: case-study
 tags: [ai-agents, mergetree, updates-deletes, ingestion]
