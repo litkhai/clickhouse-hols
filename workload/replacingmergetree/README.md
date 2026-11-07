@@ -102,6 +102,7 @@ replacingmergetree/
 
 ### 🔍 Related Labs
 
+- [workload/replacingmergetree-mv](../replacingmergetree-mv/) — aggregating materialized views over ReplacingMergeTree: double counting, late rows, retries, and the designs that avoid them
 - [workload/dedup-engine](../dedup-engine/) — compares deduplication engines against each other
 - [workload/delete-benchmark](../delete-benchmark/) — DELETE mechanisms and their costs
 - [workload/mv-vs-rmv](../mv-vs-rmv/) — materialized vs refreshable materialized views
@@ -171,6 +172,7 @@ clickhouse-client --queries-file 99-cleanup.sql
 
 ### 🔍 관련 실습
 
+- [workload/replacingmergetree-mv](../replacingmergetree-mv/) — ReplacingMergeTree 위 집계 MV: 이중 집계, 늦은 행, 재시도와 이를 피하는 설계
 - [workload/dedup-engine](../dedup-engine/) — 중복 제거 엔진 간 비교
 - [workload/delete-benchmark](../delete-benchmark/) — DELETE 메커니즘과 비용
 - [workload/mv-vs-rmv](../mv-vs-rmv/) — MV와 RMV 비교

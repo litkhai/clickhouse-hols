@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aggregating materialized views over ReplacingMergeTree · ClickHouse HOLs</title>
+<meta name="description" content="Aggregating materialized views over ReplacingMergeTree — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/replacingmergetree-mv</code>
+    
+  </nav>
+  <div class="readme en"><h1>Aggregating materialized views over ReplacingMergeTree</h1>
+<hr />
+<p>An incremental materialized view runs on each insert block. It never sees a merge. Over a <code>ReplacingMergeTree</code>
+source this means every new version of a key is aggregated again, an older version that arrives late is counted
+too, and a delete marker is one more row, while the source itself ends up right after a merge or with <code>FINAL</code>.
+This lab reproduces each of those cases on small data, compares seven designs that avoid them on the same
+history, measures what they cost at 10M orders, and measures how many superseded rows a table carries under
+continuous upserts with 1 or 4 CPUs and with <code>min_age_to_force_merge_seconds</code>.</p>
+<p>The basics of <code>ReplacingMergeTree</code> and <code>FINAL</code> (with and without, <code>OPTIMIZE</code>, <code>argMax</code>) are in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree">workload/replacingmergetree</a>; how <code>FINAL</code> changed between versions is in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions">workload/final-across-versions</a>. This lab does not repeat them.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/replacingmergetree-mv
+grep -v '^#' versions.txt | xargs -I{} docker pull clickhouse/clickhouse-server:{}
+./run_matrix.py                    # 26.8 LTS and 26.10, a fresh container per build -&gt; results/&lt;build&gt;.json, RESULTS.md
+./run_matrix.py --versions 26.10   # one build
+./headroom.py                      # four containers (1 or 4 CPUs, forced merges off or on), about 3 minutes each -&gt; HEADROOM.md
+./headroom.py --batch 200000       # four times the rows per INSERT (800k rows/s)
+tools/hol run workload/replacingmergetree-mv   # from the repository root: every NN-*.sql once, must not raise
+</code></pre>
+<p><code>run_matrix.py</code> is the same runner as in <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions">final-across-versions</a> (identical file):
+each statement runs in its own <code>clickhouse-client</code> call, a statement preceded by <code>-- probe:</code> is measured and its
+<code>system.query_log</code> row kept. <code>errors/</code> holds a probe that is expected to fail; <code>tools/hol</code> does not run it.
+<code>headroom.py</code> needs only Docker; it starts its own containers (<code>rmtmv-headroom-&lt;cpus&gt;</code>) with <code>--cpus</code>.</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-double-count.sql</code></td>
+<td><code>orders</code> (<code>ReplacingMergeTree(ver)</code>), a per-day <code>SummingMergeTree</code> MV and a per-day <code>AggregatingMergeTree</code> MV with <code>uniqExact(order_id)</code>; three orders, then three corrections; source with and without <code>FINAL</code>, both targets, the target's rows by part; <code>OPTIMIZE … FINAL</code> on the source, then on the target</td>
+</tr>
+<tr>
+<td><code>02-late-and-ties.sql</code></td>
+<td>v1, v3, then a late v2 of one order; the per-day MV against a per-key <code>argMaxState(…, ver)</code> target; two different rows with the same version: <code>FINAL</code> against <code>argMaxMerge</code> before and after the target merges</td>
+</tr>
+<tr>
+<td><code>03-group-change-delete.sql</code></td>
+<td><code>ReplacingMergeTree(ver, is_deleted)</code>; status <code>pending</code> → <code>paid</code> → <code>refunded</code> and a delete; a per-status MV with and without <code>WHERE is_deleted = 0</code>; the delete marker after <code>OPTIMIZE … FINAL</code> and after <code>… FINAL CLEANUP</code></td>
+</tr>
+<tr>
+<td><code>04-blocks-and-retries.sql</code></td>
+<td>two versions of one key in one insert block (<code>optimize_on_insert</code>); a retried identical insert without a deduplication window, with <code>non_replicated_deduplication_window</code> on source and target, with <code>deduplicate_blocks_in_dependent_materialized_views = 0</code>; a different order whose MV output block is identical</td>
+</tr>
+<tr>
+<td><code>05-strategies.sql</code></td>
+<td>one history with an update, a late version, a key moving to another day and a delete, read through: N naive MV, A per-key <code>argMaxState</code> + query-time rollup, B writer-side retraction rows (<code>sign</code>), C refreshable MV over <code>FINAL</code>, D partition rebuild (<code>REPLACE PARTITION</code>), E query-time <code>argMax</code> on the source, F <code>OPTIMIZE … FINAL</code> then a plain read</td>
+</tr>
+<tr>
+<td><code>06-scale.sql</code></td>
+<td>10M orders + 2M updates + 2M regrouped + 1M updates + 1M late versions + 200k deletes (16.2M rows, merges stopped): totals of every design, per-day report time for N, <code>FINAL</code>, A and E (3 runs), one full refresh, one-day rebuild, storage, insert cost of a 2M-row batch with no MV / naive MV / per-key MV, <code>OPTIMIZE … FINAL</code>, reads on one part</td>
+</tr>
+<tr>
+<td><code>errors/01-mv-final.sql</code></td>
+<td><code>FINAL</code> in the <code>SELECT</code> of an incremental MV (rejected, Code 397)</td>
+</tr>
+<tr>
+<td><code>headroom.py</code></td>
+<td>2M keys, then 50k random-key upserts every 0.25 s for 60 s, then 60 s idle; superseded rows (<code>system.parts</code> rows − keys), parts and running merges every second; <code>count() FINAL</code> and <code>OPTIMIZE … FINAL</code> time at the end</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td>drops the <code>rmt_mv</code> database</td>
+</tr>
+</tbody>
+</table>
+<h3>Results</h3>
+<p>Verified on ClickHouse 26.8.36.3 and 26.10.3.7 (<code>clickhouse/clickhouse-server:&lt;tag&gt;</code>), 2026-11-07, Apple M4 Pro
+host, Docker Desktop VM with 12 CPUs and 7.7 GiB, a fresh container per build. Containers of another lab were
+running at the same time; their CPU% is in <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/RESULTS.md">RESULTS.md</a> and <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/HEADROOM.md">HEADROOM.md</a>. Every number
+below is copied from those two files.</p>
+<p><strong>What the MV target holds</strong> (<code>01</code>–<code>04</code>, identical on both builds):</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Source <code>FINAL</code> (truth)</th>
+<th>MV target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3 orders, one corrected once, one twice</td>
+<td>3 · 670</td>
+<td>6 · 1,220 (<code>uniqExact</code> target: 3 · 1,220)</td>
+</tr>
+<tr>
+<td>… after <code>OPTIMIZE … FINAL</code> on source and target</td>
+<td>3 · 670</td>
+<td>6 · 1,220</td>
+</tr>
+<tr>
+<td>v1, v3, then a late v2</td>
+<td>1 · 130</td>
+<td>3 · 350</td>
+</tr>
+<tr>
+<td><code>pending</code> → <code>paid</code> → <code>refunded</code> + one delete</td>
+<td>paid 1 · refunded 1</td>
+<td>pending 4 · paid 2 · refunded 1 (with <code>WHERE is_deleted = 0</code>: pending 3)</td>
+</tr>
+<tr>
+<td>two versions in one insert block</td>
+<td>2 rows in the part</td>
+<td>3 · 450</td>
+</tr>
+<tr>
+<td>retried insert, no deduplication window</td>
+<td>1 · 100</td>
+<td>2 · 200</td>
+</tr>
+<tr>
+<td>retried insert, <code>deduplicate_blocks_in_dependent_materialized_views = 0</code></td>
+<td>3 rows</td>
+<td>4 · 400</td>
+</tr>
+<tr>
+<td><code>FINAL</code> in the MV <code>SELECT</code></td>
+<td>—</td>
+<td>✗ Code 397</td>
+</tr>
+</tbody>
+</table>
+<p>Two rows with the same version: <code>FINAL</code> returns the one inserted last (900); a per-key <code>argMaxState</code> target
+returns 900 before it merges and 500 after <code>OPTIMIZE … FINAL</code>.</p>
+<p><strong>Seven designs on one history</strong> (<code>05</code>, truth 11-01 = 3 · 870, 11-02 = 1 · 300): the naive per-day MV gives
+11-01 = 8 · 2,080. Per-key <code>argMaxState</code>, writer-side retraction rows, the refreshable MV (after a refresh), the
+partition rebuild and query-time <code>argMax</code> all return the truth; <code>OPTIMIZE … FINAL</code> then a plain read is right until
+the next insert (4 · 1,420 after one more correction).</p>
+<p><strong>Cost at 10M orders / 16.2M rows, 16 parts</strong> (<code>06</code>, median of 3, 26.8.36.3 / 26.10.3.7):</p>
+<table>
+<thead>
+<tr>
+<th>Read or write</th>
+<th>Time · memory</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>naive per-day MV target</td>
+<td>0.00 s · 2 MiB / same</td>
+<td>16,000,000 orders · 87,981,600,000 (wrong)</td>
+</tr>
+<tr>
+<td>source <code>FINAL</code> per day</td>
+<td>0.15 s · 94 MiB / 0.21 s · 73 MiB</td>
+<td>9,800,000 · 53,898,480,000</td>
+</tr>
+<tr>
+<td>per-key <code>argMaxState</code> target, rolled up</td>
+<td>3.00 s · 2,536 MiB / 3.14 s · 2,469 MiB</td>
+<td>right</td>
+</tr>
+<tr>
+<td><code>argMax … GROUP BY order_id</code> on the source</td>
+<td>0.27 s · 849 MiB / 0.41 s · 826 MiB</td>
+<td>right</td>
+</tr>
+<tr>
+<td>one full refresh (<code>INSERT … SELECT … FINAL</code>)</td>
+<td>0.14 s / 0.25 s</td>
+<td>right</td>
+</tr>
+<tr>
+<td>one-day rebuild (<code>FINAL WHERE day = …</code>, reads every key)</td>
+<td>0.14 s / 0.26 s</td>
+<td>right</td>
+</tr>
+<tr>
+<td><code>OPTIMIZE TABLE orders FINAL</code> → 1 part</td>
+<td>1.87 s / 1.89 s</td>
+<td>then <code>FINAL</code> 0.03 s, plain 0.02 s</td>
+</tr>
+<tr>
+<td>INSERT 2M rows: no MV / naive MV / per-key MV</td>
+<td>0.14 / 0.16 / 1.40 s — 0.16 / 0.17 / 1.34 s</td>
+<td>per-key MV 1,046 MiB</td>
+</tr>
+</tbody>
+</table>
+<p>Sizes: <code>orders</code> 16.2M rows 105.49 MiB, <code>order_state</code> 14.7M rows 111.80 MiB, naive target 30 rows 401 B.</p>
+<p><strong>Merge headroom</strong> (<code>headroom.py</code>, 26.10.3.7, 2M keys): without forced merges, every configuration (1 or 4 CPUs,
+200k or 800k rows/s) still had 2,951,900–3,697,026 superseded rows in 6–7 parts 60 s after ingest stopped; with
+<code>min_age_to_force_merge_seconds = 20</code> every configuration reached 1 part and 0 superseded rows about 41 s after
+ingest. 1 vs 4 CPUs barely changed the superseded count; it changed the maximum insert latency at 800k rows/s
+(0.75 s vs 0.22 s) and <code>count() FINAL</code> at the end of ingest (0.29–0.31 s vs 0.14–0.17 s). Full table:
+<a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/HEADROOM.md">HEADROOM.md</a>.</p>
+<h3>Screens</h3>
+<p>Captured 2026-11-07 from <code>/play</code> on a local 26.10.3.7 container loaded with this lab's files, for the notes
+article <code>core-architecture/replacingmergetree-materialized-view</code>:</p>
+<ul>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/images/01-double-count-26-10.png"><code>images/01-double-count-26-10.png</code></a> — <code>01</code> before any merge: source <code>FINAL</code> 3 · 670, source without <code>FINAL</code> 6 · 1,220, <code>SummingMergeTree</code> target 6 · 1,220, <code>uniqExact</code> target 3 · 1,220</li>
+<li><a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/images/02-scale-totals-26-10.png"><code>images/02-scale-totals-26-10.png</code></a> — <code>06</code> after <code>OPTIMIZE … FINAL</code>: source with and without <code>FINAL</code> 9,800,000 · 53,898,480,000, per-day MV target 16,000,000 · 87,981,600,000, per-key target 9,800,000 · 53,898,480,000</li>
+</ul>
+<h3>Not verified here</h3>
+<ul>
+<li>ClickHouse Cloud (SharedMergeTree): deduplication window defaults and merge behaviour were not run</li>
+<li>Concurrent inserts during a partition rebuild (<code>REPLACE PARTITION</code> racing the MV)</li>
+<li>Merge headroom on tables large enough that a single merge takes minutes</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>증분 MV는 INSERT 블록마다 돌고 병합은 보지 못합니다. 원본이 <code>ReplacingMergeTree</code>이면 키의 새 버전이 들어올 때마다
+다시 집계되고, 늦게 온 옛 버전도 더해지며, 삭제 표시도 한 행으로 셉니다. 원본은 병합이나 <code>FINAL</code>로 맞아지는데
+대상은 그대로입니다. 이 실습은 각 경우를 작은 데이터로 재현하고, 이를 피하는 설계 일곱 가지를 같은 이력에서 비교하고,
+1,000만 주문에서 비용을 재고, 계속되는 upsert에서 CPU 1개 · 4개와 <code>min_age_to_force_merge_seconds</code>에 따라
+대체된 행이 얼마나 남는지 잽니다.</p>
+<p><code>ReplacingMergeTree</code>와 <code>FINAL</code>의 기초는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree">workload/replacingmergetree</a>, <code>FINAL</code>의 버전별
+변화는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/final-across-versions">workload/final-across-versions</a>에 있습니다.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/replacingmergetree-mv
+grep -v '^#' versions.txt | xargs -I{} docker pull clickhouse/clickhouse-server:{}
+./run_matrix.py                    # 26.8 LTS, 26.10 — 빌드마다 새 컨테이너 -&gt; results/&lt;빌드&gt;.json, RESULTS.md
+./headroom.py                      # CPU 1 · 4 × 강제 병합 끔 · 켬, 조합마다 약 3분 -&gt; HEADROOM.md
+./headroom.py --batch 200000       # INSERT당 행 4배(초당 80만 행)
+tools/hol run workload/replacingmergetree-mv   # 저장소 루트에서: NN-*.sql을 한 번씩, 실패 없어야 함
+</code></pre>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-double-count.sql</code></td>
+<td>주문 3건과 정정 3번; 일별 <code>SummingMergeTree</code> MV, <code>uniqExact</code> 대상; 원본 · 대상 <code>OPTIMIZE … FINAL</code></td>
+</tr>
+<tr>
+<td><code>02-late-and-ties.sql</code></td>
+<td>v1, v3, 늦은 v2; 키 단위 <code>argMaxState</code> 대상; 같은 버전 두 행</td>
+</tr>
+<tr>
+<td><code>03-group-change-delete.sql</code></td>
+<td>상태 변경과 <code>is_deleted</code> 삭제; MV에서 삭제 표시 거르기; <code>FINAL CLEANUP</code></td>
+</tr>
+<tr>
+<td><code>04-blocks-and-retries.sql</code></td>
+<td>한 블록 안의 두 버전; 재시도와 중복 제거 창, <code>deduplicate_blocks_in_dependent_materialized_views</code></td>
+</tr>
+<tr>
+<td><code>05-strategies.sql</code></td>
+<td>위험 네 가지가 든 한 이력을 일곱 설계로 읽기</td>
+</tr>
+<tr>
+<td><code>06-scale.sql</code></td>
+<td>1,620만 행(병합 멈춤)에서 설계별 합계 · 조회 · 갱신 · 재빌드 · INSERT 비용, <code>OPTIMIZE … FINAL</code> 뒤</td>
+</tr>
+<tr>
+<td><code>errors/01-mv-final.sql</code></td>
+<td>MV <code>SELECT</code>의 <code>FINAL</code>(Code 397로 거부)</td>
+</tr>
+<tr>
+<td><code>headroom.py</code></td>
+<td>키 200만 개에 0.25초마다 임의 키 upsert 60초, 60초 휴식; 1초마다 대체된 행 · 파트</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td><code>rmt_mv</code> 데이터베이스 삭제</td>
+</tr>
+</tbody>
+</table>
+<h3>결과</h3>
+<p>26.8.36.3과 26.10.3.7에서 2026-11-07에 실행했습니다(Apple M4 Pro, Docker VM 12 CPU · 7.7 GiB, 빌드마다 새
+컨테이너, 다른 실습의 컨테이너가 함께 돌았고 그 CPU%는 <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/RESULTS.md">RESULTS.md</a> · <a href="https://github.com/litkhai/clickhouse-hols/blob/main/workload/replacingmergetree-mv/HEADROOM.md">HEADROOM.md</a>에
+있음). 표와 해석은 노트 글 <a href="https://clickhouse.litkhai.dev/articles/core-architecture/replacingmergetree-materialized-view/">ReplacingMergeTree와 집계 MV</a>에
+있고, 모든 수치는 위 두 파일에서 옮겼습니다.</p>
+<ul>
+<li>MV 대상은 정정 · 늦은 버전 · 그룹 변경 · 삭제 · 블록 안 중복 · 창 없는 재시도를 모두 한 번 더 셉니다(주문 3건 · 670이 6건 · 1,220). 원본과 대상을 <code>OPTIMIZE … FINAL</code>해도 그대로입니다</li>
+<li>같은 이력에서 키 단위 <code>argMaxState</code>, 상쇄 행, refreshable MV, 파티션 재빌드, 조회 때 <code>argMax</code>가 정답이었습니다</li>
+<li>1,620만 행에서 일별 보고서: 원본 <code>FINAL</code> 0.15–0.21초, 키 단위 상태 3.0–3.1초 · 2.5 GiB, 원본 <code>argMax</code> 0.27–0.41초. 키 단위 MV는 200만 행 INSERT를 0.16초에서 1.34–1.40초로 늘렸습니다</li>
+<li>강제 병합 없이는 INSERT가 끝나고 60초 뒤에도 대체된 행 295만–370만 개가 남았고, <code>min_age_to_force_merge_seconds = 20</code>이면 약 41초 뒤 0이었습니다. CPU 1개와 4개는 대체된 행 수를 거의 바꾸지 않았습니다</li>
+</ul>
+<h3>여기서 확인하지 않은 것</h3>
+<ul>
+<li>ClickHouse Cloud(SharedMergeTree)의 중복 제거 창 기본값과 병합</li>
+<li>파티션 재빌드 중 동시에 들어오는 INSERT(<code>REPLACE PARTITION</code>과 MV의 경합)</li>
+<li>병합 하나가 몇 분씩 걸리는 큰 테이블의 병합 여유</li>
+</ul>
+<hr />
+<h2>License</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — same as the rest of the repository.</p>
+<h2>라이선스</h2>
+<p><a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a> — 저장소 전체와 동일합니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree-mv"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/mv-vs-rmv/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">MV vs RMV Resource Efficiency Comparison Test</span></a><a class="step next" href="../../../labs/workload/mv-uniq-state-size/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Distinct-count state size in materialized-view rollups</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
