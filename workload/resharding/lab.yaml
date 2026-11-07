@@ -2,8 +2,8 @@
 # verified_on is informational here (the README's "Verified on" line is the claim).
 verified_on: "26.8.36.3"
 
-# Publishing keys (tools/lab.schema.md) — new lab 2026-11-07 (#144). web stays false until the owner publishes it.
-web: false
+# Publishing keys (tools/lab.schema.md) — new lab 2026-11-07 (#144), published with its notes article (owner 2026-11-07)
+web: true
 title_ko: "자체 운영 클러스터 리샤딩: 2샤드 → 3샤드"
 summary_ko: "Keeper + 2×2 → 3×2 클러스터에서 가중치 변경, remote()로 INSERT … SELECT, 파티션 FETCH · ATTACH · DROP을 실행하고 샤드별 행 수, 시간, 이동 중 읽기 · 쓰기, 파티션별 검증과 레플리카 장애를 잽니다."
 title_en: "Resharding a self-managed cluster: 2 → 3 shards"
