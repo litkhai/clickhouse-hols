@@ -1,0 +1,4 @@
+# Runs against a ClickHouse Cloud service with run.sh; tools/hol does not run it (no `clickhouse` key).
+# oss/ is a separate local comparison (Docker), run with oss/run.sh.
+target: cloud
+verified_on: "26.8.1.608"   # ClickHouse Cloud, 2 replicas + idle read-only service in the warehouse, 2026-11-07, run.sh 01 → 99

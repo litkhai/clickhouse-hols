@@ -1,0 +1,724 @@
+ Network sharedcatalog_default Creating 
+ Volume sharedcatalog_ch2data Creating 
+ Volume sharedcatalog_ch2data Creating 
+ Network sharedcatalog_default Creating 
+ Volume sharedcatalog_ch1data Creating 
+ Volume sharedcatalog_ch1data Creating 
+ Volume sharedcatalog_ch2data Created 
+ Volume sharedcatalog_ch2data Created 
+ Volume sharedcatalog_ch1data Created 
+ Volume sharedcatalog_ch1data Created 
+ Network sharedcatalog_default Created 
+ Network sharedcatalog_default Created 
+ Container sc-keeper Creating 
+ Container sc-keeper Created 
+ Container ch2 Creating 
+ Container ch1 Creating 
+ Container ch2 Created 
+ Container ch1 Created 
+ Container sc-keeper Starting 
+ Container sc-keeper Started 
+ Container ch2 Starting 
+ Container ch1 Starting 
+ Container ch2 Started 
+ Container ch1 Started 
+run date: 2026-11-07 02:02:24 UTC
+-- [ch1] SELECT version()
+   26.8.36.3
+-- [ch2] SELECT version()
+   26.8.36.3
+CONTAINER           REPOSITORY                     TAG                 PLATFORM            IMAGE ID            SIZE                CREATED
+ch1                 clickhouse/clickhouse-server   26.8                linux/arm64         d426d2f612e1        1.12GB              11 days ago
+ch2                 clickhouse/clickhouse-server   26.8                linux/arm64         d426d2f612e1        1.12GB              11 days ago
+sc-keeper           clickhouse/clickhouse-keeper   26.8                linux/arm64         a847f2f30ac6        654MB               11 days ago
+=== 1. Atomic database + ReplicatedMergeTree ===
+-- [ch1] CREATE DATABASE analytics
+-- [ch2] CREATE DATABASE analytics
+-- [ch1] SELECT name, engine FROM system.databases WHERE name='analytics'
+   analytics	Atomic
+-- [ch1] CREATE TABLE analytics.events (id UInt64, ts DateTime) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events','{replica}') ORDER BY id
+-- [ch2] SHOW TABLES FROM analytics
+-- [ch1] system.zookeeper tree of /clickhouse/tables/01/events (depth 3)
+   alter_partition_version  [children=0]
+   async_blocks  [children=0]
+   block_numbers  [children=0]
+   blocks  [children=0]
+   columns  [children=0]  = columns format version: 1\n2 columns:\n`id` UInt64\n`ts` DateTime\n
+   deduplication_hashes  [children=0]
+   leader_election  [children=1]
+     leader_election-0  [children=0]  = all (multiple leaders Ok)
+   lightweight_updates  [children=1]
+     in_progress  [children=0]
+   log  [children=0]
+   lost_part_count  [children=0]
+   metadata  [children=0]  = metadata format version: 1\ndate column: \nsampling expression: \nindex granularity: 8192\nmode: 0\nsign column: \np
+   mutations  [children=0]
+   nonincrement_block_numbers  [children=0]
+   part_moves_shard  [children=0]
+   pinned_part_uuids  [children=0]  = {"part_uuids":"[]"}
+   quorum  [children=3]
+     failed_parts  [children=0]
+     last_part  [children=0]
+     parallel  [children=0]
+   replicas  [children=1]  = last added replica: ch1
+     ch1  [children=14]
+       columns  [children=0]  = columns format version: 1\n2 columns:\n`id` UInt64\n`ts` DateTime\n
+       creator_info  [children=0]  = 258583dc-521a-4ac0-a96d-6b44c193690a|401bbe03-a317-4e82-9e57-5ec7a935870d
+       flags  [children=0]
+       host  [children=0]  = host: ch1\nport: 9009\ntcp_port: 9000\ndatabase: analytics\ntable: events\nscheme: http\n
+       is_active  [children=0]  = UUID_'401bbe03-a317-4e82-9e57-5ec7a935870d'
+       is_lost  [children=0]  = 0
+       log_pointer  [children=0]  = 0
+       max_processed_insert_time  [children=0]
+       metadata  [children=0]  = metadata format version: 1\ndate column: \nsampling expression: \nindex granularity: 8192\nmode: 0\nsign column: \np
+       metadata_version  [children=0]  = 0
+       min_unprocessed_insert_time  [children=0]
+       mutation_pointer  [children=0]
+       parts  [children=0]
+       queue  [children=0]
+   table_shared_id  [children=0]  = 258583dc-521a-4ac0-a96d-6b44c193690a
+   temp  [children=2]
+     abandonable_lock-insert  [children=0]
+     abandonable_lock-other  [children=0]
+-- [ch1] SELECT value FROM system.zookeeper WHERE path='/clickhouse/tables/01/events' AND name='metadata'
+   metadata format version: 1
+   date column: 
+   sampling expression: 
+   index granularity: 8192
+   mode: 0
+   sign column: 
+   primary key: id
+   data format version: 1
+   partition key: 
+   granularity bytes: 10485760
+   merge parameters format version: 2
+   
+-- [ch1] SELECT value FROM system.zookeeper WHERE path='/clickhouse/tables/01/events' AND name='columns'
+   columns format version: 1
+   2 columns:
+   `id` UInt64
+   `ts` DateTime
+   
+-- local side on ch1
+-- [ch1] cat /var/lib/clickhouse/metadata/analytics/events.sql
+   ATTACH TABLE _ UUID '258583dc-521a-4ac0-a96d-6b44c193690a'
+   (
+       `id` UInt64,
+       `ts` DateTime
+   )
+   ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')
+   ORDER BY id
+   SETTINGS index_granularity = 8192
+-- [ch1] ls -l /var/lib/clickhouse/metadata/ /var/lib/clickhouse/metadata/analytics | grep -v '^total'
+   lrwxrwxrwx 1 clickhouse clickhouse   49 Nov  7 02:02 /var/lib/clickhouse/metadata/analytics -> ../store/118/11816630-dd5d-4a59-860a-946e67497eb6
+   
+   /var/lib/clickhouse/metadata/:
+   lrwxrwxrwx 1 clickhouse clickhouse 49 Nov  7 02:02 analytics -> ../store/118/11816630-dd5d-4a59-860a-946e67497eb6
+   -rw-r----- 1 clickhouse clickhouse 78 Nov  7 02:02 analytics.sql
+   -rw-r----- 1 clickhouse clickhouse 78 Nov  7 02:02 default.sql
+   -rw-r----- 1 clickhouse clickhouse 51 Nov  7 02:02 information_schema.sql
+   -rw-r----- 1 clickhouse clickhouse 51 Nov  7 02:02 INFORMATION_SCHEMA.sql
+   lrwxrwxrwx 1 clickhouse clickhouse 49 Nov  7 02:02 system -> ../store/f5b/f5bdb2c1-331e-41cf-acab-f00b7986a6a0
+   -rw-r----- 1 clickhouse clickhouse 78 Nov  7 02:02 system.sql
+-- [ch1] ls -l /var/lib/clickhouse/data/ | grep analytics; ls /var/lib/clickhouse/store/*/*/ | head
+   drwxr-x--- 2 clickhouse clickhouse 4096 Nov  7 02:02 analytics
+   /var/lib/clickhouse/store/118/11816630-dd5d-4a59-860a-946e67497eb6/:
+   events.sql
+   
+   /var/lib/clickhouse/store/258/258583dc-521a-4ac0-a96d-6b44c193690a/:
+   detached
+   format_version.txt
+   
+   /var/lib/clickhouse/store/f5b/f5bdb2c1-331e-41cf-acab-f00b7986a6a0/:
+-- [ch1] SELECT name, uuid, data_paths, metadata_path FROM system.tables WHERE database='analytics' FORMAT Vertical
+   Row 1:
+   ──────
+   name:          events
+   uuid:          258583dc-521a-4ac0-a96d-6b44c193690a
+   data_paths:    ['/var/lib/clickhouse/store/258/258583dc-521a-4ac0-a96d-6b44c193690a/']
+   metadata_path: store/118/11816630-dd5d-4a59-860a-946e67497eb6/events.sql
+--- create the same table on ch2
+-- [ch2] CREATE TABLE analytics.events (id UInt64, ts DateTime) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events','{replica}') ORDER BY id
+-- [ch1] system.zookeeper tree of /clickhouse/tables/01/events/replicas (depth 1)
+   ch1  [children=14]
+   ch2  [children=14]
+--- ALTER on ch1 only (no ON CLUSTER)
+-- [ch1] ALTER TABLE analytics.events ADD COLUMN note String
+-- [ch2] SHOW CREATE TABLE analytics.events FORMAT TSVRaw
+   CREATE TABLE analytics.events
+   (
+       `id` UInt64,
+       `ts` DateTime,
+       `note` String
+   )
+   ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')
+   ORDER BY id
+   SETTINGS index_granularity = 8192
+-- [ch2] cat /var/lib/clickhouse/metadata/analytics/events.sql
+   ATTACH TABLE _ UUID 'af51c675-8fa4-487c-a67b-ae7615086b8a'
+   (
+       `id` UInt64,
+       `ts` DateTime,
+       `note` String
+   )
+   ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')
+   ORDER BY id
+   SETTINGS index_granularity = 8192
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/tables/01/events/log'
+   log-0000000000	format version: 4
+   create_time: 2026-11-07 02:02:27
+   source replica: ch1
+   block_id: 
+   alter
+   alter_version
+   1
+   have_mutation
+   0
+   columns_str_size:
+   77
+   columns format version: 1
+   3 columns:
+   `id` UInt64
+   `ts` DateTime
+   `note` String
+   
+   metadata_str_size:
+   227
+   metadata format version: 1
+   date column: 
+   sampling expression: 
+   index granularity: 8192
+   mode: 0
+   sign column: 
+   primary key: id
+   data format version: 1
+   partition key: 
+   granularity bytes: 10485760
+   merge parameters format version: 2
+   
+   
+--- RENAME on ch1
+-- [ch1] RENAME TABLE analytics.events TO analytics.events_renamed
+-- [ch1] SELECT `table`, zookeeper_path, replica_name FROM system.replicas WHERE database='analytics'
+   events_renamed	/clickhouse/tables/01/events	ch1
+-- [ch2] SHOW TABLES FROM analytics
+   events
+-- [ch1] system.zookeeper tree of /clickhouse/tables/01 (depth 1)
+   events  [children=19]
+--- DROP on ch1
+-- [ch1] DROP TABLE analytics.events_renamed SYNC
+-- [ch1] system.zookeeper tree of /clickhouse/tables/01/events/replicas (depth 1)
+   ch2  [children=14]
+-- [ch2] SELECT name FROM system.tables WHERE database='analytics'
+   events
+--- plain view on ch1
+-- [ch1] CREATE VIEW analytics.plain_view_probe AS SELECT 1 AS x
+-- [ch1] search for the view name in the Keeper tree under /clickhouse (depth 5, names and first 110 chars of values):
+   matching lines: 0
+-- [ch1] system.zookeeper tree of /clickhouse (depth 3)
+   sessions  [children=1]
+     zookeeper  [children=2]
+       401bbe03-a317-4e82-9e57-5ec7a935870d  [children=0]
+       5ee930dd-5911-4c1a-b068-5e1401f74798  [children=0]
+   tables  [children=1]
+     01  [children=1]
+       events  [children=19]
+   task_queue  [children=2]
+     ddl  [children=0]
+     replicas  [children=3]
+       ch1:9000  [children=1]
+       ch2:9000  [children=1]
+       localhost:9000  [children=1]
+-- [ch1] cat /var/lib/clickhouse/metadata/analytics/plain_view_probe.sql
+   ATTACH VIEW _ UUID '538c2b65-3289-4f49-8e01-8d2035ff6afa'
+   (
+       `x` UInt8
+   )
+   AS SELECT 1 AS x
+-- [ch2] SHOW TABLES FROM analytics
+   events
+=== 2. ON CLUSTER (DDLWorker queue) ===
+-- [ch1] CREATE TABLE analytics.t_cluster ON CLUSTER c (id UInt64) ENGINE = MergeTree ORDER BY id
+   host	port	status	error	num_hosts_remaining	num_hosts_active
+   ch2	9000	0		1	0
+   ch1	9000	0		0	0
+-- [ch1] system.zookeeper tree of /clickhouse/task_queue/ddl (depth 3)
+   query-0000000000  [children=2]  = version: 5\nquery: CREATE TABLE analytics.t_cluster UUID \'2a63226b-e610-4345-a9bd-bb57bc47791c\' ON CLUSTER c 
+     active  [children=0]
+     finished  [children=2]
+       ch1:9000  [children=0]  = 0\n
+       ch2:9000  [children=0]  = 0\n
+-- [ch1] SELECT value FROM system.zookeeper WHERE path='/clickhouse/task_queue/ddl' AND name='query-0000000000'
+   version: 5
+   query: CREATE TABLE analytics.t_cluster UUID \'2a63226b-e610-4345-a9bd-bb57bc47791c\' ON CLUSTER c (`id` UInt64) ENGINE = MergeTree ORDER BY id
+   hosts: ['ch1:9000','ch2:9000']
+   initiator: ch1:9000
+   tracing: 00000000-0000-0000-0000-000000000000
+   0
+   
+   0
+   initial_query_id: e308d007-69fb-4d4d-b51b-76c9f5995cbd
+   
+-- [ch2] SELECT name FROM system.tables WHERE database='analytics' AND name='t_cluster'
+   t_cluster
+-- [ch1] SELECT name, value, changed FROM system.server_settings WHERE name LIKE '%ddl%' OR name LIKE '%task%'
+   background_schedule_pool_max_parallel_tasks_per_type_ratio	0.8	0
+   distributed_ddl_use_initial_user_and_roles	0	0
+   distributed_ddl.path	/clickhouse/task_queue/ddl	1
+   distributed_ddl.replicas_path	/clickhouse/task_queue/replicas	1
+   distributed_ddl.profile		0
+   distributed_ddl.pool_size	1	0
+   distributed_ddl.max_tasks_in_queue	1000	0
+   distributed_ddl.task_max_lifetime	604800	0
+   distributed_ddl.cleanup_delay_period	60	0
+--- stop ch2, run another ON CLUSTER DDL with distributed_ddl_task_timeout=10
+-- docker compose stop ch2
+    Container ch2 Stopping 
+    Container ch2 Stopped 
+-- [ch1] (expected to fail) CREATE TABLE analytics.t_late ON CLUSTER c (id UInt64) ENGINE = MergeTree ORDER BY id SETTINGS distributed_ddl_task_timeout=10
+   Code: 159. DB::Exception: Received from localhost:9000. DB::Exception: Distributed DDL task /clickhouse/task_queue/ddl/query-0000000001 is not finished on 1 of 2 hosts (0 of them are currently executing the task, 0 are inactive). They are going to execute the query in background. Was waiting for 10.862 seconds, which is longer than distributed_ddl_task_timeout. (TIMEOUT_EXCEEDED)
+-- [ch1] SELECT name FROM system.tables WHERE database='analytics' AND name='t_late'
+   t_late
+-- [ch1] system.zookeeper tree of /clickhouse/task_queue/ddl (depth 3)
+   query-0000000000  [children=2]  = version: 5\nquery: CREATE TABLE analytics.t_cluster UUID \'2a63226b-e610-4345-a9bd-bb57bc47791c\' ON CLUSTER c 
+     active  [children=0]
+     finished  [children=2]
+       ch1:9000  [children=0]  = 0\n
+       ch2:9000  [children=0]  = 0\n
+   query-0000000001  [children=2]  = version: 5\nquery: CREATE TABLE analytics.t_late UUID \'85254614-d71a-490c-8362-bfe05abf16d9\' ON CLUSTER c (`i
+     active  [children=0]
+     finished  [children=1]
+       ch1:9000  [children=0]  = 0\n
+-- [ch1] SELECT value FROM system.zookeeper WHERE path='/clickhouse/task_queue/ddl' AND name='query-0000000001'
+   version: 5
+   query: CREATE TABLE analytics.t_late UUID \'85254614-d71a-490c-8362-bfe05abf16d9\' ON CLUSTER c (`id` UInt64) ENGINE = MergeTree ORDER BY id
+   hosts: ['ch1:9000','ch2:9000']
+   initiator: ch1:9000
+   settings: distributed_ddl_task_timeout = 10
+   tracing: 00000000-0000-0000-0000-000000000000
+   0
+   
+   0
+   initial_query_id: a9f5446c-f206-4f68-9b5e-f67021d888d1
+   
+-- docker compose start ch2
+    Container ch2 Starting 
+    Container ch2 Started 
+-- [ch2] SELECT name FROM system.tables WHERE database='analytics' ORDER BY name
+   events
+   t_cluster
+   t_late
+-- [ch1] system.zookeeper tree of /clickhouse/task_queue/ddl/query-0000000001 (depth 2)
+   active  [children=0]
+   finished  [children=2]
+     ch1:9000  [children=0]  = 0\n
+     ch2:9000  [children=0]  = 0\n
+=== 3. Replicated database ===
+-- [ch1] CREATE DATABASE rdb ENGINE = Replicated('/clickhouse/databases/rdb','{shard}','{replica}')
+-- [ch2] CREATE DATABASE rdb ENGINE = Replicated('/clickhouse/databases/rdb','{shard}','{replica}')
+-- [ch1] CREATE TABLE rdb.t (id UInt64, v String) ENGINE = ReplicatedMergeTree ORDER BY id
+   01	ch1	OK	1	1
+   01	ch2	OK	0	0
+-- [ch1] CREATE VIEW rdb.v AS SELECT id FROM rdb.t
+   01	ch1	OK	1	0
+   01	ch2	OK	0	0
+-- [ch2] SYSTEM SYNC DATABASE REPLICA rdb
+-- [ch2] SHOW TABLES FROM rdb
+   t
+   v
+-- [ch2] SELECT name, engine, create_table_query FROM system.tables WHERE database='rdb' ORDER BY name FORMAT Vertical
+   Row 1:
+   ──────
+   name:               t
+   engine:             ReplicatedMergeTree
+   create_table_query: CREATE TABLE rdb.t (`id` UInt64, `v` String) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY id SETTINGS index_granularity = 8192
+   
+   Row 2:
+   ──────
+   name:               v
+   engine:             View
+   create_table_query: CREATE VIEW rdb.v (`id` UInt64) AS SELECT id FROM rdb.t
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb (depth 3)
+   counter  [children=0]
+   first_replica_database_name  [children=0]  = rdb
+   log  [children=4]
+     query-0000000001  [children=4]  = version: 1\nquery: \nhosts: []\ninitiator: \n
+       active  [children=0]
+       committed  [children=0]  = 01|ch1
+       finished  [children=2]
+       synced  [children=2]
+     query-0000000002  [children=4]  = version: 1\nquery: \nhosts: []\ninitiator: \n
+       active  [children=0]
+       committed  [children=0]  = 01|ch2
+       finished  [children=0]
+       synced  [children=0]
+     query-0000000003  [children=4]  = version: 5\nquery: CREATE TABLE t UUID \'b74f6434-d7b7-45f5-8155-839aee452c01\' (`id` UInt64, `v` String) ENGIN
+       active  [children=0]
+       committed  [children=0]  = 01|ch1
+       finished  [children=2]
+       synced  [children=0]
+     query-0000000004  [children=4]  = version: 5\nquery: CREATE VIEW v UUID \'ccd52d42-7206-4e62-8394-1d055aaa956f\' (`id` UInt64) AS SELECT id FROM 
+       active  [children=0]
+       committed  [children=0]  = 01|ch1
+       finished  [children=2]
+       synced  [children=0]
+   logs_to_keep  [children=0]  = 1000
+   max_log_ptr  [children=0]  = 4
+   metadata  [children=2]
+     t  [children=0]  = ATTACH TABLE _ UUID 'b74f6434-d7b7-45f5-8155-839aee452c01'\n(\n    `id` UInt64,\n    `v` String\n)\nENGINE = Replic
+     v  [children=0]  = ATTACH VIEW _ UUID 'ccd52d42-7206-4e62-8394-1d055aaa956f'\n(\n    `id` UInt64\n)\nAS SELECT id\nFROM rdb.t\n
+   replicas  [children=2]
+     01|ch1  [children=5]  = ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694
+       active  [children=0]  = 401bbe03-a317-4e82-9e57-5ec7a935870d
+       digest  [children=0]  = 12667236409614099771
+       log_ptr  [children=0]  = 4
+       max_log_ptr_at_creation  [children=0]  = 1
+       replica_group  [children=0]
+     01|ch2  [children=5]  = ch2:9000:5e69dc55-bfa2-410e-908c-74658b4d4aaf
+       active  [children=0]  = 5ee930dd-5911-4c1a-b068-5e1401f74798
+       digest  [children=0]  = 12667236409614099771
+       log_ptr  [children=0]  = 4
+       max_log_ptr_at_creation  [children=0]  = 1
+       replica_group  [children=0]
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/metadata' AND name='t'
+   t	ATTACH TABLE _ UUID 'b74f6434-d7b7-45f5-8155-839aee452c01'
+   (
+       `id` UInt64,
+       `v` String
+   )
+   ENGINE = ReplicatedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
+   ORDER BY id
+   SETTINGS index_granularity = 8192
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/metadata' AND name='v'
+   v	ATTACH VIEW _ UUID 'ccd52d42-7206-4e62-8394-1d055aaa956f'
+   (
+       `id` UInt64
+   )
+   AS SELECT id
+   FROM rdb.t
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/log' AND name='query-0000000001'
+   query-0000000001	version: 1
+   query: 
+   hosts: []
+   initiator: 
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/log' AND name='query-0000000002'
+   query-0000000002	version: 1
+   query: 
+   hosts: []
+   initiator: 
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/log' AND name='query-0000000003'
+   query-0000000003	version: 5
+   query: CREATE TABLE t UUID \'b74f6434-d7b7-45f5-8155-839aee452c01\' (`id` UInt64, `v` String) ENGINE = ReplicatedMergeTree ORDER BY id
+   initiator: ch1:9000
+   tracing: 00000000-0000-0000-0000-000000000000
+   0
+   
+   0
+   initial_query_id: ace2d522-c898-4eae-a666-afaf4134716c
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/log' AND name='query-0000000004'
+   query-0000000004	version: 5
+   query: CREATE VIEW v UUID \'ccd52d42-7206-4e62-8394-1d055aaa956f\' (`id` UInt64) AS SELECT id FROM rdb.t
+   initiator: ch1:9000
+   tracing: 00000000-0000-0000-0000-000000000000
+   0
+   
+   0
+   initial_query_id: e277aeaf-987f-463b-9822-d976fcdd49e7
+   
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/replicas/01|ch1' AND name IN ('log_ptr','digest','active') ORDER BY name
+   active	401bbe03-a317-4e82-9e57-5ec7a935870d
+   digest	12667236409614099771
+   log_ptr	4
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb/replicas/01|ch2' AND name IN ('log_ptr','digest','active') ORDER BY name
+   active	5ee930dd-5911-4c1a-b068-5e1401f74798
+   digest	12667236409614099771
+   log_ptr	4
+-- [ch1] ls /var/lib/clickhouse/metadata/ ; cat /var/lib/clickhouse/metadata/rdb.sql; ls /var/lib/clickhouse/metadata/rdb
+   analytics
+   analytics.sql
+   default.sql
+   information_schema.sql
+   INFORMATION_SCHEMA.sql
+   rdb
+   rdb.sql
+   system
+   system.sql
+   ATTACH DATABASE _ UUID '8f42af9b-28b6-4761-994f-595b500b7694'
+   ENGINE = Replicated('/clickhouse/databases/rdb', '{shard}', '{replica}')
+   t.sql
+   v.sql
+=== 4. Replicated database limits ===
+-- [ch1] (expected to fail) RENAME TABLE rdb.t TO analytics.t
+   Code: 48. DB::Exception: Received from localhost:9000. DB::Exception: Moving tables between databases is not supported for Replicated engine. (NOT_IMPLEMENTED)
+-- [ch1] CREATE TABLE rdb.tmp (id UInt64) ENGINE = MergeTree ORDER BY id
+   01	ch1	OK	1	0
+   01	ch2	OK	0	0
+-- [ch1] DROP TABLE rdb.tmp
+   01	ch1	OK	1	0
+   01	ch2	OK	0	0
+-- [ch1] (expected to fail) UNDROP TABLE rdb.tmp
+   Code: 344. DB::Exception: Received from localhost:9000. DB::Exception: Replicated database does not support UNDROP query. (SUPPORT_IS_DISABLED)
+-- [ch1] SELECT name, value, changed, description FROM system.settings WHERE name = 'database_replicated_allow_heavy_create' FORMAT Vertical
+   Row 1:
+   ──────
+   name:        database_replicated_allow_heavy_create
+   value:       0
+   changed:     0
+   description: Allow long-running DDL queries (CREATE AS SELECT and POPULATE) in Replicated database engine. Note that it can block DDL queue for a long time.
+-- [ch1] (outcome not asserted) CREATE TABLE rdb.ctas ENGINE = MergeTree ORDER BY id AS SELECT number AS id FROM numbers(3)
+   SUCCEEDED: 01	ch1	OK	1	0
+01	ch2	OK	0	0
+-- [ch1] (outcome not asserted) CREATE TABLE rdb.ctas2 ENGINE = MergeTree ORDER BY id AS SELECT number AS id FROM numbers(3) SETTINGS database_replicated_allow_heavy_create=0
+   SUCCEEDED: 01	ch1	OK	1	0
+01	ch2	OK	0	0
+-- [ch2] SELECT database, name, create_table_query FROM system.tables WHERE database='rdb' AND name LIKE 'ctas%' FORMAT Vertical
+   Row 1:
+   ──────
+   database:           rdb
+   name:               ctas
+   create_table_query: CREATE TABLE rdb.ctas (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+   
+   Row 2:
+   ──────
+   database:           rdb
+   name:               ctas2
+   create_table_query: CREATE TABLE rdb.ctas2 (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+-- [ch1] (outcome not asserted) CREATE TABLE rdb.oc ON CLUSTER c (id UInt64) ENGINE = MergeTree ORDER BY id
+   FAILED: Code: 80. DB::Exception: Received from localhost:9000. DB::Exception: There was an error on [ch2:9000]: Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Replicated database. (INCORRECT_QUERY) (version 26.8.36.3 (official build)). (INCORRECT_QUERY)
+-- [ch1] SHOW TABLES FROM rdb
+   ctas
+   ctas2
+   t
+   v
+-- [ch2] SHOW TABLES FROM rdb
+   ctas
+   ctas2
+   t
+   v
+-- [ch1] SYSTEM SYNC DATABASE REPLICA rdb
+-- [ch2] SYSTEM SYNC DATABASE REPLICA rdb
+=== 5a. Drop and recreate one replica of a Replicated database ===
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb/replicas (depth 1)
+   01|ch1  [children=5]  = ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694
+   01|ch2  [children=5]  = ch2:9000:5e69dc55-bfa2-410e-908c-74658b4d4aaf
+-- [ch2] DROP DATABASE rdb SYNC
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb/replicas (depth 1)
+   01|ch1  [children=5]  = ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694
+-- [ch1] SHOW TABLES FROM rdb
+   ctas
+   ctas2
+   t
+   v
+-- [ch2] CREATE DATABASE rdb ENGINE = Replicated('/clickhouse/databases/rdb','{shard}','{replica}')
+-- [ch2] SYSTEM SYNC DATABASE REPLICA rdb
+-- [ch2] SHOW TABLES FROM rdb
+   ctas
+   ctas2
+   t
+   v
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb/replicas (depth 1)
+   01|ch1  [children=5]  = ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694
+   01|ch2  [children=5]  = ch2:9000:2ff12301-795f-4e29-90e7-7da47e6744f9
+-- [ch2] SYSTEM FLUSH LOGS
+-- [ch2] SHOW DATABASES
+   INFORMATION_SCHEMA
+   analytics
+   default
+   information_schema
+   rdb
+   system
+-- [ch2] SELECT event_time, logger_name, message FROM system.text_log WHERE logger_name LIKE 'DatabaseReplicated (rdb)%' AND event_time > now() - 600 ORDER BY event_time_microseconds LIMIT 60 FORMAT TSVRaw
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Metadata disk default, path /var/lib/clickhouse/
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	DatabaseReplicatedSettings 
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Metadata processed, database rdb has 0 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Calculated metadata digest of 0 tables: 0
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Will create new replica from log pointer 1
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Got consistent metadata snapshot for log pointer 1
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Starting first stage of renaming process. Will rename tables to intermediate names
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Starting second stage of renaming process. Will rename tables from intermediate to desired names
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Renames completed successfully
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	All tables are created successfully
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Marked recovered query-0000000001 as finished
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Got a list of hosts after 1 iterations. All hosts: [01|ch1, 01|ch2], filtered: [01|ch1, 01|ch2], ids: [ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694, ch2:9000:5e69dc55-bfa2-410e-908c-74658b4d4aaf]
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Creating directory symlink, path_to_metadata_symlink: metadata/rdb, metadata_path: store/5e6/5e69dc55-bfa2-410e-908c-74658b4d4aaf/
+   2026-11-07 02:02:51	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.t (b74f6434-d7b7-45f5-8155-839aee452c01), data_path /var/lib/clickhouse/store/b74/b74f6434-d7b7-45f5-8155-839aee452c01/, link data/rdb/t
+   2026-11-07 02:02:55	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.tmp (66bf60f9-7703-4d52-ab57-7a4d610f0704), data_path /var/lib/clickhouse/store/66b/66bf60f9-7703-4d52-ab57-7a4d610f0704/, link data/rdb/tmp
+   2026-11-07 02:02:55	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb._tmp_replace_add3573230d570bf_34c9105ff42482f0 (2e382195-c5ab-47a5-aab3-1cb38544ca27), data_path /var/lib/clickhouse/store/2e3/2e382195-c5ab-47a5-aab3-1cb38544ca27/, link data/rdb/_tmp_replace_add3573230d570bf_34c9105ff42482f0
+   2026-11-07 02:02:55	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.ctas (2e382195-c5ab-47a5-aab3-1cb38544ca27), data_path /var/lib/clickhouse/store/2e3/2e382195-c5ab-47a5-aab3-1cb38544ca27/, link data/rdb/ctas
+   2026-11-07 02:02:55	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb._tmp_replace_dad731bf2f28d606_b96d428c10775e4f (667a2597-2be7-428d-8774-e5e987d776ca), data_path /var/lib/clickhouse/store/667/667a2597-2be7-428d-8774-e5e987d776ca/, link data/rdb/_tmp_replace_dad731bf2f28d606_b96d428c10775e4f
+   2026-11-07 02:02:55	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.ctas2 (667a2597-2be7-428d-8774-e5e987d776ca), data_path /var/lib/clickhouse/store/667/667a2597-2be7-428d-8774-e5e987d776ca/, link data/rdb/ctas2
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Metadata disk default, path /var/lib/clickhouse/
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	DatabaseReplicatedSettings 
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Metadata processed, database rdb has 0 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Calculated metadata digest of 0 tables: 0
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Will create new replica from log pointer 9
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Got consistent metadata snapshot for log pointer 9
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Starting first stage of renaming process. Will rename tables to intermediate names
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Starting second stage of renaming process. Will rename tables from intermediate to desired names
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Renames completed successfully
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Executing CREATE TABLE rdb.t UUID 'b74f6434-d7b7-45f5-8155-839aee452c01' (`id` UInt64, `v` String) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY id SETTINGS index_granularity = 8192
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Creating directory symlink, path_to_metadata_symlink: metadata/rdb, metadata_path: store/2ff/2ff12301-795f-4e29-90e7-7da47e6744f9/
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.t (b74f6434-d7b7-45f5-8155-839aee452c01), data_path /var/lib/clickhouse/store/b74/b74f6434-d7b7-45f5-8155-839aee452c01/, link data/rdb/t
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Executing CREATE TABLE rdb.ctas2 UUID '667a2597-2be7-428d-8774-e5e987d776ca' (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.ctas2 (667a2597-2be7-428d-8774-e5e987d776ca), data_path /var/lib/clickhouse/store/667/667a2597-2be7-428d-8774-e5e987d776ca/, link data/rdb/ctas2
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Executing CREATE TABLE rdb.ctas UUID '2e382195-c5ab-47a5-aab3-1cb38544ca27' (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Trying to create a symlink for table rdb.ctas (2e382195-c5ab-47a5-aab3-1cb38544ca27), data_path /var/lib/clickhouse/store/2e3/2e382195-c5ab-47a5-aab3-1cb38544ca27/, link data/rdb/ctas
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Executing CREATE VIEW rdb.v UUID 'ccd52d42-7206-4e62-8394-1d055aaa956f' (`id` UInt64) AS SELECT id FROM rdb.t
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	All tables are created successfully
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Failed to marked query-0000000009 as finished (finished=Node exists, synced=Ok). Ignoring.
+   2026-11-07 02:02:57	DatabaseReplicated (rdb)	Got a list of hosts after 1 iterations. All hosts: [01|ch1, 01|ch2], filtered: [01|ch1, 01|ch2], ids: [ch1:9000:8f42af9b-28b6-4761-994f-595b500b7694, ch2:9000:2ff12301-795f-4e29-90e7-7da47e6744f9]
+
+=== 5b. Lost replica with local divergence (logs_to_keep=5) ===
+-- [ch1] CREATE DATABASE rdb2 ENGINE = Replicated('/clickhouse/databases/rdb2','{shard}','{replica}') SETTINGS logs_to_keep=5
+-- [ch2] CREATE DATABASE rdb2 ENGINE = Replicated('/clickhouse/databases/rdb2','{shard}','{replica}')
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb2' AND name='logs_to_keep'
+   logs_to_keep	5
+-- [ch1] CREATE TABLE rdb2.local (a UInt32) ENGINE = MergeTree ORDER BY a
+   01	ch1	OK	1	0
+   01	ch2	OK	0	0
+-- [ch2] SYSTEM SYNC DATABASE REPLICA rdb2
+-- [ch2] INSERT INTO rdb2.local SELECT number FROM numbers(5)
+-- [ch2] SELECT 'ch2 local rows', count() FROM rdb2.local
+   ch2 local rows	5
+-- [ch1] SELECT 'ch1 local rows', count() FROM rdb2.local
+   ch1 local rows	0
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb2/replicas (depth 2)
+   01|ch1  [children=5]  = ch1:9000:ccbc180a-c50e-4b4a-b84d-c876021bd384
+     active  [children=0]  = 401bbe03-a317-4e82-9e57-5ec7a935870d
+     digest  [children=0]  = 18135781561749839160
+     log_ptr  [children=0]  = 3
+     max_log_ptr_at_creation  [children=0]  = 1
+     replica_group  [children=0]
+   01|ch2  [children=5]  = ch2:9000:0635eb8c-6ce1-42cb-8ef4-93517f602bcd
+     active  [children=0]  = 5ee930dd-5911-4c1a-b068-5e1401f74798
+     digest  [children=0]  = 18135781561749839160
+     log_ptr  [children=0]  = 3
+     max_log_ptr_at_creation  [children=0]  = 1
+     replica_group  [children=0]
+-- docker compose stop ch2
+    Container ch2 Stopping 
+    Container ch2 Stopped 
+-- [ch1] DROP TABLE rdb2.local SYNC
+-- [ch1] CREATE TABLE rdb2.local (b String, c Float64) ENGINE = MergeTree ORDER BY b
+-- [ch1] 24 filler DDLs run (12 x CREATE + DROP)
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb2' AND name IN ('max_log_ptr','logs_to_keep') ORDER BY name
+   logs_to_keep	5
+   max_log_ptr	29
+-- [ch1] SELECT name, value FROM system.zookeeper WHERE path='/clickhouse/databases/rdb2/replicas/01|ch2' AND name='log_ptr'
+   log_ptr	3
+-- [ch1] SELECT count(), min(name), max(name) FROM system.zookeeper WHERE path='/clickhouse/databases/rdb2/log'
+   29	query-0000000001	query-0000000029
+-- docker compose start ch2
+    Container ch2 Starting 
+    Container ch2 Started 
+-- [ch2] SYSTEM SYNC DATABASE REPLICA rdb2
+-- [ch2] SHOW DATABASES
+   INFORMATION_SCHEMA
+   analytics
+   default
+   information_schema
+   rdb
+   rdb2
+   rdb2_broken_replicated_tables
+   rdb2_broken_tables
+   system
+-- [ch2] SELECT database, name, engine, create_table_query FROM system.tables WHERE database LIKE 'rdb2%' ORDER BY database, name FORMAT Vertical
+   Row 1:
+   ──────
+   database:           rdb2
+   name:               local
+   engine:             MergeTree
+   create_table_query: CREATE TABLE rdb2.local (`b` String, `c` Float64) ENGINE = MergeTree ORDER BY b SETTINGS index_granularity = 8192
+   
+   Row 2:
+   ──────
+   database:           rdb2_broken_tables
+   name:               local_29_536
+   engine:             MergeTree
+   create_table_query: CREATE TABLE rdb2_broken_tables.local_29_536 (`a` UInt32) ENGINE = MergeTree ORDER BY a SETTINGS index_granularity = 8192
+-- [ch2] SELECT 'rows in rdb2_broken_replicated_tables tables', database, table, sum(rows) FROM system.parts WHERE database='rdb2_broken_replicated_tables' AND active GROUP BY database, table
+-- [ch2] SELECT 'rows in rdb2_broken_tables tables', database, table, sum(rows) FROM system.parts WHERE database='rdb2_broken_tables' AND active GROUP BY database, table
+   rows in rdb2_broken_tables tables	rdb2_broken_tables	local_29_536	5
+-- [ch2] SELECT 'rdb2.local rows', count() FROM rdb2.local
+   rdb2.local rows	0
+-- [ch2] SYSTEM FLUSH LOGS
+-- [ch2] SELECT event_time, logger_name, message FROM system.text_log WHERE (logger_name LIKE 'DatabaseReplicated (rdb2)%' OR message ILIKE '%rdb2_broken%' OR message ILIKE '%rdb2.local%') AND logger_name != 'AsyncLoader' AND logger_name != 'executeQuery' AND event_time > now() - 900 ORDER BY event_time_microseconds LIMIT 60 FORMAT TSVRaw
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Metadata disk default, path /var/lib/clickhouse/
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	DatabaseReplicatedSettings 
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Metadata processed, database rdb2 has 0 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Calculated metadata digest of 0 tables: 0
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Will create new replica from log pointer 1
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Got consistent metadata snapshot for log pointer 1
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Starting first stage of renaming process. Will rename tables to intermediate names
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Starting second stage of renaming process. Will rename tables from intermediate to desired names
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Renames completed successfully
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	All tables are created successfully
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Marked recovered query-0000000001 as finished
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Got a list of hosts after 1 iterations. All hosts: [01|ch1, 01|ch2], filtered: [01|ch1, 01|ch2], ids: [ch1:9000:ccbc180a-c50e-4b4a-b84d-c876021bd384, ch2:9000:0635eb8c-6ce1-42cb-8ef4-93517f602bcd]
+   2026-11-07 02:02:58	DDLWorker(rdb2)	Processing task query-0000000003 (query: CREATE TABLE rdb2.local UUID 'efd101c2-8d06-4829-a3e9-812cdef497a3' (`a` UInt32) ENGINE = MergeTree ORDER BY a, backup restore: false)
+   2026-11-07 02:02:58	DDLWorker(rdb2)	Executing query: CREATE TABLE rdb2.local UUID 'efd101c2-8d06-4829-a3e9-812cdef497a3' (`a` UInt32) ENGINE = MergeTree ORDER BY a
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Creating directory symlink, path_to_metadata_symlink: metadata/rdb2, metadata_path: store/063/0635eb8c-6ce1-42cb-8ef4-93517f602bcd/
+   2026-11-07 02:02:58	DatabaseReplicated (rdb2)	Trying to create a symlink for table rdb2.local (efd101c2-8d06-4829-a3e9-812cdef497a3), data_path /var/lib/clickhouse/store/efd/efd101c2-8d06-4829-a3e9-812cdef497a3/, link data/rdb2/local
+   2026-11-07 02:02:58	DDLWorker(rdb2)	Executed query: /* ddl_entry=query-0000000003 */ CREATE TABLE rdb2.local UUID 'efd101c2-8d06-4829-a3e9-812cdef497a3' (`a` UInt32) ENGINE = MergeTree ORDER BY a
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Metadata disk default, path /var/lib/clickhouse/
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	DatabaseReplicatedSettings 
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Metadata processed, database rdb2 has 1 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:03:06	LoadingDeps	Table rdb2.local has no dependencies (level 0)
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Loading table rdb2.local
+   2026-11-07 02:03:06	VersionMetadataOnDisk	Object rdb2.local (efd101c2-8d06-4829-a3e9-812cdef497a3)|all_1_1_0, loading metadata
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Calculated metadata digest of 1 tables: 18135781561749839160
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Will recover replica with staled log pointer 3 from log pointer 29
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Got consistent metadata snapshot for log pointer 29
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Table to detach local
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Will recreate 1 broken tables to recover replica
+   2026-11-07 02:03:06	Context	The database rdb2_broken_tables is probably created during recovering a lost replica. If it has no tables, it can be deleted. If it has tables, it worth to check why they were considered broken.
+   2026-11-07 02:03:06	DatabaseOrdinary (rdb2_broken_tables)	Metadata processed, database rdb2_broken_tables has 0 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:03:06	Context	The database rdb2_broken_replicated_tables is probably created during recovering a lost replica. If it has no tables, it can be deleted. If it has tables, it worth to check why they were considered broken.
+   2026-11-07 02:03:06	DatabaseAtomic (rdb2_broken_replicated_tables)	Metadata processed, database rdb2_broken_replicated_tables has 0 tables, 0 dictionaries and 0 materialized views in total.
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Will RENAME TABLE local TO rdb2_broken_tables.local_29_536
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	There are 1 detached tables. Start searching non used tables.
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Found 0 non used tables in detached tables.
+   2026-11-07 02:03:06	rdb2.local (efd101c2-8d06-4829-a3e9-812cdef497a3)	Renaming table to path data/rdb2_broken_tables/local_29_536/ with ID rdb2_broken_tables.local_29_536
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Cleaned 1 outdated objects: dropped 0 dictionaries and 0 tables, moved 1 tables
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Starting first stage of renaming process. Will rename tables to intermediate names
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Starting second stage of renaming process. Will rename tables from intermediate to desired names
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Renames completed successfully
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Executing CREATE TABLE rdb2.local UUID '7c3df8ec-e27a-4a87-93db-e9c3f18dd5d4' (`b` String, `c` Float64) ENGINE = MergeTree ORDER BY b SETTINGS index_granularity = 8192
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Trying to create a symlink for table rdb2.local (7c3df8ec-e27a-4a87-93db-e9c3f18dd5d4), data_path /var/lib/clickhouse/store/7c3/7c3df8ec-e27a-4a87-93db-e9c3f18dd5d4/, link data/rdb2/local
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	All tables are created successfully
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Failed to marked query-0000000003 as finished (finished=Node exists, synced=Ok). Ignoring.
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000004 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000005 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000006 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000007 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000008 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000009 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000010 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000011 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000012 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000013 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000014 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000015 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000016 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000017 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000018 as finished
+   2026-11-07 02:03:06	DatabaseReplicated (rdb2)	Marked recovered query-0000000019 as finished
+-- [ch1] system.zookeeper tree of /clickhouse/databases/rdb2/replicas (depth 2)
+   01|ch1  [children=5]  = ch1:9000:ccbc180a-c50e-4b4a-b84d-c876021bd384
+     active  [children=0]  = 401bbe03-a317-4e82-9e57-5ec7a935870d
+     digest  [children=0]  = 5540469600503056276
+     log_ptr  [children=0]  = 29
+     max_log_ptr_at_creation  [children=0]  = 1
+     replica_group  [children=0]
+   01|ch2  [children=5]  = ch2:9000:0635eb8c-6ce1-42cb-8ef4-93517f602bcd
+     active  [children=0]  = 5ee930dd-5911-4c1a-b068-5e1401f74798
+     digest  [children=0]  = 5540469600503056276
+     log_ptr  [children=0]  = 29
+     max_log_ptr_at_creation  [children=0]  = 1
+     replica_group  [children=0]
+ALL STEPS DONE

@@ -6,6 +6,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/clickpipes-s3/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/cloud-to-oss-peerdb/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/mysql-interface/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/shared-catalog/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/sharedmergetree-internals/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/system-tables/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/tool/costkeeper-multi/</loc></url>
