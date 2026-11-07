@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SharedMergeTree internals, measured · ClickHouse HOLs</title>
+<meta name="description" content="SharedMergeTree internals, measured — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>chc/sharedmergetree-internals</code>
+    
+  </nav>
+  <div class="readme en"><h1>SharedMergeTree internals, measured</h1>
+<p>On ClickHouse Cloud, <code>ENGINE = MergeTree</code> becomes SharedMergeTree: parts live in object storage,
+part metadata lives in Keeper, and replicas share both instead of copying parts to each other.
+This lab measures what that means on a real service, from the system tables: what one INSERT
+writes and where, what the other replica does when a part appears, who runs a merge, how soon
+another replica sees a new row, what many small INSERTs cost with and without <code>async_insert</code>,
+and which OSS DDL forms Cloud accepts.</p>
+<p><strong>Verified on ClickHouse Cloud 26.8.1.608</strong> (AWS ap-northeast-2, 2 replicas of 2 vCPU / 8 GiB),
+2026-11-07, <code>run.sh 99</code> then <code>KEEP=1 run.sh</code> (steps <code>01</code> → <code>06</code>); <code>99</code> ran on its own the same day.
+Every number below comes from that run, whose masked output is in <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/sharedmergetree-internals/runs/2026-11-07"><code>runs/2026-11-07/</code></a>;
+a re-run will differ in the details.</p>
+<p>Author: Ken Lee · MIT</p>
+<h3>What each step shows</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Writes</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-setup.sql</code></td>
+<td><code>smt_lab</code>, <code>smt_lab.big</code></td>
+<td>The Shared database engine; <code>MergeTree</code> stored as <code>SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')</code>; the one-shard <code>default</code> cluster; <code>system.replicas</code> per replica; part-shaping MergeTree settings; insert consistency settings</td>
+</tr>
+<tr>
+<td><code>02-write-path.sql</code></td>
+<td>2M rows into <code>big</code></td>
+<td><code>NewPart</code> on the writer vs <code>DownloadPart</code> on the other replica, with object storage bytes; empty replication queue; Keeper requests of the INSERT, by Keeper node</td>
+</tr>
+<tr>
+<td><code>03-visibility.sh</code></td>
+<td><code>smt_lab.vis</code></td>
+<td>30 + 30 trials: INSERT one row, then ask both replicas at once; lag from <code>part_log</code>; cost of <code>select_sequential_consistency = 1</code>; <code>SYSTEM SYNC REPLICA … LIGHTWEIGHT</code></td>
+</tr>
+<tr>
+<td><code>04-merges.sh</code></td>
+<td><code>smt_lab.m</code></td>
+<td>20 INSERTs, then every merge: on which replica it ran, and who only loaded the result</td>
+</tr>
+<tr>
+<td><code>05-small-inserts.sh</code></td>
+<td><code>smt_lab.small_sync</code>, <code>small_async</code></td>
+<td>200 one-row INSERTs from 20 clients, synchronous vs <code>async_insert = 1</code>: parts, object storage bytes, Keeper requests, latency</td>
+</tr>
+<tr>
+<td><code>06-ddl-port.sh</code></td>
+<td><code>smt_lab.p*</code></td>
+<td>OSS DDL forms that fail (negative checks: the step fails if they succeed) and the forms that work; Distributed over <code>default</code></td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td>drops <code>smt_lab</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3>Run</h3>
+<p>Needs the <code>clickhouse</code> binary (<code>clickhouse client</code>, and <code>clickhouse local</code> to redraw masked
+tables) and a Cloud service with at least two replicas. The data is small (about 165 MiB); the
+run takes a few minutes of compute and keeps the service awake while it runs.</p>
+<pre><code class="language-bash">cp .env.example .env &amp;&amp; chmod 600 .env   # CH_HOST, CH_USER, CH_PASSWORD
+./run.sh 99 &amp;&amp; KEEP=1 ./run.sh           # clean start; every step but 99, objects kept for screenshots
+./run.sh 99                              # drop the lab database when done
+./run.sh 03                              # one step again (01 must have run)
+</code></pre>
+<p>Each shell step (<code>03</code>–<code>05</code>) reads only log rows written after it started, so it can be re-run on
+its own. <code>02</code> reads rows since <code>01</code>, so re-run both together. Captures are masked unless <code>MASK=0</code>:
+pod names keep only their random suffix (<code>2rdd723-0</code>), and the endpoint, namespace, bucket and
+table UUIDs are replaced. <code>system.zookeeper</code> is not readable by the service's <code>default</code> user
+(<code>ACCESS_DENIED</code>), so Keeper is observed through <code>system.aggregated_zookeeper_log</code> and the
+<code>ZooKeeper*</code> profile events instead.</p>
+<h3>What the 2026-11-07 run returned</h3>
+<p><strong>A plain CREATE TABLE.</strong> The database engine is <code>Shared</code>; <code>ENGINE = MergeTree</code> is stored as
+<code>SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')</code>. The <code>default</code> cluster is one
+shard with two replicas. <code>min_bytes_for_wide_part</code> is 1 GiB on this service, so every part in this
+lab is Compact, even a 90 MiB one.</p>
+<p><strong>One INSERT (step 02).</strong> 2M rows became two parts (1,111,953 and 888,047 rows; 90 and 72 MiB). The
+writer wrote 161.84 MiB to object storage; the query took 3.3 s and made 18 Keeper requests (16 of
+them inside multi-requests). For each part the sink checks its replica node and that the
+deduplication hash does not exist, then creates the hash, a block number, a <code>virtual_parts</code>
+entry and an insert memo id, and sets the table and <code>virtual_parts</code> nodes.
+The other replica logged a <code>DownloadPart</code> for each part (36 and 45 ms long). It read
+<strong>1.00 MiB in one GET for the 90 MiB part</strong> and wrote nothing. Both replicas then reported the same
+2 active parts and 161.84 MiB. <code>system.replication_queue</code> and <code>system.replicated_fetches</code> were
+empty on both.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Replica</th>
+<th>Part</th>
+<th>Size</th>
+<th>Object storage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NewPart</td>
+<td>writer</td>
+<td>all_0_0_0</td>
+<td>89.98 MiB</td>
+<td>89.98 MiB written, 1,375 ms</td>
+</tr>
+<tr>
+<td>DownloadPart</td>
+<td>other</td>
+<td>all_0_0_0</td>
+<td>89.98 MiB</td>
+<td>1.00 MiB read (1 GET), 36 ms</td>
+</tr>
+<tr>
+<td>NewPart</td>
+<td>writer</td>
+<td>all_1_1_0</td>
+<td>71.86 MiB</td>
+<td>71.86 MiB written, 1,226 ms</td>
+</tr>
+<tr>
+<td>DownloadPart</td>
+<td>other</td>
+<td>all_1_1_0</td>
+<td>71.86 MiB</td>
+<td>1.00 MiB read (1 GET), 45 ms</td>
+</tr>
+</tbody>
+</table>
+<p>In step 04 the parts were small (about 170 KiB each), and each <code>DownloadPart</code> read about as many
+bytes as the part held. The lab does not show <em>what</em> the 1 MiB read contains; it shows only that
+the part data was not copied.</p>
+<p><strong>Visibility across replicas (step 03).</strong> Each trial INSERTs one row and asks both replicas
+through <code>clusterAllReplicas</code> on the same connection; the check started 29–35 ms after the INSERT
+finished (p50 31.5 ms).</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Other replica saw the row at once</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>select_sequential_consistency = 0</code> (default)</td>
+<td>29 of 30</td>
+</tr>
+<tr>
+<td><code>select_sequential_consistency = 1</code></td>
+<td>30 of 30</td>
+</tr>
+</tbody>
+</table>
+<p>Server-side lag from <code>NewPart</code> on the writer to <code>DownloadPart</code> on the other replica, over 60
+inserted parts: min 18.8 ms, p50 29.6 ms, p90 37.1 ms, max 77.4 ms. The lag and the check gap are
+about the same size, which is why the default check missed a row now and then. (On two earlier
+runs that day the default check saw 21 and 25 of 30, with the lag max at 385 ms on one run.)
+On a plain <code>SELECT count()</code>, <code>select_sequential_consistency = 1</code> cost 2 Keeper requests and took
+12.2 ms on average against 1 ms without it (10 runs each). <code>SYSTEM SYNC REPLICA smt_lab.vis
+LIGHTWEIGHT</code> took 7–19 ms with 4 Keeper requests.</p>
+<p><strong>Merges (step 04).</strong> 20 INSERTs of 50,000 rows became 4 active parts after 3 merges. Each merge
+ran on <strong>one</strong> replica, and the other logged one <code>DownloadPart</code> for its result:</p>
+<table>
+<thead>
+<tr>
+<th>Merged part</th>
+<th>Rows</th>
+<th>From parts</th>
+<th>Merged on</th>
+<th>Loaded on the other replica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>all_0_5_1</td>
+<td>300,000</td>
+<td>6</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>all_0_10_2</td>
+<td>550,000</td>
+<td>6</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>all_0_16_3</td>
+<td>850,000</td>
+<td>7</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>The merges wrote 5.70 MiB; the other replica wrote nothing for them. <code>system.replicas</code> named
+6row3gp-0 as <code>merge_coordinator_replica</code> while the merges ran on 2rdd723-0, so the coordinator
+is not necessarily the replica that merges. <code>queue_size</code> and <code>merges_in_queue</code> were 0 on both.</p>
+<p><strong>Many small INSERTs (step 05).</strong> 200 one-row INSERTs from 20 concurrent clients:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Parts created</th>
+<th>Object storage written</th>
+<th>Keeper requests</th>
+<th>Client latency p50 / max</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>synchronous</td>
+<td>200</td>
+<td>209.38 KiB</td>
+<td>1,210</td>
+<td>85 / 118 ms</td>
+</tr>
+<tr>
+<td><code>async_insert = 1, wait_for_async_insert = 1</code></td>
+<td>29</td>
+<td>31.21 KiB</td>
+<td>194 (in the 29 flushes)</td>
+<td>834 / 1,089 ms</td>
+</tr>
+</tbody>
+</table>
+<p>With <code>async_insert</code> the server buffered 6.3–7.5 INSERTs per flush, and each flush is a query of
+its own in <code>query_log</code>. The client waited for the flush (<code>async_insert_busy_timeout_max_ms</code> is
+1000 on this service), so each INSERT took longer, while the service created a seventh of the parts
+and made a sixth of the Keeper requests. The part-count limits (<code>parts_to_delay_insert</code> 1000, <code>parts_to_throw_insert</code>
+3000, <code>max_parts_in_total</code> 10000) were not reached in this lab.</p>
+<p><strong>Porting OSS DDL (step 06).</strong></p>
+<table>
+<thead>
+<tr>
+<th>DDL</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ON CLUSTER '{cluster}'</code></td>
+<td>fails, code 139: no <code>cluster</code> macro</td>
+</tr>
+<tr>
+<td><code>ReplicatedMergeTree('/clickhouse/tables/{shard}/t', '{replica}')</code></td>
+<td>fails, code 36: explicit Keeper path and replica name are not allowed in a Replicated database (unless <code>database_replicated_allow_replicated_engine_arguments</code> is set)</td>
+</tr>
+<tr>
+<td>the same with <code>ON CLUSTER default</code></td>
+<td>fails, code 36</td>
+</tr>
+<tr>
+<td><code>ReplicatedMergeTree</code> without arguments, with or without <code>ON CLUSTER default</code></td>
+<td>works → <code>SharedMergeTree</code></td>
+</tr>
+<tr>
+<td><code>ReplicatedReplacingMergeTree(v)</code>, <code>AggregatingMergeTree</code></td>
+<td>work → <code>SharedReplacingMergeTree</code>, <code>SharedAggregatingMergeTree</code></td>
+</tr>
+<tr>
+<td><code>Distributed(default, db, t, rand())</code></td>
+<td>works; one shard, so it returns each row once (1000 = 1000)</td>
+</tr>
+</tbody>
+</table>
+<h3>Not covered</h3>
+<ul>
+<li><strong>Scale-out time</strong> (adding a replica, or waking from idle) changes the service size and its bill,
+  so it is not part of this run. Do it only on a service you own and may resize.</li>
+<li><strong>ReplicatedMergeTree side by side.</strong> The comparison in the notes article uses the OSS
+  behaviour documented in <code>core-architecture/oss-replicatedmergetree-distributed</code>; this lab has no
+  OSS run.</li>
+<li>Reaching <code>parts_to_throw_insert</code>, Keeper load at high INSERT rates, and lightweight updates or
+  deletes.</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>ClickHouse Cloud에서 <code>ENGINE = MergeTree</code>는 SharedMergeTree가 됩니다. 파트는 오브젝트 스토리지에,
+파트 메타데이터는 Keeper에 있고, 레플리카는 파트를 서로 복사하지 않고 둘을 함께 씁니다. 이 실습은
+실제 서비스의 system 테이블로 다음을 측정합니다. INSERT 하나가 무엇을 어디에 쓰는지, 파트가 생겼을 때
+다른 레플리카가 무엇을 하는지, 병합은 누가 하는지, 다른 레플리카가 새 행을 얼마나 빨리 보는지, 작은
+INSERT가 <code>async_insert</code> 유무에 따라 얼마나 드는지, OSS DDL 중 어떤 형태가 Cloud에서 통하는지.</p>
+<p><strong>ClickHouse Cloud 26.8.1.608에서 검증</strong> (AWS ap-northeast-2, 2 vCPU / 8 GiB 레플리카 2개),
+2026-11-07, <code>run.sh 99</code> 후 <code>KEEP=1 run.sh</code>(단계 <code>01</code> → <code>06</code>). <code>99</code>는 같은 날 따로 실행했습니다.
+아래 수치는 모두 이 실행에서 나온 값이며(마스킹한 출력은 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/sharedmergetree-internals/runs/2026-11-07"><code>runs/2026-11-07/</code></a>),
+다시 실행하면 세부 값은 달라집니다.</p>
+<p>작성: Ken Lee · MIT</p>
+<h3>단계별 내용</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>쓰는 것</th>
+<th>보여 주는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-setup.sql</code></td>
+<td><code>smt_lab</code>, <code>smt_lab.big</code></td>
+<td>Shared 데이터베이스 엔진, <code>SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')</code>로 저장되는 <code>MergeTree</code>, 샤드 1개인 <code>default</code> 클러스터, 레플리카별 <code>system.replicas</code>, 파트 모양을 정하는 MergeTree 설정, INSERT 일관성 설정</td>
+</tr>
+<tr>
+<td><code>02-write-path.sql</code></td>
+<td><code>big</code>에 2M 행</td>
+<td>쓴 레플리카의 <code>NewPart</code>와 다른 레플리카의 <code>DownloadPart</code>, 오브젝트 스토리지 바이트, 비어 있는 복제 큐, Keeper 노드별 INSERT 요청</td>
+</tr>
+<tr>
+<td><code>03-visibility.sh</code></td>
+<td><code>smt_lab.vis</code></td>
+<td>30 + 30회: 한 행 INSERT 직후 두 레플리카에 동시에 묻기, <code>part_log</code> 기준 지연, <code>select_sequential_consistency = 1</code>의 비용, <code>SYSTEM SYNC REPLICA … LIGHTWEIGHT</code></td>
+</tr>
+<tr>
+<td><code>04-merges.sh</code></td>
+<td><code>smt_lab.m</code></td>
+<td>INSERT 20회 후 모든 병합: 어느 레플리카가 했고 누가 결과만 읽었는지</td>
+</tr>
+<tr>
+<td><code>05-small-inserts.sh</code></td>
+<td><code>smt_lab.small_sync</code>, <code>small_async</code></td>
+<td>클라이언트 20개가 한 행 INSERT 200회, 동기 vs <code>async_insert = 1</code>: 파트 수, 오브젝트 스토리지 바이트, Keeper 요청, 지연</td>
+</tr>
+<tr>
+<td><code>06-ddl-port.sh</code></td>
+<td><code>smt_lab.p*</code></td>
+<td>실패하는 OSS DDL(음성 검사: 성공하면 단계가 실패)과 통하는 형태, <code>default</code> 위의 Distributed</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td><code>smt_lab</code> 삭제</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3>실행</h3>
+<p><code>clickhouse</code> 바이너리(<code>clickhouse client</code>, 마스킹한 표를 다시 그리는 <code>clickhouse local</code>)와 레플리카가
+2개 이상인 Cloud 서비스가 필요합니다. 데이터는 약 165 MiB로 작고, 몇 분의 컴퓨트를 쓰며, 실행 중에는
+서비스가 아이들 상태로 들어가지 않습니다.</p>
+<pre><code class="language-bash">cp .env.example .env &amp;&amp; chmod 600 .env   # CH_HOST, CH_USER, CH_PASSWORD
+./run.sh 99 &amp;&amp; KEEP=1 ./run.sh           # 깨끗하게 시작, 99를 뺀 모든 단계, 캡처용으로 객체 유지
+./run.sh 99                              # 끝나면 실습 데이터베이스 삭제
+./run.sh 03                              # 한 단계만 다시(01이 먼저 실행돼 있어야 함)
+</code></pre>
+<p>셸 단계(<code>03</code>–<code>05</code>)는 자기가 시작한 뒤의 로그 행만 읽으므로 따로 다시 실행해도 됩니다. <code>02</code>는 <code>01</code>
+이후 행을 읽으니 둘을 함께 다시 실행합니다. 캡처는 <code>MASK=0</code>이 아니면 마스킹됩니다. 파드 이름은 끝의
+무작위 부분(<code>2rdd723-0</code>)만 남기고, 엔드포인트·네임스페이스·버킷·테이블 UUID는 바꿉니다. 서비스의
+<code>default</code> 사용자는 <code>system.zookeeper</code>를 읽을 수 없어서(<code>ACCESS_DENIED</code>), Keeper는
+<code>system.aggregated_zookeeper_log</code>와 <code>ZooKeeper*</code> 프로파일 이벤트로 봅니다.</p>
+<h3>2026-11-07 실행 결과</h3>
+<p><strong>평범한 CREATE TABLE.</strong> 데이터베이스 엔진은 <code>Shared</code>이고, <code>ENGINE = MergeTree</code>는
+<code>SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')</code>로 저장됩니다. <code>default</code> 클러스터는
+샤드 1개, 레플리카 2개입니다. 이 서비스의 <code>min_bytes_for_wide_part</code>는 1 GiB여서, 90 MiB 파트까지
+이 실습의 파트는 모두 Compact입니다.</p>
+<p><strong>INSERT 하나(02단계).</strong> 2M 행이 파트 2개(1,111,953행·888,047행, 90 MiB·72 MiB)가 되었습니다. 쓴
+레플리카가 오브젝트 스토리지에 161.84 MiB를 썼고, 쿼리는 3.3초 걸렸으며 Keeper 요청은 18개(그중 16개는
+multi 요청 안)였습니다. 파트마다 싱크는 자기 레플리카 노드와 중복 제거 해시가 없음을 확인하고, 해시·
+블록 번호·<code>virtual_parts</code> 항목·insert memo id를 만들고, 테이블 노드와 <code>virtual_parts</code> 노드를 갱신합니다.
+다른 레플리카는 파트마다 <code>DownloadPart</code>(36 ms, 45 ms)를 남겼습니다. <strong>90 MiB 파트에 대해 GET
+한 번으로 1.00 MiB를 읽었고</strong> 쓴 것은 없습니다. 이후 두 레플리카 모두 활성 파트 2개, 161.84 MiB로 같게
+보고했습니다. <code>system.replication_queue</code>와 <code>system.replicated_fetches</code>는 둘 다 비어 있었습니다.</p>
+<table>
+<thead>
+<tr>
+<th>이벤트</th>
+<th>레플리카</th>
+<th>파트</th>
+<th>크기</th>
+<th>오브젝트 스토리지</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NewPart</td>
+<td>쓴 쪽</td>
+<td>all_0_0_0</td>
+<td>89.98 MiB</td>
+<td>89.98 MiB 쓰기, 1,375 ms</td>
+</tr>
+<tr>
+<td>DownloadPart</td>
+<td>다른 쪽</td>
+<td>all_0_0_0</td>
+<td>89.98 MiB</td>
+<td>1.00 MiB 읽기(GET 1회), 36 ms</td>
+</tr>
+<tr>
+<td>NewPart</td>
+<td>쓴 쪽</td>
+<td>all_1_1_0</td>
+<td>71.86 MiB</td>
+<td>71.86 MiB 쓰기, 1,226 ms</td>
+</tr>
+<tr>
+<td>DownloadPart</td>
+<td>다른 쪽</td>
+<td>all_1_1_0</td>
+<td>71.86 MiB</td>
+<td>1.00 MiB 읽기(GET 1회), 45 ms</td>
+</tr>
+</tbody>
+</table>
+<p>04단계의 파트는 작아서(각 약 170 KiB) <code>DownloadPart</code>가 파트 크기만큼을 읽었습니다. 이 실습은 1 MiB
+읽기에 <em>무엇이</em> 들었는지는 보여 주지 않습니다. 파트 데이터가 복사되지 않았다는 것만 보여 줍니다.</p>
+<p><strong>레플리카 간 가시성(03단계).</strong> 매 시도는 한 행을 INSERT하고 같은 연결에서 <code>clusterAllReplicas</code>로 두
+레플리카에 묻습니다. 확인 쿼리는 INSERT가 끝나고 29–35 ms 뒤에 시작했습니다(p50 31.5 ms).</p>
+<table>
+<thead>
+<tr>
+<th>확인</th>
+<th>다른 레플리카가 바로 본 횟수</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>select_sequential_consistency = 0</code>(기본)</td>
+<td>30회 중 29회</td>
+</tr>
+<tr>
+<td><code>select_sequential_consistency = 1</code></td>
+<td>30회 중 30회</td>
+</tr>
+</tbody>
+</table>
+<p>쓴 레플리카의 <code>NewPart</code>부터 다른 레플리카의 <code>DownloadPart</code>까지 서버 측 지연(INSERT 파트 60개): 최소
+18.8 ms, p50 29.6 ms, p90 37.1 ms, 최대 77.4 ms. 지연과 확인 간격이 비슷한 크기라서 기본 설정의 확인이
+가끔 행을 놓쳤습니다. (같은 날 앞선 두 번의 실행에서는 기본 확인이 30회 중 21회와 25회를 보았고, 한
+번은 지연 최대가 385 ms였습니다.) 평범한 <code>SELECT count()</code>에서 <code>select_sequential_consistency = 1</code>은
+Keeper 요청 2개가 더 들고 평균 12.2 ms 걸렸습니다(끄면 1 ms, 각 10회). <code>SYSTEM SYNC REPLICA smt_lab.vis
+LIGHTWEIGHT</code>는 Keeper 요청 4개로 7–19 ms 걸렸습니다.</p>
+<p><strong>병합(04단계).</strong> 50,000행 INSERT 20회가 병합 3번 뒤 활성 파트 4개가 되었습니다. 병합은 모두 <strong>한</strong>
+레플리카에서만 돌았고, 다른 레플리카는 결과마다 <code>DownloadPart</code>를 하나씩 남겼습니다.</p>
+<table>
+<thead>
+<tr>
+<th>병합된 파트</th>
+<th>행</th>
+<th>원본 파트 수</th>
+<th>병합한 레플리카</th>
+<th>다른 레플리카의 읽기</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>all_0_5_1</td>
+<td>300,000</td>
+<td>6</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>all_0_10_2</td>
+<td>550,000</td>
+<td>6</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>all_0_16_3</td>
+<td>850,000</td>
+<td>7</td>
+<td>2rdd723-0</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>병합은 5.70 MiB를 썼고, 다른 레플리카는 이 병합으로 아무것도 쓰지 않았습니다. <code>system.replicas</code>의
+<code>merge_coordinator_replica</code>는 6row3gp-0였지만 병합은 2rdd723-0에서 돌았습니다. 코디네이터가 곧 병합하는
+레플리카는 아닙니다. 두 레플리카 모두 <code>queue_size</code>와 <code>merges_in_queue</code>는 0이었습니다.</p>
+<p><strong>작은 INSERT 여러 개(05단계).</strong> 동시 클라이언트 20개가 한 행 INSERT 200회:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>생긴 파트</th>
+<th>오브젝트 스토리지 쓰기</th>
+<th>Keeper 요청</th>
+<th>클라이언트 지연 p50 / 최대</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>동기</td>
+<td>200</td>
+<td>209.38 KiB</td>
+<td>1,210</td>
+<td>85 / 118 ms</td>
+</tr>
+<tr>
+<td><code>async_insert = 1, wait_for_async_insert = 1</code></td>
+<td>29</td>
+<td>31.21 KiB</td>
+<td>194(플러시 29회 안)</td>
+<td>834 / 1,089 ms</td>
+</tr>
+</tbody>
+</table>
+<p><code>async_insert</code>에서는 서버가 플러시 한 번에 INSERT 6.3–7.5개를 모았고, 플러시는 <code>query_log</code>에 별도 쿼리로
+남습니다. 클라이언트는 플러시를 기다렸으므로(이 서비스의 <code>async_insert_busy_timeout_max_ms</code>는 1000)
+INSERT 하나하나는 느려졌지만, 서비스가 만든 파트는 약 7분의 1, Keeper 요청은 약 6분의 1이었습니다. 파트 수 한도
+(<code>parts_to_delay_insert</code> 1000, <code>parts_to_throw_insert</code> 3000, <code>max_parts_in_total</code> 10000)에는 이
+실습에서 닿지 않았습니다.</p>
+<p><strong>OSS DDL 옮기기(06단계).</strong></p>
+<table>
+<thead>
+<tr>
+<th>DDL</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ON CLUSTER '{cluster}'</code></td>
+<td>실패, 코드 139: <code>cluster</code> 매크로가 없음</td>
+</tr>
+<tr>
+<td><code>ReplicatedMergeTree('/clickhouse/tables/{shard}/t', '{replica}')</code></td>
+<td>실패, 코드 36: Replicated 데이터베이스에서는 Keeper 경로와 레플리카 이름을 명시할 수 없음(<code>database_replicated_allow_replicated_engine_arguments</code>를 켜지 않는 한)</td>
+</tr>
+<tr>
+<td>같은 문장에 <code>ON CLUSTER default</code></td>
+<td>실패, 코드 36</td>
+</tr>
+<tr>
+<td>인자 없는 <code>ReplicatedMergeTree</code>, <code>ON CLUSTER default</code> 유무와 무관</td>
+<td>통함 → <code>SharedMergeTree</code></td>
+</tr>
+<tr>
+<td><code>ReplicatedReplacingMergeTree(v)</code>, <code>AggregatingMergeTree</code></td>
+<td>통함 → <code>SharedReplacingMergeTree</code>, <code>SharedAggregatingMergeTree</code></td>
+</tr>
+<tr>
+<td><code>Distributed(default, db, t, rand())</code></td>
+<td>통함. 샤드가 1개라 각 행을 한 번만 돌려줌(1000 = 1000)</td>
+</tr>
+</tbody>
+</table>
+<h3>다루지 않은 것</h3>
+<ul>
+<li><strong>스케일아웃 시간</strong>(레플리카 추가, 아이들에서 깨우기)은 서비스 크기와 비용을 바꾸므로 이 실행에 넣지
+  않았습니다. 크기를 바꿔도 되는 자기 서비스에서만 하세요.</li>
+<li><strong>ReplicatedMergeTree와 나란히 비교.</strong> 노트 글의 비교는 <code>core-architecture/oss-replicatedmergetree-distributed</code>에
+  정리된 OSS 동작을 씁니다. 이 실습에는 OSS 실행이 없습니다.</li>
+<li><code>parts_to_throw_insert</code> 도달, 높은 INSERT 속도에서의 Keeper 부하, lightweight update·delete.</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/chc/sharedmergetree-internals"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/chc/mysql-interface/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">ClickHouse Cloud MySQL Interface Automated Test Tool</span></a><a class="step next" href="../../../labs/chc/system-tables/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">ClickHouse Cloud system tables in depth</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

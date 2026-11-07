@@ -1,0 +1,30 @@
+20 inserts of 50,000 rows done; waiting for merges (up to 90s)
+active parts now: 4
+
+-- part_log events per replica
+┌─replica───┬─event_type───┬─events─┬────rows─┬─s3_written─┬─s3_read──┐
+│ 2rdd723-0 │ NewPart      │     11 │  550000 │ 1.83 MiB   │ 0.00 B   │
+│ 2rdd723-0 │ MergeParts   │      3 │ 1700000 │ 5.70 MiB   │ 0.00 B   │
+│ 2rdd723-0 │ DownloadPart │      9 │  450000 │ 0.00 B     │ 1.50 MiB │
+│ 6row3gp-0 │ NewPart      │      9 │  450000 │ 1.50 MiB   │ 0.00 B   │
+│ 6row3gp-0 │ DownloadPart │     14 │ 2250000 │ 0.00 B     │ 4.83 MiB │
+└───────────┴──────────────┴────────┴─────────┴────────────┴──────────┘
+
+-- Each merged part: how many replicas ran the merge, how many only loaded the result
+┌─part_name──┬───rows─┬─from_parts─┬─merged_on─────┬─merges─┬─loaded_elsewhere─┐
+│ all_0_5_1  │ 300000 │          6 │ ['2rdd723-0'] │      1 │                1 │
+│ all_0_10_2 │ 550000 │          6 │ ['2rdd723-0'] │      1 │                1 │
+│ all_0_16_3 │ 850000 │          7 │ ['2rdd723-0'] │      1 │                1 │
+└────────────┴────────┴────────────┴───────────────┴────────┴──────────────────┘
+
+-- Which replica coordinates merges for this table, as each replica sees it
+┌─replica───┬─merge_coordinator_replica─┬─is_leader─┐
+│ 2rdd723-0 │ 6row3gp-0                 │         1 │
+│ 6row3gp-0 │ 6row3gp-0                 │         1 │
+└───────────┴───────────────────────────┴───────────┘
+
+-- Merges are not queued per replica, as they are in ReplicatedMergeTree
+┌─replica───┬─queue_size─┬─merges_in_queue─┐
+│ 2rdd723-0 │          0 │               0 │
+│ 6row3gp-0 │          0 │               0 │
+└───────────┴────────────┴─────────────────┘
