@@ -1,0 +1,482 @@
+# ClickHouse Cloud run of workload/replacingmergetree-mv
+date: 2026-11-07T03:02:21Z
+version: 26.8.1.608
+client image: clickhouse/clickhouse-server:26.10.3.7
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+replicas	2
+
+## settings (system.settings / system.merge_tree_settings)
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+max_threads	2	session
+optimize_move_to_prewhere_if_final	0	session
+insert_deduplicate	1	session
+deduplicate_blocks_in_dependent_materialized_views	0	session
+optimize_on_insert	1	session
+allow_experimental_replacing_merge_with_cleanup	0	table
+min_age_to_force_merge_seconds	0	table
+non_replicated_deduplication_window	0	table
+replicated_deduplication_window	1000	table
+
+## 01-double-count.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 01 - an incremental MV over ReplacingMergeTree counts every version it was sent.
+-- The source collapses versions at merge (or FINAL); the MV ran once per insert block and never sees that merge.
+-- settings: deduplicate_blocks_in_dependent_materialized_views, optimize_on_insert
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+CREATE TABLE rmt_mv.orders
+(
+    order_id UInt64,
+    day      Date,
+    status   LowCardinality(String),
+    amount   UInt64,
+    ver      UInt64
+)
+ENGINE = ReplacingMergeTree(ver)
+ORDER BY order_id;
+-- target 1: SummingMergeTree per day (the most common shape)
+CREATE TABLE rmt_mv.daily_sum
+(
+    day    Date,
+    orders UInt64,
+    amount UInt64
+)
+ENGINE = SummingMergeTree
+ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS
+SELECT day, count() AS orders, sum(amount) AS amount
+FROM rmt_mv.orders
+GROUP BY day;
+-- target 2: AggregatingMergeTree with uniqExact(order_id) — fixes the order count, not the sum
+CREATE TABLE rmt_mv.daily_agg
+(
+    day    Date,
+    orders AggregateFunction(uniqExact, UInt64),
+    amount AggregateFunction(sum, UInt64)
+)
+ENGINE = AggregatingMergeTree
+ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_agg_mv TO rmt_mv.daily_agg AS
+SELECT day, uniqExactState(order_id) AS orders, sumState(amount) AS amount
+FROM rmt_mv.orders
+GROUP BY day;
+-- three orders, version 1
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 1), (2, '2026-11-01', 'paid', 200, 1), (3, '2026-11-01', 'paid', 300, 1);
+-- order 1 corrected to 150 (v2); order 2 corrected twice (v2 = 250, v3 = 220)
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 150, 2);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 250, 2);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 220, 3);
+-- truth: 3 orders, 150 + 220 + 300 = 670
+-- probe: 01-source-final value
+SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL;
+3	670
+-- probe: 01-source-plain value
+SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders;
+6	1220
+-- probe: 01-target-sum value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;
+6	1220
+-- probe: 01-target-agg value
+SELECT uniqExactMerge(orders) AS orders, sumMerge(amount) AS amount FROM rmt_mv.daily_agg;
+3	1220
+-- the MV's own input: rows it was handed, one row per insert block
+-- probe: 01-target-rows show
+SELECT day, orders, amount, _part FROM rmt_mv.daily_sum ORDER BY _part;
+2026-11-01	3	600	all_0_0_1
+2026-11-01	1	150	all_1_1_1
+2026-11-01	1	250	all_2_2_1
+2026-11-01	1	220	all_3_3_1
+-- merge the source completely
+OPTIMIZE TABLE rmt_mv.orders FINAL;
+-- probe: 01-after-optimize-source-plain value
+SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders;
+6	1220
+-- probe: 01-after-optimize-target-sum value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;
+6	1220
+OPTIMIZE TABLE rmt_mv.daily_sum FINAL;
+-- merging the target does not help either: it sums what it was given
+-- probe: 01-after-optimize-both-target-sum value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;
+6	1220
+
+## engine of rmt_mv.orders after 01
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+SharedReplacingMergeTree(\'/clickhouse/tables/{uuid}/{shard}\', \'{replica}\', ver) ORDER BY order_id SETTINGS index_granularity = 8192
+
+## 02-late-and-ties.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 02 - a late (older) version, and two rows with the same version.
+-- The source keeps the highest version whatever the arrival order; the per-day MV adds the late row too.
+-- A per-key target with argMaxState(…, ver) gets the late row right; ties are where it and FINAL can disagree.
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+CREATE TABLE rmt_mv.orders
+(
+    order_id UInt64,
+    day      Date,
+    status   LowCardinality(String),
+    amount   UInt64,
+    ver      UInt64
+)
+ENGINE = ReplacingMergeTree(ver)
+ORDER BY order_id;
+CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY day;
+-- strategy A: keep the MV at the source's grain (one row per order_id) and pick the latest version per key
+CREATE TABLE rmt_mv.order_state
+(
+    order_id UInt64,
+    day      AggregateFunction(argMax, Date, UInt64),
+    status   AggregateFunction(argMax, LowCardinality(String), UInt64),
+    amount   AggregateFunction(argMax, UInt64, UInt64),
+    max_ver  SimpleAggregateFunction(max, UInt64)
+)
+ENGINE = AggregatingMergeTree
+ORDER BY order_id;
+CREATE MATERIALIZED VIEW rmt_mv.order_state_mv TO rmt_mv.order_state AS
+SELECT order_id,
+       argMaxState(day, ver)    AS day,
+       argMaxState(status, ver) AS status,
+       argMaxState(amount, ver) AS amount,
+       max(ver)                 AS max_ver   -- not `AS ver`: the alias would shadow ver inside argMaxState (Code 184)
+FROM rmt_mv.orders
+GROUP BY order_id;
+-- order 10: v1 then v3 arrive in order, v2 arrives last (a retry from a lagging producer)
+INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 100, 1);
+INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 130, 3);
+INSERT INTO rmt_mv.orders VALUES (10, '2026-11-01', 'paid', 120, 2);
+-- truth: 1 order, 130
+-- probe: 02-late-source-final value
+SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL;
+1	130
+-- probe: 02-late-target-sum value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;
+3	350
+-- probe: 02-late-order-state value
+SELECT count() AS orders, sum(amount) AS amount
+FROM (SELECT order_id, argMaxMerge(amount) AS amount FROM rmt_mv.order_state GROUP BY order_id);
+1	130
+-- order 20: two different rows with the same version, in two inserts
+INSERT INTO rmt_mv.orders VALUES (20, '2026-11-01', 'paid', 500, 7);
+INSERT INTO rmt_mv.orders VALUES (20, '2026-11-01', 'paid', 900, 7);
+-- ReplacingMergeTree documents the tie: the last inserted row wins
+-- probe: 02-tie-source-final value
+SELECT amount FROM rmt_mv.orders FINAL WHERE order_id = 20;
+900
+-- argMax documents no order for ties
+-- probe: 02-tie-order-state value
+SELECT argMaxMerge(amount) AS amount FROM rmt_mv.order_state WHERE order_id = 20;
+500
+OPTIMIZE TABLE rmt_mv.order_state FINAL;
+-- probe: 02-tie-order-state-merged value
+SELECT argMaxMerge(amount) AS amount FROM rmt_mv.order_state WHERE order_id = 20;
+500
+
+## 03-group-change-delete.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 03 - a version that moves the row to another group, and a delete through is_deleted.
+-- settings: allow_experimental_replacing_merge_with_cleanup, enable_replacing_merge_with_cleanup_for_min_age_to_force_merge
+-- The per-status MV keeps the old group's row forever; filtering is_deleted = 0 in the MV keeps the deleted order.
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+CREATE TABLE rmt_mv.orders
+(
+    order_id   UInt64,
+    day        Date,
+    status     LowCardinality(String),
+    amount     UInt64,
+    ver        UInt64,
+    is_deleted UInt8
+)
+ENGINE = ReplacingMergeTree(ver, is_deleted)
+ORDER BY order_id
+-- table setting, needed only for OPTIMIZE … FINAL CLEANUP at the end
+SETTINGS allow_experimental_replacing_merge_with_cleanup = 1;
+-- MV without a filter
+CREATE TABLE rmt_mv.by_status (status LowCardinality(String), orders Int64, amount Int64)
+ENGINE = SummingMergeTree ORDER BY status;
+CREATE MATERIALIZED VIEW rmt_mv.by_status_mv TO rmt_mv.by_status AS
+SELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY status;
+-- MV that drops delete markers
+CREATE TABLE rmt_mv.by_status_live (status LowCardinality(String), orders Int64, amount Int64)
+ENGINE = SummingMergeTree ORDER BY status;
+CREATE MATERIALIZED VIEW rmt_mv.by_status_live_mv TO rmt_mv.by_status_live AS
+SELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY status;
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'pending', 100, 1, 0), (2, '2026-11-01', 'pending', 200, 1, 0), (3, '2026-11-01', 'pending', 300, 1, 0);
+-- order 1 is paid, order 2 is paid then refunded, order 3 is deleted
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 2, 0);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 200, 2, 0);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'refunded', 200, 3, 0);
+INSERT INTO rmt_mv.orders VALUES (3, '2026-11-01', 'pending', 300, 2, 1);
+-- truth: paid 1 / 100, refunded 1 / 200, pending none
+-- probe: 03-source-final show
+SELECT status, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY status ORDER BY status;
+paid	1	100
+refunded	1	200
+-- probe: 03-target-unfiltered show
+SELECT status, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.by_status GROUP BY status ORDER BY status;
+paid	2	300
+pending	4	900
+refunded	1	200
+-- probe: 03-target-live show
+SELECT status, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.by_status_live GROUP BY status ORDER BY status;
+paid	2	300
+pending	3	600
+refunded	1	200
+-- FINAL hides a deleted key; without FINAL the marker row is still there, even after a merge
+-- probe: 03-deleted-plain value
+SELECT count() FROM rmt_mv.orders WHERE order_id = 3;
+2
+OPTIMIZE TABLE rmt_mv.orders FINAL;
+-- probe: 03-deleted-after-optimize value
+SELECT count() FROM rmt_mv.orders WHERE order_id = 3;
+2
+-- only OPTIMIZE … FINAL CLEANUP removes the marker
+OPTIMIZE TABLE rmt_mv.orders FINAL CLEANUP;
+-- probe: 03-deleted-after-cleanup value
+SELECT count() FROM rmt_mv.orders WHERE order_id = 3;
+1
+
+## 04-blocks-and-retries.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 04 - what the MV is handed: the insert block before optimize_on_insert, and retried blocks.
+-- Insert deduplication (a retried identical block) is the one case where the MV can follow the source,
+-- and only when the source has a deduplication window and deduplicate_blocks_in_dependent_materialized_views = 1.
+-- settings: optimize_on_insert, insert_deduplicate, deduplicate_blocks_in_dependent_materialized_views, non_replicated_deduplication_window, replicated_deduplication_window
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+-- (a) two versions of one key inside one insert block
+CREATE TABLE rmt_mv.orders (order_id UInt64, day Date, amount UInt64, ver UInt64)
+ENGINE = ReplacingMergeTree(ver) ORDER BY order_id;
+CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders GROUP BY day;
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 100, 1), (1, '2026-11-01', 150, 2), (2, '2026-11-01', 200, 1);
+-- optimize_on_insert collapsed the block before it was written: the part holds 2 rows
+-- probe: 04-inblock-source-rows value
+SELECT count() FROM rmt_mv.orders;
+2
+-- the MV ran on the block as inserted: 3 rows, 450
+-- probe: 04-inblock-target value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_sum;
+3	450
+-- (b) a retried insert, source without a deduplication window (non-replicated MergeTree default)
+CREATE TABLE rmt_mv.o_nowin (order_id UInt64, day Date, amount UInt64, ver UInt64)
+ENGINE = ReplacingMergeTree(ver) ORDER BY order_id;
+CREATE TABLE rmt_mv.d_nowin (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.d_nowin_mv TO rmt_mv.d_nowin AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.o_nowin GROUP BY day;
+INSERT INTO rmt_mv.o_nowin VALUES (1, '2026-11-01', 100, 1);
+INSERT INTO rmt_mv.o_nowin VALUES (1, '2026-11-01', 100, 1);
+-- probe: 04-retry-nowindow-source-final value
+SELECT count() AS orders, sum(amount) AS amount FROM rmt_mv.o_nowin FINAL;
+1	100
+-- probe: 04-retry-nowindow-target value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_nowin;
+2	200
+-- (c) the same retry with a window on source and target (Replicated/Shared MergeTree have one by default)
+CREATE TABLE rmt_mv.o_win (order_id UInt64, day Date, amount UInt64, ver UInt64)
+ENGINE = ReplacingMergeTree(ver) ORDER BY order_id
+SETTINGS non_replicated_deduplication_window = 100;
+CREATE TABLE rmt_mv.d_win (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day
+SETTINGS non_replicated_deduplication_window = 100;
+CREATE MATERIALIZED VIEW rmt_mv.d_win_mv TO rmt_mv.d_win AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.o_win GROUP BY day;
+INSERT INTO rmt_mv.o_win VALUES (1, '2026-11-01', 100, 1);
+INSERT INTO rmt_mv.o_win VALUES (1, '2026-11-01', 100, 1);
+-- probe: 04-retry-window-target value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;
+2	200
+-- a different order whose MV output block is byte-identical must still count
+INSERT INTO rmt_mv.o_win VALUES (2, '2026-11-01', 100, 1);
+-- probe: 04-same-mv-output-target value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;
+3	300
+-- the retry again, with deduplicate_blocks_in_dependent_materialized_views = 0
+INSERT INTO rmt_mv.o_win SETTINGS deduplicate_blocks_in_dependent_materialized_views = 0 VALUES (3, '2026-11-01', 100, 1);
+INSERT INTO rmt_mv.o_win SETTINGS deduplicate_blocks_in_dependent_materialized_views = 0 VALUES (3, '2026-11-01', 100, 1);
+-- probe: 04-retry-dbidmv0-source value
+SELECT count() FROM rmt_mv.o_win;
+3
+-- truth 3 orders / 300; the target got the retry
+-- probe: 04-retry-dbidmv0-target value
+SELECT sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.d_win;
+5	500
+
+## 05-strategies.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 05 - one small history with every hazard from 01–03, read through seven designs.
+-- Hazards: an update (order 1), a late older version (order 2), a key moving to another day (order 3),
+-- a delete (order 4), an untouched order (order 5).
+-- Truth by day: 2026-11-01 = 3 orders / 870 (orders 1, 2, 5) · 2026-11-02 = 1 order / 300 (order 3).
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+CREATE TABLE rmt_mv.orders
+(
+    order_id   UInt64,
+    day        Date,
+    status     LowCardinality(String),
+    amount     UInt64,
+    ver        UInt64,
+    is_deleted UInt8
+)
+ENGINE = ReplacingMergeTree(ver, is_deleted)
+ORDER BY order_id;
+-- N: naive per-day MV
+CREATE TABLE rmt_mv.daily_naive (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_naive_mv TO rmt_mv.daily_naive AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day;
+-- A: per-key state, rolled up at query time
+CREATE TABLE rmt_mv.order_state
+(
+    order_id   UInt64,
+    day        AggregateFunction(argMax, Date, UInt64),
+    amount     AggregateFunction(argMax, UInt64, UInt64),
+    is_deleted AggregateFunction(argMax, UInt8, UInt64)
+)
+ENGINE = AggregatingMergeTree ORDER BY order_id;
+CREATE MATERIALIZED VIEW rmt_mv.order_state_mv TO rmt_mv.order_state AS
+SELECT order_id, argMaxState(day, ver) AS day, argMaxState(amount, ver) AS amount, argMaxState(is_deleted, ver) AS is_deleted
+FROM rmt_mv.orders GROUP BY order_id;
+-- C: refreshable MV over the source with FINAL (EMPTY: no first refresh at CREATE)
+CREATE TABLE rmt_mv.daily_rmv_t (day Date, orders UInt64, amount UInt64)
+ENGINE = MergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_rmv REFRESH EVERY 1 HOUR TO rmt_mv.daily_rmv_t EMPTY AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;
+-- D: per-day target fed by the naive MV, partitions rebuilt from the source
+CREATE TABLE rmt_mv.daily_part (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree PARTITION BY day ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_part_mv TO rmt_mv.daily_part AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day;
+CREATE TABLE rmt_mv.daily_part_stage AS rmt_mv.daily_part;
+-- B: writer-side retraction — the writer knows the previous row and sends (old, -1) + (new, +1)
+CREATE TABLE rmt_mv.order_changes (order_id UInt64, day Date, amount UInt64, sign Int8, ver UInt64)
+ENGINE = MergeTree ORDER BY (order_id, ver);
+CREATE TABLE rmt_mv.daily_signed (day Date, orders Int64, amount Int64)
+ENGINE = SummingMergeTree ORDER BY day;
+CREATE MATERIALIZED VIEW rmt_mv.daily_signed_mv TO rmt_mv.daily_signed AS
+SELECT day, sum(sign) AS orders, sum(toInt64(amount) * sign) AS amount FROM rmt_mv.order_changes GROUP BY day;
+-- the history, one insert per event
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 100, 1, 0), (2, '2026-11-01', 'pending', 200, 1, 0), (3, '2026-11-01', 'paid', 300, 1, 0), (4, '2026-11-01', 'paid', 400, 1, 0), (5, '2026-11-01', 'paid', 500, 1, 0);
+INSERT INTO rmt_mv.orders VALUES (1, '2026-11-01', 'paid', 150, 2, 0);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'paid', 220, 3, 0);
+INSERT INTO rmt_mv.orders VALUES (3, '2026-11-02', 'paid', 300, 2, 0);
+INSERT INTO rmt_mv.orders VALUES (4, '2026-11-01', 'paid', 400, 2, 1);
+INSERT INTO rmt_mv.orders VALUES (2, '2026-11-01', 'pending', 210, 2, 0);
+-- the same history as change rows; the late v2 of order 2 is dropped by the writer (it already holds v3)
+INSERT INTO rmt_mv.order_changes VALUES (1, '2026-11-01', 100, 1, 1), (2, '2026-11-01', 200, 1, 1), (3, '2026-11-01', 300, 1, 1), (4, '2026-11-01', 400, 1, 1), (5, '2026-11-01', 500, 1, 1);
+INSERT INTO rmt_mv.order_changes VALUES (1, '2026-11-01', 100, -1, 2), (1, '2026-11-01', 150, 1, 2);
+INSERT INTO rmt_mv.order_changes VALUES (2, '2026-11-01', 200, -1, 3), (2, '2026-11-01', 220, 1, 3);
+INSERT INTO rmt_mv.order_changes VALUES (3, '2026-11-01', 300, -1, 2), (3, '2026-11-02', 300, 1, 2);
+INSERT INTO rmt_mv.order_changes VALUES (4, '2026-11-01', 400, -1, 2);
+-- truth
+-- probe: 05-truth-final show
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- N
+-- probe: 05-N-naive show
+SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_naive GROUP BY day ORDER BY day;
+2026-11-01	8	2080
+2026-11-02	1	300
+-- A
+-- probe: 05-A-order-state show
+SELECT day, count() AS orders, sum(amount) AS amount
+FROM
+(
+    SELECT order_id, argMaxMerge(day) AS day, argMaxMerge(amount) AS amount, argMaxMerge(is_deleted) AS is_deleted
+    FROM rmt_mv.order_state GROUP BY order_id
+)
+WHERE is_deleted = 0
+GROUP BY day ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- B
+-- probe: 05-B-signed show
+SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_signed GROUP BY day HAVING orders != 0 ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- C before the refresh: whatever the last refresh wrote (here: nothing)
+-- probe: 05-C-rmv-before-refresh value
+SELECT count() FROM rmt_mv.daily_rmv_t;
+0
+SYSTEM REFRESH VIEW rmt_mv.daily_rmv;
+SYSTEM WAIT VIEW rmt_mv.daily_rmv;
+-- probe: 05-C-rmv-after-refresh show
+SELECT day, orders, amount FROM rmt_mv.daily_rmv_t ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- D before the rebuild: the naive numbers
+-- probe: 05-D-part-before show
+SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_part GROUP BY day ORDER BY day;
+2026-11-01	8	2080
+2026-11-02	1	300
+-- rebuild both touched days from the source (WHERE on a non-key column with FINAL is applied after FINAL)
+INSERT INTO rmt_mv.daily_part_stage SELECT day, count(), sum(amount) FROM rmt_mv.orders FINAL WHERE day IN ('2026-11-01', '2026-11-02') GROUP BY day;
+ALTER TABLE rmt_mv.daily_part REPLACE PARTITION '2026-11-01' FROM rmt_mv.daily_part_stage;
+ALTER TABLE rmt_mv.daily_part REPLACE PARTITION '2026-11-02' FROM rmt_mv.daily_part_stage;
+TRUNCATE TABLE rmt_mv.daily_part_stage;
+-- probe: 05-D-part-after show
+SELECT day, sum(orders) AS orders, sum(amount) AS amount FROM rmt_mv.daily_part GROUP BY day ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- E: no MV — argMax over the source without FINAL
+-- probe: 05-E-argmax-source show
+SELECT day, count() AS orders, sum(amount) AS amount
+FROM
+(
+    SELECT order_id, argMax(day, ver) AS day, argMax(amount, ver) AS amount, argMax(is_deleted, ver) AS is_deleted
+    FROM rmt_mv.orders GROUP BY order_id
+)
+WHERE is_deleted = 0
+GROUP BY day ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+-- F: OPTIMIZE … FINAL, then read without FINAL — right only until the next insert
+OPTIMIZE TABLE rmt_mv.orders FINAL;
+-- probe: 05-F-after-optimize-plain show
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day ORDER BY day;
+2026-11-01	3	870
+2026-11-02	1	300
+INSERT INTO rmt_mv.orders VALUES (5, '2026-11-01', 'paid', 550, 2, 0);
+-- probe: 05-F-next-insert-plain show
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders WHERE is_deleted = 0 GROUP BY day ORDER BY day;
+2026-11-01	4	1420
+2026-11-02	1	300
+
+## errors/01-mv-final.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- errors/01 - FINAL in the SELECT of an incremental MV.
+-- Expected to fail (Code 397 on 26.8 and 26.10): the MV query runs over the insert block, so there is nothing for FINAL to merge against.
+
+DROP DATABASE IF EXISTS rmt_mv;
+CREATE DATABASE rmt_mv;
+CREATE TABLE rmt_mv.orders (order_id UInt64, day Date, amount UInt64, ver UInt64)
+ENGINE = ReplacingMergeTree(ver) ORDER BY order_id;
+CREATE TABLE rmt_mv.daily_sum (day Date, orders UInt64, amount UInt64)
+ENGINE = SummingMergeTree ORDER BY day;
+-- probe: e01-mv-with-final
+CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;
+Received exception from server (version 26.8.1):
+Code: 397. DB::Exception: Received from <service>. DB::Exception: MATERIALIZED VIEW cannot have PREWHERE, SAMPLE or FINAL: While processing CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv UUID '8a9f0a54-6cea-4abf-a0c2-df42f8f315ab' TO rmt_mv.daily_sum (`day` Date, `orders` UInt64, `amount` UInt64) AS SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day. (QUERY_IS_NOT_SUPPORTED_IN_MATERIALIZED_VIEW)
+(query: -- probe: e01-mv-with-final
+CREATE MATERIALIZED VIEW rmt_mv.daily_sum_mv TO rmt_mv.daily_sum AS
+SELECT day, count() AS orders, sum(amount) AS amount FROM rmt_mv.orders FINAL GROUP BY day;)
+
+## 99-cleanup.sql
+Unknown settings: `distributed_cache_min_inflight_bytes_to_discard_connection`, skipping
+-- 99 - drop the lab database.
+DROP DATABASE IF EXISTS rmt_mv;

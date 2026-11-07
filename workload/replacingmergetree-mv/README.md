@@ -26,6 +26,9 @@ grep -v '^#' versions.txt | xargs -I{} docker pull clickhouse/clickhouse-server:
 ./run_matrix.py --versions 26.10   # one build
 ./headroom.py                      # four containers (1 or 4 CPUs, forced merges off or on), about 3 minutes each -> HEADROOM.md
 ./headroom.py --batch 200000       # four times the rows per INSERT (800k rows/s)
+./headroom.py --keys 60000000 --batch 200000 --ingest 120 --idle 240 --payload 4   # 60M keys, merges up to ~80 s; about 12 min per configuration
+./race.py                          # partition rebuild racing the MV (one container, about 70 s) -> RACE.md
+./cloud_run.sh                     # 01-05 and errors/01 on a ClickHouse Cloud service (env file with CH_HOST, CH_USER, CH_PASSWORD)
 tools/hol run workload/replacingmergetree-mv   # from the repository root: every NN-*.sql once, must not raise
 ```
 
@@ -33,6 +36,9 @@ tools/hol run workload/replacingmergetree-mv   # from the repository root: every
 each statement runs in its own `clickhouse-client` call, a statement preceded by `-- probe:` is measured and its
 `system.query_log` row kept. `errors/` holds a probe that is expected to fail; `tools/hol` does not run it.
 `headroom.py` needs only Docker; it starts its own containers (`rmtmv-headroom-<cpus>`) with `--cpus`.
+`race.py` starts `rmtmv-race`. `cloud_run.sh` runs each file in one client session (one replica) from the
+`clickhouse/clickhouse-server:26.10.3.7` image and writes `results/cloud-<version>.txt` with the service hostname
+replaced by `<service>`; it drops `rmt_mv` at the end.
 
 ### Files
 
@@ -46,6 +52,8 @@ each statement runs in its own `clickhouse-client` call, a statement preceded by
 | `06-scale.sql` | 10M orders + 2M updates + 2M regrouped + 1M updates + 1M late versions + 200k deletes (16.2M rows, merges stopped): totals of every design, per-day report time for N, `FINAL`, A and E (3 runs), one full refresh, one-day rebuild, storage, insert cost of a 2M-row batch with no MV / naive MV / per-key MV, `OPTIMIZE … FINAL`, reads on one part |
 | `errors/01-mv-final.sql` | `FINAL` in the `SELECT` of an incremental MV (rejected, Code 397) |
 | `headroom.py` | 2M keys, then 50k random-key upserts every 0.25 s for 60 s, then 60 s idle; superseded rows (`system.parts` rows − keys), parts and running merges every second; `count() FINAL` and `OPTIMIZE … FINAL` time at the end |
+| `race.py` | 1,000 new active-day orders every 0.05 s for 60 s (plus late corrections of a closed day in the first half) while a rebuilder alternates `INSERT … SELECT … FINAL WHERE day = d` + `REPLACE PARTITION d` between the two days; then a control rebuild with no writer |
+| `cloud_run.sh` | the small-data files on ClickHouse Cloud, one session per file, hostname redacted |
 | `99-cleanup.sql` | drops the `rmt_mv` database |
 
 ### Results
@@ -98,6 +106,33 @@ ingest. 1 vs 4 CPUs barely changed the superseded count; it changed the maximum 
 (0.75 s vs 0.22 s) and `count() FINAL` at the end of ingest (0.29–0.31 s vs 0.14–0.17 s). Full table:
 [HEADROOM.md](HEADROOM.md).
 
+**Merge headroom on a large table** (`headroom.py --keys 60000000 --batch 200000 --ingest 120 --idle 240 --payload 4`,
+26.10.3.7, 2026-11-07, no other containers running; 2.0–4.7 GiB compressed):
+
+| CPUs · forced merges | rows/s (target 800,000) | longest merge | superseded 240 s after ingest (parts) | `count() FINAL` at ingest end | max INSERT latency |
+|---|---|---|---|---|---|
+| 1 · off | 737,010 | 21.0 s | 76,308,215 (11) | 7.30 s | 0.78 s |
+| 1 · on | 633,796 | 78.7 s | 0 (1), from 95 s after ingest | 23.87 s | 1.20 s |
+| 4 · off | 799,971 | 16.2 s | 80,751,029 (11) | 1.87 s | 1.08 s |
+| 4 · on | 799,984 | 24.1 s | 0 (1), from 98 s after ingest | 2.02 s | 1.02 s |
+
+At this size the CPU limit shows: one CPU did not keep up with 800k rows/s (and less so with forced merges
+competing), and `count() FINAL` took 4–12 times longer. Without forced merges the table kept 2.3 times as many rows as
+keys four minutes after ingest.
+
+**Partition rebuild racing the MV** (`race.py`, [RACE.md](RACE.md)): on both builds, the day still being written
+ended 1,000 orders short of the source after the race (one insert that landed between the rebuild's snapshot and its
+`REPLACE PARTITION`); the closed day, and both days after a control rebuild with no writer, matched the source exactly.
+
+**ClickHouse Cloud** (`cloud_run.sh`, [results/cloud-26.8.1.608.txt](results/cloud-26.8.1.608.txt); 2026-11-07,
+Seoul service, 26.8.1.608, 2 replicas, `max_threads` 2; the tables became `SharedReplacingMergeTree`):
+
+- 01, 02 (late version), 03, 05 and `errors/01` gave the same answers as OSS: the MV target 6 · 1,220 against 3 · 670, the seven designs as in OSS, `FINAL` in the MV rejected with Code 397
+- Defaults differ: `deduplicate_blocks_in_dependent_materialized_views = 0` (OSS 26.8 and 26.10: 1), `replicated_deduplication_window = 1000` (OSS: 10,000), `optimize_move_to_prewhere_if_final = 0`
+- Retries (04): the source dropped the retried blocks, but the MV target counted them again — 2 · 200 where OSS with a window gave 1 · 100, and 5 · 500 where truth is 3 · 300. Setting `deduplicate_blocks_in_dependent_materialized_views = 1` on Cloud was not run here
+- `OPTIMIZE … FINAL`: in 01 and 03 the next read in the same session still saw the unmerged rows (6 · 1,220; the deleted key's 2 rows, and 1 row after `FINAL CLEANUP` where OSS had 0); in 05 it saw the merged result. Why was not looked into
+- Ties (02): the per-key `argMaxState` target returned 500 before and after its merge (OSS: 900, then 500); `FINAL` returned 900 on both
+
 ### Screens
 
 Captured 2026-11-07 from `/play` on a local 26.10.3.7 container loaded with this lab's files, for the notes
@@ -108,9 +143,9 @@ article `core-architecture/replacingmergetree-materialized-view`:
 
 ### Not verified here
 
-- ClickHouse Cloud (SharedMergeTree): deduplication window defaults and merge behaviour were not run
-- Concurrent inserts during a partition rebuild (`REPLACE PARTITION` racing the MV)
-- Merge headroom on tables large enough that a single merge takes minutes
+- `06-scale.sql`, `headroom.py` and `race.py` on ClickHouse Cloud (only the small-data files ran there)
+- `deduplicate_blocks_in_dependent_materialized_views = 1` on Cloud, and why `OPTIMIZE … FINAL` was not visible to the next read in two of three files
+- Tables where a single merge takes many minutes (the longest merge here was 79 s)
 
 ---
 
@@ -133,6 +168,9 @@ grep -v '^#' versions.txt | xargs -I{} docker pull clickhouse/clickhouse-server:
 ./run_matrix.py                    # 26.8 LTS, 26.10 — 빌드마다 새 컨테이너 -> results/<빌드>.json, RESULTS.md
 ./headroom.py                      # CPU 1 · 4 × 강제 병합 끔 · 켬, 조합마다 약 3분 -> HEADROOM.md
 ./headroom.py --batch 200000       # INSERT당 행 4배(초당 80만 행)
+./headroom.py --keys 60000000 --batch 200000 --ingest 120 --idle 240 --payload 4   # 키 6,000만 개, 병합 최대 약 80초, 조합마다 약 12분
+./race.py                          # 파티션 재빌드와 MV의 경합(컨테이너 하나, 약 70초) -> RACE.md
+./cloud_run.sh                     # 01–05와 errors/01을 ClickHouse Cloud 서비스에서(CH_HOST, CH_USER, CH_PASSWORD가 든 env 파일)
 tools/hol run workload/replacingmergetree-mv   # 저장소 루트에서: NN-*.sql을 한 번씩, 실패 없어야 함
 ```
 
@@ -148,6 +186,8 @@ tools/hol run workload/replacingmergetree-mv   # 저장소 루트에서: NN-*.sq
 | `06-scale.sql` | 1,620만 행(병합 멈춤)에서 설계별 합계 · 조회 · 갱신 · 재빌드 · INSERT 비용, `OPTIMIZE … FINAL` 뒤 |
 | `errors/01-mv-final.sql` | MV `SELECT`의 `FINAL`(Code 397로 거부) |
 | `headroom.py` | 키 200만 개에 0.25초마다 임의 키 upsert 60초, 60초 휴식; 1초마다 대체된 행 · 파트 |
+| `race.py` | 60초 동안 0.05초마다 활성 날짜 주문 1,000건(앞 절반은 마감된 날짜의 늦은 정정도)을 넣는 동안 두 날짜를 번갈아 `INSERT … SELECT … FINAL WHERE day = d` + `REPLACE PARTITION d`로 재빌드; 쓰기를 멈춘 뒤 대조 재빌드 |
+| `cloud_run.sh` | 작은 데이터 파일을 ClickHouse Cloud에서, 파일마다 세션 하나, 호스트 이름은 가림 |
 | `99-cleanup.sql` | `rmt_mv` 데이터베이스 삭제 |
 
 ### 결과
@@ -161,12 +201,15 @@ tools/hol run workload/replacingmergetree-mv   # 저장소 루트에서: NN-*.sq
 - 같은 이력에서 키 단위 `argMaxState`, 상쇄 행, refreshable MV, 파티션 재빌드, 조회 때 `argMax`가 정답이었습니다
 - 1,620만 행에서 일별 보고서: 원본 `FINAL` 0.15–0.21초, 키 단위 상태 3.0–3.1초 · 2.5 GiB, 원본 `argMax` 0.27–0.41초. 키 단위 MV는 200만 행 INSERT를 0.16초에서 1.34–1.40초로 늘렸습니다
 - 강제 병합 없이는 INSERT가 끝나고 60초 뒤에도 대체된 행 295만–370만 개가 남았고, `min_age_to_force_merge_seconds = 20`이면 약 41초 뒤 0이었습니다. CPU 1개와 4개는 대체된 행 수를 거의 바꾸지 않았습니다
+- 키 6,000만 개(압축 2.0–4.7 GiB, 가장 긴 병합 79초)에서는 CPU 1개가 초당 80만 행을 따라가지 못했고(63.4만–73.7만), INSERT 끝의 `count() FINAL`이 7.3–23.9초로 CPU 4개(1.9–2.0초)의 4–12배였습니다. 강제 병합이 없으면 INSERT가 끝나고 4분 뒤에도 대체된 행 7,631만–8,075만 개가 남았고, 있으면 95–98초 뒤 0이었습니다
+- 쓰기가 계속되는 날짜를 재빌드하면 스냅샷과 `REPLACE PARTITION` 사이에 들어온 주문 1,000건이 사라졌고, 마감된 날짜와 쓰기를 멈춘 뒤의 재빌드는 정확했습니다(두 빌드 같음, [RACE.md](RACE.md))
+- ClickHouse Cloud(26.8.1.608, SharedReplacingMergeTree)는 01 · 02 · 03 · 05의 답이 OSS와 같았습니다. 기본값 `deduplicate_blocks_in_dependent_materialized_views = 0`(OSS는 1) 때문에 원본이 버린 재시도 블록을 MV 대상은 다시 셌습니다(정답 3건 · 300에 5건 · 500). 01 · 03에서는 `OPTIMIZE … FINAL` 직후 같은 세션의 읽기에 병합 결과가 아직 보이지 않았습니다([results/cloud-26.8.1.608.txt](results/cloud-26.8.1.608.txt))
 
 ### 여기서 확인하지 않은 것
 
-- ClickHouse Cloud(SharedMergeTree)의 중복 제거 창 기본값과 병합
-- 파티션 재빌드 중 동시에 들어오는 INSERT(`REPLACE PARTITION`과 MV의 경합)
-- 병합 하나가 몇 분씩 걸리는 큰 테이블의 병합 여유
+- ClickHouse Cloud에서의 `06-scale.sql`, `headroom.py`, `race.py`(Cloud에서는 작은 데이터 파일만 실행)
+- Cloud에서 `deduplicate_blocks_in_dependent_materialized_views = 1`로 바꾼 경우, 그리고 세 파일 중 두 곳에서 `OPTIMIZE … FINAL`이 다음 읽기에 보이지 않은 이유
+- 병합 하나가 몇 분씩 걸리는 테이블(여기서 가장 긴 병합은 79초)
 
 ---
 
