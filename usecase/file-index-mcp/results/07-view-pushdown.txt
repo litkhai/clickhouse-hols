@@ -1,0 +1,10 @@
+rows visible: view 21028  no-view 21028
+ai_reader_b turns FINAL off -> Code: 164. DB::Exception: Received from localhost:9000. DB::Exception: Cannot modify 'final' setting in readonly mode. (READONLY)
+ai_reader_b reads scan_id (not granted) -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader_b: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON fileidx.file_index_b. (ACCESS_DENIED)
+   ┌─how───────┬─user────────┬─read_rows─┬─final─┐
+1. │ pk-view   │ ai_reader   │     25691 │       │
+2. │ pk-base   │ default     │      4650 │       │
+3. │ pk-noview │ ai_reader_b │      4651 │ 1     │
+   └───────────┴─────────────┴───────────┴───────┘
+   │  Filter column: root = \'docs\' AND path = \'legal/contracts/contract_001.docx\'
+   └──ReadFromSealedView (fileidx.files, plan hidden without the displaySecretsInShowAndSelect privilege)

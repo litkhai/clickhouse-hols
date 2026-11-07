@@ -45,6 +45,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/ch-geo-analytics/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/customer360/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/device-360/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/file-index-mcp/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/fulltext-search/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/gnome-variants/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/usecase/json-explode-confluent-clickpipes/</loc></url>

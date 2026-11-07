@@ -1,0 +1,9 @@
+ai_reader SELECT count() FROM fileidx.files -> ok: 21028 
+ai_reader INSERT INTO fileidx.file_index -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant INSERT ON fileidx.file_index. (ACCESS_DENIED)
+ai_reader DROP TABLE fileidx.file_index -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant DROP TABLE ON fileidx.file_index. (ACCESS_DENIED)
+ai_reader DROP VIEW fileidx.files -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant DROP VIEW ON fileidx.files. (ACCESS_DENIED)
+ai_reader CREATE TABLE default.t -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant CREATE TABLE ON default.t. (ACCESS_DENIED)
+ai_reader SET max_result_rows = 0 (readonly = 1) -> Code: 164. DB::Exception: Received from localhost:9000. DB::Exception: Cannot modify 'max_result_rows' setting in readonly mode. (READONLY)
+ai_reader SELECT every path (max_result_rows = 20000) -> Code: 396. DB::Exception: Received from localhost:9000. DB::Exception: Limit for result exceeded, max rows: 20.00 thousand, current rows: 21.03 thousand. (TOO_MANY_ROWS_OR_BYTES)
+ai_reader the same with LIMIT 50 -> ok: 50 
+indexer INSERT (control: the INSERT itself is valid) -> ok:  

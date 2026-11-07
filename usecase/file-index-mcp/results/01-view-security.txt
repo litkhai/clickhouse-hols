@@ -1,0 +1,7 @@
+   ┌─name─────────────────────────────┬─value────────┐
+1. │ default_normal_view_sql_security │ INVOKER      │
+2. │ default_view_definer             │ CURRENT_USER │
+   └──────────────────────────────────┴──────────────┘
+ai_reader SELECT on the guide's view (SQL SECURITY INVOKER by default) -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON fileidx.file_index. (ACCESS_DENIED)
+ai_reader SELECT on the DEFINER view -> ok: 1 
+ai_reader SELECT on the base table -> Code: 497. DB::Exception: Received from localhost:9000. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON fileidx.file_index. (ACCESS_DENIED)

@@ -1,0 +1,7 @@
+positionCaseInsensitive(name, 'contract') > 0  ->  no skip index
+multiSearchAnyCaseInsensitive(name, ['계약','contract'])  ->  no skip index
+name LIKE '%contract%'  ->  Name: idx_name 
+hasToken(text_excerpt, 'renews')  ->  Name: idx_text Name: idx_text_inv 
+positionCaseInsensitive(text_excerpt, '연장') > 0  ->  no skip index
+text_excerpt LIKE '%연장%'  ->  Name: idx_text Name: idx_text_inv 
+hasAnyTokens(text_excerpt, ['renews'])  ->  no skip index

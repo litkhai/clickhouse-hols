@@ -1,0 +1,8 @@
+p1 top-20 all in archive/images	20
+p2 duplicate groups / files / wasted bytes	(63,574,214320666)
+p2 same, with empty hashes counted as one group	(64,1246,'33.62 GiB')
+p3 extensions / mp4 files / mp4 bytes	(15,400,'559.32 GiB')
+p4 pdf|docx|hwp with 계약 or contract in the name	60
+p5 2025-03 files / mp4 files / bytes	(194,153,'217.85 GiB')
+p6 no ext / size 0 / temp (~$, .tmp, .part)	(25,60,45)
+c1 archive: zip files / all files	(200,17725)

@@ -1,0 +1,13 @@
+{"scan_id": 1794024391762638, "mode": "full", "rows": 21033, "inserts": 2, "marked_deleted": 0, "seconds": 12.13}
+   ┌─base_rows─┬─view_rows─┬─active_parts─┐
+1. │     42066 │     21033 │            4 │
+   └───────────┴───────────┴──────────────┘
+-- guide quality check 1 on the base table (guide: 'should be 0'):
+21033
+-- the same check through the view:
+0
+-- guide quality check 2 (rows per scan):
+   ┌──────────scan_id─┬──rows─┬─────────────started─┐
+1. │ 1794024391762638 │ 21033 │ 2026-11-07 04:06:31 │
+2. │ 1794024379185840 │ 21033 │ 2026-11-07 04:06:19 │
+   └──────────────────┴───────┴─────────────────────┘

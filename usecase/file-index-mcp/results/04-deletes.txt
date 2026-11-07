@@ -1,0 +1,26 @@
+deleted  docs/finance/2019/design_1429.pdf
+deleted  docs/finance/2019/design_2785.pdf
+deleted  docs/finance/2019/draft_0239.pdf
+deleted  docs/finance/2019/draft_1329.pdf
+deleted  docs/finance/2019/minutes_1657.pdf
+renamed  docs/hr/2019/budget_2096.xlsx (mv keeps mtime)
+modified docs/sales/2019/design_0470.md
+files on disk: 21028
+-- incremental scan, SINCE = last indexed_at (1794024391):
+{"scan_id": 1794024407112038, "mode": "incremental", "rows": 1, "inserts": 1, "marked_deleted": 0, "seconds": 0.14}
+rows in view: 21033   renamed path in view: 0
+-- the guide's delete-detection SQL after this incremental scan would mark this many live files deleted:
+21032
+indexer refuses DETECT_DELETES after an incremental scan -> DETECT_DELETES=1 is only valid after MODE=full: an incremental scan does not touch unchanged files
+-- full scan + delete detection:
+{"scan_id": 1794024408492267, "mode": "full", "rows": 21028, "inserts": 2, "marked_deleted": 6, "seconds": 12.11}
+files on disk: 21028   rows in view: 21028
+   ┌─path──────────────────────────┐
+1. │ finance/2019/design_1429.pdf  │
+2. │ finance/2019/design_2785.pdf  │
+3. │ finance/2019/draft_0239.pdf   │
+4. │ finance/2019/draft_1329.pdf   │
+5. │ finance/2019/minutes_1657.pdf │
+6. │ hr/2019/budget_2096.xlsx      │
+   └───────────────────────────────┘
+renamed path in view: 1

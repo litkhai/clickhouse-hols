@@ -1,0 +1,27 @@
+PASS  tools exposed
+      ['list_databases', 'list_tables', 'run_query']
+PASS  list_tables fileidx shows only what ai_reader may read
+      names=['files'] raw={"tables": [{"database": "fileidx", "name": "files", "engine": "View", "create_table_query": "CREATE VIEW fileidx.files 
+PASS  SELECT on the view
+      {"columns": ["files", "total"], "rows": [[21028, "831.30 GiB"]]}
+PASS  SELECT on the base table fails
+      Query execution failed: Received ClickHouse exception, code: 497, server response: Code: 497. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON fileidx.file_index. (ACCESS_DENIED) (version 26.10.3.7 (official build)) (for url http://lo
+PASS  INSERT fails
+      Query execution failed: Received ClickHouse exception, code: 497, server response: Code: 497. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant INSERT ON fileidx.file_index. (ACCESS_DENIED) (version 26.10.3.7 (official build)) (for url http://lo
+PASS  DROP TABLE fails
+      Query execution failed: Received ClickHouse exception, code: 497, server response: Code: 497. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant DROP TABLE ON fileidx.file_index. (ACCESS_DENIED) (version 26.10.3.7 (official build)) (for url http:
+PASS  CREATE TABLE fails
+      Query execution failed: Received ClickHouse exception, code: 497, server response: Code: 497. DB::Exception: ai_reader: Not enough privileges. To execute this query, it's necessary to have the grant CREATE TABLE ON default.t. (ACCESS_DENIED) (version 26.10.3.7 (official build)) (for url http://local
+PASS  unbounded SELECT of every path fails
+      Query execution failed: Received ClickHouse exception, code: 396, server response: Code: 396. DB::Exception: Limit for result exceeded, max rows: 20.00 thousand, current rows: 21.03 thousand. (TOO_MANY_ROWS_OR_BYTES) (version 26.10.3.7 (official build)) (for url http://localhost:18123)
+      base table still there: rows = 21041
+PASS  three concurrent calls finish faster than three sequential ones
+      one call 2.8 s, three at once 2.8 s
+PASS  MCP returns an error at its 3 s timeout
+      3.1 s: Query timed out after 3 seconds
+PASS  server-side query was cancelled, not left running (query_log)
+      query: ExceptionWhileProcessing	2994	394	Code: 394. DB::Exception: Query was cancelled. (QUERY_WAS_CANCELLED) (version 26 | KILL QUERY: QueryFinish	0
+PASS  the same query completes under the default 30 s timeout
+      11.6 s: {"columns": ["count()"], "rows": [[147400062]]}
+
+0 failed

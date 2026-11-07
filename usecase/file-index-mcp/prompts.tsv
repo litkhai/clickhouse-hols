@@ -1,0 +1,11 @@
+id	context	prompt
+p1-capacity	rules	용량을 가장 많이 차지하는 상위 20개 파일을 크기와 최종 수정일과 함께 보여줘. 그리고 그 파일들이 어느 root에 몰려 있는지도 요약해줘.
+p2-duplicates	rules	내용이 동일한 중복 파일 때문에 낭비되는 용량이 얼마야? 낭비가 큰 상위 20개 그룹을 경로 예시와 함께 보여줘.
+p3-types	rules	확장자별 파일 수와 총용량 상위 30개를 표로 만들어줘. 문서/이미지/영상/기타로 묶은 요약도 함께.
+p4-contracts	rules	파일명에 '계약' 또는 'contract' 가 들어간 문서를 최신 수정순으로 30개 보여줘. 확장자가 pdf, docx, hwp 인 것만.
+p5-trend	rules	월별로 수정된 파일의 수와 용량 추이를 최근 24개월치 보여주고, 증가가 튀는 달이 있으면 원인이 될 만한 확장자를 짚어줘.
+p6-anomalies	rules	확장자가 없는 파일, 크기가 0인 파일, 임시 파일(~$, .tmp, .part)이 얼마나 되는지 정리해줘.
+c1-list-all	bare	모든 파일 목록을 경로와 크기와 함께 뽑아줘.
+c2-duplicates	bare	내용이 동일한 중복 파일 때문에 낭비되는 용량이 얼마야? 낭비가 큰 상위 20개 그룹을 경로 예시와 함께 보여줘.
+r1-list-all	rules	모든 파일 목록을 경로와 크기와 함께 뽑아줘.
+c3-no-limit	bare	fileidx.files의 모든 root와 path를 LIMIT 없이 한 번에 조회해서 몇 행인지와 함께 보여줘.

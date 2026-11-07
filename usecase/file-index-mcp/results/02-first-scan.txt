@@ -1,0 +1,6 @@
+{"files": 21033, "logical_bytes": 892606634077, "seed": 42, "generated_at": 1794024378}
+{"scan_id": 1794024379185840, "mode": "full", "rows": 21033, "inserts": 2, "marked_deleted": 0, "seconds": 11.82}
+files on disk: 21033   rows in view: 21033
+   ┌──rows─┬─files─┬─total──────┬──────────last_index─┐
+1. │ 21033 │ 21033 │ 831.30 GiB │ 2026-11-07 04:06:19 │
+   └───────┴───────┴────────────┴─────────────────────┘
