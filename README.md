@@ -50,6 +50,7 @@ and [MOVED.md](MOVED.md).
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 checkpoint test suite ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB CDC from RDS MySQL and DocumentDB into ClickHouse OSS, plus a Cloud→self-managed security runbook |
 | [chc/mysql-interface](chc/mysql-interface/) | Automated tests for the Cloud MySQL interface |
+| [chc/shared-catalog](chc/shared-catalog/) | Shared Catalog DDL on Cloud: lifecycle from the catalog's log, propagation between replicas, concurrent DDL, catalog size, idle warehouse services; OSS Keeper trees for comparison |
 | [chc/system-tables](chc/system-tables/) | Cloud system tables in depth: per-replica tables, log history of replaced replicas, `clusterAllReplicas` + `merge()`, `KILL QUERY ON CLUSTER` |
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | Service cost monitoring |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | Cost monitoring across multiple services |
@@ -272,6 +273,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 체크포인트 테스트 ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB로 RDS MySQL·DocumentDB를 ClickHouse OSS로 CDC 이관 + Cloud→자체 관리 보안 런북 |
 | [chc/mysql-interface](chc/mysql-interface/) | Cloud MySQL 인터페이스 자동 테스트 |
+| [chc/shared-catalog](chc/shared-catalog/) | Cloud Shared Catalog DDL: 카탈로그 로그로 본 생명주기, 레플리카 간 전파, 동시 DDL, 카탈로그 크기, idle warehouse 서비스, 비교용 OSS Keeper 트리 |
 | [chc/system-tables](chc/system-tables/) | Cloud system 테이블 깊이 보기: 레플리카별 테이블, 교체된 레플리카의 로그 이력, `clusterAllReplicas` + `merge()`, `KILL QUERY ON CLUSTER` |
 | [chc/tool/costkeeper](chc/tool/costkeeper/) | 서비스 비용 모니터링 |
 | [chc/tool/costkeeper-multi](chc/tool/costkeeper-multi/) | 다중 서비스 비용 모니터링 |

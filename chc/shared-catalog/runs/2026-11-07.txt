@@ -1,0 +1,734 @@
+run started 2026-11-07T02:00:29Z
+=== 01-inventory.sh
+## version and replicas
+┌─replica───┬─version────┬─uptime_s─┐
+│ 2rdd723-0 │ 26.8.1.608 │   304822 │
+│ 6row3gp-0 │ 26.8.1.608 │   304816 │
+└───────────┴────────────┴──────────┘
+┌─cluster────────────┬─replicas─┬─hosts─────────────────────────────────┬─shared_catalog─┐
+│ all_groups.default │        3 │ ['vopqskg-0','2rdd723-0','6row3gp-0'] │              1 │
+│ default            │        2 │ ['2rdd723-0','6row3gp-0']             │              1 │
+└────────────────────┴──────────┴───────────────────────────────────────┴────────────────┘
+## database engines (system stays Atomic)
+┌─engine─┬─databases─┬─names───────────────────────────────────────────────────┐
+│ Shared │        23 │ (user databases, names not shown)                       │
+│ Memory │         2 │ INFORMATION_SCHEMA, information_schema                  │
+│ Atomic │         1 │ system                                                  │
+└────────┴───────────┴─────────────────────────────────────────────────────────┘
+## catalog objects and threads, per replica
+┌─replica───┬─name──────────────────────────────────────────────┬─value─┐
+│ 2rdd723-0 │ SharedCatalogDropDetachLocalTablesErrors          │     0 │
+│ 6row3gp-0 │ SharedCatalogDropDetachLocalTablesErrors          │     0 │
+│ 2rdd723-0 │ SharedCatalogDropLocalThreads                     │     2 │
+│ 6row3gp-0 │ SharedCatalogDropLocalThreads                     │     2 │
+│ 2rdd723-0 │ SharedCatalogDropLocalThreadsActive               │     0 │
+│ 6row3gp-0 │ SharedCatalogDropLocalThreadsActive               │     0 │
+│ 2rdd723-0 │ SharedCatalogDropLocalThreadsScheduled            │     0 │
+│ 6row3gp-0 │ SharedCatalogDropLocalThreadsScheduled            │     0 │
+│ 2rdd723-0 │ SharedCatalogDropZooKeeperThreads                 │     2 │
+│ 6row3gp-0 │ SharedCatalogDropZooKeeperThreads                 │     2 │
+│ 2rdd723-0 │ SharedCatalogDropZooKeeperThreadsActive           │     0 │
+│ 6row3gp-0 │ SharedCatalogDropZooKeeperThreadsActive           │     0 │
+│ 2rdd723-0 │ SharedCatalogDropZooKeeperThreadsScheduled        │     0 │
+│ 6row3gp-0 │ SharedCatalogDropZooKeeperThreadsScheduled        │     0 │
+│ 2rdd723-0 │ SharedCatalogNumberOfObjectsInState               │   265 │
+│ 6row3gp-0 │ SharedCatalogNumberOfObjectsInState               │   265 │
+│ 2rdd723-0 │ SharedCatalogStateApplicationThreads              │    21 │
+│ 6row3gp-0 │ SharedCatalogStateApplicationThreads              │    15 │
+│ 2rdd723-0 │ SharedCatalogStateApplicationThreadsActive        │     0 │
+│ 6row3gp-0 │ SharedCatalogStateApplicationThreadsActive        │     0 │
+│ 2rdd723-0 │ SharedCatalogStateApplicationThreadsScheduled     │     0 │
+│ 6row3gp-0 │ SharedCatalogStateApplicationThreadsScheduled     │     0 │
+│ 2rdd723-0 │ SharedDatabaseCatalogTablesInLocalDropDetachQueue │     0 │
+│ 6row3gp-0 │ SharedDatabaseCatalogTablesInLocalDropDetachQueue │     0 │
+└───────────┴───────────────────────────────────────────────────┴───────┘
+┌─replica───┬─name──────────────────────────────────────────────┬──────value─┐
+│ 2rdd723-0 │ SharedDatabaseCatalogStateApplicationMicroseconds │ 1647769305 │
+│ 6row3gp-0 │ SharedDatabaseCatalogStateApplicationMicroseconds │ 2046937300 │
+└───────────┴───────────────────────────────────────────────────┴────────────┘
+## DDL settings as the service sets them
+┌─name──────────────────────────────────────┬─value────────────┬─default─┬─changed─┐
+│ alter_sync                                │ 0                │ 1       │       1 │
+│ database_replicated_allow_heavy_create    │ 0                │ 0       │       0 │
+│ database_shared_drop_table_delay_seconds  │ 28800            │ 28800   │       1 │
+│ distributed_ddl_entry_format_version      │ 6                │ 5       │       1 │
+│ distributed_ddl_output_mode               │ none_only_active │ throw   │       1 │
+│ distributed_ddl_task_timeout              │ 180              │ 180     │       0 │
+│ ignore_on_cluster_for_replicated_database │ 0                │ 0       │       0 │
+└───────────────────────────────────────────┴──────────────────┴─────────┴─────────┘
+┌─name────────────────────────────────────────┬─value─┐
+│ database_atomic_delay_before_drop_table_sec │ 480   │
+└─────────────────────────────────────────────┴───────┘
+## Keeper: the connection is visible, the tree is not
+-- [zk_connection]
+SELECT name, host, port, index, connected_time, keeper_api_version, availability_zone FROM system.zookeeper_connection
+OK: default	keeper-1	2181	1	2026-11-03 13:20:15	0	ap-northeast-2b
+-- [zk_root]
+SELECT name FROM system.zookeeper WHERE path = '/'
+ERROR Code: 497. DB::Exception: DB::Exception: default: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.zookeeper. (ACCESS_DENIED)
+-- [zk_catalog]
+SELECT name FROM system.zookeeper WHERE path = '/clickhouse/catalog'
+ERROR Code: 497. DB::Exception: DB::Exception: default: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.zookeeper. (ACCESS_DENIED)
+## the catalog's own log: one replica's last 30 minutes, by message shape
+┌─level───────┬────n─┬─example──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Debug       │ 5635 │ New metadata update iteration                                                                                                                │
+│ Information │ 5043 │ Trying to fetch a new state, current version: 11046599                                                                                       │
+│ Information │ 5043 │ Successfully fetched state 11046600 on attempt 0 in 0.004240449 sec.                                                                         │
+│ Information │ 5043 │ applyState: Trying to apply new global version 11046600                                                                                      │
+│ Information │ 5043 │ applyState: Successfully applied state with version 11046600 in 0.044243838 seconds                                                          │
+│ Information │ 5043 │ Successfully fetched state 11046600. UUIDs size 254, fetched 4 (cached 250), names size 250, ZK query in 2 ms, parsing in 1 ms               │
+│ Information │ 1983 │ Enqueueing table with UUID 9faac9d9-999e-4a4c-bf2b-572e735be2fc for local drop or detach                                                     │
+│ Information │ 1981 │ dropLocalTables: Table with UUID 9faac9d9-999e-4a4c-bf2b-572e735be2fc is no longer used and was successfully dropped                         │
+│ Information │ 1907 │ Waiting for replicas to update their state to version 11046630                                                                               │
+│ Information │ 1887 │ dropLocalTables: There are 2 tables in the local drop queue, 1 tables are no longer used and will be dropped or detached                     │
+│ Information │ 1813 │ Marking object with UUID 1e73eeae-b423-4f71-9b4d-cbf1fc2488e8 as dropped                                                                     │
+│ Information │ 1725 │ Table with UUID e2c266df-0a9f-4d94-b8e8-ec60fd8c83ec was successfully dropped or detached locally                                            │
+│ Information │ 1725 │ Waiting for the table with UUID e2c266df-0a9f-4d94-b8e8-ec60fd8c83ec to be dropped or detached locally                                       │
+│ Information │ 1600 │ Trying to execute query: CREATE TABLE sc_scale.t1 UUID '3bee57a9-f000-4d06-9280-a0496df51f29' (`n` UInt64, `s` String) ENGINE = SharedMergeT │
+│ Information │ 1600 │ Trying to commit intentions for tables sc_scale.t1 (3bee57a9-f000-4d06-9280-a0496df51f29)                                                    │
+│ Information │ 1600 │ Successfully committed intentions for tables sc_scale.t1 (3bee57a9-f000-4d06-9280-a0496df51f29) at global version 11047354                   │
+│ Information │ 1600 │ Table sc_scale.t1 (67e6db95-9d1b-40ad-86e5-7f59fb4eadbf) was successfully marked as dropped at global version 11052208 (object version 1)    │
+│ Information │ 1268 │ Metadata was changed during fetch, will fetch again                                                                                          │
+│ Debug       │ 1191 │ Looking at the new version 2 of the object 67e6db95-9d1b-40ad-86e5-7f59fb4eadbf: {"create_query":"CREATE TABLE _ UUID '67e6db95-9d1b-40ad-86 │
+│ Information │ 1110 │ dropObjectsFromZooKeeper: Dropping object c69f3402-db4d-468f-a6dc-548a182ef758                                                               │
+│ Information │ 1102 │ Applying changes for object c69f3402-db4d-468f-a6dc-548a182ef758 from stage DROP_IN_PROGRESS version 5 to removed                            │
+│ Information │ 1099 │ Applying changes for object c69f3402-db4d-468f-a6dc-548a182ef758 from stage DROP_SCHEDULED version 4 to stage DROP_IN_PROGRESS version 5     │
+│ Debug       │  891 │ Looking at the new version 3 of the object 67e6db95-9d1b-40ad-86e5-7f59fb4eadbf: {"create_query":"CREATE TABLE _ UUID '67e6db95-9d1b-40ad-86 │
+│ Information │  870 │ dropObjectsFromZooKeeper: Successfully dropped object 9faac9d9-999e-4a4c-bf2b-572e735be2fc node in ZooKeeper                                 │
+│ Information │  870 │ dropObjectsFromZooKeeper: Object 9faac9d9-999e-4a4c-bf2b-572e735be2fc was successfully finally dropped                                       │
+└─────────────┴──────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─first_version─┬─last_version─┬─versions_in_30min─┬─applies─┬─p50_apply_ms─┐
+│      11046600 │     11054831 │              8231 │    5043 │           10 │
+└───────────────┴──────────────┴───────────────────┴─────────┴──────────────┘
+=== 02-ddl.sh
+## databases
+-- [db_create]
+CREATE DATABASE IF NOT EXISTS sc_lab
+OK
+-- [db_create2]
+CREATE DATABASE IF NOT EXISTS sc_lab2
+OK
+┌─replica───┬─name────┬─engine─┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │ sc_lab  │ Shared │ 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 │
+│ 6row3gp-0 │ sc_lab  │ Shared │ 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 │
+│ 2rdd723-0 │ sc_lab2 │ Shared │ 89f5bd3d-08b3-40a3-b972-ebc536c69f9e │
+│ 6row3gp-0 │ sc_lab2 │ Shared │ 89f5bd3d-08b3-40a3-b972-ebc536c69f9e │
+└───────────┴─────────┴────────┴──────────────────────────────────────┘
+-- [db_atomic]
+CREATE DATABASE sc_lab_atomic ENGINE = Atomic
+ERROR Code: 344. DB::Exception: DB::Exception: Only queries like `CREATE DATABASE <database>` are supported for creating database. Current query is CREATE DATABASE sc_lab_atomic ENGINE = Atomic. (SUPPORT_IS_DISABLED)
+-- [db_replicated]
+CREATE DATABASE sc_lab_repl ENGINE = Replicated('/clickhouse/databases/sc_lab_repl', '{shard}', '{replica}')
+ERROR Code: 344. DB::Exception: DB::Exception: Only queries like `CREATE DATABASE <database>` are supported for creating database. Current query is CREATE DATABASE sc_lab_repl ENGINE = Replicated('/clickhouse/databases/sc_lab_repl', '{shard}', '{replica}'). (SUPPORT
+## CTAS: a failed fill leaves nothing behind
+-- [ctas_fail]
+CREATE TABLE sc_lab.ctas_fail ENGINE = MergeTree ORDER BY n AS SELECT number AS n, throwIf(number = 3000000) AS x FROM numbers(5000000) SETTINGS max_block_size = 65536
+ERROR Code: 395. DB::Exception: DB::Exception: Value passed to 'throwIf' function is non-zero: while executing 'FUNCTION throwIf(equals(__table1.number, 3000000_UInt32) :: 0) -> throwIf(equals(__table1.number, 3000000_UInt32)) UInt8 : 2'. (FUNCTION_THROW_IF_VALUE_IS
+┌─replica───┬─exists─┬─engine─┬─uuid─┐
+│ 2rdd723-0 │      0 │        │      │
+│ 6row3gp-0 │      0 │        │      │
+└───────────┴────────┴────────┴──────┘
+-- [ctas_ok]
+CREATE TABLE sc_lab.ctas ENGINE = MergeTree ORDER BY n AS SELECT number AS n, toString(number) AS s FROM numbers(5000000)
+OK
+┌─replica───┬────rows─┐
+│ 2rdd723-0 │ 5000000 │
+│ 6row3gp-0 │ 5000000 │
+└───────────┴─────────┘
+## CTAS in flight: is the INTENTION table visible?
+-- 2.5 s into a 6 s CTAS:
+┌─replica───┬─exists─┬─engine─┬─uuid─┐
+│ 2rdd723-0 │      0 │        │      │
+│ 6row3gp-0 │      0 │        │      │
+└───────────┴────────┴────────┴──────┘
+-- [ctas_slow_select]
+SELECT count() FROM sc_lab.ctas_slow
+ERROR Code: 60. DB::Exception: DB::Exception: Unknown table expression identifier 'sc_lab.ctas_slow' in scope SELECT count() FROM sc_lab.ctas_slow. (UNKNOWN_TABLE)
+-- after it returned:
+┌─replica───┬─exists─┬─engine──────────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │      1 │ SharedMergeTree │ deff523f-97d6-4017-acdb-bb4c93bb09e7 │
+│ 6row3gp-0 │      1 │ SharedMergeTree │ deff523f-97d6-4017-acdb-bb4c93bb09e7 │
+└───────────┴────────┴─────────────────┴──────────────────────────────────────┘
+## cross-database RENAME and EXCHANGE
+-- [other]
+CREATE TABLE sc_lab.other (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+-- [other_fill]
+INSERT INTO sc_lab.other SELECT number FROM numbers(10)
+OK
+┌─replica───┬─exists─┬─engine──────────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │      1 │ SharedMergeTree │ e6e3cb5f-8886-4515-920b-3992539b79e0 │
+│ 6row3gp-0 │      1 │ SharedMergeTree │ e6e3cb5f-8886-4515-920b-3992539b79e0 │
+└───────────┴────────┴─────────────────┴──────────────────────────────────────┘
+-- [rename_xdb]
+RENAME TABLE sc_lab.ctas TO sc_lab2.moved
+OK
+┌─replica───┬─exists─┬─engine──────────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │      1 │ SharedMergeTree │ e6e3cb5f-8886-4515-920b-3992539b79e0 │
+│ 6row3gp-0 │      1 │ SharedMergeTree │ e6e3cb5f-8886-4515-920b-3992539b79e0 │
+└───────────┴────────┴─────────────────┴──────────────────────────────────────┘
+-- [exchange_xdb]
+EXCHANGE TABLES sc_lab.other AND sc_lab2.moved
+OK
+┌─t─────────────┬────rows─┐
+│ sc_lab2.moved │      10 │
+│ sc_lab.other  │ 5000000 │
+└───────────────┴─────────┘
+-- [rename_db]
+RENAME DATABASE sc_lab2 TO sc_lab3
+OK
+┌─replica───┬─name────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │ sc_lab  │ 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 │
+│ 6row3gp-0 │ sc_lab  │ 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 │
+│ 2rdd723-0 │ sc_lab3 │ 89f5bd3d-08b3-40a3-b972-ebc536c69f9e │
+│ 6row3gp-0 │ sc_lab3 │ 89f5bd3d-08b3-40a3-b972-ebc536c69f9e │
+└───────────┴─────────┴──────────────────────────────────────┘
+-- [rename_db_back]
+RENAME DATABASE sc_lab3 TO sc_lab2
+OK
+## DETACH
+-- [det_t]
+CREATE TABLE sc_lab.det (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+-- [det_plain]
+DETACH TABLE sc_lab.det
+ERROR Code: 80. DB::Exception: DB::Exception: DETACH TABLE is not allowed for Shared databases. Use DETACH TABLE PERMANENTLY or set database_replicated_always_detach_permanently to 1. (INCORRECT_QUERY)
+-- [det_perm]
+DETACH TABLE sc_lab.det PERMANENTLY
+OK
+┌─replica───┬─database─┬─table─┬─is_permanently─┐
+│ 2rdd723-0 │ sc_lab   │ det   │              0 │
+│ 6row3gp-0 │ sc_lab   │ det   │              1 │
+└───────────┴──────────┴───────┴────────────────┘
+-- [attach]
+ATTACH TABLE sc_lab.det
+OK
+┌─replica───┬─exists─┬─engine──────────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │      1 │ SharedMergeTree │ f9d3adb4-43ee-45f2-a8e1-92d995349c9d │
+│ 6row3gp-0 │      1 │ SharedMergeTree │ f9d3adb4-43ee-45f2-a8e1-92d995349c9d │
+└───────────┴────────┴─────────────────┴──────────────────────────────────────┘
+## ON CLUSTER
+-- [oc_default]
+CREATE TABLE sc_lab.oc_default ON CLUSTER default (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+┌─replica───┬─exists─┬─engine──────────┬─uuid─────────────────────────────────┐
+│ 2rdd723-0 │      1 │ SharedMergeTree │ 834a0809-d66b-4ff9-a8e1-5f6501b5dfbc │
+│ 6row3gp-0 │      1 │ SharedMergeTree │ 834a0809-d66b-4ff9-a8e1-5f6501b5dfbc │
+└───────────┴────────┴─────────────────┴──────────────────────────────────────┘
+-- [oc_all_groups]
+CREATE TABLE sc_lab.oc_all ON CLUSTER 'all_groups.default' (n UInt64) ENGINE = MergeTree ORDER BY n
+ERROR Code: 80. DB::Exception: DB::Exception: There was an error on [6row3gp-0:9000]: Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Share
+┌─replica───┬─exists─┬─engine─┬─uuid─┐
+│ 2rdd723-0 │      0 │        │      │
+│ 6row3gp-0 │      0 │        │      │
+└───────────┴────────┴────────┴──────┘
+┌─entry────────────┬─host──────┬─status───┬─exception_code─┬─exception──────────────────────────────────────────────────────────────────────────────────┐
+│ query-0000000230 │ vopqskg-0 │ Inactive │           ᴺᵁᴸᴸ │ ᴺᵁᴸᴸ                                                                                       │
+│ query-0000000230 │ 2rdd723-0 │ Finished │             80 │ Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Shared Cata │
+│ query-0000000230 │ 6row3gp-0 │ Finished │             80 │ Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Shared Cata │
+│ query-0000000218 │ vopqskg-0 │ Inactive │           ᴺᵁᴸᴸ │ ᴺᵁᴸᴸ                                                                                       │
+│ query-0000000218 │ 2rdd723-0 │ Finished │             80 │ Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Shared Cata │
+│ query-0000000218 │ 6row3gp-0 │ Finished │             80 │ Code: 80. DB::Exception: It's not initial query. ON CLUSTER is not allowed for Shared Cata │
+└──────────────────┴───────────┴──────────┴────────────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
+-- [oc_missing]
+CREATE TABLE sc_lab.oc_x ON CLUSTER no_such_cluster (n UInt64) ENGINE = MergeTree ORDER BY n
+ERROR Code: 701. DB::Exception: DB::Exception: Requested cluster 'no_such_cluster' not found. (CLUSTER_DOESNT_EXIST)
+## ALTER reaches every replica before the statement returns
+-- [alter_add]
+ALTER TABLE sc_lab.other ADD COLUMN c String DEFAULT 'x'
+OK
+┌─replica───┬─columns───────┐
+│ 2rdd723-0 │ ['n','s','c'] │
+│ 6row3gp-0 │ ['n','s','c'] │
+└───────────┴───────────────┘
+## table engines in a Shared database
+-- [engine_Log]
+CREATE TABLE sc_lab.e_Log (n UInt64) ENGINE = Log
+ERROR Code: 36. DB::Exception: DB::Exception: Tables in a Shared database must use engines that do not store data on disk. Attempted to create a table with engine 'Log', which stores data on disk. (BAD_ARGUMENTS)
+-- [engine_TinyLog]
+CREATE TABLE sc_lab.e_TinyLog (n UInt64) ENGINE = TinyLog
+ERROR Code: 36. DB::Exception: DB::Exception: Tables in a Shared database must use engines that do not store data on disk. Attempted to create a table with engine 'TinyLog', which stores data on disk. (BAD_ARGUMENTS)
+-- [engine_StripeLog]
+CREATE TABLE sc_lab.e_StripeLog (n UInt64) ENGINE = StripeLog
+ERROR Code: 36. DB::Exception: DB::Exception: Tables in a Shared database must use engines that do not store data on disk. Attempted to create a table with engine 'StripeLog', which stores data on disk. (BAD_ARGUMENTS)
+-- [engine_EmbeddedRocksDB]
+CREATE TABLE sc_lab.e_EmbeddedRocksDB (n UInt64) ENGINE = EmbeddedRocksDB PRIMARY KEY n
+ERROR Code: 36. DB::Exception: DB::Exception: Tables in a Shared database must use engines that do not store data on disk. Attempted to create a table with engine 'EmbeddedRocksDB', which stores data on disk. (BAD_ARGUMENTS)
+-- [e_rmt]
+CREATE TABLE sc_lab.e_rmt (n UInt64) ENGINE = ReplicatedMergeTree ORDER BY n
+OK
+-- [e_rmt_arg]
+CREATE TABLE sc_lab.e_rmt_arg (n UInt64) ENGINE = ReplicatedMergeTree('/clickhouse/tables/x/e_rmt_arg', 'r1') ORDER BY n
+ERROR Code: 80. DB::Exception: DB::Exception: Explicit replica_name is specified in SharedMergeTree arguments. If you really want to specify it explicitly, then you should use some macros to distinguish different replicas. (INCORRECT_QUERY)
+-- [e_rmt_mac]
+CREATE TABLE sc_lab.e_rmt_mac (n UInt64) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/e_rmt_mac', '{replica}') ORDER BY n
+ERROR Code: 36. DB::Exception: DB::Exception: It's not allowed to specify explicit zookeeper_path and replica_name for ReplicatedMergeTree arguments in Replicated database. If you really want to specify them explicitly, enable setting database_replicated_allow_repli
+-- the full message of e_rmt_mac:
+It's not allowed to specify explicit zookeeper_path and replica_name for ReplicatedMergeTree arguments in Replicated database. If you really want to specify them explicitly, enable setting database_replicated_allow_replicated_engine_arguments.. (BAD_ARGUMENTS)
+-- [e_set]
+CREATE TABLE sc_lab.e_set (n UInt64) ENGINE = Set
+OK
+-- [e_join]
+CREATE TABLE sc_lab.e_join (n UInt64, v String) ENGINE = Join(ANY, LEFT, n)
+OK
+-- [e_memory]
+CREATE TABLE sc_lab.e_memory (n UInt64) ENGINE = Memory
+OK
+-- [e_null]
+CREATE TABLE sc_lab.e_null (n UInt64) ENGINE = Null
+OK
+-- [e_view]
+CREATE VIEW sc_lab.e_view AS SELECT n FROM sc_lab.other
+OK
+-- [e_mv]
+CREATE MATERIALIZED VIEW sc_lab.e_mv ENGINE = MergeTree ORDER BY n AS SELECT n FROM sc_lab.other
+OK
+┌─name──────────────────────────────────────────────────────┬─engine───────────────────┬─engine_full────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ .inner_id.8669e192-4e27-4685-a66b-e4c8f9f7f31f            │ SharedMergeTree          │ SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY n SETTINGS index_granularity = 8192 │
+│ .inner_id.SharedJoin.ca7a2d67-52aa-4190-9f40-4cd4df11bf10 │ SharedReplacingMergeTree │ SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY tuple(n) SETTINGS enable_b │
+│ .inner_id.SharedSet.ba0ffc7f-7ff0-461f-b553-8c5185e11d76  │ SharedReplacingMergeTree │ SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY tuple(n) SETTINGS enable_b │
+│ e_join                                                    │ SharedJoin               │ SharedJoin(ANY, LEFT, n)                                                                                       │
+│ e_memory                                                  │ Memory                   │ Memory                                                                                                         │
+│ e_mv                                                      │ MaterializedView         │                                                                                                                │
+│ e_null                                                    │ Null                     │ `Null`                                                                                                         │
+│ e_rmt                                                     │ SharedMergeTree          │ SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY n SETTINGS index_granularity = 8192 │
+│ e_set                                                     │ SharedSet                │ SharedSet                                                                                                      │
+│ e_view                                                    │ View                     │                                                                                                                │
+└───────────────────────────────────────────────────────────┴──────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+-- Set/Join/Memory: insert 100 rows on one connection, count on every replica
+-- [fill_set]
+INSERT INTO sc_lab.e_set SELECT number FROM numbers(100)
+OK
+-- [fill_join]
+INSERT INTO sc_lab.e_join SELECT number, toString(number) FROM numbers(100)
+OK
+-- [fill_memory]
+SELECT hostName() AS inserted_on; INSERT INTO sc_lab.e_memory SELECT number FROM numbers(100)
+OK: 2rdd723-0
+┌─replica───┬─name─────┬─engine─────┬─total_rows─┐
+│ 2rdd723-0 │ e_join   │ SharedJoin │        100 │
+│ 6row3gp-0 │ e_join   │ SharedJoin │        100 │
+│ 2rdd723-0 │ e_memory │ Memory     │        100 │
+│ 6row3gp-0 │ e_memory │ Memory     │          0 │
+│ 2rdd723-0 │ e_set    │ SharedSet  │        100 │
+│ 6row3gp-0 │ e_set    │ SharedSet  │        100 │
+└───────────┴──────────┴────────────┴────────────┘
+## SHOW CREATE: the catalog keeps the engine with its Keeper path
+Row 1:
+──────
+stored: ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY n SETTINGS index_granularity = 8192
+=== 03-lifecycle.sh
+-- [mk]
+CREATE TABLE sc_lab.life (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+-- [fill]
+INSERT INTO sc_lab.life SELECT number FROM numbers(1000)
+OK
+uuid = b6cb5753-c3c5-413e-af60-f5cf1b7d08b0
+-- [alter]
+ALTER TABLE sc_lab.life ADD COLUMN c UInt8 DEFAULT 1
+OK
+-- [rename]
+RENAME TABLE sc_lab.life TO sc_lab.life2
+OK
+## DROP keeps the object, UNDROP brings it back
+-- [drop]
+DROP TABLE sc_lab.life2
+OK
+┌──────────dropped_at─┐
+│ 2026-11-07 02:01:18 │
+└─────────────────────┘
+┌─replica───┬─database─┬─table─┬─uuid─────────────────────────────────┬─engine─┬──table_dropped_time─┐
+│ 2rdd723-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 10:01:18 │
+│ 6row3gp-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 10:01:18 │
+└───────────┴──────────┴───────┴──────────────────────────────────────┴────────┴─────────────────────┘
+-- [undrop]
+UNDROP TABLE sc_lab.life2
+OK
+┌─replica───┬─uuid─────────────────────────────────┬─total_rows─┐
+│ 2rdd723-0 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │       1000 │
+│ 6row3gp-0 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │       1000 │
+└───────────┴──────────────────────────────────────┴────────────┘
+## the object JSON the catalog stores (create_query cut)
+┌─replica───┬─obj_version─┬─object─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 6row3gp-0 │           2 │ {"create_query":"…","stage":1,"type":0}                                                                                                        │
+│ 6row3gp-0 │           3 │ {"create_query":"…","stage":1,"type":0}                                                                                                        │
+│ 2rdd723-0 │           4 │ {"create_query":"…","next_drop_attempt_timestamp":1794045678,"stage":3,"temporary_name":"5164cc90-6c18-4ee1-9911-bf671e1ee9a1|life2","type":0} │
+│ 6row3gp-0 │           4 │ {"create_query":"…","next_drop_attempt_timestamp":1794045678,"stage":3,"temporary_name":"5164cc90-6c18-4ee1-9911-bf671e1ee9a1|life2","type":0} │
+│ 2rdd723-0 │           5 │ {"create_query":"…","stage":1,"type":0}                                                                                                        │
+│ 6row3gp-0 │           5 │ {"create_query":"…","stage":1,"type":0}                                                                                                        │
+└───────────┴─────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+## retention 0: query SETTINGS vs session setting
+-- [drop_q]
+DROP TABLE sc_lab.life2 SETTINGS database_shared_drop_table_delay_seconds = 0
+OK
+┌─replica───┬─database─┬─table─┬─uuid─────────────────────────────────┬─engine─┬──table_dropped_time─┐
+│ 2rdd723-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 02:01:21 │
+│ 6row3gp-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 02:01:21 │
+└───────────┴──────────┴───────┴──────────────────────────────────────┴────────┴─────────────────────┘
+-- [undrop_q]
+UNDROP TABLE sc_lab.life2
+OK
+-- [drop_s]
+DROP TABLE sc_lab.life2
+OK
+┌─replica───┬─database─┬─table─┬─uuid─────────────────────────────────┬─engine─┬──table_dropped_time─┐
+│ 2rdd723-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 02:01:21 │
+│ 6row3gp-0 │ sc_lab   │ life2 │ b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 │        │ 2026-11-07 02:01:21 │
+└───────────┴──────────┴───────┴──────────────────────────────────────┴────────┴─────────────────────┘
+-- [undrop_s_20s]
+UNDROP TABLE sc_lab.life2
+OK
+┌─replica───┬─at──────────────┬─change─────────────────────────────────────────────────────────┐
+│ 6row3gp-0 │ 02:01:17.112431 │ from not found to stage CREATED version 1                      │
+│ 6row3gp-0 │ 02:01:17.716290 │ from stage CREATED version 1 to stage CREATED version 2        │
+│ 6row3gp-0 │ 02:01:17.894810 │ from stage CREATED version 2 to stage CREATED version 3        │
+│ 2rdd723-0 │ 02:01:18.116600 │ from stage CREATED version 3 to stage DROP_SCHEDULED version 4 │
+│ 6row3gp-0 │ 02:01:18.768172 │ from stage DROP_SCHEDULED version 4 to stage CREATED version 5 │
+│ 6row3gp-0 │ 02:01:18.768196 │ from not found to stage CREATED version 5                      │
+│ 6row3gp-0 │ 02:01:21.253219 │ from stage CREATED version 5 to stage DROP_SCHEDULED version 6 │
+│ 6row3gp-0 │ 02:01:21.712333 │ from stage DROP_SCHEDULED version 6 to stage CREATED version 7 │
+│ 6row3gp-0 │ 02:01:21.712359 │ from not found to stage CREATED version 7                      │
+│ 6row3gp-0 │ 02:01:21.927143 │ from stage CREATED version 7 to stage DROP_SCHEDULED version 8 │
+│ 2rdd723-0 │ 02:01:42.777585 │ from stage DROP_SCHEDULED version 8 to stage CREATED version 9 │
+│ 2rdd723-0 │ 02:01:42.777602 │ from not found to stage CREATED version 9                      │
+└───────────┴─────────────────┴────────────────────────────────────────────────────────────────┘
+## the drop thread waits for every active replica, skips idle ones
+┌─replica───┬─at──────────────┬─message──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 2rdd723-0 │ 02:01:17.046502 │ Trying to execute query: CREATE TABLE sc_lab.life UUID 'b6cb5753-c3c5-413e-af60-f5cf1b7d08b0' (`n` UInt64) ENGINE = SharedMergeTree ORDER BY n                                                           │
+│ 2rdd723-0 │ 02:01:17.098431 │ Trying to commit intentions for tables sc_lab.life (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                                │
+│ 2rdd723-0 │ 02:01:17.108080 │ Successfully committed intentions for tables sc_lab.life (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0) at global version 11054881                                                                               │
+│ 2rdd723-0 │ 02:01:17.711733 │ Successfully altered table sc_lab.life (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0) to CREATE TABLE _ UUID 'b6cb5753-c3c5-413e-af60-f5cf1b7d08b0' (`n` UInt64, `c` UInt8 DEFAULT 1) ENGINE = SharedMergeTree(' │
+│ 6row3gp-0 │ 02:01:17.716360 │ applyState: Altering table sc_lab.life (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                                            │
+│ 6row3gp-0 │ 02:01:17.716461 │ applyState: Old query: CREATE TABLE _ UUID 'b6cb5753-c3c5-413e-af60-f5cf1b7d08b0' (`n` UInt64) ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY n SETTINGS index_gran │
+│ 2rdd723-0 │ 02:01:17.880283 │ Renaming table 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 life, inner_uuids [] -> 5164cc90-6c18-4ee1-9911-bf671e1ee9a1 00000000-0000-0000-0000-000000000000 life2, inner_ │
+│ 2rdd723-0 │ 02:01:17.890031 │ Successfully renamed table sc_lab.life (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0) to sc_lab.life2 at global version 11054883 (object version 2)                                                              │
+│ 6row3gp-0 │ 02:01:17.894867 │ applyState: Successfully renamed table to sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                            │
+│ 6row3gp-0 │ 02:01:18.104666 │ Marking object with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 as dropped                                                                                                                                 │
+│ 6row3gp-0 │ 02:01:18.112024 │ Table sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0) was successfully marked as dropped at global version 11054884 (object version 3)                                                               │
+│ 2rdd723-0 │ 02:01:18.116727 │ applyState: Dropping table sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                                           │
+│ 2rdd723-0 │ 02:01:18.133775 │ Enqueueing table with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 for local drop or detach                                                                                                                 │
+│ 2rdd723-0 │ 02:01:18.133802 │ applyState: Successfully dropped table sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                               │
+│ 6row3gp-0 │ 02:01:18.139743 │ Enqueueing table with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 for local drop or detach                                                                                                                 │
+│ 2rdd723-0 │ 02:01:18.340190 │ dropLocalTables: Table with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 is no longer used and was successfully dropped                                                                                     │
+│ 6row3gp-0 │ 02:01:18.345837 │ dropLocalTables: Table with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 is no longer used and was successfully dropped                                                                                     │
+│ 2rdd723-0 │ 02:01:18.739512 │ Trying to undrop table sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0)                                                                                                                               │
+│ 2rdd723-0 │ 02:01:18.775800 │ Successfully undropped table sc_lab.life2 (b6cb5753-c3c5-413e-af60-f5cf1b7d08b0) at global version 11054887 (object version 4)                                                                           │
+│ 2rdd723-0 │ 02:01:21.234129 │ Marking object with UUID b6cb5753-c3c5-413e-af60-f5cf1b7d08b0 as dropped                                                                                                                                 │
+└───────────┴─────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─message──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ dropObjectsFromZooKeeper: Got versions of active replicas: [2rdd723-0 - 11054891, 6row3gp-0 - 11054890]. Discarded inactive replicas and their mtime: [vopqskg-0 - 1792567862114]. Last  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+## DROP ... SYNC
+-- [mk_sync]
+CREATE TABLE sc_lab.life_sync (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+-- [drop_sync]
+DROP TABLE sc_lab.life_sync SYNC
+OK
+-- [undrop_sync]
+UNDROP TABLE sc_lab.life_sync
+ERROR Code: 60. DB::Exception: DB::Exception: The table has not been fetched yet or has already been dropped. (UNKNOWN_TABLE)
+## DROP DATABASE without SYNC
+-- [mkdb]
+CREATE DATABASE sc_lab_dropdb
+OK
+-- [mkdb_t]
+CREATE TABLE sc_lab_dropdb.t (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+-- [mkdb_fill]
+INSERT INTO sc_lab_dropdb.t SELECT number FROM numbers(10)
+OK
+-- [dropdb]
+DROP DATABASE sc_lab_dropdb
+OK
+-- [undrop_db]
+UNDROP DATABASE sc_lab_dropdb
+ERROR Code: 62. DB::Exception: Syntax error: failed at position 8 (DATABASE): DATABASE sc_lab_dropdb. Expected TABLE. (SYNTAX_ERROR)
+-- [undrop_db_table]
+UNDROP TABLE sc_lab_dropdb.t
+ERROR Code: 81. DB::Exception: DB::Exception: Database sc_lab_dropdb does not exist. (UNKNOWN_DATABASE)
+┌─replica───┬─at──────────────┬─change─────────────────────────────────────────────────────────┐
+│ 6row3gp-0 │ 02:01:47.890578 │ from not found to stage CREATED version 0                      │
+│ 2rdd723-0 │ 02:01:48.941868 │ from stage CREATED version 0 to stage DROP_SCHEDULED version 1 │
+└───────────┴─────────────────┴────────────────────────────────────────────────────────────────┘
+┌─replica───┬─at──────────────┬─change──────────────────────────────────────────────────────────────────┐
+│ 6row3gp-0 │ 02:01:48.163901 │ from not found to stage CREATED version 1                               │
+│ 2rdd723-0 │ 02:01:48.902806 │ from stage CREATED version 1 to stage DROP_SCHEDULED version 2          │
+│ 2rdd723-0 │ 02:01:48.941969 │ from stage DROP_SCHEDULED version 2 to stage DROP_SCHEDULED version 3   │
+│ 2rdd723-0 │ 02:01:49.943512 │ from stage DROP_SCHEDULED version 3 to stage DROP_IN_PROGRESS version 4 │
+│ 2rdd723-0 │ 02:01:50.190610 │ from stage DROP_IN_PROGRESS version 4 to removed                        │
+└───────────┴─────────────────┴─────────────────────────────────────────────────────────────────────────┘
+=== 04-propagation.sh
+start = 2026-11-07 02:01:53.706730, rounds = 10 (CREATE, ALTER, RENAME, DROP each, one connection per statement)
+## commit on one replica → applied on the other (from text_log)
+┌─ddl────┬──n─┬─p50_lag_ms─┬─p90_lag_ms─┬─max_lag_ms─┬─p50_apply_ms─┬─batched_with_later─┐
+│ alter  │ 10 │       13.1 │       15.3 │       19.6 │          8.7 │                  0 │
+│ create │ 10 │       23.2 │       45.5 │       47.8 │          8.7 │                  0 │
+│ drop   │ 10 │       32.5 │       43.1 │       89.2 │           13 │                  1 │
+│ rename │ 10 │        8.9 │       16.7 │       22.8 │          4.6 │                  0 │
+└────────┴────┴────────────┴────────────┴────────────┴──────────────┴────────────────────┘
+## server-side time of the same DDLs (query_log): each DDL logs twice, the inner
+## statement the catalog rewrites (UUID filled in) and the outer one the client sent;
+## outer - inner = waiting for the other replicas (distributed_ddl_output_mode)
+┌─ddl────┬──n─┬─p50_inner_ms─┬─p50_outer_ms─┬─p50_wait_ms─┬─max_outer_ms─┐
+│ alter  │ 10 │            8 │         75.5 │          68 │          104 │
+│ create │ 10 │           67 │          159 │        87.5 │          186 │
+│ drop   │ 10 │        333.5 │       1348.5 │        1015 │         2351 │
+│ rename │ 10 │           10 │         30.5 │          17 │           83 │
+└────────┴────┴──────────────┴──────────────┴─────────────┴──────────────┘
+## which replica ran them
+┌─replica───┬─ddls─┐
+│ 2rdd723-0 │   22 │
+│ 6row3gp-0 │   18 │
+└───────────┴──────┘
+## what one state fetch costs on the receiving side
+┌─replica───┬─fetches─┬─avg_objects_fetched─┬─uuids_in_state─┬─p50_zk_ms─┐
+│ 2rdd723-0 │      71 │                   1 │            288 │         2 │
+│ 6row3gp-0 │      75 │                   1 │            288 │         2 │
+└───────────┴─────────┴─────────────────────┴────────────────┴───────────┘
+=== 05-concurrency.sh
+-- [mk_same]
+CREATE TABLE sc_lab.cc_same (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+## 8 parallel ALTER ADD COLUMN on one table
+same 1 OK
+same 2 OK
+same 3 Code: 517 (CANNOT_ASSIGN_ALTER) 
+same 4 Code: 517 (CANNOT_ASSIGN_ALTER) 
+same 5 Code: 517 (CANNOT_ASSIGN_ALTER) 
+same 6 Code: 517 (CANNOT_ASSIGN_ALTER) 
+same 7 Code: 517 (CANNOT_ASSIGN_ALTER) 
+same 8 OK
+## 8 parallel ALTER ADD COLUMN, one table each
+own 1 OK
+own 2 OK
+own 3 OK
+own 4 OK
+own 5 OK
+own 6 OK
+own 7 OK
+own 8 OK
+┌─mode─┬─ok─┬─failed─┬─codes─┬─p50_ms─┬─max_ms─┬─replicas──────────────────┐
+│ own  │  8 │      0 │ []    │   56.5 │    113 │ ['6row3gp-0','2rdd723-0'] │
+│ same │  3 │      5 │ [517] │  112.5 │    132 │ ['6row3gp-0','2rdd723-0'] │
+└──────┴────┴────────┴───────┴────────┴────────┴───────────────────────────┘
+┌─replica───┬─columns─────────────────────────────┐
+│ 2rdd723-0 │ ['n','c_same2','c_same8','c_same1'] │
+│ 6row3gp-0 │ ['n','c_same2','c_same8','c_same1'] │
+└───────────┴─────────────────────────────────────┘
+## what the catalog logged while racing (shapes, both replicas)
+┌─level───────┬─n─┬─example────────────────────────────────────────────────────┐
+│ Information │ 6 │ Metadata changed in ZooKeeper. Applying changes locally.   │
+│ Information │ 2 │ Metadata was changed during fetch, will fetch again        │
+│ Trace       │ 2 │ Reducing of blocking parts started                         │
+│ Trace       │ 2 │ Scheduling next reduce blocking parts task after 5099.45ms │
+└─────────────┴───┴────────────────────────────────────────────────────────────┘
+=== 06-scale.sh
+## objects before: 292
+┌─catalog─┬─objects_now─┬─creates─┬─p50_ms─┬─p90_ms─┐
+│ base    │         292 │      20 │    160 │  174.2 │
+└─────────┴─────────────┴─────────┴────────┴────────┘
+┌─catalog─┬─replica───┬─applies─┬─p50_apply_ms─┬─uuids─┐
+│ base    │ 2rdd723-0 │      93 │           10 │   297 │
+│ base    │ 6row3gp-0 │      94 │         10.4 │   297 │
+└─────────┴───────────┴─────────┴──────────────┴───────┘
+-- [mkdb]
+CREATE DATABASE IF NOT EXISTS sc_scale
+OK
+## creating 800 empty tables over one connection
+bulk create: 138 s wall, objects now 1099
+┌─catalog─┬─objects_now─┬─creates─┬─p50_ms─┬────────────p90_ms─┐
+│ big     │        1093 │      20 │    152 │ 214.1000000000001 │
+└─────────┴─────────────┴─────────┴────────┴───────────────────┘
+┌─catalog─┬─replica───┬─applies─┬─p50_apply_ms─┬─uuids─┐
+│ big     │ 2rdd723-0 │      95 │          9.1 │  1100 │
+│ big     │ 6row3gp-0 │      99 │          9.3 │  1100 │
+└─────────┴───────────┴─────────┴──────────────┴───────┘
+## drop the database with 800 tables
+-- [dropdb_scale]
+DROP DATABASE sc_scale SYNC
+OK
+┌─replica───┬─drop_database_ms─┐
+│ 6row3gp-0 │            78393 │
+│ 2rdd723-0 │            77901 │
+└───────────┴──────────────────┘
+## objects after: 292
+=== 07-warehouse.sh
+## services in the warehouse, before
+service read only    state=idle     primary=False replicas=1 readonly=True
+service Seoul        state=running  primary=True  replicas=2 readonly=False
+┌─cluster────────────┬─host_name─┬─is_active─┐
+│ all_groups.default │ vopqskg-0 │         0 │
+│ all_groups.default │ 2rdd723-0 │         1 │
+│ all_groups.default │ 6row3gp-0 │         1 │
+└────────────────────┴───────────┴───────────┘
+## default settings (output mode none_only_active, timeout 180)
+-- [wh_create_db]
+CREATE DATABASE sc_wh
+OK
+   wall 0.27 s
+-- [wh_create_t]
+CREATE TABLE sc_wh.t (n UInt64) ENGINE = MergeTree ORDER BY n
+OK
+   wall 0.36 s
+-- [wh_rename_db]
+RENAME DATABASE sc_wh TO sc_wh2
+OK
+   wall 0.22 s
+-- [wh_drop_db]
+DROP DATABASE sc_wh2
+OK
+   wall 0.31 s
+## output mode throw: wait for every replica, active or not (timeout 20 s)
+-- [wh_create_db_throw]
+CREATE DATABASE sc_wh3
+OK
+   wall 0.23 s
+-- [wh_drop_db_throw]
+DROP DATABASE sc_wh3
+OK
+   wall 0.28 s
+## timeout 0: do not wait at all
+-- [wh_create_db_t0]
+CREATE DATABASE sc_wh4
+OK
+   wall 0.21 s
+-- [wh_drop_db_t0]
+DROP DATABASE sc_wh4
+OK
+   wall 0.21 s
+## what the executing replica waited for
+┌─replica───┬─at──────────────┬─message──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 2rdd723-0 │ 02:07:31.253408 │ Trying to execute query: CREATE DATABASE sc_wh UUID '004b8af1-3d25-403a-af43-a3761027dc94' ENGINE = Shared                                                                                               │
+│ 2rdd723-0 │ 02:07:31.262134 │ Successfully created database sc_wh (004b8af1-3d25-403a-af43-a3761027dc94) at global version 11058502 (object version 0)                                                                                 │
+│ 2rdd723-0 │ 02:07:31.262464 │ Waiting for replicas to update their state to version 11058502                                                                                                                                           │
+│ 6row3gp-0 │ 02:07:31.267782 │ Creating database sc_wh (004b8af1-3d25-403a-af43-a3761027dc94)                                                                                                                                           │
+│ 2rdd723-0 │ 02:07:31.606729 │ Trying to execute query: CREATE TABLE sc_wh.t UUID '39a8e088-2f75-44da-9856-845f747af4f8' (`n` UInt64) ENGINE = SharedMergeTree ORDER BY n                                                               │
+│ 2rdd723-0 │ 02:07:31.695989 │ Trying to commit intentions for tables sc_wh.t (39a8e088-2f75-44da-9856-845f747af4f8)                                                                                                                    │
+│ 2rdd723-0 │ 02:07:31.700664 │ Successfully committed intentions for tables sc_wh.t (39a8e088-2f75-44da-9856-845f747af4f8) at global version 11058503                                                                                   │
+│ 2rdd723-0 │ 02:07:31.700691 │ Waiting for replicas to update their state to version 11058503                                                                                                                                           │
+│ 6row3gp-0 │ 02:07:32.055978 │ Trying to execute query: RENAME DATABASE sc_wh TO sc_wh2                                                                                                                                                 │
+│ 6row3gp-0 │ 02:07:32.066006 │ Successfully renamed database sc_wh to sc_wh2 at global version 11058504 (object version 0)                                                                                                              │
+│ 6row3gp-0 │ 02:07:32.066356 │ Waiting for replicas to update their state to version 11058504                                                                                                                                           │
+│ 2rdd723-0 │ 02:07:32.070409 │ applyState: Renaming database sc_wh to temporary name _renamed_sc_wh_sc_wh2 (004b8af1-3d25-403a-af43-a3761027dc94)                                                                                       │
+│ 2rdd723-0 │ 02:07:32.070560 │ applyState: Renaming database _renamed_sc_wh_sc_wh2 from temporary name to sc_wh2 (004b8af1-3d25-403a-af43-a3761027dc94)                                                                                 │
+│ 2rdd723-0 │ 02:07:32.360746 │ Trying to execute query: DROP DATABASE sc_wh2                                                                                                                                                            │
+│ 2rdd723-0 │ 02:07:32.365644 │ Table sc_wh2.t (39a8e088-2f75-44da-9856-845f747af4f8) was successfully marked as dropped at global version 11058505 (object version 1)                                                                   │
+│ 6row3gp-0 │ 02:07:32.377871 │ applyState: Dropping table sc_wh2.t (39a8e088-2f75-44da-9856-845f747af4f8)                                                                                                                               │
+│ 2rdd723-0 │ 02:07:32.388429 │ Will try to reset delay to drop table sc_wh2.t (39a8e088-2f75-44da-9856-845f747af4f8) to 0                                                                                                               │
+│ 2rdd723-0 │ 02:07:32.398982 │ dropObjectsFromZooKeeper: Got versions of active replicas: [2rdd723-0 - 11058505, 6row3gp-0 - 11058504]. Discarded inactive replicas and their mtime: [vopqskg-0 - 1792567862114]. Last transaction mtim │
+│ 2rdd723-0 │ 02:07:32.404691 │ Database sc_wh2 (004b8af1-3d25-403a-af43-a3761027dc94) was successfully marked as dropped at global version 11058507 (object version 1)                                                                  │
+│ 2rdd723-0 │ 02:07:32.405060 │ Waiting for replicas to update their state to version 11058507                                                                                                                                           │
+│ 2rdd723-0 │ 02:07:32.406885 │ dropObjectsFromZooKeeper: Got versions of active replicas: [2rdd723-0 - 11058505, 6row3gp-0 - 11058504]. Discarded inactive replicas and their mtime: [vopqskg-0 - 1792567862114]. Last transaction mtim │
+│ 6row3gp-0 │ 02:07:32.410667 │ applyState: Successfully dropped table sc_wh2.t (39a8e088-2f75-44da-9856-845f747af4f8)                                                                                                                   │
+│ 6row3gp-0 │ 02:07:32.428311 │ dropObjectsFromZooKeeper: Got versions of active replicas: [2rdd723-0 - 11058507, 6row3gp-0 - 11058505]. Discarded inactive replicas and their mtime: [vopqskg-0 - 1792567862114]. Last transaction mtim │
+│ 6row3gp-0 │ 02:07:32.435377 │ applyState: Dropping database sc_wh2 (004b8af1-3d25-403a-af43-a3761027dc94)                                                                                                                              │
+│ 6row3gp-0 │ 02:07:32.435410 │ applyState: Successfully dropped database sc_wh2 (004b8af1-3d25-403a-af43-a3761027dc94)                                                                                                                  │
+│ 6row3gp-0 │ 02:07:32.441471 │ dropObjectsFromZooKeeper: Got versions of active replicas: [2rdd723-0 - 11058507, 6row3gp-0 - 11058507]. Discarded inactive replicas and their mtime: [vopqskg-0 - 1792567862114]. Last transaction mtim │
+│ 2rdd723-0 │ 02:07:32.750214 │ Trying to execute query: CREATE DATABASE sc_wh3 UUID 'e73911cf-1231-4e9f-b624-35c189082443' ENGINE = Shared                                                                                              │
+│ 2rdd723-0 │ 02:07:32.771140 │ Successfully created database sc_wh3 (e73911cf-1231-4e9f-b624-35c189082443) at global version 11058508 (object version 0)                                                                                │
+│ 2rdd723-0 │ 02:07:32.771447 │ Waiting for replicas to update their state to version 11058508                                                                                                                                           │
+│ 6row3gp-0 │ 02:07:32.773340 │ Creating database sc_wh3 (e73911cf-1231-4e9f-b624-35c189082443)                                                                                                                                          │
+└───────────┴─────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─ddl────────────────┬─server_ms─┬─exception_code─┐
+│ wh_create_db       │        75 │              0 │
+│ wh_create_t        │       172 │              0 │
+│ wh_rename_db       │        26 │              0 │
+│ wh_drop_db         │       111 │              0 │
+│ wh_create_db_throw │        36 │              0 │
+│ wh_drop_db_throw   │        79 │              0 │
+│ wh_create_db_t0    │         9 │              0 │
+│ wh_drop_db_t0      │         5 │              0 │
+└────────────────────┴───────────┴────────────────┘
+## services in the warehouse, after
+service read only    state=idle     primary=False replicas=1 readonly=True
+service Seoul        state=running  primary=True  replicas=2 readonly=False
+=== 08-objects.sh
+-- [src]
+CREATE TABLE sc_lab.dict_src (k UInt64, v String) ENGINE = MergeTree ORDER BY k
+OK
+-- [src_fill]
+INSERT INTO sc_lab.dict_src SELECT number, toString(number) FROM numbers(1000)
+OK
+## dictionary
+-- [dict]
+CREATE DICTIONARY sc_lab.dict (k UInt64, v String) PRIMARY KEY k SOURCE(CLICKHOUSE(DB 'sc_lab' TABLE 'dict_src')) LAYOUT(HASHED()) LIFETIME(300)
+OK
+┌─replica───┬─name─┬─status─┬─element_count─┬──loading_start_time─┐
+│ 2rdd723-0 │ dict │ LOADED │          1000 │ 2026-11-07 02:07:38 │
+│ 6row3gp-0 │ dict │ LOADED │          1000 │ 2026-11-07 02:07:38 │
+└───────────┴──────┴────────┴───────────────┴─────────────────────┘
+-- [dict_get]
+SELECT hostName() AS used_on, dictGet('sc_lab.dict', 'v', toUInt64(42)) AS v
+OK: 6row3gp-0	42
+┌─replica───┬─name─┬─status─┬─element_count─┬──loading_start_time─┐
+│ 2rdd723-0 │ dict │ LOADED │          1000 │ 2026-11-07 02:07:38 │
+│ 6row3gp-0 │ dict │ LOADED │          1000 │ 2026-11-07 02:07:38 │
+└───────────┴──────┴────────┴───────────────┴─────────────────────┘
+## refreshable materialized view, every 10 s
+-- [rmv]
+CREATE MATERIALIZED VIEW sc_lab.rmv REFRESH EVERY 10 SECOND ENGINE = MergeTree ORDER BY k AS SELECT k % 10 AS k, count() AS c, now() AS at FROM sc_lab.dict_src GROUP BY k
+OK
+┌─replica───┬─status────┬───last_success_time─┬─last_refresh_replica─┬───next_refresh_time─┬─exception─┐
+│ 2rdd723-0 │ Scheduled │ 2026-11-07 02:08:20 │ 6row3gp-0            │ 2026-11-07 02:08:30 │           │
+│ 6row3gp-0 │ Scheduled │ 2026-11-07 02:08:20 │ 6row3gp-0            │ 2026-11-07 02:08:30 │           │
+└───────────┴───────────┴─────────────────────┴──────────────────────┴─────────────────────┴───────────┘
+-- refresh INSERTs per replica (query_log)
+┌─replica───┬─refresh_inserts─┐
+│ 2rdd723-0 │               3 │
+│ 6row3gp-0 │               3 │
+└───────────┴─────────────────┘
+-- what each refresh did to the catalog (stage changes logged for sc_lab objects, both replicas)
+┌─change─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──n─┐
+│ Applying changes for object <uuid> from not found to stage CREATED version 1                                                                                                                                                                               │ 13 │
+│ Applying changes for object <uuid> from stage CREATED version 1 to stage CREATED version 2                                                                                                                                                                 │ 11 │
+│ Applying changes for object <uuid> from stage DROP_IN_PROGRESS version 5 to removed                                                                                                                                                                        │  9 │
+│ Applying changes for object <uuid> from stage DROP_SCHEDULED version 4 to stage DROP_IN_PROGRESS version 5                                                                                                                                                 │  9 │
+│ Applying changes for object <uuid> from stage CREATED version 2 to stage CREATED version 3                                                                                                                                                                 │  7 │
+│ Applying changes for object <uuid> from stage CREATED version 3 to stage DROP_SCHEDULED version 4                                                                                                                                                          │  7 │
+│ Trying to execute query: EXCHANGE TABLES sc_lab.`.tmp.inner_id.<uuid>` AND sc_lab.`.inner_id.<uuid>`                                                                                                                                                       │  6 │
+│ Trying to execute query: CREATE OR REPLACE TABLE sc_lab.`.tmp.inner_id.<uuid>` UUID '<uuid>' (`k` UInt8, `c` UInt64, `at` DateTime) ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY k SETTINGS index_granularity = 8192 │  6 │
+│ Trying to execute query: DROP TABLE IF EXISTS sc_lab.`.tmp.inner_id.<uuid>`                                                                                                                                                                                │  6 │
+│ Applying changes for object <uuid> from stage INTENTION version 0 to stage CREATED version 1                                                                                                                                                               │  4 │
+│ applyState: Successfully dropped table sc_lab..tmp.inner_id.<uuid> (<uuid>)                                                                                                                                                                                │  4 │
+│ applyState: Successfully renamed table to sc_lab..tmp.inner_id.<uuid> (<uuid>)                                                                                                                                                                             │  4 │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────┘
+┌─replica───┬─at──────────────┬─message────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 6row3gp-0 │ 02:07:39.830581 │ Trying to execute query: CREATE OR REPLACE TABLE sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e` UUID '1edc1ff7-c6ff-4152-9998-f7fb3fedde61' (`k` UInt8, `c` U │
+│ 6row3gp-0 │ 02:07:39.905979 │ Successfully renamed table sc_lab._tmp_replace_cb94d444971e3b86_ebwsuowu152f0c44 (1edc1ff7-c6ff-4152-9998-f7fb3fedde61) to sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc │
+│ 6row3gp-0 │ 02:07:39.981637 │ Trying to execute query: EXCHANGE TABLES sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e` AND sc_lab.`.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e`           │
+│ 6row3gp-0 │ 02:07:39.986947 │ Successfully exchanged tables sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e (1edc1ff7-c6ff-4152-9998-f7fb3fedde61) and sc_lab..inner_id.672cc137-61aa-4e5c-9f3 │
+│ 6row3gp-0 │ 02:07:39.987397 │ Trying to execute query: DROP TABLE IF EXISTS sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e`                                                                  │
+│ 6row3gp-0 │ 02:07:39.992610 │ Table sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e (e5fdc46a-bd4d-4dd0-97ac-1225a7bbf9c1) was successfully marked as dropped at global version 11058519 (obje │
+│ 6row3gp-0 │ 02:07:40.091995 │ Trying to execute query: CREATE OR REPLACE TABLE sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e` UUID '11734537-3c4a-4f90-9c08-65cce8d430d1' (`k` UInt8, `c` U │
+│ 6row3gp-0 │ 02:07:40.155562 │ Successfully renamed table sc_lab._tmp_replace_cb94d444971e3b86_uygsykbq6b0b651a (11734537-3c4a-4f90-9c08-65cce8d430d1) to sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc │
+│ 6row3gp-0 │ 02:07:40.243382 │ Trying to execute query: EXCHANGE TABLES sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e` AND sc_lab.`.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e`           │
+│ 6row3gp-0 │ 02:07:40.249996 │ Successfully exchanged tables sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e (11734537-3c4a-4f90-9c08-65cce8d430d1) and sc_lab..inner_id.672cc137-61aa-4e5c-9f3 │
+│ 6row3gp-0 │ 02:07:40.250418 │ Trying to execute query: DROP TABLE IF EXISTS sc_lab.`.tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e`                                                                  │
+│ 2rdd723-0 │ 02:07:40.254291 │ applyState: Successfully renamed table to sc_lab..tmp.inner_id.672cc137-61aa-4e5c-9f39-bc1441b3f22e (1edc1ff7-c6ff-4152-9998-f7fb3fedde61)                                 │
+└───────────┴─────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+-- [rmv_stop]
+SYSTEM STOP VIEW sc_lab.rmv
+OK
+=== 99-cleanup.sql
+-- 99 — Drop every lab database right away (SYNC skips the 8-hour retention)
+DROP DATABASE IF EXISTS sc_lab SYNC;
+
+DROP DATABASE IF EXISTS sc_lab2 SYNC;
+
+DROP DATABASE IF EXISTS sc_lab3 SYNC;
+
+DROP DATABASE IF EXISTS sc_lab_dropdb SYNC;
+
+DROP DATABASE IF EXISTS sc_scale SYNC;
+
+DROP DATABASE IF EXISTS sc_wh SYNC;
+
+DROP DATABASE IF EXISTS sc_wh2 SYNC;
+
+DROP DATABASE IF EXISTS sc_wh3 SYNC;
+
+DROP DATABASE IF EXISTS sc_wh4 SYNC;
+
+RUN EXIT 0 in 487 s at 2026-11-07T02:08:36Z
