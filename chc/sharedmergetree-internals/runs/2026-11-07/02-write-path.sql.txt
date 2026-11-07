@@ -1,0 +1,110 @@
+-- 02 — One INSERT: what is written, where, and what the other replica does
+-- 2M rows of ~100-byte strings. max_insert_block_size splits it into parts of about 1M rows.
+INSERT INTO smt_lab.big SETTINGS log_comment = 'lab:insert-big'
+SELECT number, randomPrintableASCII(100) FROM numbers(2000000);
+
+-- part_log is flushed every few seconds; wait, then flush every replica
+SELECT sleep(3) AS waited;
+┌─waited─┐
+│      0 │
+└────────┘
+
+SYSTEM FLUSH LOGS ON CLUSTER 'default';
+
+-- NewPart on the replica that ran the INSERT; DownloadPart on the other one.
+-- s3_read / s3_written: bytes each event moved to or from object storage.
+SELECT hostName() AS replica, event_type, part_name, part_type, rows,
+       formatReadableSize(size_in_bytes) AS part_size, duration_ms,
+       formatReadableSize(ProfileEvents['WriteBufferFromS3Bytes']) AS s3_written,
+       formatReadableSize(ProfileEvents['ReadBufferFromS3Bytes']) AS s3_read,
+       ProfileEvents['S3GetObject'] AS s3_get
+FROM clusterAllReplicas('default', system.part_log)
+WHERE event_date = today() AND event_time >= (SELECT max(started) FROM smt_lab.run)
+  AND database = 'smt_lab' AND table = 'big'
+ORDER BY event_time_microseconds;
+┌─replica───┬─event_type───┬─part_name─┬─part_type─┬────rows─┬─part_size─┬─duration_ms─┬─s3_written─┬─s3_read──┬─s3_get─┐
+│ 6row3gp-0 │ NewPart      │ all_0_0_0 │ Compact   │ 1111953 │ 89.98 MiB │        1375 │ 89.98 MiB  │ 0.00 B   │      0 │
+│ 2rdd723-0 │ DownloadPart │ all_0_0_0 │ Compact   │ 1111953 │ 89.98 MiB │          36 │ 0.00 B     │ 1.00 MiB │      1 │
+│ 6row3gp-0 │ NewPart      │ all_1_1_0 │ Compact   │  888047 │ 71.86 MiB │        1226 │ 71.86 MiB  │ 0.00 B   │      0 │
+│ 2rdd723-0 │ DownloadPart │ all_1_1_0 │ Compact   │  888047 │ 71.86 MiB │          45 │ 0.00 B     │ 1.00 MiB │      1 │
+└───────────┴──────────────┴───────────┴───────────┴─────────┴───────────┴─────────────┴────────────┴──────────┴────────┘
+
+-- The same parts, from each replica's point of view
+SELECT hostName() AS replica, count() AS active_parts, sum(rows) AS rows, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM clusterAllReplicas('default', system.parts)
+WHERE database = 'smt_lab' AND table = 'big' AND active
+GROUP BY replica
+ORDER BY replica;
+┌─replica───┬─active_parts─┬────rows─┬─size───────┐
+│ 2rdd723-0 │            2 │ 2000000 │ 161.84 MiB │
+│ 6row3gp-0 │            2 │ 2000000 │ 161.84 MiB │
+└───────────┴──────────────┴─────────┴────────────┘
+
+-- Nothing is queued for replication: the ReplicatedMergeTree queue tables are empty for this table
+SELECT hostName() AS replica,
+       (SELECT count() FROM system.replication_queue WHERE database = 'smt_lab') AS replication_queue,
+       (SELECT count() FROM system.replicated_fetches WHERE database = 'smt_lab') AS replicated_fetches
+FROM clusterAllReplicas('default', system.one)
+ORDER BY replica;
+┌─replica───┬─replication_queue─┬─replicated_fetches─┐
+│ 2rdd723-0 │                 0 │                  0 │
+│ 6row3gp-0 │                 0 │                  0 │
+└───────────┴───────────────────┴────────────────────┘
+
+-- The INSERT itself: duration, object storage writes, Keeper requests
+SELECT hostName() AS replica, query_duration_ms, written_rows, formatReadableSize(written_bytes) AS written,
+       formatReadableSize(ProfileEvents['WriteBufferFromS3Bytes']) AS s3_written,
+       ProfileEvents['WriteBufferFromS3RequestsErrors'] AS s3_write_errors,
+       ProfileEvents['ZooKeeperTransactions'] AS keeper_requests,
+       ProfileEvents['ZooKeeperMulti'] AS keeper_multi,
+       round(ProfileEvents['ZooKeeperWaitMicroseconds'] / 1000, 1) AS keeper_wait_ms
+FROM clusterAllReplicas('default', system.query_log)
+WHERE event_date = today() AND event_time >= (SELECT max(started) FROM smt_lab.run)
+  AND type = 'QueryFinish' AND log_comment = 'lab:insert-big'
+FORMAT Vertical;
+Row 1:
+──────
+replica:           6row3gp-0
+query_duration_ms: 3268
+written_rows:      2000000
+written:           221.25 MiB
+s3_written:        161.84 MiB
+s3_write_errors:   0
+keeper_requests:   18
+keeper_multi:      16
+keeper_wait_ms:    0
+
+-- The Keeper requests the insert path made for this table, by Keeper node.
+-- aggregated_zookeeper_log groups requests per component, operation and parent path.
+SELECT hostName() AS replica, component, operation,
+       replaceRegexpOne(parent_path, '^/clickhouse/tables/[^/]+/[^/]+', '<table>') AS path,
+       sum(count) AS requests
+FROM clusterAllReplicas('default', system.aggregated_zookeeper_log)
+WHERE event_date = today() AND event_time >= toDateTime((SELECT max(started) FROM smt_lab.run))
+  AND parent_path LIKE concat('/clickhouse/tables/', (SELECT toString(uuid) FROM system.tables WHERE database = 'smt_lab' AND name = 'big'), '%')
+  AND component LIKE 'SharedMergeTreeSink%'
+GROUP BY replica, component, operation, path
+ORDER BY replica, path, operation;
+┌─replica───┬─component─────────────────────┬─operation──────┬─path───────────────────────────────────────┬─requests─┐
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Set            │ <table>                                    │        3 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Set            │ <table>                                    │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/block_numbers                      │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/block_numbers/all                  │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Create         │ <table>/block_numbers/all                  │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Remove         │ <table>/block_numbers/all                  │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Remove         │ <table>/block_numbers/all                  │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Create         │ <table>/deduplication_hashes               │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/deduplication_hashes               │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ CheckNotExists │ <table>/deduplication_hashes               │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ CheckNotExists │ <table>/deduplication_hashes               │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Check          │ <table>/replicas/6row3gp-0                 │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Check          │ <table>/replicas/6row3gp-0                 │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Create         │ <table>/replicas/6row3gp-0/insert_memo_ids │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/replicas/6row3gp-0/insert_memo_ids │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/virtual_parts                      │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Set            │ <table>/virtual_parts                      │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Set            │ <table>/virtual_parts                      │        2 │
+│ 6row3gp-0 │ SharedMergeTreeSink::onFinish │ Create         │ <table>/virtual_parts/all                  │        1 │
+│ 6row3gp-0 │ SharedMergeTreeSink::consume  │ Create         │ <table>/virtual_parts/all                  │        2 │
+└───────────┴───────────────────────────────┴────────────────┴────────────────────────────────────────────┴──────────┘
+
