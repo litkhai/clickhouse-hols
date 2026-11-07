@@ -1,0 +1,90 @@
+-- check with select_sequential_consistency = 0
+trial  writer     other replica sees the row
+    1  6row3gp-0  1
+    2  6row3gp-0  1
+    3  2rdd723-0  1
+    4  6row3gp-0  1
+    5  2rdd723-0  1
+    6  6row3gp-0  1
+    7  6row3gp-0  1
+    8  6row3gp-0  1
+    9  2rdd723-0  1
+   10  6row3gp-0  1
+   11  2rdd723-0  1
+   12  2rdd723-0  1
+   13  2rdd723-0  0
+   14  2rdd723-0  1
+   15  6row3gp-0  1
+   16  6row3gp-0  1
+   17  2rdd723-0  1
+   18  6row3gp-0  1
+   19  6row3gp-0  1
+   20  6row3gp-0  1
+   21  6row3gp-0  1
+   22  2rdd723-0  1
+   23  6row3gp-0  1
+   24  2rdd723-0  1
+   25  2rdd723-0  1
+   26  6row3gp-0  1
+   27  6row3gp-0  1
+   28  6row3gp-0  1
+   29  6row3gp-0  1
+   30  6row3gp-0  1
+other replica saw the row in the first check: 29 of 30 trials (select_sequential_consistency = 0)
+
+-- check with select_sequential_consistency = 1
+trial  writer     other replica sees the row
+    1  2rdd723-0  1
+    2  2rdd723-0  1
+    3  2rdd723-0  1
+    4  6row3gp-0  1
+    5  2rdd723-0  1
+    6  2rdd723-0  1
+    7  6row3gp-0  1
+    8  6row3gp-0  1
+    9  2rdd723-0  1
+   10  6row3gp-0  1
+   11  6row3gp-0  1
+   12  2rdd723-0  1
+   13  6row3gp-0  1
+   14  6row3gp-0  1
+   15  2rdd723-0  1
+   16  2rdd723-0  1
+   17  2rdd723-0  1
+   18  2rdd723-0  1
+   19  6row3gp-0  1
+   20  6row3gp-0  1
+   21  6row3gp-0  1
+   22  2rdd723-0  1
+   23  6row3gp-0  1
+   24  2rdd723-0  1
+   25  6row3gp-0  1
+   26  2rdd723-0  1
+   27  2rdd723-0  1
+   28  6row3gp-0  1
+   29  6row3gp-0  1
+   30  2rdd723-0  1
+other replica saw the row in the first check: 30 of 30 trials (select_sequential_consistency = 1)
+
+-- Lag between NewPart on the writer and DownloadPart on the other replica, inserted parts only (part_log, server clocks)
+┌─parts─┬─min_ms─┬─p50_ms─┬─p90_ms─┬─max_ms─┐
+│    60 │   18.8 │   29.6 │   37.1 │   77.4 │
+└───────┴────────┴────────┴────────┴────────┘
+
+-- Gap the trials actually tested: INSERT finished → check query started (same connection, query_log)
+┌─trials─┬─min_ms─┬─p50_ms─┬─max_ms─┐
+│     60 │   29.1 │   31.5 │   35.3 │
+└────────┴────────┴────────┴────────┘
+
+-- select_sequential_consistency = 1: what it costs on a plain SELECT (10 runs each)
+┌─log_comment──┬─runs─┬─avg_ms─┬─max_ms─┬─keeper_requests_avg─┐
+│ lab:vis-ssc0 │   10 │      1 │      1 │                   0 │
+│ lab:vis-ssc1 │   10 │   12.2 │     20 │                   2 │
+└──────────────┴──────┴────────┴────────┴─────────────────────┘
+
+-- SYSTEM SYNC REPLICA ... LIGHTWEIGHT: wait until this replica has the parts Keeper knows about (3 runs)
+┌─replica───┬─query_duration_ms─┬─keeper_requests─┐
+│ 2rdd723-0 │                 7 │               4 │
+│ 6row3gp-0 │                19 │               4 │
+│ 2rdd723-0 │                 7 │               4 │
+└───────────┴───────────────────┴─────────────────┘

@@ -1,0 +1,76 @@
+-- 01 — What a plain CREATE TABLE becomes on Cloud
+CREATE DATABASE IF NOT EXISTS smt_lab;
+
+-- Each run is stamped; later steps read only log rows written after it.
+CREATE TABLE IF NOT EXISTS smt_lab.run (started DateTime64(6)) ENGINE = MergeTree ORDER BY started;
+
+INSERT INTO smt_lab.run SELECT now64(6);
+
+-- The database engine is Shared, and ENGINE = MergeTree is stored as SharedMergeTree
+CREATE TABLE IF NOT EXISTS smt_lab.big (id UInt64, s String) ENGINE = MergeTree ORDER BY id;
+
+SELECT name, engine FROM system.databases WHERE name = 'smt_lab';
+┌─name────┬─engine─┐
+│ smt_lab │ Shared │
+└─────────┴────────┘
+
+SELECT name, engine, engine_full FROM system.tables WHERE database = 'smt_lab' AND name = 'big' FORMAT Vertical;
+Row 1:
+──────
+name:        big
+engine:      SharedMergeTree
+engine_full: SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}') ORDER BY id SETTINGS index_granularity = 8192
+
+-- The 'default' cluster: one shard, one row per replica
+SELECT cluster, shard_num, replica_num, host_name FROM system.clusters WHERE cluster = 'default' ORDER BY replica_num;
+┌─cluster─┬─shard_num─┬─replica_num─┬─host_name─┐
+│ default │         1 │           1 │ 2rdd723-0 │
+│ default │         1 │           2 │ 6row3gp-0 │
+└─────────┴───────────┴─────────────┴───────────┘
+
+-- Every replica keeps its own replica entry for the table; the Keeper path is per table UUID
+SELECT hostName() AS replica, is_leader, is_parts_update_leader, merge_coordinator_replica,
+       total_replicas, active_replicas, queue_size, log_pointer, zookeeper_path
+FROM clusterAllReplicas('default', system.replicas)
+WHERE database = 'smt_lab' AND table = 'big'
+ORDER BY replica;
+┌─replica───┬─is_leader─┬─is_parts_update_leader─┬─merge_coordinator_replica─┬─total_replicas─┬─active_replicas─┬─queue_size─┬─log_pointer─┬─zookeeper_path────────────────────┐
+│ 2rdd723-0 │         1 │                      1 │ 2rdd723-0                 │              2 │               2 │          0 │           0 │ /clickhouse/tables/<uuid>/default │
+│ 6row3gp-0 │         1 │                      1 │ 2rdd723-0                 │              2 │               2 │          0 │           0 │ /clickhouse/tables/<uuid>/default │
+└───────────┴───────────┴────────────────────────┴───────────────────────────┴────────────────┴─────────────────┴────────────┴─────────────┴───────────────────────────────────┘
+
+-- MergeTree settings that shape parts on Cloud. changed = 1: the service differs from the
+-- built-in default. min_bytes_for_wide_part decides Compact (one file for all columns) vs Wide.
+SELECT name, value, default, changed
+FROM system.merge_tree_settings
+WHERE name IN ('storage_policy', 'min_bytes_for_wide_part', 'min_bytes_for_full_part_storage',
+               'parts_to_delay_insert', 'parts_to_throw_insert', 'max_parts_in_total',
+               'replicated_deduplication_window', 'replicated_deduplication_window_seconds')
+ORDER BY name;
+┌─name────────────────────────────────────┬─value──────┬─default────┬─changed─┐
+│ max_parts_in_total                      │ 10000      │ 100000     │       1 │
+│ min_bytes_for_full_part_storage         │ 134217728  │ 0          │       1 │
+│ min_bytes_for_wide_part                 │ 1073741824 │ 1073741824 │       0 │
+│ parts_to_delay_insert                   │ 1000       │ 1000       │       0 │
+│ parts_to_throw_insert                   │ 3000       │ 3000       │       0 │
+│ replicated_deduplication_window         │ 1000       │ 10000      │       1 │
+│ replicated_deduplication_window_seconds │ 604800     │ 3600       │       1 │
+│ storage_policy                          │ s3         │ default    │       1 │
+└─────────────────────────────────────────┴────────────┴────────────┴─────────┘
+
+-- The insert settings that matter for consistency, as this service has them
+SELECT name, value, changed
+FROM system.settings
+WHERE name IN ('insert_quorum', 'insert_quorum_parallel', 'select_sequential_consistency',
+               'async_insert', 'wait_for_async_insert', 'async_insert_busy_timeout_max_ms', 'insert_keeper_max_retries')
+ORDER BY name;
+┌─name─────────────────────────────┬─value─┬─changed─┐
+│ async_insert                     │ 0     │       1 │
+│ async_insert_busy_timeout_max_ms │ 1000  │       1 │
+│ insert_keeper_max_retries        │ 20    │       1 │
+│ insert_quorum                    │ 0     │       0 │
+│ insert_quorum_parallel           │ 1     │       0 │
+│ select_sequential_consistency    │ 0     │       0 │
+│ wait_for_async_insert            │ 1     │       0 │
+└──────────────────────────────────┴───────┴─────────┘
+
