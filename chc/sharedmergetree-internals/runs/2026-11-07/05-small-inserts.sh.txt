@@ -1,0 +1,29 @@
+sync:  200 inserts, 20 clients, 3s
+async: 200 inserts, 20 clients, 9s
+
+-- Rows arrived, and the parts each run created (NewPart on the writer, before merges)
+┌─table───────┬─new_parts─┬─rows─┬─loaded_by_other_replica─┬─merges─┬─s3_written_by_inserts─┐
+│ small_async │        29 │  200 │                      34 │      5 │ 31.21 KiB             │
+│ small_sync  │       200 │  200 │                     237 │     37 │ 209.38 KiB            │
+└─────────────┴───────────┴──────┴─────────────────────────┴────────┴───────────────────────┘
+
+-- The INSERT queries: latency seen by the client, Keeper requests made in the query.
+-- With async_insert the buffer flush is a query of its own; it carries the client's log_comment.
+┌─log_comment─────┬─kind──────────┬─queries─┬─p50_ms─┬─max_ms─┬─keeper_requests─┬─s3_written─┐
+│ lab:small-async │ buffer flush  │      29 │     58 │    209 │             194 │ 31.21 KiB  │
+│ lab:small-async │ client INSERT │     200 │    834 │   1089 │               0 │ 0.00 B     │
+│ lab:small-sync  │ client INSERT │     200 │     85 │    118 │            1210 │ 209.38 KiB │
+└─────────────────┴───────────────┴─────────┴────────┴────────┴─────────────────┴────────────┘
+
+-- async_insert flushes: how many buffers were written, and how many INSERTs each held
+┌─replica───┬─inserts─┬─flushes─┬─rows─┬─inserts_per_flush─┐
+│ 2rdd723-0 │      95 │      15 │   95 │               6.3 │
+│ 6row3gp-0 │     105 │      14 │  105 │               7.5 │
+└───────────┴─────────┴─────────┴──────┴───────────────────┘
+
+-- Where the part-count limits sit on this service (not reached here)
+┌─name──────────────────┬─value─┐
+│ max_parts_in_total    │ 10000 │
+│ parts_to_delay_insert │ 1000  │
+│ parts_to_throw_insert │ 3000  │
+└───────────────────────┴───────┘

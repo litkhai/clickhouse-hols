@@ -34,12 +34,12 @@ gitleaks detect --config .gitleaks.toml --no-banner --redact
 
 ## Inventory
 
-44 indexed labs plus 22 per-release labs (2026-11-07). Counts are rows in the **English**
+45 indexed labs plus 22 per-release labs (2026-11-07). Counts are rows in the **English**
 area tables of `README.md`:
 
 | Area | Labs |
 |------|-----:|
-| `chc/` — ClickHouse Cloud integrations | 9 |
+| `chc/` — ClickHouse Cloud integrations | 10 |
 | `local/` — local environments | 8 |
 | `usecase/` | 16 |
 | `workload/` | 11 |
