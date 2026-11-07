@@ -1,0 +1,31 @@
+ClickHouse 26.8.36.3; ROWS=12,000,000; 2026-11-07 13:00:31 KST
+other containers running: 7
+
+# failure: kill the source replica that a remote() copy is reading from (ch-s2r2)
+
+## reset: drop rs, rs_new; cluster old = shards 1-2; load 12,000,000 rows
+   loaded in 3.6 s
+
+## partition 202605, 1,957,895 rows, insert_deduplication_token = None, blocks default
+   killed rs-ch-s2r2 at read_rows 983040; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 300000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202605: 0 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 0/1, mismatched 1
+     202605: expected (count, uniq) (1957895, 1957895) got None
+   check after retrying (no token) without dropping: PASS — partitions 1/1, mismatched 0
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202606, 1,894,737 rows, insert_deduplication_token = None, blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000}
+   killed rs-ch-s2r2 at read_rows 950272; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 300000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202606: 969,344 of 1,894,737 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (969344, 969344)
+   check after retrying (no token) without dropping: FAIL — partitions 1/1, mismatched 1
+     202606: expected (count, uniq) (1894737, 1894737) got (2864081, 1894737)
+   check after DROP PARTITION + copy: PASS — partitions 1/1, mismatched 0
+
+## partition 202607, 1,957,895 rows, insert_deduplication_token = 'reshard-202607', blocks {'min_insert_block_size_rows': 100000, 'max_insert_block_size': 100000}
+   killed rs-ch-s2r2 at read_rows 983040; copy -> {'error': 'Code: 209. DB::Exception: Timeout exceeded while reading from socket (ch-s2r2:9000, receive timeout 300000 ms): While executing Remote. (SOCKET_TIMEOUT) (version 26.8.36.3 (official build))'}
+   left in rs_new partition 202607: 972,447 of 1,957,895 rows
+   check partition after the failed copy: FAIL — partitions 1/1, mismatched 1
+     202607: expected (count, uniq) (1957895, 1957895) got (972447, 972447)
+   check after retrying (same token) without dropping: PASS — partitions 1/1, mismatched 0

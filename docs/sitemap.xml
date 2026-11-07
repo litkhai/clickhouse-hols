@@ -75,5 +75,6 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/rbac-workloadmanagement/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/replacingmergetree-mv/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/replacingmergetree/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/resharding/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/workload/upsert-across-versions/</loc></url>
 </urlset>
