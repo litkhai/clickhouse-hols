@@ -12,6 +12,7 @@
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/tool/costkeeper-multi/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/chc/tool/costkeeper/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/datalake-minio-catalog/</loc></url>
+  <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/iceberg-format-versions/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/kafka-mysql-table-engines/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/llm-linux-librechat-sole/</loc></url>
   <url><loc>https://litkhai.github.io/clickhouse-hols/labs/local/llm-mac-librechat-with-clickhouse/</loc></url>

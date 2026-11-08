@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iceberg format versions — v1, v2 and v3 side by side · ClickHouse HOLs</title>
+<meta name="description" content="Iceberg format versions — v1, v2 and v3 side by side — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>local/iceberg-format-versions</code>
+    
+  </nav>
+  <div class="readme en"><h1>Iceberg format versions — v1, v2 and v3 side by side</h1>
+<hr />
+<p>One Iceberg table per format version (v1, v2, v3), the same changes on each, and the files each
+version leaves behind, opened without Spark. ClickHouse comes in only at the end, reading the same
+tables. The lab backs a notes article on understanding Iceberg v1/v2/v3.</p>
+<p>Verified on Spark 4.1.4 + Iceberg 1.11.0 (writer) and ClickHouse 26.10.3.7 (reader), 2026-11-08.
+The ClickHouse step was also run on the <code>head</code> image of that day (26.11.1.1642).</p>
+<h3>What it does</h3>
+<pre><code class="language-bash">./run.sh          # stack up -&gt; Spark writes the tables -&gt; files opened -&gt; ClickHouse reads them
+./run.sh read     # ClickHouse step only (CH_VERSION=&lt;tag&gt; to try another server)
+python3 capture.py  # results/*.txt excerpts -&gt; images/*.png (needs Google Chrome)
+./run.sh down     # remove the stack and its volumes
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Step (<code>spark/steps.py</code>)</th>
+<th>v1 table</th>
+<th>v2 table</th>
+<th>v3 table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 create, partitioned by <code>days(ts)</code></td>
+<td>copy-on-write</td>
+<td>merge-on-read</td>
+<td>merge-on-read</td>
+</tr>
+<tr>
+<td>2 two inserts</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3 add a column, rename a column</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>4 add <code>bucket(4, id)</code> to the partition spec, insert</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>5 <code>DELETE</code> id 2 and 7</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>6 <code>UPDATE</code> id 3</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>7 add a <code>VARIANT</code> column</td>
+<td>refused (control)</td>
+<td>refused (control)</td>
+<td>added, one row inserted</td>
+</tr>
+</tbody>
+</table>
+<p>Two more tables: <code>t_v3_variant</code> (a <code>VARIANT</code> column from <code>CREATE</code>, the control for step 7) and
+<code>t_v2_to_v3</code> (a v2 table with a position delete, upgraded to v3, then written to). After each step
+the script records the snapshots, the live data and delete files, and on v3 the row lineage, from
+Iceberg's own metadata tables (<code>results/spark-steps.txt</code>).</p>
+<p><code>inspect/inspect.py</code> then opens every table's files directly — the current <code>metadata.json</code>, the
+manifest list and manifests (Avro), position delete files (Parquet), deletion vectors (Puffin,
+decoded to row positions, CRC checked) and the Parquet schema with Iceberg field ids
+(<code>results/inspect-&lt;table&gt;.txt</code>). <code>clickhouse/read.py</code> reads the same tables with <code>icebergS3</code> and
+through the REST catalog (<code>DataLakeCatalog</code>) and compares each answer with Spark's
+(<code>results/clickhouse-&lt;version&gt;.txt</code>).</p>
+<h3>What each version wrote (2026-11-08 run)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>v1</th>
+<th>v2</th>
+<th>v3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DELETE</code> with merge-on-read</td>
+<td>refused: <code>Deletes are supported in V2 and above</code></td>
+<td>position delete files: Parquet rows of (data file, row position)</td>
+<td>one deletion vector per data file: a roaring bitmap blob in a Puffin file</td>
+</tr>
+<tr>
+<td><code>DELETE</code> id 2 and 7</td>
+<td>data files rewritten (<code>overwrite</code>: 2 files out, 3 in)</td>
+<td>2 position delete files, data files untouched</td>
+<td>1 Puffin file with 2 blobs, one per data file</td>
+</tr>
+<tr>
+<td><code>UPDATE</code> id 3 on a file that already had a delete</td>
+<td>rewritten</td>
+<td>a new delete file holding both positions replaces the old one for that file</td>
+<td>the deletion vector for that file is rewritten with both positions (cardinality 2)</td>
+</tr>
+<tr>
+<td>sequence numbers</td>
+<td>none in snapshots</td>
+<td>per snapshot; delete files apply to data with a lower sequence number</td>
+<td>as v2</td>
+</tr>
+<tr>
+<td>row lineage</td>
+<td>—</td>
+<td>—</td>
+<td><code>first-row-id</code> per snapshot, <code>next-row-id</code> in metadata; <code>_row_id</code> kept across <code>UPDATE</code>, <code>_last_updated_sequence_number</code> moves to the update's sequence number</td>
+</tr>
+<tr>
+<td><code>VARIANT</code></td>
+<td>refused: <code>variant is not supported until v3</code></td>
+<td>refused</td>
+<td>stored in Parquet as <code>struct&lt;metadata: binary, value: binary&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>Upgrade (<code>t_v2_to_v3</code>): after <code>format-version</code> 2 → 3, <code>_row_id</code> is NULL for every existing row until
+the next write assigns <code>first_row_id</code> to the old data file. The first <code>DELETE</code> after the upgrade
+removed the old position delete file and wrote deletion vectors that include its position
+(<code>removed-position-delete-files: 1</code>, <code>added-dvs: 2</code>). Setting <code>format-version</code> back to 2 is refused
+(<code>Cannot downgrade v3 table to v2</code>).</p>
+<p>Row ids are unique but not dense: on <code>t_v3</code>, <code>next-row-id</code> is 21 after 12 rows were written. The
+step-4 commit inserted one row but reports <code>added-rows=10</code>: it also wrote a manifest of the 5 existing
+data files (9 rows) and a new id range was reserved for that manifest, while those rows kept the ids
+already recorded on their data files (<code>_row_id</code> did not change).</p>
+<p>Captures of these results are in <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/iceberg-format-versions/images">images/</a> (<code>01</code>–<code>07</code>; the ClickHouse run is <code>08</code>).</p>
+<h3>ClickHouse reading the tables</h3>
+<table>
+<thead>
+<tr>
+<th>Check (<code>clickhouse/read.py</code>)</th>
+<th>26.10.3.7</th>
+<th>26.11.1.1642 (head)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1, v2: rows after delete and update</td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td>v1, v2: time travel (<code>iceberg_snapshot_id</code>) to the second insert</td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td>v2, v3: the data files still hold the deleted rows; the table does not</td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td>v3 before the <code>VARIANT</code> column: rows (deletion vectors applied) and <code>_row_id</code> / <code>_last_updated_sequence_number</code></td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td>v3 current snapshot (a <code>VARIANT</code> column added by <code>ALTER TABLE ... ADD COLUMN</code>)</td>
+<td><strong>error</strong></td>
+<td><strong>error</strong></td>
+</tr>
+<tr>
+<td>v3, same table, only the file written after the column was added (<code>WHERE id = 11</code>)</td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td><code>t_v3_variant</code> (<code>VARIANT</code> from <code>CREATE</code>): rows, type <code>Dynamic</code></td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td><code>t_v2_to_v3</code>: rows and row lineage</td>
+<td>match</td>
+<td>match</td>
+</tr>
+<tr>
+<td>REST catalog: <code>SHOW TABLES</code>, rows of <code>fv.t_v2</code></td>
+<td>match</td>
+<td>match</td>
+</tr>
+</tbody>
+</table>
+<p>15 match and 1 error on both servers. The error:</p>
+<pre><code class="language-text">Cannot add a column with id 6 with required values to the table during schema evolution.
+This is forbidden by Iceberg format specification. (ICEBERG_SPECIFICATION_VIOLATION)
+</code></pre>
+<p>The column is optional in the table metadata (<code>"required": false</code>), and the same data reads when
+the column exists from <code>CREATE</code>. Reading only data files written after the column was added also
+works, so the failure is in filling the new column for older files. A possible cause, not
+verified: ClickHouse maps <code>variant</code> to <code>Dynamic</code>, which cannot be <code>Nullable</code>, so the new column
+looks required. No upstream issue was found for this message (searched 2026-11-08).</p>
+<p><code>DataLakeCatalog</code> with a REST catalog needs <code>allow_database_iceberg = 1</code> on 26.10 (beta;
+<code>SUPPORT_IS_DISABLED</code> without it).</p>
+<h3>Not covered</h3>
+<ul>
+<li>Equality deletes: Spark writes position deletes only; equality deletes come from streaming writers
+  (for example Flink). The inspector prints them if a table has them.</li>
+<li>Other v3 changes: <code>initial-default</code> / <code>write-default</code>, nanosecond timestamps, geometry and
+  geography types, multi-argument transforms, table encryption keys.</li>
+<li>ORC and Avro data files (all data here is Parquet), writes from ClickHouse, ClickHouse Cloud.</li>
+</ul>
+<h3>Pinned versions (checked 2026-11-08)</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Pin</th>
+<th>Checked against</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Spark</td>
+<td><code>apache/spark:4.1.4-python3</code> (by digest)</td>
+<td>Docker Hub</td>
+</tr>
+<tr>
+<td>Iceberg</td>
+<td><code>iceberg-spark-runtime-4.1_2.13</code> and <code>iceberg-aws-bundle</code> 1.11.0</td>
+<td>Maven Central (released 2026-05-15)</td>
+</tr>
+<tr>
+<td>REST catalog</td>
+<td><code>apache/iceberg-rest-fixture:1.10.1</code> (by digest)</td>
+<td>Docker Hub; env vars from the 1.10.1 Dockerfile</td>
+</tr>
+<tr>
+<td>MinIO</td>
+<td>Chainguard image by digest (same as <code>local/datalake-minio-catalog</code>)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>ClickHouse</td>
+<td><code>clickhouse/clickhouse-server:26.10.3.7</code> (<code>CH_VERSION</code> to override)</td>
+<td>Docker Hub</td>
+</tr>
+<tr>
+<td>Inspector</td>
+<td><code>python:3.13-slim</code> (by digest), <code>fastavro</code> 1.13.1, <code>pyarrow</code> 26.0.1</td>
+<td>PyPI</td>
+</tr>
+</tbody>
+</table>
+<p>A full run from a clean stack took 38 s (2026-11-08, Docker Desktop 29.9.2, 12 CPUs, 16 GB,
+images already pulled). No host ports are published; everything runs in the compose network.</p>
+<hr /></div>
+  <div class="readme ko"><p>Iceberg 포맷 버전(v1, v2, v3)마다 테이블을 하나씩 만들고, 같은 변경을 똑같이 적용한 뒤, 버전마다 남는
+파일을 Spark 없이 직접 열어 봅니다. ClickHouse는 마지막에 같은 테이블을 읽는 단계에서만 나옵니다.
+notes의 Iceberg v1/v2/v3 이해 글을 뒷받침하는 실습입니다.</p>
+<p>Spark 4.1.4 + Iceberg 1.11.0(쓰기)과 ClickHouse 26.10.3.7(읽기)로 2026-11-08에 검증했습니다.
+ClickHouse 단계는 같은 날의 <code>head</code> 이미지(26.11.1.1642)에서도 실행했습니다.</p>
+<h3>하는 일</h3>
+<pre><code class="language-bash">./run.sh          # 스택 기동 -&gt; Spark가 테이블 작성 -&gt; 파일 열기 -&gt; ClickHouse가 읽기
+./run.sh read     # ClickHouse 단계만 (CH_VERSION=&lt;태그&gt;로 다른 서버)
+python3 capture.py  # results/*.txt 발췌 -&gt; images/*.png (Google Chrome 필요)
+./run.sh down     # 스택과 볼륨 삭제
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>단계 (<code>spark/steps.py</code>)</th>
+<th>v1 테이블</th>
+<th>v2 테이블</th>
+<th>v3 테이블</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 생성, <code>days(ts)</code> 파티션</td>
+<td>copy-on-write</td>
+<td>merge-on-read</td>
+<td>merge-on-read</td>
+</tr>
+<tr>
+<td>2 INSERT 두 번</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3 컬럼 추가, 컬럼 이름 변경</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>4 파티션 스펙에 <code>bucket(4, id)</code> 추가 후 INSERT</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>5 id 2, 7 <code>DELETE</code></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>6 id 3 <code>UPDATE</code></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>7 <code>VARIANT</code> 컬럼 추가</td>
+<td>거부(대조군)</td>
+<td>거부(대조군)</td>
+<td>추가, 한 행 INSERT</td>
+</tr>
+</tbody>
+</table>
+<p>테이블이 두 개 더 있습니다. <code>t_v3_variant</code>는 <code>CREATE</code> 때부터 <code>VARIANT</code> 컬럼이 있는 테이블로 7단계의
+대조군이고, <code>t_v2_to_v3</code>는 position delete가 있는 v2 테이블을 v3로 올린 뒤 다시 쓴 테이블입니다.
+각 단계 뒤에 스냅샷, 살아 있는 데이터·삭제 파일, v3에서는 row lineage를 Iceberg 메타데이터 테이블에서
+기록합니다(<code>results/spark-steps.txt</code>).</p>
+<p>이어서 <code>inspect/inspect.py</code>가 테이블마다 파일을 직접 엽니다. 현재 <code>metadata.json</code>, manifest list와
+manifest(Avro), position delete 파일(Parquet), 삭제 벡터(Puffin, 행 위치로 디코딩하고 CRC 확인),
+Iceberg field id가 붙은 Parquet 스키마입니다(<code>results/inspect-&lt;테이블&gt;.txt</code>). <code>clickhouse/read.py</code>는 같은
+테이블을 <code>icebergS3</code>와 REST 카탈로그(<code>DataLakeCatalog</code>)로 읽고, 답을 Spark 결과와 비교합니다
+(<code>results/clickhouse-&lt;버전&gt;.txt</code>).</p>
+<h3>버전마다 쓴 것 (2026-11-08 실행)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>v1</th>
+<th>v2</th>
+<th>v3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>merge-on-read <code>DELETE</code></td>
+<td>거부: <code>Deletes are supported in V2 and above</code></td>
+<td>position delete 파일: (데이터 파일, 행 위치) Parquet 행</td>
+<td>데이터 파일마다 삭제 벡터 하나: Puffin 파일 안의 roaring bitmap blob</td>
+</tr>
+<tr>
+<td>id 2, 7 <code>DELETE</code></td>
+<td>데이터 파일 재작성(<code>overwrite</code>: 2개 제거, 3개 추가)</td>
+<td>position delete 파일 2개, 데이터 파일은 그대로</td>
+<td>Puffin 파일 1개에 blob 2개(데이터 파일마다 하나)</td>
+</tr>
+<tr>
+<td>이미 삭제가 있던 파일의 id 3 <code>UPDATE</code></td>
+<td>재작성</td>
+<td>두 위치를 담은 새 delete 파일이 그 파일의 기존 delete 파일을 대체</td>
+<td>그 파일의 삭제 벡터를 두 위치로 다시 씀(cardinality 2)</td>
+</tr>
+<tr>
+<td>sequence number</td>
+<td>스냅샷에 없음</td>
+<td>스냅샷마다 있음, delete 파일은 더 낮은 번호의 데이터에 적용</td>
+<td>v2와 같음</td>
+</tr>
+<tr>
+<td>row lineage</td>
+<td>—</td>
+<td>—</td>
+<td>스냅샷마다 <code>first-row-id</code>, 메타데이터에 <code>next-row-id</code>. <code>UPDATE</code> 후에도 <code>_row_id</code>는 유지되고 <code>_last_updated_sequence_number</code>는 UPDATE의 번호로 바뀜</td>
+</tr>
+<tr>
+<td><code>VARIANT</code></td>
+<td>거부: <code>variant is not supported until v3</code></td>
+<td>거부</td>
+<td>Parquet에 <code>struct&lt;metadata: binary, value: binary&gt;</code>로 저장</td>
+</tr>
+</tbody>
+</table>
+<p>업그레이드(<code>t_v2_to_v3</code>): <code>format-version</code>을 2 → 3으로 바꾸면, 다음 쓰기가 기존 데이터 파일에
+<code>first_row_id</code>를 줄 때까지 기존 행의 <code>_row_id</code>는 모두 NULL입니다. 업그레이드 후 첫 <code>DELETE</code>는 기존
+position delete 파일을 지우고, 그 위치까지 포함한 삭제 벡터를 썼습니다(<code>removed-position-delete-files: 1</code>,
+<code>added-dvs: 2</code>). <code>format-version</code>을 2로 되돌리는 것은 거부됩니다(<code>Cannot downgrade v3 table to v2</code>).</p>
+<p>row id는 유일하지만 연속적이지 않습니다. <code>t_v3</code>는 12행을 쓴 뒤 <code>next-row-id</code>가 21입니다. 4단계 커밋은
+한 행을 넣었는데 <code>added-rows=10</code>으로 기록됩니다. 기존 데이터 파일 5개(9행)의 manifest도 새로 쓰면서 그
+manifest에 새 id 범위를 예약했기 때문입니다. 그 행들은 데이터 파일에 기록된 id를 그대로 유지합니다
+(<code>_row_id</code>는 바뀌지 않음).</p>
+<p>결과 캡처는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/iceberg-format-versions/images">images/</a>에 있습니다(<code>01</code>–<code>07</code>, ClickHouse 실행은 <code>08</code>).</p>
+<h3>ClickHouse로 읽기</h3>
+<table>
+<thead>
+<tr>
+<th>확인 항목 (<code>clickhouse/read.py</code>)</th>
+<th>26.10.3.7</th>
+<th>26.11.1.1642 (head)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1, v2: DELETE·UPDATE 후의 행</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td>v1, v2: 두 번째 INSERT 시점으로 시간 여행(<code>iceberg_snapshot_id</code>)</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td>v2, v3: 데이터 파일에는 삭제된 행이 남아 있고 테이블에는 없음</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td><code>VARIANT</code> 컬럼 추가 전의 v3: 행(삭제 벡터 반영)과 <code>_row_id</code> / <code>_last_updated_sequence_number</code></td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td>v3 현재 스냅샷(<code>ALTER TABLE ... ADD COLUMN</code>으로 <code>VARIANT</code> 추가)</td>
+<td><strong>에러</strong></td>
+<td><strong>에러</strong></td>
+</tr>
+<tr>
+<td>같은 v3 테이블에서 컬럼 추가 후에 쓴 파일만 읽기(<code>WHERE id = 11</code>)</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td><code>t_v3_variant</code>(<code>CREATE</code>부터 <code>VARIANT</code>): 행, 타입 <code>Dynamic</code></td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td><code>t_v2_to_v3</code>: 행과 row lineage</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+<tr>
+<td>REST 카탈로그: <code>SHOW TABLES</code>, <code>fv.t_v2</code>의 행</td>
+<td>일치</td>
+<td>일치</td>
+</tr>
+</tbody>
+</table>
+<p>두 서버 모두 일치 15, 에러 1입니다. 에러 내용:</p>
+<pre><code class="language-text">Cannot add a column with id 6 with required values to the table during schema evolution.
+This is forbidden by Iceberg format specification. (ICEBERG_SPECIFICATION_VIOLATION)
+</code></pre>
+<p>테이블 메타데이터에서 이 컬럼은 optional(<code>"required": false</code>)이고, <code>CREATE</code>부터 컬럼이 있는 같은 데이터는
+읽힙니다. 컬럼 추가 후에 쓴 데이터 파일만 읽어도 성공하므로, 실패 지점은 예전 파일에 새 컬럼을 채우는
+부분입니다. 원인 추정(검증하지 않음): ClickHouse가 <code>variant</code>를 <code>Dynamic</code>으로 매핑하는데 <code>Dynamic</code>은
+<code>Nullable</code>이 될 수 없어서 새 컬럼이 required로 보이는 것일 수 있습니다. 이 메시지로 등록된 upstream 이슈는
+찾지 못했습니다(2026-11-08 검색).</p>
+<p>REST 카탈로그용 <code>DataLakeCatalog</code>는 26.10에서 <code>allow_database_iceberg = 1</code>이 필요합니다(beta, 없으면
+<code>SUPPORT_IS_DISABLED</code>).</p>
+<h3>다루지 않은 것</h3>
+<ul>
+<li>equality delete: Spark는 position delete만 씁니다. equality delete는 스트리밍 writer(예: Flink)가 씁니다.
+  테이블에 있으면 inspector가 출력합니다.</li>
+<li>그 밖의 v3 변경: <code>initial-default</code> / <code>write-default</code>, 나노초 timestamp, geometry·geography 타입, 다중 인자
+  transform, 테이블 암호화 키.</li>
+<li>ORC·Avro 데이터 파일(여기 데이터는 모두 Parquet), ClickHouse에서의 쓰기, ClickHouse Cloud.</li>
+</ul>
+<h3>고정한 버전 (2026-11-08 확인)</h3>
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>고정 값</th>
+<th>확인한 곳</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Spark</td>
+<td><code>apache/spark:4.1.4-python3</code> (digest 고정)</td>
+<td>Docker Hub</td>
+</tr>
+<tr>
+<td>Iceberg</td>
+<td><code>iceberg-spark-runtime-4.1_2.13</code>, <code>iceberg-aws-bundle</code> 1.11.0</td>
+<td>Maven Central (2026-05-15 배포)</td>
+</tr>
+<tr>
+<td>REST 카탈로그</td>
+<td><code>apache/iceberg-rest-fixture:1.10.1</code> (digest 고정)</td>
+<td>Docker Hub, 환경 변수는 1.10.1 Dockerfile</td>
+</tr>
+<tr>
+<td>MinIO</td>
+<td>Chainguard 이미지 digest (<code>local/datalake-minio-catalog</code>와 같음)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>ClickHouse</td>
+<td><code>clickhouse/clickhouse-server:26.10.3.7</code> (<code>CH_VERSION</code>으로 변경)</td>
+<td>Docker Hub</td>
+</tr>
+<tr>
+<td>Inspector</td>
+<td><code>python:3.13-slim</code> (digest 고정), <code>fastavro</code> 1.13.1, <code>pyarrow</code> 26.0.1</td>
+<td>PyPI</td>
+</tr>
+</tbody>
+</table>
+<p>깨끗한 스택에서 전체 실행에 38초 걸렸습니다(2026-11-08, Docker Desktop 29.9.2, CPU 12개, 16 GB, 이미지는
+미리 받아 둔 상태). 호스트 포트는 열지 않고, 모두 compose 네트워크 안에서 실행합니다.</p></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/local/iceberg-format-versions"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/local/datalake-minio-catalog/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Data Lake with MinIO and Multiple Catalogs</span></a><a class="step next" href="../../../labs/local/kafka-mysql-table-engines/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Kafka-MySQL-ClickHouse Integration with MView Block Size Testing</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>

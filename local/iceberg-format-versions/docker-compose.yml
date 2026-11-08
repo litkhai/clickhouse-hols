@@ -1,0 +1,82 @@
+# Iceberg format versions lab: MinIO + Iceberg REST catalog + Spark (writer) + ClickHouse (reader).
+# Image pins checked 2026-11-08 (README "Pinned versions"). No host ports are published:
+# every step runs inside the compose network through run.sh.
+name: icebergfv
+
+x-s3-env: &s3-env
+  AWS_ACCESS_KEY_ID: admin
+  AWS_SECRET_ACCESS_KEY: password123
+  AWS_REGION: us-east-1
+
+services:
+  minio:
+    # Chainguard MinIO, pinned by digest (same pin as local/datalake-minio-catalog).
+    image: cgr.dev/chainguard/minio@sha256:3c60a2a8c4d33409a9bc7a623a7fcbfb4605adc3d89422d2f53b3f673a6e5597  # RELEASE.2026-10-23T20-06-51Z
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    command: server /data
+    volumes:
+      - minio-data:/data
+
+  minio-setup:
+    image: cgr.dev/chainguard/minio-client@sha256:1dccd2a6fd59914a98ac2d9dad95e552c91243cb0bd7242aaa224802df4b3432
+    depends_on: [minio]
+    environment:
+      MC_HOST_lab: http://admin:password123@minio:9000
+    entrypoint: ["/usr/bin/mc"]
+    command: ["mb", "--ignore-existing", "lab/warehouse"]
+    restart: on-failure
+
+  iceberg-rest:
+    # Apache Iceberg's own REST catalog fixture (JDBC/SQLite inside the container: restarting it
+    # forgets the catalog, the files stay in MinIO). CATALOG_* map to catalog properties.
+    image: apache/iceberg-rest-fixture:1.10.1@sha256:f7d679d30ac9c640bdeb2c015dff533cd3c8f1c7d491ebcb5d436f9a42db1d6f
+    depends_on: [minio]
+    environment:
+      <<: *s3-env
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+
+  spark:
+    # Writer. Iceberg runtime jars come from Maven Central at first run (cached in the ivy volume).
+    image: apache/spark:4.1.4-python3@sha256:847f91f8bb2f28d632064dfe632d423020f8fd60b27c7704c0e5bf5b0c6432c7
+    profiles: [tools]
+    depends_on: [iceberg-rest]
+    user: root
+    environment:
+      <<: *s3-env
+      ICEBERG_VERSION: 1.11.0
+    volumes:
+      - .:/lab
+      - ivy-cache:/root/.ivy2
+    working_dir: /lab
+
+  inspect:
+    # Reads the files Iceberg wrote (metadata JSON, Avro manifests, Puffin, Parquet) without Spark.
+    image: python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+    profiles: [tools]
+    depends_on: [minio]
+    environment:
+      <<: *s3-env
+      S3_ENDPOINT: minio:9000
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    volumes:
+      - .:/lab
+      - pip-cache:/root/.cache/pip
+    working_dir: /lab
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:${CH_VERSION:-26.10.3.7}
+    depends_on: [minio, iceberg-rest]
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    volumes:
+      - .:/lab:ro
+
+volumes:
+  minio-data:
+  ivy-cache:
+  pip-cache:

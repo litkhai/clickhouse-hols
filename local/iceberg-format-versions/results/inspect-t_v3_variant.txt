@@ -1,0 +1,24 @@
+# t_v3_variant  (s3://warehouse/fv/t_v3_variant)
+metadata files: 2 (one per table change); current: 00001-cdac7565-c540-4af3-a6cc-c040110ab9aa.metadata.json
+  format-version: 3
+  last-sequence-number: 1
+  next-row-id: 5
+  current-snapshot-id: 6914779022826641579
+  current-schema-id: 0
+  default-spec-id: 0
+  last-partition-id: 999
+  schemas: 1; current fields: 1:id:long, 2:payload:variant
+  partition spec 0: 
+  properties: {'write.parquet.compression-codec': 'zstd'}
+  snapshots:
+    6914779022826641579 append sequence-number=1 first-row-id=0 added-rows=5
+
+manifest list: t_v3_variant/metadata/snap-6914779022826641579-1-fad2485c-4b6d-495c-96a5-c79a2e9aacd8.avro
+  manifest t_v3_variant/metadata/fad2485c-4b6d-495c-96a5-c79a2e9aacd8-m0.avro
+    {'content': 0, 'sequence_number': 1, 'min_sequence_number': 1, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0, 'first_row_id': 0}
+    ADDED    seq=None t_v3_variant/data/00000-182-af664ee0-465e-425c-a887-d5bc24afc4fe-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 5}
+
+parquet schema of t_v3_variant/data/00000-182-af664ee0-465e-425c-a887-d5bc24afc4fe-0-00001.parquet (Iceberg field id per column):
+     1  id: int64
+     2  payload: struct<metadata: binary not null, value: binary not null>

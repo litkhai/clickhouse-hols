@@ -1,0 +1,55 @@
+# t_v1  (s3://warehouse/fv/t_v1)
+metadata files: 12 (one per table change); current: 00011-241adf0d-9219-4f8e-a1a5-e4a3ca44f186.metadata.json
+  format-version: 1
+  current-snapshot-id: 7836545717558566548
+  current-schema-id: 2
+  default-spec-id: 1
+  last-partition-id: 1001
+  schemas: 3; current fields: 1:id:long, 2:city:string, 3:amount_krw:double, 4:ts:timestamptz, 5:note:string
+  partition spec 0: ts_day=day
+  partition spec 1: ts_day=day, id_bucket_4=bucket[4]
+  properties: {'write.merge.mode': 'copy-on-write', 'write.update.mode': 'copy-on-write', 'write.delete.mode': 'copy-on-write', 'write.parquet.compression-codec': 'zstd'}
+  snapshots:
+    8824759453762247019 append
+    188996145452077099 append
+    1402193363191638116 append
+    3380294075983089544 append
+    718191108548278716 overwrite
+    7836545717558566548 overwrite
+
+manifest list: t_v1/metadata/snap-7836545717558566548-1-0bf76d1c-ead4-4c48-a157-1e8fc76f9b09.avro
+  manifest t_v1/metadata/0bf76d1c-ead4-4c48-a157-1e8fc76f9b09-m1.avro
+    {'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0}
+    ADDED    seq=None t_v1/data/ts_day=2026-11-01/id_bucket_4=3/00000-35-e7ad91a0-7cbc-43c8-9929-4643ff1a6bae-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+  manifest t_v1/metadata/0bf76d1c-ead4-4c48-a157-1e8fc76f9b09-m0.avro
+    {'added_files_count': 0, 'existing_files_count': 2, 'deleted_files_count': 1}
+    EXISTING seq=None t_v1/data/ts_day=2026-11-01/id_bucket_4=0/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00002.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+    EXISTING seq=None t_v1/data/ts_day=2026-11-03/id_bucket_4=3/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+    DELETED  seq=None t_v1/data/ts_day=2026-11-01/id_bucket_4=3/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00003.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+  manifest t_v1/metadata/b4df4f15-6db6-447c-b78c-49a260df049f-m0.avro
+    {'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0}
+    ADDED    seq=None t_v1/data/ts_day=2026-11-04/id_bucket_4=0/00000-19-440ba0c9-2987-42fc-a56c-603097aedf75-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+  manifest t_v1/metadata/c6b7f25c-b6cc-451e-bd03-454c7bb3240a-m0.avro
+    {'added_files_count': 0, 'existing_files_count': 3, 'deleted_files_count': 2}
+    EXISTING seq=None t_v1/data/ts_day=2026-11-03/00000-15-e9c5aba1-9feb-4bf4-ad3d-0bd3d87cbe03-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+    DELETED  seq=None t_v1/data/ts_day=2026-11-03/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00002.parquet
+             {'file_format': 'PARQUET', 'record_count': 2}
+    EXISTING seq=None t_v1/data/ts_day=2026-11-02/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 1}
+    DELETED  seq=None t_v1/data/ts_day=2026-11-01/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00001.parquet
+             {'file_format': 'PARQUET', 'record_count': 3}
+    EXISTING seq=None t_v1/data/ts_day=2026-11-02/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00002.parquet
+             {'file_format': 'PARQUET', 'record_count': 2}
+
+parquet schema of t_v1/data/ts_day=2026-11-01/id_bucket_4=3/00000-35-e7ad91a0-7cbc-43c8-9929-4643ff1a6bae-0-00001.parquet (Iceberg field id per column):
+     1  id: int64
+     2  city: string
+     3  amount_krw: double
+     4  ts: timestamp[us, tz=UTC]
+     5  note: string
