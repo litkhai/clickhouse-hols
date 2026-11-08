@@ -51,6 +51,7 @@ and [MOVED.md](MOVED.md).
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 checkpoint test suite ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB CDC from RDS MySQL and DocumentDB into ClickHouse OSS, plus a Cloud→self-managed security runbook |
 | [chc/mysql-interface](chc/mysql-interface/) | Automated tests for the Cloud MySQL interface |
+| [chc/open-source-consoles](chc/open-source-consoles/) | Open-source ClickHouse UIs (CH-UI, chmonitor, CH-Ops, CloudBeaver, LibreDB Studio) on SharedMergeTree: what works, running queries flipping between replicas, tool accounts |
 | [chc/shared-catalog](chc/shared-catalog/) | Shared Catalog DDL on Cloud: lifecycle from the catalog's log, propagation between replicas, concurrent DDL, catalog size, idle warehouse services; OSS Keeper trees for comparison |
 | [chc/sharedmergetree-internals](chc/sharedmergetree-internals/) | SharedMergeTree measured: what one INSERT writes to object storage and Keeper, merges run once, cross-replica visibility lag, small vs async INSERTs, porting OSS DDL |
 | [chc/system-tables](chc/system-tables/) | Cloud system tables in depth: per-replica tables, log history of replaced replicas, `clusterAllReplicas` + `merge()`, `KILL QUERY ON CLUSTER` |
@@ -279,6 +280,7 @@ Managed Postgres, ClickStack/관측성, Langfuse, AWS Terraform 실습은 각자
 | [chc/clickpipes-s3](chc/clickpipes-s3/) | ClickPipes S3 체크포인트 테스트 ([Terraform](chc/clickpipes-s3/terraform/)) |
 | [chc/cloud-to-oss-peerdb](chc/cloud-to-oss-peerdb/) | PeerDB로 RDS MySQL·DocumentDB를 ClickHouse OSS로 CDC 이관 + Cloud→자체 관리 보안 런북 |
 | [chc/mysql-interface](chc/mysql-interface/) | Cloud MySQL 인터페이스 자동 테스트 |
+| [chc/open-source-consoles](chc/open-source-consoles/) | 오픈소스 ClickHouse UI(CH-UI, chmonitor, CH-Ops, CloudBeaver, LibreDB Studio)를 SharedMergeTree에서: 되는 것, replica를 오가는 실행 중 쿼리, 도구용 계정 |
 | [chc/shared-catalog](chc/shared-catalog/) | Cloud Shared Catalog DDL: 카탈로그 로그로 본 생명주기, 레플리카 간 전파, 동시 DDL, 카탈로그 크기, idle warehouse 서비스, 비교용 OSS Keeper 트리 |
 | [chc/sharedmergetree-internals](chc/sharedmergetree-internals/) | SharedMergeTree 실측: INSERT 하나가 오브젝트 스토리지·Keeper에 쓰는 것, 한 번만 도는 병합, 레플리카 간 가시성 지연, 작은 INSERT vs async INSERT, OSS DDL 이전 |
 | [chc/system-tables](chc/system-tables/) | Cloud system 테이블 깊이 보기: 레플리카별 테이블, 교체된 레플리카의 로그 이력, `clusterAllReplicas` + `merge()`, `KILL QUERY ON CLUSTER` |
