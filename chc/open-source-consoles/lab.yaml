@@ -1,0 +1,3 @@
+# Runs against a ClickHouse Cloud service by hand (README "Run it"); tools/hol does not run it (no `clickhouse` key).
+target: cloud
+verified_on: "26.8.1.608"   # ClickHouse Cloud, 2 replicas, 2026-11-08; five web tools in Docker against the public endpoint
