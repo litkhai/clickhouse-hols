@@ -1,0 +1,464 @@
+Spark 4.1.4, Iceberg 1.11.0
+
+=== format-version 1  (lab.fv.t_v1, row-level mode copy-on-write) ===
+
+-- step 1: create (partitioned by day of ts)
+  > CREATE TABLE lab.fv.t_v1 (id BIGINT, city STRING, amount DOUBLE, ts TIMESTAMP) USING iceberg PARTITIONED BY (days(ts)) TBLPROPERTIES ('format-version'='1', 'write.delete.mode'='copy-on-write', 'write.update.mode'='copy-on-write', 'write.merge.mode'='copy-on-write')
+
+-- step 2: two inserts
+  > INSERT INTO lab.fv.t_v1 VALUES (1,'Seoul',10.0,TIMESTAMP'2026-11-01 09:00:00'), (2,'Busan',20.0,TIMESTAMP'2026-11-01 10:00:00'), (3,'Incheon',30.0,TIMESTAMP'2026-11-01 11:00:00'), (4,'Daegu',40.0,TIMESTAMP'2026-11-02 09:00:00'), (5,'Gwangju',50.0,TIMESTAMP'2026-11-02 10:00:00')
+  > INSERT INTO lab.fv.t_v1 VALUES (6,'Seoul',60.0,TIMESTAMP'2026-11-02 11:00:00'), (7,'Busan',70.0,TIMESTAMP'2026-11-03 09:00:00'), (8,'Ulsan',80.0,TIMESTAMP'2026-11-03 10:00:00')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 8824759453762247019 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 188996145452077099 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00002.parquet |
+  current metadata file: 00002-b9829e10-2612-47b1-a2c9-bff9441af90b.metadata.json
+
+-- step 3: schema evolution (add a column, rename a column)
+  > ALTER TABLE lab.fv.t_v1 ADD COLUMN note STRING
+  > ALTER TABLE lab.fv.t_v1 RENAME COLUMN amount TO amount_krw
+  > INSERT INTO lab.fv.t_v1 VALUES (9,'Seoul',90.0,TIMESTAMP'2026-11-03 11:00:00','after add column')
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 2 | Busan | 20.0 | 2026-11-01 10:00:00 |  |
+    | 3 | Incheon | 30.0 | 2026-11-01 11:00:00 |  |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 7 | Busan | 70.0 | 2026-11-03 09:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+
+-- step 4: partition evolution (add bucket(4, id) to the spec)
+  > ALTER TABLE lab.fv.t_v1 ADD PARTITION FIELD bucket(4, id)
+  > INSERT INTO lab.fv.t_v1 VALUES (10,'Jeju',100.0,TIMESTAMP'2026-11-04 09:00:00','new spec')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 8824759453762247019 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 188996145452077099 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1402193363191638116 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3380294075983089544 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00001.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-15-e9c5aba1-9feb-4bf4-ad3d-0bd3d87cbe03-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00002.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-19-440ba0c9-2987-42fc-a56c-603097aedf75-0-00001.parquet |
+  current metadata file: 00007-48621a2c-78c5-4b51-919f-3bfd11295cf3.metadata.json
+
+-- step 5: delete rows (id 2 and 7)
+  negative control: the same delete with merge-on-read requested on v1
+  > ALTER TABLE lab.fv.t_v1 SET TBLPROPERTIES ('write.delete.mode'='merge-on-read')
+  > DELETE FROM lab.fv.t_v1 WHERE id IN (2, 7)
+    REFUSED: Deletes are supported in V2 and above
+  > ALTER TABLE lab.fv.t_v1 SET TBLPROPERTIES ('write.delete.mode'='copy-on-write')
+  > DELETE FROM lab.fv.t_v1 WHERE id IN (2, 7)
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 8824759453762247019 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 188996145452077099 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1402193363191638116 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3380294075983089544 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 718191108548278716 | overwrite | {'deleted-data-files': '2', 'added-data-files': '3', 'deleted-records': '5', 'added-records': '3'} | 8 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 1 | 1 | 1435 |  |  |  |  | data/ts_day=2026-11-01/id_bucket_4=0/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00002.parquet |
+    | 0 | PARQUET | 1 | 1 | 1449 |  |  |  |  | data/ts_day=2026-11-01/id_bucket_4=3/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00003.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00001.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-15-e9c5aba1-9feb-4bf4-ad3d-0bd3d87cbe03-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1434 |  |  |  |  | data/ts_day=2026-11-03/id_bucket_4=3/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-19-440ba0c9-2987-42fc-a56c-603097aedf75-0-00001.parquet |
+  current metadata file: 00010-321fd82a-6e95-46e9-b77d-7b8e2929cd32.metadata.json
+
+-- step 6: update a row (id 3)
+  > UPDATE lab.fv.t_v1 SET amount_krw = amount_krw * 10, note = 'updated' WHERE id = 3
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 8824759453762247019 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 188996145452077099 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1402193363191638116 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3380294075983089544 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 718191108548278716 | overwrite | {'deleted-data-files': '2', 'added-data-files': '3', 'deleted-records': '5', 'added-records': '3'} | 8 |
+    | 7836545717558566548 | overwrite | {'deleted-data-files': '1', 'added-data-files': '1', 'deleted-records': '1', 'added-records': '1'} | 8 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 1 | 1 | 1435 |  |  |  |  | data/ts_day=2026-11-01/id_bucket_4=0/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00002.parquet |
+    | 0 | PARQUET | 1 | 1 | 1510 |  |  |  |  | data/ts_day=2026-11-01/id_bucket_4=3/00000-35-e7ad91a0-7cbc-43c8-9929-4643ff1a6bae-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-5-da517f0f-1f6e-479b-a112-fc69d083e617-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-9-485adf3d-5e88-4470-ab9c-a2cb53ba353f-0-00001.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-15-e9c5aba1-9feb-4bf4-ad3d-0bd3d87cbe03-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1434 |  |  |  |  | data/ts_day=2026-11-03/id_bucket_4=3/00000-28-565a0e48-b2ac-4a30-b922-2f88a5b24387-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-19-440ba0c9-2987-42fc-a56c-603097aedf75-0-00001.parquet |
+  current metadata file: 00011-241adf0d-9219-4f8e-a1a5-e4a3ca44f186.metadata.json
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 3 | Incheon | 300.0 | 2026-11-01 11:00:00 | updated |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+    | 10 | Jeju | 100.0 | 2026-11-04 09:00:00 | new spec |
+
+-- negative control: a v3 type on a v1 table
+  > ALTER TABLE lab.fv.t_v1 ADD COLUMN payload VARIANT
+    REFUSED: java.lang.IllegalStateException: Invalid schema for v1: - Invalid type for payload: variant is not supported until v3
+
+=== format-version 2  (lab.fv.t_v2, row-level mode merge-on-read) ===
+
+-- step 1: create (partitioned by day of ts)
+  > CREATE TABLE lab.fv.t_v2 (id BIGINT, city STRING, amount DOUBLE, ts TIMESTAMP) USING iceberg PARTITIONED BY (days(ts)) TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='merge-on-read', 'write.update.mode'='merge-on-read', 'write.merge.mode'='merge-on-read')
+
+-- step 2: two inserts
+  > INSERT INTO lab.fv.t_v2 VALUES (1,'Seoul',10.0,TIMESTAMP'2026-11-01 09:00:00'), (2,'Busan',20.0,TIMESTAMP'2026-11-01 10:00:00'), (3,'Incheon',30.0,TIMESTAMP'2026-11-01 11:00:00'), (4,'Daegu',40.0,TIMESTAMP'2026-11-02 09:00:00'), (5,'Gwangju',50.0,TIMESTAMP'2026-11-02 10:00:00')
+  > INSERT INTO lab.fv.t_v2 VALUES (6,'Seoul',60.0,TIMESTAMP'2026-11-02 11:00:00'), (7,'Busan',70.0,TIMESTAMP'2026-11-03 09:00:00'), (8,'Ulsan',80.0,TIMESTAMP'2026-11-03 10:00:00')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 9196147093991843389 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 903216687527238811 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet |
+  current metadata file: 00002-d48cf83c-63d3-44f2-8438-eb55151997a3.metadata.json
+
+-- step 3: schema evolution (add a column, rename a column)
+  > ALTER TABLE lab.fv.t_v2 ADD COLUMN note STRING
+  > ALTER TABLE lab.fv.t_v2 RENAME COLUMN amount TO amount_krw
+  > INSERT INTO lab.fv.t_v2 VALUES (9,'Seoul',90.0,TIMESTAMP'2026-11-03 11:00:00','after add column')
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 2 | Busan | 20.0 | 2026-11-01 10:00:00 |  |
+    | 3 | Incheon | 30.0 | 2026-11-01 11:00:00 |  |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 7 | Busan | 70.0 | 2026-11-03 09:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+
+-- step 4: partition evolution (add bucket(4, id) to the spec)
+  > ALTER TABLE lab.fv.t_v2 ADD PARTITION FIELD bucket(4, id)
+  > INSERT INTO lab.fv.t_v2 VALUES (10,'Jeju',100.0,TIMESTAMP'2026-11-04 09:00:00','new spec')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 9196147093991843389 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 903216687527238811 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 3777708983703990389 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3018163146776375641 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-66-c15a9c19-67b1-47dd-9d27-44ac18b45fe7-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-70-b39bbe21-b78f-4aac-85f8-294ffdf1555a-0-00001.parquet |
+  current metadata file: 00007-c183b967-fba6-428c-b090-6dc30b2f13a6.metadata.json
+
+-- step 5: delete rows (id 2 and 7)
+  > DELETE FROM lab.fv.t_v2 WHERE id IN (2, 7)
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 9196147093991843389 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 903216687527238811 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 3777708983703990389 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3018163146776375641 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 6116962745465611611 | delete | {'added-position-delete-files': '2', 'added-delete-files': '2', 'added-position-deletes': '2'} | 10 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-66-c15a9c19-67b1-47dd-9d27-44ac18b45fe7-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-70-b39bbe21-b78f-4aac-85f8-294ffdf1555a-0-00001.parquet |
+    | 1 | PARQUET | 0 | 1 | 1478 |  |  |  |  | data/ts_day=2026-11-01/00000-75-8c19db21-b12b-4a56-b277-1503ae4b83e6-00002-deletes.parquet |
+    | 1 | PARQUET | 0 | 1 | 1479 |  |  |  |  | data/ts_day=2026-11-03/00000-75-8c19db21-b12b-4a56-b277-1503ae4b83e6-00001-deletes.parquet |
+  current metadata file: 00008-1f170347-87b6-4216-b689-426ffaeb75e7.metadata.json
+
+-- step 6: update a row (id 3)
+  > UPDATE lab.fv.t_v2 SET amount_krw = amount_krw * 10, note = 'updated' WHERE id = 3
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 9196147093991843389 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 903216687527238811 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 3777708983703990389 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 3018163146776375641 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 6116962745465611611 | delete | {'added-position-delete-files': '2', 'added-delete-files': '2', 'added-position-deletes': '2'} | 10 |
+    | 1156360726027101992 | overwrite | {'added-data-files': '1', 'added-position-deletes': '2', 'removed-position-delete-files': '1', 'removed-delete-files': '1', 'added-records': '1', 'added-position-delete-files': '1', 'added-delete-files': '1', 'removed-position-deletes': '1'} | 11 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 |  |  |  |  | data/ts_day=2026-11-01/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1502 |  |  |  |  | data/ts_day=2026-11-01/id_bucket_4=3/00000-80-3e97a8a2-ce5d-4d8b-8076-50f75b90289c-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 |  |  |  |  | data/ts_day=2026-11-02/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 |  |  |  |  | data/ts_day=2026-11-02/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 |  |  |  |  | data/ts_day=2026-11-03/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 |  |  |  |  | data/ts_day=2026-11-03/00000-66-c15a9c19-67b1-47dd-9d27-44ac18b45fe7-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 |  |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-70-b39bbe21-b78f-4aac-85f8-294ffdf1555a-0-00001.parquet |
+    | 1 | PARQUET | 0 | 2 | 1529 |  |  |  |  | data/ts_day=2026-11-01/00000-80-3e97a8a2-ce5d-4d8b-8076-50f75b90289c-00001-deletes.parquet |
+    | 1 | PARQUET | 0 | 1 | 1479 |  |  |  |  | data/ts_day=2026-11-03/00000-75-8c19db21-b12b-4a56-b277-1503ae4b83e6-00001-deletes.parquet |
+  current metadata file: 00009-12588a00-1112-4405-bfd5-bc41dc41bef2.metadata.json
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 3 | Incheon | 300.0 | 2026-11-01 11:00:00 | updated |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+    | 10 | Jeju | 100.0 | 2026-11-04 09:00:00 | new spec |
+
+-- negative control: a v3 type on a v2 table
+  > ALTER TABLE lab.fv.t_v2 ADD COLUMN payload VARIANT
+    REFUSED: java.lang.IllegalStateException: Invalid schema for v2: - Invalid type for payload: variant is not supported until v3
+
+=== format-version 3  (lab.fv.t_v3, row-level mode merge-on-read) ===
+
+-- step 1: create (partitioned by day of ts)
+  > CREATE TABLE lab.fv.t_v3 (id BIGINT, city STRING, amount DOUBLE, ts TIMESTAMP) USING iceberg PARTITIONED BY (days(ts)) TBLPROPERTIES ('format-version'='3', 'write.delete.mode'='merge-on-read', 'write.update.mode'='merge-on-read', 'write.merge.mode'='merge-on-read')
+
+-- step 2: two inserts
+  > INSERT INTO lab.fv.t_v3 VALUES (1,'Seoul',10.0,TIMESTAMP'2026-11-01 09:00:00'), (2,'Busan',20.0,TIMESTAMP'2026-11-01 10:00:00'), (3,'Incheon',30.0,TIMESTAMP'2026-11-01 11:00:00'), (4,'Daegu',40.0,TIMESTAMP'2026-11-02 09:00:00'), (5,'Gwangju',50.0,TIMESTAMP'2026-11-02 10:00:00')
+  > INSERT INTO lab.fv.t_v3 VALUES (6,'Seoul',60.0,TIMESTAMP'2026-11-02 11:00:00'), (7,'Busan',70.0,TIMESTAMP'2026-11-03 09:00:00'), (8,'Ulsan',80.0,TIMESTAMP'2026-11-03 10:00:00')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 3240724816987368852 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 5251532475190507905 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 | 0 |  |  |  | data/ts_day=2026-11-01/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 | 3 |  |  |  | data/ts_day=2026-11-02/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 | 7 |  |  |  | data/ts_day=2026-11-02/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 | 5 |  |  |  | data/ts_day=2026-11-03/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet |
+  current metadata file: 00002-b1d9c32a-2364-4864-ad2e-1243a94f1699.metadata.json
+  row lineage (_row_id, _last_updated_sequence_number):
+    | id | _row_id | _last_updated_sequence_number |
+    | 1 | 0 | 1 |
+    | 2 | 1 | 1 |
+    | 3 | 2 | 1 |
+    | 4 | 3 | 1 |
+    | 5 | 4 | 1 |
+    | 6 | 7 | 2 |
+    | 7 | 5 | 2 |
+    | 8 | 6 | 2 |
+
+-- step 3: schema evolution (add a column, rename a column)
+  > ALTER TABLE lab.fv.t_v3 ADD COLUMN note STRING
+  > ALTER TABLE lab.fv.t_v3 RENAME COLUMN amount TO amount_krw
+  > INSERT INTO lab.fv.t_v3 VALUES (9,'Seoul',90.0,TIMESTAMP'2026-11-03 11:00:00','after add column')
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 2 | Busan | 20.0 | 2026-11-01 10:00:00 |  |
+    | 3 | Incheon | 30.0 | 2026-11-01 11:00:00 |  |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 7 | Busan | 70.0 | 2026-11-03 09:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+
+-- step 4: partition evolution (add bucket(4, id) to the spec)
+  > ALTER TABLE lab.fv.t_v3 ADD PARTITION FIELD bucket(4, id)
+  > INSERT INTO lab.fv.t_v3 VALUES (10,'Jeju',100.0,TIMESTAMP'2026-11-04 09:00:00','new spec')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 3240724816987368852 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 5251532475190507905 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1257930550837364730 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 6000864792435335531 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 | 0 |  |  |  | data/ts_day=2026-11-01/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 | 3 |  |  |  | data/ts_day=2026-11-02/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 | 7 |  |  |  | data/ts_day=2026-11-02/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 | 5 |  |  |  | data/ts_day=2026-11-03/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 | 8 |  |  |  | data/ts_day=2026-11-03/00000-117-80c3783a-d8e3-4098-aef2-882f8ce86486-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 | 9 |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-121-2a73b231-c694-4837-8c28-f7c1d1db4ea8-0-00001.parquet |
+  current metadata file: 00007-c06236b7-4c86-40f7-8f42-ac687532f2ed.metadata.json
+
+-- step 5: delete rows (id 2 and 7)
+  > DELETE FROM lab.fv.t_v3 WHERE id IN (2, 7)
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 3240724816987368852 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 5251532475190507905 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1257930550837364730 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 6000864792435335531 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 6307746083983597003 | delete | {'added-delete-files': '2', 'added-dvs': '2', 'added-position-deletes': '2'} | 10 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 | 0 |  |  |  | data/ts_day=2026-11-01/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 | 3 |  |  |  | data/ts_day=2026-11-02/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 | 7 |  |  |  | data/ts_day=2026-11-02/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 | 5 |  |  |  | data/ts_day=2026-11-03/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 | 8 |  |  |  | data/ts_day=2026-11-03/00000-117-80c3783a-d8e3-4098-aef2-882f8ce86486-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 | 9 |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-121-2a73b231-c694-4837-8c28-f7c1d1db4ea8-0-00001.parquet |
+    | 1 | PUFFIN | 0 | 1 | 778 |  | 00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet | 4 | 42 | data/00000-126-c8c18129-f9bb-4403-b3e3-3394cfc6cb4c-00001-deletes.puffin |
+    | 1 | PUFFIN | 0 | 1 | 778 |  | 00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet | 46 | 42 | data/00000-126-c8c18129-f9bb-4403-b3e3-3394cfc6cb4c-00001-deletes.puffin |
+  current metadata file: 00008-d795999b-8f16-4601-bb00-bf2f43b32d30.metadata.json
+  row lineage (_row_id, _last_updated_sequence_number):
+    | id | _row_id | _last_updated_sequence_number |
+    | 1 | 0 | 1 |
+    | 3 | 2 | 1 |
+    | 4 | 3 | 1 |
+    | 5 | 4 | 1 |
+    | 6 | 7 | 2 |
+    | 8 | 6 | 2 |
+    | 9 | 8 | 3 |
+    | 10 | 9 | 4 |
+
+-- step 6: update a row (id 3)
+  > UPDATE lab.fv.t_v3 SET amount_krw = amount_krw * 10, note = 'updated' WHERE id = 3
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 3240724816987368852 | append | {'added-records': '5', 'added-data-files': '2'} | 5 |
+    | 5251532475190507905 | append | {'added-records': '3', 'added-data-files': '2'} | 8 |
+    | 1257930550837364730 | append | {'added-records': '1', 'added-data-files': '1'} | 9 |
+    | 6000864792435335531 | append | {'added-records': '1', 'added-data-files': '1'} | 10 |
+    | 6307746083983597003 | delete | {'added-delete-files': '2', 'added-dvs': '2', 'added-position-deletes': '2'} | 10 |
+    | 6667924288803289871 | overwrite | {'removed-dvs': '1', 'added-data-files': '1', 'added-position-deletes': '2', 'removed-delete-files': '1', 'added-records': '1', 'added-dvs': '1', 'added-delete-files': '1', 'removed-position-deletes': '1'} | 11 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 3 | 1231 | 0 |  |  |  | data/ts_day=2026-11-01/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 2169 | 19 |  |  |  | data/ts_day=2026-11-01/id_bucket_4=3/00000-133-312ab8e8-ea38-4a14-ae71-dedb795961a8-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1211 | 3 |  |  |  | data/ts_day=2026-11-02/00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1185 | 7 |  |  |  | data/ts_day=2026-11-02/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 1204 | 5 |  |  |  | data/ts_day=2026-11-03/00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet |
+    | 0 | PARQUET | 0 | 1 | 1518 | 8 |  |  |  | data/ts_day=2026-11-03/00000-117-80c3783a-d8e3-4098-aef2-882f8ce86486-0-00001.parquet |
+    | 0 | PARQUET | 1 | 1 | 1455 | 9 |  |  |  | data/ts_day=2026-11-04/id_bucket_4=0/00000-121-2a73b231-c694-4837-8c28-f7c1d1db4ea8-0-00001.parquet |
+    | 1 | PUFFIN | 0 | 1 | 778 |  | 00000-110-4c0dcbbe-478c-4078-9ea1-bf999fcba55c-0-00002.parquet | 4 | 42 | data/00000-126-c8c18129-f9bb-4403-b3e3-3394cfc6cb4c-00001-deletes.puffin |
+    | 1 | PUFFIN | 0 | 2 | 457 |  | 00000-106-a3413c77-3b26-41a0-a528-8186ee2831b3-0-00001.parquet | 4 | 44 | data/00000-133-312ab8e8-ea38-4a14-ae71-dedb795961a8-00001-deletes.puffin |
+  current metadata file: 00009-59e940d7-ddb5-4c6f-911c-15276beafdc3.metadata.json
+  row lineage (_row_id, _last_updated_sequence_number):
+    | id | _row_id | _last_updated_sequence_number |
+    | 1 | 0 | 1 |
+    | 3 | 2 | 6 |
+    | 4 | 3 | 1 |
+    | 5 | 4 | 1 |
+    | 6 | 7 | 2 |
+    | 8 | 6 | 2 |
+    | 9 | 8 | 3 |
+    | 10 | 9 | 4 |
+  table contents:
+    | id | city | amount_krw | ts | note |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |
+    | 3 | Incheon | 300.0 | 2026-11-01 11:00:00 | updated |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |
+    | 10 | Jeju | 100.0 | 2026-11-04 09:00:00 | new spec |
+
+-- step 7 (v3 only): types added in v3
+  > ALTER TABLE lab.fv.t_v3 ADD COLUMN payload VARIANT
+  > INSERT INTO lab.fv.t_v3 SELECT 11,'Seoul',110.0,TIMESTAMP'2026-11-04 10:00:00','variant row', parse_json('{"device":"ios","tags":["a","b"],"score":7}')
+  table contents:
+    | id | city | amount_krw | ts | note | payload |
+    | 1 | Seoul | 10.0 | 2026-11-01 09:00:00 |  |  |
+    | 3 | Incheon | 300.0 | 2026-11-01 11:00:00 | updated |  |
+    | 4 | Daegu | 40.0 | 2026-11-02 09:00:00 |  |  |
+    | 5 | Gwangju | 50.0 | 2026-11-02 10:00:00 |  |  |
+    | 6 | Seoul | 60.0 | 2026-11-02 11:00:00 |  |  |
+    | 8 | Ulsan | 80.0 | 2026-11-03 10:00:00 |  |  |
+    | 9 | Seoul | 90.0 | 2026-11-03 11:00:00 | after add column |  |
+    | 10 | Jeju | 100.0 | 2026-11-04 09:00:00 | new spec |  |
+    | 11 | Seoul | 110.0 | 2026-11-04 10:00:00 | variant row | {"device":"ios","score":7,"tags":["a","b"]} |
+
+=== format-version 3, variant column from CREATE  (lab.fv.t_v3_variant) ===
+  > CREATE TABLE lab.fv.t_v3_variant (id BIGINT, payload VARIANT) USING iceberg TBLPROPERTIES ('format-version'='3')
+  > INSERT INTO lab.fv.t_v3_variant SELECT /*+ COALESCE(1) */ id, parse_json(j) FROM VALUES (1, '{"device":"ios","tags":["a","b"],"score":7}'), (2, '{"device":"android","score":3}'), (3, '42'), (4, '"text"'), (5, 'null') AS v(id, j)
+  table contents:
+    | id | payload |
+    | 1 | {"device":"ios","score":7,"tags":["a","b"]} |
+    | 2 | {"device":"android","score":3} |
+    | 3 | 42 |
+    | 4 | "text" |
+    | 5 | null |
+
+=== upgrade: format-version 2 -> 3  (lab.fv.t_v2_to_v3) ===
+  > CREATE TABLE lab.fv.t_v2_to_v3 (id BIGINT, city STRING) USING iceberg TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='merge-on-read', 'write.update.mode'='merge-on-read', 'write.merge.mode'='merge-on-read')
+  (one data file: COALESCE(1), so the delete below needs a delete file instead of dropping a whole file)
+  > INSERT INTO lab.fv.t_v2_to_v3 SELECT /*+ COALESCE(1) */ * FROM VALUES (1,'Seoul'),(2,'Busan'),(3,'Incheon'),(4,'Daegu'),(5,'Gwangju') AS v(id, city)
+  > DELETE FROM lab.fv.t_v2_to_v3 WHERE id = 2
+
+-- before the upgrade (v2: a position delete file)
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 7726248531056347186 | append | {'added-records': '5', 'added-data-files': '1'} | 5 |
+    | 9153087298382625124 | delete | {'added-position-delete-files': '1', 'added-delete-files': '1', 'added-position-deletes': '1'} | 5 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 5 | 714 |  |  |  |  | data/00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet |
+    | 1 | PARQUET | 0 | 1 | 1426 |  |  |  |  | data/00000-191-847acc5a-a6a5-4c41-b2d1-6402cfdab606-00001-deletes.parquet |
+  current metadata file: 00002-25ae3a9f-3eb5-4f1a-83b2-25faef0e8b01.metadata.json
+
+-- upgrade
+  > ALTER TABLE lab.fv.t_v2_to_v3 SET TBLPROPERTIES ('format-version'='3')
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 7726248531056347186 | append | {'added-records': '5', 'added-data-files': '1'} | 5 |
+    | 9153087298382625124 | delete | {'added-position-delete-files': '1', 'added-delete-files': '1', 'added-position-deletes': '1'} | 5 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 5 | 714 |  |  |  |  | data/00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet |
+    | 1 | PARQUET | 0 | 1 | 1426 |  |  |  |  | data/00000-191-847acc5a-a6a5-4c41-b2d1-6402cfdab606-00001-deletes.parquet |
+  current metadata file: 00003-d4f94ae8-17f7-4c60-9472-f835115507d2.metadata.json
+  row lineage (_row_id, _last_updated_sequence_number):
+    | id | _row_id | _last_updated_sequence_number |
+    | 1 |  |  |
+    | 3 |  |  |
+    | 4 |  |  |
+    | 5 |  |  |
+
+-- first write after the upgrade: insert, then delete id 4 (old file) and id 6 (new file)
+  > INSERT INTO lab.fv.t_v2_to_v3 SELECT /*+ COALESCE(1) */ * FROM VALUES (6,'Ulsan'),(7,'Jeju') AS v(id, city)
+  > DELETE FROM lab.fv.t_v2_to_v3 WHERE id IN (4, 6)
+  snapshots:
+    | snapshot_id | operation | changes | total_records |
+    | 7726248531056347186 | append | {'added-records': '5', 'added-data-files': '1'} | 5 |
+    | 9153087298382625124 | delete | {'added-position-delete-files': '1', 'added-delete-files': '1', 'added-position-deletes': '1'} | 5 |
+    | 6389005945791293091 | append | {'added-records': '2', 'added-data-files': '1'} | 7 |
+    | 5436135486437892878 | delete | {'added-delete-files': '2', 'added-position-deletes': '3', 'removed-position-delete-files': '1', 'removed-delete-files': '1', 'added-dvs': '2', 'removed-position-deletes': '1'} | 7 |
+  live files (content 0 = data, 1 = position deletes / deletion vectors, 2 = equality deletes):
+    | content | file_format | spec_id | record_count | file_size_in_bytes | first_row_id | referenced_data_file | content_offset | content_size_in_bytes | file_path |
+    | 0 | PARQUET | 0 | 5 | 714 | 2 |  |  |  | data/00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet |
+    | 0 | PARQUET | 0 | 2 | 670 | 0 |  |  |  | data/00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet |
+    | 1 | PUFFIN | 0 | 2 | 756 |  | 00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet | 4 | 44 | data/00000-201-09065e86-d158-4fc8-b2f7-99857ef4c07d-00001-deletes.puffin |
+    | 1 | PUFFIN | 0 | 1 | 756 |  | 00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet | 48 | 42 | data/00000-201-09065e86-d158-4fc8-b2f7-99857ef4c07d-00001-deletes.puffin |
+  current metadata file: 00005-83507f18-c2f2-48c9-8db3-ce5918e7f571.metadata.json
+  row lineage (_row_id, _last_updated_sequence_number):
+    | id | _row_id | _last_updated_sequence_number |
+    | 1 | 2 | 1 |
+    | 3 | 4 | 1 |
+    | 5 | 6 | 1 |
+    | 7 | 1 | 3 |
+  table contents:
+    | id | city |
+    | 1 | Seoul |
+    | 3 | Incheon |
+    | 5 | Gwangju |
+    | 7 | Jeju |
+
+-- downgrade attempt (negative control)
+  > ALTER TABLE lab.fv.t_v2_to_v3 SET TBLPROPERTIES ('format-version'='2')
+    REFUSED: org.apache.spark.SparkException: Unsupported table change: Cannot downgrade v3 table to v2
+
+DONE

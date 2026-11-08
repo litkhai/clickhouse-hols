@@ -1,0 +1,60 @@
+# t_v2  (s3://warehouse/fv/t_v2)
+metadata files: 10 (one per table change); current: 00009-12588a00-1112-4405-bfd5-bc41dc41bef2.metadata.json
+  format-version: 2
+  last-sequence-number: 6
+  current-snapshot-id: 1156360726027101992
+  current-schema-id: 2
+  default-spec-id: 1
+  last-partition-id: 1001
+  schemas: 3; current fields: 1:id:long, 2:city:string, 3:amount_krw:double, 4:ts:timestamptz, 5:note:string
+  partition spec 0: ts_day=day
+  partition spec 1: ts_day=day, id_bucket_4=bucket[4]
+  properties: {'write.merge.mode': 'merge-on-read', 'write.update.mode': 'merge-on-read', 'write.delete.mode': 'merge-on-read', 'write.parquet.compression-codec': 'zstd'}
+  snapshots:
+    9196147093991843389 append sequence-number=1
+    903216687527238811 append sequence-number=2
+    3777708983703990389 append sequence-number=3
+    3018163146776375641 append sequence-number=4
+    6116962745465611611 delete sequence-number=5
+    1156360726027101992 overwrite sequence-number=6
+
+manifest list: t_v2/metadata/snap-1156360726027101992-1-5e751917-1ae9-4e63-827a-6a56a9362f2b.avro
+  manifest t_v2/metadata/5e751917-1ae9-4e63-827a-6a56a9362f2b-m1.avro
+    {'content': 0, 'sequence_number': 6, 'min_sequence_number': 6, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0}
+    ADDED    seq=None t_v2/data/ts_day=2026-11-01/id_bucket_4=3/00000-80-3e97a8a2-ce5d-4d8b-8076-50f75b90289c-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 1}
+  manifest t_v2/metadata/1ad97049-58b9-4e4a-a380-503c3bb6bb4f-m0.avro
+    {'content': 0, 'sequence_number': 4, 'min_sequence_number': 4, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0}
+    ADDED    seq=None t_v2/data/ts_day=2026-11-04/id_bucket_4=0/00000-70-b39bbe21-b78f-4aac-85f8-294ffdf1555a-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 1}
+  manifest t_v2/metadata/1ad97049-58b9-4e4a-a380-503c3bb6bb4f-m1.avro
+    {'content': 0, 'sequence_number': 4, 'min_sequence_number': 1, 'added_files_count': 0, 'existing_files_count': 5, 'deleted_files_count': 0}
+    EXISTING seq=3 t_v2/data/ts_day=2026-11-03/00000-66-c15a9c19-67b1-47dd-9d27-44ac18b45fe7-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 1}
+    EXISTING seq=2 t_v2/data/ts_day=2026-11-03/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 2}
+    EXISTING seq=2 t_v2/data/ts_day=2026-11-02/00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 1}
+    EXISTING seq=1 t_v2/data/ts_day=2026-11-01/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 3}
+    EXISTING seq=1 t_v2/data/ts_day=2026-11-02/00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00002.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 2}
+  manifest t_v2/metadata/5e751917-1ae9-4e63-827a-6a56a9362f2b-m2.avro
+    {'content': 1, 'sequence_number': 6, 'min_sequence_number': 6, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0}
+    ADDED    seq=None t_v2/data/ts_day=2026-11-01/00000-80-3e97a8a2-ce5d-4d8b-8076-50f75b90289c-00001-deletes.parquet
+             {'content': 1, 'file_format': 'PARQUET', 'record_count': 2}
+             position delete rows (file_path, pos): [('00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet', 1), ('00000-56-05415daa-e6cd-4aa0-90ab-89b884f8ad30-0-00001.parquet', 2)]
+  manifest t_v2/metadata/5e751917-1ae9-4e63-827a-6a56a9362f2b-m0.avro
+    {'content': 1, 'sequence_number': 6, 'min_sequence_number': 5, 'added_files_count': 0, 'existing_files_count': 1, 'deleted_files_count': 1}
+    EXISTING seq=5 t_v2/data/ts_day=2026-11-03/00000-75-8c19db21-b12b-4a56-b277-1503ae4b83e6-00001-deletes.parquet
+             {'content': 1, 'file_format': 'PARQUET', 'record_count': 1}
+             position delete rows (file_path, pos): [('00000-60-ca3aa834-aba5-4b23-9f59-6f9b18498cd4-0-00002.parquet', 0)]
+    DELETED  seq=5 t_v2/data/ts_day=2026-11-01/00000-75-8c19db21-b12b-4a56-b277-1503ae4b83e6-00002-deletes.parquet
+             {'content': 1, 'file_format': 'PARQUET', 'record_count': 1}
+
+parquet schema of t_v2/data/ts_day=2026-11-01/id_bucket_4=3/00000-80-3e97a8a2-ce5d-4d8b-8076-50f75b90289c-00001.parquet (Iceberg field id per column):
+     1  id: int64
+     2  city: string
+     3  amount_krw: double
+     4  ts: timestamp[us, tz=UTC]
+     5  note: string

@@ -1,0 +1,47 @@
+# t_v2_to_v3  (s3://warehouse/fv/t_v2_to_v3)
+metadata files: 6 (one per table change); current: 00005-83507f18-c2f2-48c9-8db3-ce5918e7f571.metadata.json
+  format-version: 3
+  last-sequence-number: 4
+  next-row-id: 7
+  current-snapshot-id: 5436135486437892878
+  current-schema-id: 0
+  default-spec-id: 0
+  last-partition-id: 999
+  schemas: 1; current fields: 1:id:long, 2:city:string
+  partition spec 0: 
+  properties: {'write.merge.mode': 'merge-on-read', 'write.update.mode': 'merge-on-read', 'write.delete.mode': 'merge-on-read', 'write.parquet.compression-codec': 'zstd'}
+  snapshots:
+    7726248531056347186 append sequence-number=1
+    9153087298382625124 delete sequence-number=2
+    6389005945791293091 append sequence-number=3 first-row-id=0 added-rows=7
+    5436135486437892878 delete sequence-number=4 first-row-id=7 added-rows=0
+
+manifest list: t_v2_to_v3/metadata/snap-5436135486437892878-1-cc1c68c6-53a0-4bfc-8c41-49ded3fe669e.avro
+  manifest t_v2_to_v3/metadata/9519c461-e346-4c2f-bb43-1e668e830893-m0.avro
+    {'content': 0, 'sequence_number': 3, 'min_sequence_number': 3, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0, 'first_row_id': 0}
+    ADDED    seq=None t_v2_to_v3/data/00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 2}
+  manifest t_v2_to_v3/metadata/ef0f7b84-8aba-48d0-87be-8a565fd0250c-m0.avro
+    {'content': 0, 'sequence_number': 1, 'min_sequence_number': 1, 'added_files_count': 1, 'existing_files_count': 0, 'deleted_files_count': 0, 'first_row_id': 2}
+    ADDED    seq=None t_v2_to_v3/data/00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet
+             {'content': 0, 'file_format': 'PARQUET', 'record_count': 5}
+  manifest t_v2_to_v3/metadata/cc1c68c6-53a0-4bfc-8c41-49ded3fe669e-m1.avro
+    {'content': 1, 'sequence_number': 4, 'min_sequence_number': 4, 'added_files_count': 2, 'existing_files_count': 0, 'deleted_files_count': 0, 'first_row_id': None}
+    ADDED    seq=None t_v2_to_v3/data/00000-201-09065e86-d158-4fc8-b2f7-99857ef4c07d-00001-deletes.puffin
+             {'content': 1, 'file_format': 'PUFFIN', 'record_count': 2, 'referenced_data_file': '00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet', 'content_offset': 4, 'content_size_in_bytes': 44}
+             deletion vector: magic d1 d3 39 64, crc ok=True, deleted positions [1, 3]
+             puffin footer blob: type=deletion-vector-v1 offset=4 length=44 {'referenced-data-file': '00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet', 'cardinality': '2'}
+             puffin footer blob: type=deletion-vector-v1 offset=48 length=42 {'referenced-data-file': '00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet', 'cardinality': '1'}
+    ADDED    seq=None t_v2_to_v3/data/00000-201-09065e86-d158-4fc8-b2f7-99857ef4c07d-00001-deletes.puffin
+             {'content': 1, 'file_format': 'PUFFIN', 'record_count': 1, 'referenced_data_file': '00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet', 'content_offset': 48, 'content_size_in_bytes': 42}
+             deletion vector: magic d1 d3 39 64, crc ok=True, deleted positions [0]
+             puffin footer blob: type=deletion-vector-v1 offset=4 length=44 {'referenced-data-file': '00000-189-d302c790-ba8d-42f9-a22d-170554757f40-0-00001.parquet', 'cardinality': '2'}
+             puffin footer blob: type=deletion-vector-v1 offset=48 length=42 {'referenced-data-file': '00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet', 'cardinality': '1'}
+  manifest t_v2_to_v3/metadata/cc1c68c6-53a0-4bfc-8c41-49ded3fe669e-m0.avro
+    {'content': 1, 'sequence_number': 4, 'min_sequence_number': 4, 'added_files_count': 0, 'existing_files_count': 0, 'deleted_files_count': 1, 'first_row_id': None}
+    DELETED  seq=2 t_v2_to_v3/data/00000-191-847acc5a-a6a5-4c41-b2d1-6402cfdab606-00001-deletes.parquet
+             {'content': 1, 'file_format': 'PARQUET', 'record_count': 1}
+
+parquet schema of t_v2_to_v3/data/00000-199-c6dca323-3ad0-4cbb-a9d6-60c4ab4030e9-0-00001.parquet (Iceberg field id per column):
+     1  id: int64
+     2  city: string

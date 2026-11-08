@@ -1,0 +1,76 @@
+# ClickHouse 26.11.1.1642 reading the lab tables (spark/steps.py wrote them)
+
+## v1 and v2: rows after delete and update
+- t_v1: ids and sum(amount_krw)
+    query:    SELECT groupArray(id), sum(amount_krw) FROM (SELECT id, amount_krw FROM icebergS3('http://minio:9000/warehouse/fv/t_v1/', 'admin', 'password123') ORDER BY id)
+    spark:    [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+    match     [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+- t_v2: ids and sum(amount_krw)
+    query:    SELECT groupArray(id), sum(amount_krw) FROM (SELECT id, amount_krw FROM icebergS3('http://minio:9000/warehouse/fv/t_v2/', 'admin', 'password123') ORDER BY id)
+    spark:    [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+    match     [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+
+## v1 and v2: time travel to the second insert (8 rows, nothing deleted yet)
+- t_v1: count() at the 2nd snapshot (iceberg_snapshot_id)
+    query:    SELECT count() FROM icebergS3('http://minio:9000/warehouse/fv/t_v1/', 'admin', 'password123') SETTINGS iceberg_snapshot_id = 188996145452077099
+    spark:    [[8]]
+    match     [[8]]
+- t_v2: count() at the 2nd snapshot (iceberg_snapshot_id)
+    query:    SELECT count() FROM icebergS3('http://minio:9000/warehouse/fv/t_v2/', 'admin', 'password123') SETTINGS iceberg_snapshot_id = 903216687527238811
+    spark:    [[8]]
+    match     [[8]]
+
+## deleted rows are still in the data files (merge-on-read)
+- t_v2: rows in the Parquet data files (delete files excluded) vs rows in the table (8)
+    query:    SELECT count() FROM s3('http://minio:9000/warehouse/fv/t_v2/data/**/*.parquet', 'admin', 'password123', 'Parquet', 'id Int64') WHERE _file NOT LIKE '%-deletes.parquet'
+    spark:    data files hold more rows than the table
+    match     data files hold more rows than the table
+- t_v3: rows in the Parquet data files (delete files excluded) vs rows in the table (9)
+    query:    SELECT count() FROM s3('http://minio:9000/warehouse/fv/t_v3/data/**/*.parquet', 'admin', 'password123', 'Parquet', 'id Int64') WHERE _file NOT LIKE '%-deletes.parquet'
+    spark:    data files hold more rows than the table
+    match     data files hold more rows than the table
+
+## v3: deletion vectors, row lineage, variant
+- t_v3 at the snapshot before ADD COLUMN payload VARIANT: ids and sum(amount_krw)
+    query:    SELECT groupArray(id), sum(amount_krw) FROM (SELECT id, amount_krw FROM icebergS3('http://minio:9000/warehouse/fv/t_v3/', 'admin', 'password123') ORDER BY id) SETTINGS iceberg_snapshot_id = 6667924288803289871
+    spark:    [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+    match     [[1, 3, 4, 5, 6, 8, 9, 10], 730.0]
+- t_v3 at that snapshot: _row_id, _last_updated_sequence_number
+    query:    SELECT id, _row_id, _last_updated_sequence_number FROM icebergS3('http://minio:9000/warehouse/fv/t_v3/', 'admin', 'password123') ORDER BY id SETTINGS iceberg_snapshot_id = 6667924288803289871
+    spark:    [[1, 0, 1], [3, 2, 6], [4, 3, 1], [5, 4, 1], [6, 7, 2], [8, 6, 2], [9, 8, 3], [10, 9, 4]]
+    match     [[1, 0, 1], [3, 2, 6], [4, 3, 1], [5, 4, 1], [6, 7, 2], [8, 6, 2], [9, 8, 3], [10, 9, 4]]
+- t_v3 current snapshot (payload VARIANT added by ALTER TABLE ADD COLUMN): ids
+    query:    SELECT groupArray(id) FROM (SELECT id FROM icebergS3('http://minio:9000/warehouse/fv/t_v3/', 'admin', 'password123') ORDER BY id)
+    ERROR     DB::Exception: Received from localhost:9000. DB::Exception: Cannot add a column with id 6 with required values to the table during schema evolution. This is forbidden by Iceberg format specification. Old schema id is 2, new schema id is 3: While executing ReadFromObjectStorage. (ICEBERG_SPECIFICATION_VIOLATION) (query: SELECT groupArray(id) FROM (SELECT id FROM icebergS3('http://minio:9000/warehou
+- t_v3 current snapshot, only the file written after ADD COLUMN (WHERE id = 11)
+    query:    SELECT groupArray(id) FROM (SELECT id FROM icebergS3('http://minio:9000/warehouse/fv/t_v3/', 'admin', 'password123') WHERE id = 11)
+    spark:    [11]
+    match     [11]
+- t_v3_variant (payload VARIANT from CREATE): ids
+    query:    SELECT groupArray(id) FROM (SELECT id FROM icebergS3('http://minio:9000/warehouse/fv/t_v3_variant/', 'admin', 'password123') ORDER BY id)
+    spark:    [1, 2, 3, 4, 5]
+    match     [1, 2, 3, 4, 5]
+- t_v3_variant: payload type
+    query:    SELECT DISTINCT toTypeName(payload) FROM icebergS3('http://minio:9000/warehouse/fv/t_v3_variant/', 'admin', 'password123')
+    spark:    [['Dynamic']]
+    match     [['Dynamic']]
+- t_v2_to_v3 (upgraded, old position delete merged into a deletion vector): ids
+    query:    SELECT groupArray(id) FROM (SELECT id FROM icebergS3('http://minio:9000/warehouse/fv/t_v2_to_v3/', 'admin', 'password123') ORDER BY id)
+    spark:    [1, 3, 5, 7]
+    match     [1, 3, 5, 7]
+- t_v2_to_v3: _row_id, _last_updated_sequence_number
+    query:    SELECT id, _row_id, _last_updated_sequence_number FROM icebergS3('http://minio:9000/warehouse/fv/t_v2_to_v3/', 'admin', 'password123') ORDER BY id
+    spark:    [[1, 2, 1], [3, 4, 1], [5, 6, 1], [7, 1, 3]]
+    match     [[1, 2, 1], [3, 4, 1], [5, 6, 1], [7, 1, 3]]
+
+## through the REST catalog (DataLakeCatalog)
+- SHOW TABLES FROM lake
+    query:    SHOW TABLES FROM lake
+    spark:    ['fv.t_v1', 'fv.t_v2', 'fv.t_v2_to_v3', 'fv.t_v3', 'fv.t_v3_variant']
+    match     ['fv.t_v1', 'fv.t_v2', 'fv.t_v2_to_v3', 'fv.t_v3', 'fv.t_v3_variant']
+- lake.`fv.t_v2`: ids
+    query:    SELECT groupArray(id) FROM (SELECT id FROM lake.`fv.t_v2` ORDER BY id)
+    spark:    [1, 3, 4, 5, 6, 8, 9, 10]
+    match     [1, 3, 4, 5, 6, 8, 9, 10]
+
+summary: 15 match, 0 diff, 1 error
