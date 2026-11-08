@@ -54,7 +54,8 @@ warehouse is included), with internal pod names — keep that page out of shared
 
 **chmonitor.** A Cloud service has one endpoint in front of its replicas, and `system.processes` is per replica. Each refresh of
 the running list lands on one replica, so `long-query.sh` showed on one refresh and was gone on the next. Cloud does not give out
-per-replica addresses, so it cannot be pinned the way chmonitor allows with a comma list in `CLICKHOUSE_HOST`. When the query was
+per-replica addresses, so it cannot be pinned the way chmonitor allows with a comma list in `CLICKHOUSE_HOST`. Cloud's replica-aware routing (Enterprise, beta) keeps one routing value on one replica, but it picks the replica by
+hash and needs a header or SNI from the client; it was not tried with these tools. When the query was
 visible, the kill button worked: the toast said "Killed query", and the client ended with `Code: 394 QUERY_WAS_CANCELLED` (two runs).
 The "Queries by user" panel also lists Cloud's own service accounts (for example `monitoring-internal`, `operator-internal`) and
 ClickPipes accounts.
@@ -168,7 +169,8 @@ pod 이름과 함께 나오니 공유용 캡처에서는 빼 두세요.
 
 **chmonitor.** Cloud 서비스는 replica 앞에 endpoint가 하나이고 `system.processes`는 replica마다 따로입니다. 실행 중 목록은 새로 고칠
 때마다 한 replica에 닿기 때문에 `long-query.sh`가 한 번은 보이고 다음에는 사라졌습니다. Cloud는 replica별 주소를 주지 않아 chmonitor의
-`CLICKHOUSE_HOST` 쉼표 목록으로 고정할 수도 없습니다. 보일 때 중지 버튼을 누르면 "Killed query" 알림이 뜨고 클라이언트는
+`CLICKHOUSE_HOST` 쉼표 목록으로 고정할 수도 없습니다. Cloud의 replica-aware routing(Enterprise, 베타)은 같은 라우팅 값을 같은 replica로
+보내 주지만 replica를 해시로 정하고 클라이언트가 헤더나 SNI를 넣어야 합니다. 이번에는 이 도구들과 시험하지 않았습니다. 보일 때 중지 버튼을 누르면 "Killed query" 알림이 뜨고 클라이언트는
 `Code: 394 QUERY_WAS_CANCELLED`로 끝났습니다(두 번 확인). "Queries by user"에는 Cloud 자체 서비스 계정(`monitoring-internal`,
 `operator-internal` 등)과 ClickPipes 계정도 나옵니다.
 
