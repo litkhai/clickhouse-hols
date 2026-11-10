@@ -93,7 +93,13 @@ INDEX idx_player_id_bloom player_id TYPE bloom_filter(0.01) GRANULARITY 1
 ```
 mysql-protocol-benchmark/
 ├── docker-compose.yml
-├── benchmark.py
+├── lab.yaml                              # 실습 메타데이터 (게시 키)
+├── benchmark.py                          # 포인트 쿼리 벤치마크
+├── benchmark_comprehensive.py            # 종합 벤치마크
+├── benchmark_report.txt, benchmark_results.json
+├── benchmark_comprehensive_report.txt, benchmark_comprehensive_results.json
+├── FINAL_REPORT.md, PERFORMANCE_REPORT.md
+├── CLICKHOUSE_TUNING_GUIDE.md
 ├── README.md
 └── init/
     ├── clickhouse/

@@ -56,6 +56,10 @@ workload/mv-vs-rmv/
 ├── mv-rmv-test-plan.md                # Original test plan
 ├── detailed-test-plan.md              # Detailed execution plan
 ├── test-results-report.md             # 📊 Final results report
+├── FINAL-TEST-REPORT.md               # ⭐ 30-minute Full Test final report
+├── SUMMARY.md                         # Executive summary
+├── test-progress.md                   # Real-time progress notes
+├── lab.yaml                           # Lab metadata (publishing keys)
 │
 ├── setup/                             # Schema setup SQL scripts
 │   ├── 01-create-database.sql        # Create database
@@ -411,6 +415,10 @@ workload/mv-vs-rmv/
 ├── mv-rmv-test-plan.md                # 원본 테스트 계획
 ├── detailed-test-plan.md              # 상세 실행 계획
 ├── test-results-report.md             # 📊 최종 결과 보고서
+├── FINAL-TEST-REPORT.md               # ⭐ 30분 Full Test 최종 보고서
+├── SUMMARY.md                         # 최종 요약
+├── test-progress.md                   # 실시간 진행 상황
+├── lab.yaml                           # 실습 메타데이터 (게시 키)
 │
 ├── setup/                             # 스키마 설정 SQL 스크립트
 │   ├── 01-create-database.sql        # Database 생성

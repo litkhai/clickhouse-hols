@@ -109,11 +109,22 @@ datalake-minio-catalog/
 │   ├── setup-multi-catalog.sh      # Multi-catalog setup
 │   ├── config.env                  # Single catalog config
 │   ├── config-multi-catalog.env    # Multi-catalog config
-│   └── docker-compose.yml          # Docker services
+│   ├── docker-compose.yml          # Docker services
+│   ├── quickstart.sh               # One-command start
+│   ├── Dockerfile.jupyter          # Jupyter + PySpark image
+│   ├── spark-defaults.conf         # Spark catalog settings
+│   ├── conf/                       # Hive and Unity server config
+│   ├── requirements.txt            # Python dependencies
+│   ├── generate_parquet.py         # Sample Parquet generator
+│   ├── register_data.py            # Registers sample data (sample-data/) with the catalog
+│   └── lab.yaml                    # Lab metadata (publishing keys)
 │
 ├── 📚 Documentation
 │   ├── README.md (this file)       # English docs
 │   ├── README.ko.md                # Korean docs
+│   ├── README-SIMPLE.md            # Simplified setup (v3.1)
+│   ├── GETTING_STARTED.md          # First-run walkthrough
+│   ├── CHANGES_v3.1.md, STRUCTURE_SUMMARY.md  # v3.1 change log and structure summary
 │   └── docs/                       # Detailed docs
 │
 ├── 🧪 Tests

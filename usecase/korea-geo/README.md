@@ -24,12 +24,16 @@ Author: Ken Lee (ClickHouse SA) · License: MIT
 ```
 korea-geo/
 ├── docker-compose.yml          # clickhouse + superset stack (network: korea-geo)
+├── lab.yaml                    # lab metadata (publishing keys)
+├── instruction.md              # task brief the lab was built from
 ├── superset/
 │   ├── Dockerfile              # official image + clickhouse-connect
 │   ├── requirements-local.txt  # clickhouse-connect
 │   ├── superset_config.py      # SECRET_KEY / MAPBOX_API_KEY / SQLite metadata
 │   └── bootstrap.sh            # db upgrade → create-admin → init → gunicorn
-├── data/sig_4326.geojson       # 251 sigungu boundaries (WGS84) — southkorea/southkorea-maps
+├── data/
+│   ├── sig_4326.geojson        # 251 sigungu boundaries (WGS84) — southkorea/southkorea-maps
+│   └── README.md               # data licence and origin
 ├── ddl/
 │   ├── 01_schema.sql              # DB + 2 tables + Polygon Dictionary
 │   ├── 02_validate.sql            # load / reverse-geocoding / coordinate-trap checks
@@ -208,12 +212,16 @@ docker compose down -v         # also drop volumes (ClickHouse data + Superset m
 ```
 korea-geo/
 ├── docker-compose.yml          # clickhouse + superset 스택 (network: korea-geo)
+├── lab.yaml                    # 실습 메타데이터 (게시 키)
+├── instruction.md              # 이 랩을 만든 작업 지시서
 ├── superset/
 │   ├── Dockerfile              # 공식 이미지 + clickhouse-connect
 │   ├── requirements-local.txt  # clickhouse-connect
 │   ├── superset_config.py      # SECRET_KEY / MAPBOX_API_KEY / SQLite 메타DB
 │   └── bootstrap.sh            # db upgrade → create-admin → init → gunicorn
-├── data/sig_4326.geojson       # 시군구 251개 경계 (WGS84) — southkorea/southkorea-maps
+├── data/
+│   ├── sig_4326.geojson        # 시군구 251개 경계 (WGS84) — southkorea/southkorea-maps
+│   └── README.md               # 데이터 라이선스와 출처
 ├── ddl/
 │   ├── 01_schema.sql              # DB + 테이블 2종 + Polygon Dictionary
 │   ├── 02_validate.sql            # 적재/리버스지오코딩/좌표계 함정 검증
