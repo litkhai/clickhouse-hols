@@ -48,11 +48,31 @@
 <h2>Project Structure</h2>
 <pre><code>usecase/device-360/
 ├── README.md                          # This file
+├── setup.sh                           # Automates data generation, upload and ingestion
+├── quick-test.sh                      # Small-scale validation (1 GB of data)
+├── simple_test.py                     # Ingestion + benchmark without scaling
+├── quick_ingest_test.py               # Ingestion + benchmark without scaling (quick variant)
+├── run_scale_test.py                  # Sequential scale test: 8 -&gt; 16 -&gt; 24 vCPU
+├── test_connection.py                 # Connection check
+├── requirements.txt                   # Python dependencies
+├── CHECKLIST.md, USAGE_GUIDE.md, PROJECT_SUMMARY.md  # Checklist, usage guide, summary (Korean)
+├── device360-test-plan.md             # Test plan
 ├── scripts/
 │   ├── generate_with_persistence.py   # Benchmark-track generator (500M rows with time persistence, to S3)
 │   ├── generate_data.py               # Query-suite generator (local gzipped JSON)
 │   ├── run_query_benchmark.sh         # Basic query benchmark script
-│   └── comprehensive_query_benchmark.sh # Concurrency testing script
+│   ├── comprehensive_query_benchmark.sh # Concurrency testing script
+│   ├── run_benchmarks.py              # Query benchmark runner
+│   ├── scale_ingestion_test.py        # Ingestion at 8/16/24 vCPU
+│   ├── scale_test_runner.py           # Ingestion + query performance per vCPU configuration
+│   ├── generate_report.py             # Report from scale-test results
+│   ├── ingest_from_s3.py              # Parallel S3 -&gt; ClickHouse ingestion
+│   ├── upload_to_s3.py                # Multipart S3 upload with progress
+│   ├── setup_s3_integration.py        # IAM role and policies for S3 access
+│   ├── ec2_generate_and_upload.py     # Generate on EC2, stream straight to S3
+│   ├── launch_ec2_data_generator.py   # Launch the EC2 generator instance
+│   ├── monitor_generation.py          # Generation progress / ETA
+│   └── terminate_ec2.py               # Terminate the generator instance
 ├── sql/
 │   ├── 01_create_database.sql         # Database setup
 │   ├── 02_create_main_table.sql       # Query-suite table (29 columns)
@@ -516,11 +536,31 @@ SETTINGS
 <h2>Project Structure</h2>
 <pre><code>usecase/device-360/
 ├── README.md                          # This file
+├── setup.sh                           # Automates data generation, upload and ingestion
+├── quick-test.sh                      # Small-scale validation (1 GB of data)
+├── simple_test.py                     # Ingestion + benchmark without scaling
+├── quick_ingest_test.py               # Ingestion + benchmark without scaling (quick variant)
+├── run_scale_test.py                  # Sequential scale test: 8 -&gt; 16 -&gt; 24 vCPU
+├── test_connection.py                 # Connection check
+├── requirements.txt                   # Python dependencies
+├── CHECKLIST.md, USAGE_GUIDE.md, PROJECT_SUMMARY.md  # Checklist, usage guide, summary (Korean)
+├── device360-test-plan.md             # Test plan
 ├── scripts/
 │   ├── generate_with_persistence.py   # Benchmark-track generator (500M rows with time persistence, to S3)
 │   ├── generate_data.py               # Query-suite generator (local gzipped JSON)
 │   ├── run_query_benchmark.sh         # Basic query benchmark script
-│   └── comprehensive_query_benchmark.sh # Concurrency testing script
+│   ├── comprehensive_query_benchmark.sh # Concurrency testing script
+│   ├── run_benchmarks.py              # Query benchmark runner
+│   ├── scale_ingestion_test.py        # Ingestion at 8/16/24 vCPU
+│   ├── scale_test_runner.py           # Ingestion + query performance per vCPU configuration
+│   ├── generate_report.py             # Report from scale-test results
+│   ├── ingest_from_s3.py              # Parallel S3 -&gt; ClickHouse ingestion
+│   ├── upload_to_s3.py                # Multipart S3 upload with progress
+│   ├── setup_s3_integration.py        # IAM role and policies for S3 access
+│   ├── ec2_generate_and_upload.py     # Generate on EC2, stream straight to S3
+│   ├── launch_ec2_data_generator.py   # Launch the EC2 generator instance
+│   ├── monitor_generation.py          # Generation progress / ETA
+│   └── terminate_ec2.py               # Terminate the generator instance
 ├── sql/
 │   ├── 01_create_database.sql         # Database setup
 │   ├── 02_create_main_table.sql       # Query-suite table (29 columns)

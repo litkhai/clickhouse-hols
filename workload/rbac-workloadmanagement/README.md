@@ -33,6 +33,11 @@ In this lab you will learn:
 rbac-workloadmanagement/
 ├── README.md                      # This file
 ├── rbac-blog-plan.md              # Detailed plan
+├── QUICKSTART.md                  # Quick start guide
+├── USAGE.md                       # How to connect as each user
+├── TEST_REPORT.md                 # Run report
+├── EXECUTIVE_SUMMARY.md           # Run summary
+├── lab.yaml                       # Lab metadata (publishing keys)
 │
 ├── 01-setup.sql                   # Create test environment and data
 ├── 02-create-roles.sql            # Create roles and grant privileges
@@ -45,6 +50,7 @@ rbac-workloadmanagement/
 ├── 09-monitoring.sql              # Monitoring and verification queries
 ├── 99-cleanup.sql                 # Cleanup script
 │
+├── run-all.sh                     # Runs all steps in order
 ├── connect-as.sh                  # Helper script to connect as a user
 └── test-as.sh                     # Privilege test script
 ```
@@ -445,6 +451,11 @@ ClickHouse의 RBAC(Role-Based Access Control)와 워크로드 매니지먼트를
 rbac-workloadmanagement/
 ├── README.md                      # 이 파일
 ├── rbac-blog-plan.md              # 상세 계획서
+├── QUICKSTART.md                  # 빠른 시작 가이드
+├── USAGE.md                       # 사용자별 접속 방법
+├── TEST_REPORT.md                 # 실행 보고서
+├── EXECUTIVE_SUMMARY.md           # 실행 요약
+├── lab.yaml                       # 실습 메타데이터 (게시 키)
 │
 ├── 01-setup.sql                   # 테스트 환경 및 데이터 생성
 ├── 02-create-roles.sql            # 역할 생성 및 권한 부여
@@ -457,6 +468,7 @@ rbac-workloadmanagement/
 ├── 09-monitoring.sql              # 모니터링 및 검증 쿼리
 ├── 99-cleanup.sql                 # 정리 스크립트
 │
+├── run-all.sh                     # 모든 단계를 순서대로 실행
 ├── connect-as.sh                  # 사용자 접속 헬퍼 스크립트
 └── test-as.sh                     # 권한 테스트 스크립트
 ```

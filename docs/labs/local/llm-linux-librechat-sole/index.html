@@ -153,7 +153,7 @@ ollama list
 </ol>
 <h2>디렉토리 구조</h2>
 <pre><code>llm-linux-librechat-sole/
-├── docker compose.yml      # Docker 구성
+├── docker-compose.yml      # Docker 구성
 ├── librechat.yaml          # LibreChat 설정 (MCP 포함)
 ├── .env                    # 환경 변수 (자동 생성)
 ├── .env.example            # 환경 변수 템플릿
@@ -167,7 +167,7 @@ ollama list
 └── README.md               # 이 문서
 </code></pre>
 <h2>설정 파일</h2>
-<h3>docker compose.yml</h3>
+<h3>docker-compose.yml</h3>
 <p>LibreChat과 MongoDB 서비스 정의:
 - <strong>LibreChat</strong>: 포트 3080, Ollama 연결
 - <strong>MongoDB</strong>: 내부 전용, 데이터 영구 저장</p>
@@ -299,7 +299,7 @@ rm .env
 <pre><code class="language-bash">./restart.sh
 </code></pre>
 <h3>외부 접근 허용</h3>
-<p><code>docker compose.yml</code> 수정:</p>
+<p><code>docker-compose.yml</code> 수정:</p>
 <pre><code class="language-yaml">ports:
   - &quot;0.0.0.0:3080:3080&quot;  # 모든 인터페이스에서 접근 가능
 </code></pre>
@@ -314,7 +314,7 @@ docker cp ./mongodb-backup librechat-mongodb:/tmp/backup
 docker exec librechat-mongodb mongorestore /tmp/backup
 </code></pre>
 <h3>리소스 제한</h3>
-<p><code>docker compose.yml</code>에 추가:</p>
+<p><code>docker-compose.yml</code>에 추가:</p>
 <pre><code class="language-yaml">services:
   librechat:
     deploy:
@@ -332,7 +332,7 @@ docker exec librechat-mongodb mongorestore /tmp/backup
 export OLLAMA_NUM_THREAD=8
 </code></pre>
 <h3>2. MongoDB 성능 향상</h3>
-<p><code>docker compose.yml</code>에 추가:</p>
+<p><code>docker-compose.yml</code>에 추가:</p>
 <pre><code class="language-yaml">mongodb:
   command: --wiredTigerCacheSizeGB 2
 </code></pre>
@@ -485,7 +485,7 @@ ollama list
 </ol>
 <h2>디렉토리 구조</h2>
 <pre><code>llm-linux-librechat-sole/
-├── docker compose.yml      # Docker 구성
+├── docker-compose.yml      # Docker 구성
 ├── librechat.yaml          # LibreChat 설정 (MCP 포함)
 ├── .env                    # 환경 변수 (자동 생성)
 ├── .env.example            # 환경 변수 템플릿
@@ -499,7 +499,7 @@ ollama list
 └── README.md               # 이 문서
 </code></pre>
 <h2>설정 파일</h2>
-<h3>docker compose.yml</h3>
+<h3>docker-compose.yml</h3>
 <p>LibreChat과 MongoDB 서비스 정의:
 - <strong>LibreChat</strong>: 포트 3080, Ollama 연결
 - <strong>MongoDB</strong>: 내부 전용, 데이터 영구 저장</p>
@@ -631,7 +631,7 @@ rm .env
 <pre><code class="language-bash">./restart.sh
 </code></pre>
 <h3>외부 접근 허용</h3>
-<p><code>docker compose.yml</code> 수정:</p>
+<p><code>docker-compose.yml</code> 수정:</p>
 <pre><code class="language-yaml">ports:
   - &quot;0.0.0.0:3080:3080&quot;  # 모든 인터페이스에서 접근 가능
 </code></pre>
@@ -646,7 +646,7 @@ docker cp ./mongodb-backup librechat-mongodb:/tmp/backup
 docker exec librechat-mongodb mongorestore /tmp/backup
 </code></pre>
 <h3>리소스 제한</h3>
-<p><code>docker compose.yml</code>에 추가:</p>
+<p><code>docker-compose.yml</code>에 추가:</p>
 <pre><code class="language-yaml">services:
   librechat:
     deploy:
@@ -664,7 +664,7 @@ docker exec librechat-mongodb mongorestore /tmp/backup
 export OLLAMA_NUM_THREAD=8
 </code></pre>
 <h3>2. MongoDB 성능 향상</h3>
-<p><code>docker compose.yml</code>에 추가:</p>
+<p><code>docker-compose.yml</code>에 추가:</p>
 <pre><code class="language-yaml">mongodb:
   command: --wiredTigerCacheSizeGB 2
 </code></pre>

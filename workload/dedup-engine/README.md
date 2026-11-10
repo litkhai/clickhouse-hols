@@ -145,6 +145,10 @@ dedup-engine/
 ├── phase3_architecture.py        # Phase 3 테스트
 ├── run_all_tests.py              # 통합 실행 스크립트
 ├── README.md                     # 본 문서
+├── QUICKSTART.md                 # 빠른 시작
+├── TEST_RESULTS.md               # 테스트 결과
+├── COMPREHENSIVE_REPORT.md       # 종합 리포트
+├── lab.yaml                      # 실습 메타데이터 (게시 키)
 └── dedup_test_plan.md            # 전체 테스트 계획서
 ```
 

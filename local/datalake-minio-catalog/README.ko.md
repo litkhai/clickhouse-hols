@@ -109,11 +109,22 @@ datalake-minio-catalog/
 │   ├── setup-multi-catalog.sh      # 다중 카탈로그 설정
 │   ├── config.env                  # 단일 카탈로그 설정 파일
 │   ├── config-multi-catalog.env    # 다중 카탈로그 설정 파일
-│   └── docker-compose.yml          # Docker 서비스 정의
+│   ├── docker-compose.yml          # Docker 서비스 정의
+│   ├── quickstart.sh               # 한 번에 시작
+│   ├── Dockerfile.jupyter          # Jupyter + PySpark 이미지
+│   ├── spark-defaults.conf         # Spark 카탈로그 설정
+│   ├── conf/                       # Hive·Unity 서버 설정
+│   ├── requirements.txt            # Python 의존성
+│   ├── generate_parquet.py         # 샘플 Parquet 생성기
+│   ├── register_data.py            # 샘플 데이터(sample-data/)를 카탈로그에 등록
+│   └── lab.yaml                    # 실습 메타데이터 (게시 키)
 │
 ├── 📚 문서
 │   ├── README.ko.md (이 파일)     # 한글 문서
 │   ├── README.md                   # 영문 문서
+│   ├── README-SIMPLE.md            # 간소화된 설정 (v3.1, 영문)
+│   ├── GETTING_STARTED.md          # 첫 실행 안내 (영문)
+│   ├── CHANGES_v3.1.md, STRUCTURE_SUMMARY.md  # v3.1 변경 내역, 구조 요약 (영문)
 │   └── docs/                       # 상세 문서
 │
 ├── 🧪 테스트
