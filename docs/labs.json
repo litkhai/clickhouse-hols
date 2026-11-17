@@ -1,6 +1,6 @@
 {
   "repo": "clickhouse-hols",
-  "generated": "2026-11-07T06:02:43Z",
+  "generated": "2026-11-17T11:50:26Z",
   "labs": [
     {
       "path": "chc/api/chc-api-test",
@@ -975,6 +975,25 @@
       "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/README.md#한국어",
       "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/resharding/README.md#english",
       "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/resharding/"
+    },
+    {
+      "path": "workload/snapshot-diff",
+      "title_ko": "시간마다 오는 전체 스냅샷에서 바뀐 레코드만 찾기",
+      "summary_ko": "전체 스냅샷을 매시간 다시 받는 MergeTree에서 snapshot_id 경계, 업무 필드만의 tuple 해시, 이전 스냅샷과의 비교로 신규 · 변경 · 삭제를 찾고, 완료 가드가 있는 refreshable MV APPEND로 자동화합니다. 100만 · 1,000만 레코드에서 JOIN 비교와 두 단계 비교의 시간 · 메모리를 쟀습니다.",
+      "title_en": "Diffing hourly full snapshots",
+      "summary_en": "New, changed and deleted records when a source re-delivers a full snapshot every hour: snapshot_id boundary, tuple hash of the business fields, a two-step diff, a guarded refreshable MV; time and memory at 1M and 10M records.",
+      "category": "core-architecture",
+      "target": "cloud",
+      "verified_on": "26.8.1.654",
+      "tags": [
+        "materialized-view",
+        "ingestion",
+        "kafka",
+        "updates-deletes"
+      ],
+      "readme_ko": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/snapshot-diff/README.md#한국어",
+      "readme_en": "https://github.com/litkhai/clickhouse-hols/blob/main/workload/snapshot-diff/README.md#english",
+      "pages": "https://litkhai.github.io/clickhouse-hols/labs/workload/snapshot-diff/"
     },
     {
       "path": "workload/upsert-across-versions",

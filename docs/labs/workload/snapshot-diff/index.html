@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffing hourly full snapshots: new, changed and deleted records · ClickHouse HOLs</title>
+<meta name="description" content="Diffing hourly full snapshots: new, changed and deleted records — hands-on ClickHouse lab.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%23faff69'/><g fill='%23000'><rect x='10' y='12' width='8' height='40'/><rect x='22' y='12' width='8' height='40'/><rect x='34' y='12' width='8' height='40'/><rect x='46' y='28' width='8' height='8'/></g></svg>">
+<link rel="stylesheet" href="../../../assets/site.css">
+<script src="../../../assets/site.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="../../../index.html">
+      <span class="mark" aria-hidden="true"></span>ClickHouse HOLs
+    </a>
+    <div class="spacer"></div>
+    <div class="switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="ko" aria-pressed="false">KO</button>
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    </div>
+    <div class="switch" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" title="Light" aria-pressed="false">☀</button>
+      <button type="button" data-set-theme="auto" title="System" aria-pressed="true">◐</button>
+      <button type="button" data-set-theme="dark" title="Dark" aria-pressed="false">☾</button>
+    </div>
+    <a class="ghlink" href="https://github.com/litkhai/clickhouse-hols">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <nav class="crumbs">
+    <a href="../../../index.html"><span class="en">All labs</span><span class="ko">전체 실습</span></a>
+    <span aria-hidden="true">/</span><code>workload/snapshot-diff</code>
+    
+  </nav>
+  <div class="readme en"><h1>Diffing hourly full snapshots: new, changed and deleted records</h1>
+<hr />
+<p>A source re-delivers a <strong>full snapshot</strong> every hour into a plain <code>MergeTree</code>, for example through the
+ClickHouse Kafka Connect Sink: every record again, one row per record, a <code>record_key</code>, 25 <code>Nullable(String)</code>
+business fields, an <code>event_timestamp</code> that moves on every delivery and an <code>ingestion_timestamp</code> set when the
+row is written. Downstream wants only the records that are <strong>new</strong>, <strong>changed</strong> or <strong>deleted</strong> since the
+previous snapshot. This lab builds that diff on ClickHouse Cloud, shows four ways it goes wrong, automates it
+with a refreshable materialized view that appends to a changes table, and measures it at 1M and 10M records.</p>
+<p>Refreshable MVs in general (<code>APPEND</code>, <code>APPEND INCREMENTAL</code>, scheduling) are in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv">workload/mv-vs-rmv</a>; insert-time MVs over <code>ReplacingMergeTree</code> are in
+<a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree-mv">workload/replacingmergetree-mv</a>. This lab does not repeat them.</p>
+<h3>Run it</h3>
+<pre><code class="language-bash">cd workload/snapshot-diff
+./run.sh                 # 00 → 06 and errors/01 on a ClickHouse Cloud service, then 99 → results/cloud-&lt;version&gt;.txt
+KEEP=1 ./run.sh          # the same, keeping the snapdiff database for screenshots; run 99-cleanup.sql afterwards
+./scale.py               # 1M and 10M records x 25 fields, 2 runs per probe → results/scale-&lt;version&gt;&lt;tag&gt;.json
+local/run.sh 9000        # APPEND INCREMENTAL on a local 26.9+ server → results/local-&lt;version&gt;.txt
+</code></pre>
+<p><code>run.sh</code> and <code>scale.py</code> read <code>CH_HOST</code>, <code>CH_USER</code> and <code>CH_PASSWORD</code> from an env file (default
+<code>~/.config/khai-harness/secrets/clickhouse-seoul.env</code>) and never print them. They use <code>clickhouse client</code>
+when it is on <code>PATH</code>, otherwise the <code>clickhouse/clickhouse-server:26.10.3.7</code> image through Docker. Each SQL
+file runs in one client session with <code>--echo --ignore-error</code>; the service hostname is replaced by <code>&lt;service&gt;</code>
+in every output file. <code>scale.py</code> reads duration, rows read and peak memory from <code>system.query_log</code> on all
+replicas, by query id.</p>
+<h3>Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00-setup.sql</code></td>
+<td>database <code>snapdiff</code>; <code>gen(n, v, sid)</code>, a parameterized view that returns one full snapshot (base <code>v = 0</code>, next <code>v = 1</code>: 0.3 % of keys gone, 0.5 % added, 1 % with <code>f03</code> changed, <code>f06</code> from <code>NULL</code> to <code>''</code> for 1 key in 100,000; five fields 10 % <code>NULL</code>); <code>raw</code> (<code>PARTITION BY snapshot_id ORDER BY (snapshot_id, record_key)</code>, <code>row_hash</code> <code>MATERIALIZED</code>), <code>manifest</code> (one row per finished snapshot with its record count), <code>changes</code> (what consumers read)</td>
+</tr>
+<tr>
+<td><code>01-boundary.sql</code></td>
+<td>two snapshots loaded over 8 minutes each, starting at hh:56, plus one re-delivered batch; what an hourly window on <code>ingestion_timestamp</code> holds against <code>snapshot_id</code>, and the diff by each</td>
+</tr>
+<tr>
+<td><code>02-row-hash.sql</code></td>
+<td><code>cityHash64</code> on literals (variadic with <code>NULL</code>, <code>tuple</code>, shifted strings, <code>ifNull</code>); the diff with four hashes: <code>tuple</code> of the 25 fields, variadic, <code>ifNull(f, '')</code>, <code>tuple</code> with <code>event_timestamp</code></td>
+</tr>
+<tr>
+<td><code>03-diff.sql</code></td>
+<td>the diff: current <code>LEFT JOIN</code> previous (<code>record_key</code>, <code>row_hash</code>) <code>USING (record_key)</code> → new / changed, previous <code>LEFT ANTI JOIN</code> current keys → deleted; the same classification in one <code>GROUP BY</code>; the old and new value of each changed field</td>
+</tr>
+<tr>
+<td><code>04-rmv.sql</code></td>
+<td><code>diff_rmv</code> (<code>REFRESH EVERY 1 HOUR OFFSET 30 MINUTE APPEND TO changes</code>, guarded by the manifest and an <code>'end'</code> row per snapshot; the diff in two steps: classify keys by <code>GROUP BY</code>, then join only the changed keys to their rows) against <code>diff_rmv_naive</code> (newest <code>snapshot_id</code> against the one before); a refresh on a 60 % load, after the load, two idle refreshes, a snapshot with no change; what a consumer reads; <code>system.view_refreshes</code> on both replicas; every refresh and the rows it wrote (<code>query_log</code>); parts per refresh</td>
+</tr>
+<tr>
+<td><code>05-insert-mv.sql</code></td>
+<td>the insert-time alternative: a <code>ReplacingMergeTree</code> state table of the last hash per key, an MV that joins every inserted block to it, and an MV that updates it; the next snapshot in 10 inserts</td>
+</tr>
+<tr>
+<td><code>06-ttl.sql</code></td>
+<td><code>TTL snapshot_id + INTERVAL 3 HOUR</code> with <code>ttl_only_drop_parts = 1</code> on six hourly snapshots; the guarded MV when the previous snapshot has been dropped, against a diff with an empty previous side</td>
+</tr>
+<tr>
+<td><code>errors/01-append-incremental.sql</code></td>
+<td><code>REFRESH … APPEND INCREMENTAL</code> on a 26.8 service (Code 62, it arrived in 26.9)</td>
+</tr>
+<tr>
+<td><code>local/26.9-append-incremental.sql</code></td>
+<td><code>APPEND INCREMENTAL</code> on 26.9: the JOIN diff is rejected (Code 36), the one-table <code>GROUP BY</code> diff sees only the new rows</td>
+</tr>
+<tr>
+<td><code>scale.py</code></td>
+<td>1M and 10M records: load, the JOIN diff and its variants, the <code>GROUP BY</code> classification, the two-step diff, the guard, a plain <code>ORDER BY record_key</code> table without partitions, one refresh that compares and one with nothing to do, and the insert-time MVs; 2 runs each. <code>--lean</code> skips three JOIN variants, <code>--resume</code> continues a run that broke off with the snapshots still loaded</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td>drops the <code>snapdiff</code> database</td>
+</tr>
+</tbody>
+</table>
+<h3>Results</h3>
+<p>Verified on ClickHouse Cloud 26.8.1.654 (Seoul, ap-northeast-2), 2 replicas of 8 GiB with <code>max_threads</code> 2
+(<code>max_server_memory_usage</code> 6.85 GiB), 2026-11-17, through <code>clickhouse client</code> 26.9.6.6. <code>APPEND INCREMENTAL</code>
+on ClickHouse 26.9.6.6 (official macOS build, one local server), the same day. Every number below is copied
+from <code>results/cloud-26.8.1.654.txt</code>, <code>results/scale-*</code> and <code>results/local-26.9.6.6.txt</code>. The service autoscales
+(8 to 120 GiB per replica); during the 10M run it moved to 12 GiB replicas, so the scale numbers name the size
+they ran on.</p>
+<p><strong>The diff of the next snapshot against the base, 10,000 records</strong> (truth from the generator's rules: 50 new,
+101 changed, 30 deleted):</p>
+<table>
+<thead>
+<tr>
+<th>Case (file)</th>
+<th>new</th>
+<th>changed</th>
+<th>deleted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hourly window on <code>ingestion_timestamp</code>, 11:00 against 10:00 (<code>01</code>)</td>
+<td>2,487</td>
+<td>29</td>
+<td>3,830</td>
+</tr>
+<tr>
+<td><code>snapshot_id</code>, one batch re-delivered, no dedupe (<code>01</code>)</td>
+<td>61</td>
+<td>120</td>
+<td>30</td>
+</tr>
+<tr>
+<td><code>snapshot_id</code>, <code>LIMIT 1 BY record_key</code> (<code>01</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+<tr>
+<td>hash: <code>cityHash64(tuple(f01, …, f25))</code> (<code>02</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+<tr>
+<td>hash: <code>cityHash64(f01, …, f25)</code>, <code>NULL</code> for 4,217 of 10,020 rows (<code>02</code>)</td>
+<td>50</td>
+<td>57</td>
+<td>30</td>
+</tr>
+<tr>
+<td>hash: <code>cityHash64(tuple(ifNull(f, '') …))</code> (<code>02</code>)</td>
+<td>50</td>
+<td>100</td>
+<td>30</td>
+</tr>
+<tr>
+<td>hash: <code>tuple</code> with <code>event_timestamp</code> (<code>02</code>)</td>
+<td>50</td>
+<td>9,970</td>
+<td>30</td>
+</tr>
+<tr>
+<td>one <code>GROUP BY</code> over both snapshots, keys only (<code>03</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>cityHash64(NULL::Nullable(String), 'a')</code> returns <code>NULL</code>; the <code>tuple</code> form returns a value and a different one
+for <code>''</code>. <code>cityHash64(concat('ab', 'c')) = cityHash64(concat('a', 'bc'))</code> is true; with <code>tuple</code> it is false.</p>
+<p><strong>The refreshable MV</strong> (<code>04</code>):</p>
+<table>
+<thead>
+<tr>
+<th>After</th>
+<th><code>diff_rmv_naive</code></th>
+<th><code>diff_rmv</code> (guarded)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a refresh while 60 % of the 10:00 snapshot was loaded</td>
+<td>25 new · 54 changed · 3,959 deleted</td>
+<td>nothing (only the 09:00 <code>'end'</code> row)</td>
+</tr>
+<tr>
+<td>the load finished and the manifest row arrived, one refresh</td>
+<td>75 · 155 · 3,989 (appended on top)</td>
+<td>50 · 101 · 30 + <code>'end'</code></td>
+</tr>
+<tr>
+<td>two more refreshes with nothing new</td>
+<td>—</td>
+<td>two refreshes, 0 rows each</td>
+</tr>
+<tr>
+<td>the 11:00 snapshot, same records as 10:00</td>
+<td>—</td>
+<td>one <code>'end'</code> row, no change rows</td>
+</tr>
+</tbody>
+</table>
+<p>Rows written per refresh, from <code>system.query_log</code>: naive 0 (at <code>CREATE</code>), 4,038, 181; guarded 1 (the 09:00
+baseline <code>'end'</code> row, at <code>CREATE</code>), 0, 182, 0, 0, 1. The naive MV appended the full diff on top of the partial
+one; with <code>APPEND</code>, nothing stops a refresh from writing the same snapshot again, and the <code>'end'</code> row is what
+makes the guarded MV write each snapshot once. <code>system.view_refreshes</code> showed each view on both replicas with
+the same <code>next_refresh_time</code> (12:30:00 for an 11:42 run: the hour + 30 minutes); <code>read_rows</code> and
+<code>written_rows</code> were filled on one replica only. Each refresh wrote one part to <code>changes</code> (182 rows for the
+10:00 diff).</p>
+<p><strong>Insert-time MV against a <code>ReplacingMergeTree</code> state table</strong> (<code>05</code>, <code>parallel_view_processing</code> = 1 on the
+service): the 10:00 snapshot in 10 inserts gave 50 new and 101 changed, no deletes (30 expected), and the
+first snapshot came out as 10,000 new records.</p>
+<p><strong><code>APPEND INCREMENTAL</code></strong> (26.9.6.6, <code>local/</code>): the JOIN diff is rejected with
+<code>Incremental refresh requires exactly one source table (no joins)</code> (Code 36). The one-table <code>GROUP BY</code> form is
+accepted, but the refresh after the 10:00 load saw only the rows inserted since the previous refresh, and wrote
+all 10,020 records as new. On the 26.8 service the statement does not parse (Code 62).</p>
+<p><strong>TTL</strong> (<code>06</code>): with <code>TTL snapshot_id + INTERVAL 3 HOUR</code> and <code>ttl_only_drop_parts = 1</code>, six hourly snapshots
+became three (0, 1 and 2 hours old) after <code>OPTIMIZE … FINAL</code>. When the previous snapshot had been dropped from
+<code>raw</code>, the guarded MV wrote nothing for the next one; the same diff with an empty previous side reports every
+record of the next snapshot as new (10,000 here).</p>
+<h4>At 1M and 10M records</h4>
+<p>One snapshot of 1M records is 170 MB compressed (388 MB uncompressed) in <code>raw</code>; 10M is 1.69 GB (3.96 GB).
+Three runs, all 2026-11-17 (UTC), logs and JSON in <code>results/</code>:</p>
+<ul>
+<li><strong>run 1</strong> (<code>scale-run-1.log</code>, 08:37–08:46): 2 replicas of 8 GiB (6.85 GiB usable), <code>max_threads</code> 2. It stopped
+  at 10M when a replica was replaced: after the JOIN diffs ran out of memory, the service scaled up.</li>
+<li><strong>run 2</strong> (<code>scale-run-2.log</code>, <code>scale-26.8.1.654-run-2.json</code>, 08:48–09:02, <code>--lean</code>): during the change (old 8 GiB
+  and new replicas side by side). Stopped by a DNS failure on the client side at 10M.</li>
+<li><strong>run 3</strong> (<code>scale-run-3.log</code>, <code>scale-26.8.1.654-10m-resume.json</code>, 11:36–11:42, <code>--lean --resume</code>): the rest of
+  10M on 2 replicas of 12 GiB (10.67 GiB usable), <code>max_threads</code> 3.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>1M records</th>
+<th>10M records</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JOIN diff (<code>03</code>), <code>row_hash</code> column</td>
+<td>1.65–5.29 s · 1.31 GiB (run 1)</td>
+<td>run 1: ✗ Code 241 both runs (query at 4.10–4.39 GiB when the server reached 6.85 GiB); run 2: ✗ 241 on an 8 GiB replica, then 12.5 s · <strong>6.73 GiB</strong> on a larger one</td>
+</tr>
+<tr>
+<td>JOIN diff, hash computed at query time</td>
+<td>3.01–4.01 s · 1.13 GiB (run 1)</td>
+<td>✗ Code 241 (run 1)</td>
+</tr>
+<tr>
+<td>JOIN diff, no <code>LIMIT 1 BY</code></td>
+<td>1.38–2.29 s · 1.31 GiB (run 1)</td>
+<td>✗ Code 241 (run 1)</td>
+</tr>
+<tr>
+<td>JOIN diff, <code>full_sorting_merge</code> (the anti join falls back to hash)</td>
+<td>2.21–4.55 s · 1.50 GiB (run 1)</td>
+<td>✗ Code 241 (run 1)</td>
+</tr>
+<tr>
+<td><code>GROUP BY</code> classification, keys and hashes only</td>
+<td>0.25–0.32 s · 275 MiB (run 1)</td>
+<td>6.39–11.19 s · 2.47 GiB (run 1); 2.3–3.5 s · 1.96 GiB (runs 2–3)</td>
+</tr>
+<tr>
+<td>two-step diff (classify, then join the changed keys to their rows)</td>
+<td>1.17–1.33 s · 421–614 MiB (run 2)</td>
+<td>11.1–18.6 s · <strong>1.97 GiB</strong>, 4 runs (runs 2–3)</td>
+</tr>
+<tr>
+<td>two-step diff on a plain <code>ORDER BY record_key</code> table without partitions</td>
+<td>1.20–1.22 s · 633 MiB (run 2)</td>
+<td>10.3–18.3 s · 2.66 GiB (run 3)</td>
+</tr>
+<tr>
+<td>guard: <code>uniqExact(record_key)</code> of one snapshot</td>
+<td>0.09–0.10 s · 111 MiB</td>
+<td>1.12–1.49 s · 784 MiB (run 1); 0.56–1.22 s · 1.02 GiB (run 3)</td>
+</tr>
+<tr>
+<td>refresh that compares (<code>diff_rmv</code>, two-step)</td>
+<td>1.02 s · 602 MiB, wrote 18,011 rows (run 2)</td>
+<td>12.18 s · 1.96 GiB, wrote 180,101 rows (run 3)</td>
+</tr>
+<tr>
+<td>refresh with nothing to do</td>
+<td>0.13 s · 3 MiB (run 2)</td>
+<td>0.03 s · 3 MiB (run 3)</td>
+</tr>
+<tr>
+<td>one tenth of a snapshot inserted, no MV</td>
+<td>0.86–0.87 s</td>
+<td>3.65 s · 704 MiB (run 3)</td>
+</tr>
+<tr>
+<td>the same, with the two insert-time MVs (<code>05</code>)</td>
+<td>0.69–1.86 s per tenth · 355 MiB</td>
+<td>10.0–29.7 s per tenth · <strong>5.07 GiB</strong> (run 3)</td>
+</tr>
+</tbody>
+</table>
+<p>The refreshes wrote the truth at both sizes (5,000 · 10,010 · 3,000 and 50,000 · 100,100 · 30,000, plus the
+<code>'end'</code> rows). The insert-time MVs found the same new and changed records and no deletes. Rows read were the same
+for the partitioned table and the plain one here because the table held only the two snapshots being compared;
+the plain table's reads grow with every snapshot it keeps, which was not measured.</p>
+<h3>What this lab does not check</h3>
+<ul>
+<li>The Kafka Connect Sink itself: snapshots are generated with <code>INSERT … SELECT</code>, and the re-delivered batch is
+  simulated. How the sink's exactly-once mode or retries split batches was not tested.</li>
+<li>How consumers are notified beyond polling <code>changes</code>: no Kafka engine table, ClickPipes or webhook.</li>
+<li>Snapshots larger than 10M records, or a service with more memory than 8 GiB per replica.</li>
+</ul>
+<hr /></div>
+  <div class="readme ko"><p>원천이 매시간 <strong>전체 스냅샷</strong>을 일반 <code>MergeTree</code>로 다시 보내는 경우입니다(예: ClickHouse Kafka Connect
+Sink). 모든 레코드가 매번 다시 오고, 레코드마다 한 행에 <code>record_key</code>, <code>Nullable(String)</code> 업무 필드 25개,
+전달할 때마다 바뀌는 <code>event_timestamp</code>, 행을 쓸 때 정해지는 <code>ingestion_timestamp</code>가 있습니다. 하위 시스템은
+이전 스냅샷 이후 <strong>새로 생긴</strong>, <strong>바뀐</strong>, <strong>사라진</strong> 레코드만 원합니다. 이 실습은 ClickHouse Cloud에서 그
+비교를 만들고, 틀어지는 경우 네 가지를 보이고, 변경 테이블에 덧붙이는 refreshable materialized view로
+자동화하고, 100만 · 1,000만 레코드에서 비용을 잽니다.</p>
+<p>refreshable MV 일반(<code>APPEND</code>, <code>APPEND INCREMENTAL</code>, 일정)은 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/mv-vs-rmv">workload/mv-vs-rmv</a>가,
+<code>ReplacingMergeTree</code> 위의 INSERT 시점 MV는 <a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/replacingmergetree-mv">workload/replacingmergetree-mv</a>가
+다룹니다. 여기서는 반복하지 않습니다.</p>
+<h3>실행</h3>
+<pre><code class="language-bash">cd workload/snapshot-diff
+./run.sh                 # ClickHouse Cloud 서비스에서 00 → 06, errors/01, 99 → results/cloud-&lt;버전&gt;.txt
+KEEP=1 ./run.sh          # 같은 실행, 화면 캡처를 위해 snapdiff 데이터베이스를 남김. 끝나면 99-cleanup.sql 실행
+./scale.py               # 100만 · 1,000만 레코드 x 필드 25개, 측정마다 2회 → results/scale-&lt;버전&gt;&lt;tag&gt;.json
+local/run.sh 9000        # 로컬 26.9 이상 서버에서 APPEND INCREMENTAL → results/local-&lt;버전&gt;.txt
+</code></pre>
+<p><code>run.sh</code>와 <code>scale.py</code>는 env 파일(기본 <code>~/.config/khai-harness/secrets/clickhouse-seoul.env</code>)에서
+<code>CH_HOST</code>, <code>CH_USER</code>, <code>CH_PASSWORD</code>를 읽고 출력하지 않습니다. <code>PATH</code>에 <code>clickhouse client</code>가 있으면 그것을,
+없으면 Docker로 <code>clickhouse/clickhouse-server:26.10.3.7</code> 이미지를 씁니다. SQL 파일마다 클라이언트 세션
+하나로 <code>--echo --ignore-error</code> 실행하고, 모든 출력에서 서비스 호스트 이름은 <code>&lt;service&gt;</code>로 바꿉니다.
+<code>scale.py</code>는 시간, 읽은 행, 최대 메모리를 query id로 모든 레플리카의 <code>system.query_log</code>에서 읽습니다.</p>
+<h3>파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00-setup.sql</code></td>
+<td>데이터베이스 <code>snapdiff</code>. <code>gen(n, v, sid)</code>: 전체 스냅샷 하나를 돌려주는 매개변수 뷰(기준 <code>v = 0</code>, 다음 <code>v = 1</code>: 키 0.3 % 사라짐, 0.5 % 추가, 1 %는 <code>f03</code> 변경, 10만 개 중 1개는 <code>f06</code>이 <code>NULL</code>에서 <code>''</code>로. 필드 다섯 개는 10 %가 <code>NULL</code>). <code>raw</code>(<code>PARTITION BY snapshot_id ORDER BY (snapshot_id, record_key)</code>, <code>row_hash</code>는 <code>MATERIALIZED</code>), <code>manifest</code>(끝난 스냅샷마다 레코드 수 한 행), <code>changes</code>(소비자가 읽는 테이블)</td>
+</tr>
+<tr>
+<td><code>01-boundary.sql</code></td>
+<td>hh:56부터 8분씩 적재되는 스냅샷 두 개와 다시 전달된 배치 하나. <code>ingestion_timestamp</code>의 시간 창과 <code>snapshot_id</code>가 각각 무엇을 담는지, 각각으로 한 비교</td>
+</tr>
+<tr>
+<td><code>02-row-hash.sql</code></td>
+<td>리터럴로 본 <code>cityHash64</code>(<code>NULL</code>이 있는 가변 인자, <code>tuple</code>, 밀린 문자열, <code>ifNull</code>). 해시 네 가지로 한 비교: 필드 25개의 <code>tuple</code>, 가변 인자, <code>ifNull(f, '')</code>, <code>event_timestamp</code>를 넣은 <code>tuple</code></td>
+</tr>
+<tr>
+<td><code>03-diff.sql</code></td>
+<td>비교: 현재 <code>LEFT JOIN</code> 이전(<code>record_key</code>, <code>row_hash</code>) <code>USING (record_key)</code> → 신규 · 변경, 이전 <code>LEFT ANTI JOIN</code> 현재 키 → 삭제. 같은 분류를 <code>GROUP BY</code> 하나로. 바뀐 필드의 이전 값과 새 값</td>
+</tr>
+<tr>
+<td><code>04-rmv.sql</code></td>
+<td><code>diff_rmv</code>(<code>REFRESH EVERY 1 HOUR OFFSET 30 MINUTE APPEND TO changes</code>, manifest와 스냅샷마다 <code>'end'</code> 행으로 보호. 비교는 두 단계: <code>GROUP BY</code>로 키를 분류한 뒤 바뀐 키만 행과 JOIN)와 <code>diff_rmv_naive</code>(가장 새 <code>snapshot_id</code>와 그 전 것). 60 % 적재 중의 갱신, 적재 뒤, 할 일이 없는 갱신 두 번, 변경이 없는 스냅샷. 소비자가 읽는 쿼리. 두 레플리카의 <code>system.view_refreshes</code>. 갱신마다 쓴 행 수(<code>query_log</code>). 갱신당 파트 수</td>
+</tr>
+<tr>
+<td><code>05-insert-mv.sql</code></td>
+<td>INSERT 시점 대안: 키마다 마지막 해시를 두는 <code>ReplacingMergeTree</code> 상태 테이블, 들어온 블록을 그와 JOIN하는 MV, 상태를 갱신하는 MV. 다음 스냅샷을 INSERT 10번으로</td>
+</tr>
+<tr>
+<td><code>06-ttl.sql</code></td>
+<td>시간별 스냅샷 6개에 <code>TTL snapshot_id + INTERVAL 3 HOUR</code>와 <code>ttl_only_drop_parts = 1</code>. 이전 스냅샷이 지워졌을 때 보호된 MV, 이전 쪽이 빈 비교와 대조</td>
+</tr>
+<tr>
+<td><code>errors/01-append-incremental.sql</code></td>
+<td>26.8 서비스에서 <code>REFRESH … APPEND INCREMENTAL</code>(Code 62, 26.9에서 추가)</td>
+</tr>
+<tr>
+<td><code>local/26.9-append-incremental.sql</code></td>
+<td>26.9에서 <code>APPEND INCREMENTAL</code>: JOIN 비교는 거부(Code 36), 테이블 하나의 <code>GROUP BY</code> 비교는 새 행만 봄</td>
+</tr>
+<tr>
+<td><code>scale.py</code></td>
+<td>100만 · 1,000만 레코드: 적재, JOIN 비교와 변형, <code>GROUP BY</code> 분류, 두 단계 비교, 가드, 파티션 없는 <code>ORDER BY record_key</code> 테이블, 비교하는 갱신 한 번과 할 일 없는 갱신 한 번, INSERT 시점 MV. 각 2회. <code>--lean</code>은 JOIN 변형 세 개를 건너뛰고, <code>--resume</code>은 스냅샷을 적재한 채 끊긴 실행을 이어 갑니다</td>
+</tr>
+<tr>
+<td><code>99-cleanup.sql</code></td>
+<td><code>snapdiff</code> 데이터베이스 삭제</td>
+</tr>
+</tbody>
+</table>
+<h3>결과</h3>
+<p>ClickHouse Cloud 26.8.1.654(Seoul, ap-northeast-2), 8 GiB 레플리카 2개, <code>max_threads</code> 2
+(<code>max_server_memory_usage</code> 6.85 GiB)에서 2026-11-17에 <code>clickhouse client</code> 26.9.6.6으로 검증했습니다.
+<code>APPEND INCREMENTAL</code>은 같은 날 ClickHouse 26.9.6.6(공식 macOS 빌드, 로컬 서버 하나)에서 실행했습니다. 아래
+수치는 모두 <code>results/cloud-26.8.1.654.txt</code>, <code>results/scale-*</code>, <code>results/local-26.9.6.6.txt</code>에서 옮겼습니다.
+서비스는 자동 확장(레플리카당 8–120 GiB)이 켜져 있어 1,000만 실행 중에 12 GiB 레플리카로 바뀌었고, 규모 수치에는
+돌았던 크기를 함께 적었습니다.</p>
+<p><strong>레코드 1만 개, 다음 스냅샷과 기준 스냅샷의 비교</strong> (생성 규칙에서 나온 정답: 신규 50, 변경 101, 삭제 30):</p>
+<table>
+<thead>
+<tr>
+<th>경우(파일)</th>
+<th>신규</th>
+<th>변경</th>
+<th>삭제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ingestion_timestamp</code> 시간 창, 11:00과 10:00 비교(<code>01</code>)</td>
+<td>2,487</td>
+<td>29</td>
+<td>3,830</td>
+</tr>
+<tr>
+<td><code>snapshot_id</code>, 배치 하나 재전달, 중복 제거 없음(<code>01</code>)</td>
+<td>61</td>
+<td>120</td>
+<td>30</td>
+</tr>
+<tr>
+<td><code>snapshot_id</code>, <code>LIMIT 1 BY record_key</code>(<code>01</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+<tr>
+<td>해시: <code>cityHash64(tuple(f01, …, f25))</code>(<code>02</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+<tr>
+<td>해시: <code>cityHash64(f01, …, f25)</code>, 10,020행 중 4,217행이 <code>NULL</code>(<code>02</code>)</td>
+<td>50</td>
+<td>57</td>
+<td>30</td>
+</tr>
+<tr>
+<td>해시: <code>cityHash64(tuple(ifNull(f, '') …))</code>(<code>02</code>)</td>
+<td>50</td>
+<td>100</td>
+<td>30</td>
+</tr>
+<tr>
+<td>해시: <code>event_timestamp</code>를 넣은 <code>tuple</code>(<code>02</code>)</td>
+<td>50</td>
+<td>9,970</td>
+<td>30</td>
+</tr>
+<tr>
+<td>두 스냅샷에 <code>GROUP BY</code> 하나, 키만(<code>03</code>)</td>
+<td><strong>50</strong></td>
+<td><strong>101</strong></td>
+<td><strong>30</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>cityHash64(NULL::Nullable(String), 'a')</code>는 <code>NULL</code>을 돌려줍니다. <code>tuple</code> 형태는 값을 돌려주고 <code>''</code>일 때와
+다른 값입니다. <code>cityHash64(concat('ab', 'c')) = cityHash64(concat('a', 'bc'))</code>는 참이고 <code>tuple</code>이면 거짓입니다.</p>
+<p><strong>refreshable MV</strong> (<code>04</code>):</p>
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th><code>diff_rmv_naive</code></th>
+<th><code>diff_rmv</code>(보호)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10:00 스냅샷이 60 % 적재됐을 때 갱신</td>
+<td>신규 25 · 변경 54 · 삭제 3,959</td>
+<td>없음(09:00의 <code>'end'</code> 행만)</td>
+</tr>
+<tr>
+<td>적재가 끝나고 manifest 행이 온 뒤 갱신 한 번</td>
+<td>75 · 155 · 3,989(위에 덧붙음)</td>
+<td>50 · 101 · 30 + <code>'end'</code></td>
+</tr>
+<tr>
+<td>새것이 없는 갱신 두 번 더</td>
+<td>—</td>
+<td>갱신 두 번, 각각 0행</td>
+</tr>
+<tr>
+<td>11:00 스냅샷, 10:00과 같은 레코드</td>
+<td>—</td>
+<td><code>'end'</code> 행 하나, 변경 행 없음</td>
+</tr>
+</tbody>
+</table>
+<p><code>system.query_log</code>에서 본 갱신마다 쓴 행 수: naive 0(<code>CREATE</code> 때), 4,038, 181. 보호된 MV 1(<code>CREATE</code> 때 09:00
+기준 <code>'end'</code> 행), 0, 182, 0, 0, 1. naive MV는 부분 비교 위에 전체 비교를 덧붙였습니다. <code>APPEND</code>에서는 갱신이 같은
+스냅샷을 다시 쓰는 것을 막는 장치가 없고, 보호된 MV가 스냅샷마다 한 번만 쓰게 하는 것이 <code>'end'</code> 행입니다.
+<code>system.view_refreshes</code>는 두 레플리카 모두에 같은 <code>next_refresh_time</code>(11:42 실행에서 12:30:00, 정시 + 30분)으로
+뷰를 보였고, <code>read_rows</code> · <code>written_rows</code>는 한 레플리카에만 찼습니다. 갱신마다 <code>changes</code>에 파트 하나를
+썼습니다(10:00 비교는 182행).</p>
+<p><strong><code>ReplacingMergeTree</code> 상태 테이블과 INSERT 시점 MV</strong> (<code>05</code>, 서비스의 <code>parallel_view_processing</code> = 1):
+10:00 스냅샷을 INSERT 10번으로 넣으니 신규 50, 변경 101, 삭제 0(정답 30)이었고, 첫 스냅샷은 레코드 10,000개
+전부 신규로 나왔습니다.</p>
+<p><strong><code>APPEND INCREMENTAL</code></strong> (26.9.6.6, <code>local/</code>): JOIN 비교는
+<code>Incremental refresh requires exactly one source table (no joins)</code>(Code 36)로 거부됩니다. 테이블 하나의
+<code>GROUP BY</code> 형태는 받아들여지지만, 10:00 적재 뒤의 갱신은 직전 갱신 이후 들어온 행만 보고 10,020개를 모두 신규로
+썼습니다. 26.8 서비스에서는 구문이 해석되지 않습니다(Code 62).</p>
+<p><strong>TTL</strong> (<code>06</code>): <code>TTL snapshot_id + INTERVAL 3 HOUR</code>와 <code>ttl_only_drop_parts = 1</code>에서 시간별 스냅샷 6개가
+<code>OPTIMIZE … FINAL</code> 뒤 3개(0, 1, 2시간 전)로 줄었습니다. 이전 스냅샷이 <code>raw</code>에서 지워진 상태에서 보호된 MV는
+다음 스냅샷에 대해 아무것도 쓰지 않았습니다. 이전 쪽이 빈 같은 비교는 다음 스냅샷의 레코드를 모두 신규로
+보고합니다(여기서는 10,000개).</p>
+<h4>100만 · 1,000만 레코드</h4>
+<p>레코드 100만 개 스냅샷 하나는 <code>raw</code>에서 압축 170 MB(비압축 388 MB), 1,000만 개는 1.69 GB(3.96 GB)입니다.
+실행은 세 번, 모두 2026-11-17(UTC)이고 로그와 JSON은 <code>results/</code>에 있습니다.</p>
+<ul>
+<li><strong>실행 1</strong>(<code>scale-run-1.log</code>, 08:37–08:46): 8 GiB 레플리카 2개(사용 가능 6.85 GiB), <code>max_threads</code> 2. 1,000만에서
+  JOIN 비교가 메모리를 넘긴 뒤 서비스가 확장되며 레플리카가 교체되어 멈췄습니다.</li>
+<li><strong>실행 2</strong>(<code>scale-run-2.log</code>, <code>scale-26.8.1.654-run-2.json</code>, 08:48–09:02, <code>--lean</code>): 교체 중(기존 8 GiB와 새
+  레플리카가 함께 있음). 1,000만에서 클라이언트 쪽 DNS 실패로 멈췄습니다.</li>
+<li><strong>실행 3</strong>(<code>scale-run-3.log</code>, <code>scale-26.8.1.654-10m-resume.json</code>, 11:36–11:42, <code>--lean --resume</code>): 1,000만의
+  나머지를 12 GiB 레플리카 2개(사용 가능 10.67 GiB), <code>max_threads</code> 3에서.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>측정</th>
+<th>레코드 100만</th>
+<th>레코드 1,000만</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JOIN 비교(<code>03</code>), <code>row_hash</code> 열</td>
+<td>1.65–5.29초 · 1.31 GiB(실행 1)</td>
+<td>실행 1: 두 번 모두 ✗ Code 241(서버가 6.85 GiB에 닿았을 때 쿼리 4.10–4.39 GiB). 실행 2: 8 GiB 레플리카에서 ✗ 241, 더 큰 레플리카에서 12.5초 · <strong>6.73 GiB</strong></td>
+</tr>
+<tr>
+<td>JOIN 비교, 조회 때 해시 계산</td>
+<td>3.01–4.01초 · 1.13 GiB(실행 1)</td>
+<td>✗ Code 241(실행 1)</td>
+</tr>
+<tr>
+<td>JOIN 비교, <code>LIMIT 1 BY</code> 없음</td>
+<td>1.38–2.29초 · 1.31 GiB(실행 1)</td>
+<td>✗ Code 241(실행 1)</td>
+</tr>
+<tr>
+<td>JOIN 비교, <code>full_sorting_merge</code>(anti join은 hash로)</td>
+<td>2.21–4.55초 · 1.50 GiB(실행 1)</td>
+<td>✗ Code 241(실행 1)</td>
+</tr>
+<tr>
+<td><code>GROUP BY</code> 분류, 키와 해시만</td>
+<td>0.25–0.32초 · 275 MiB(실행 1)</td>
+<td>6.39–11.19초 · 2.47 GiB(실행 1). 2.3–3.5초 · 1.96 GiB(실행 2–3)</td>
+</tr>
+<tr>
+<td>두 단계 비교(분류한 뒤 바뀐 키만 행과 JOIN)</td>
+<td>1.17–1.33초 · 421–614 MiB(실행 2)</td>
+<td>11.1–18.6초 · <strong>1.97 GiB</strong>, 4회(실행 2–3)</td>
+</tr>
+<tr>
+<td>파티션 없는 <code>ORDER BY record_key</code> 테이블에서 두 단계 비교</td>
+<td>1.20–1.22초 · 633 MiB(실행 2)</td>
+<td>10.3–18.3초 · 2.66 GiB(실행 3)</td>
+</tr>
+<tr>
+<td>가드: 스냅샷 하나의 <code>uniqExact(record_key)</code></td>
+<td>0.09–0.10초 · 111 MiB</td>
+<td>1.12–1.49초 · 784 MiB(실행 1). 0.56–1.22초 · 1.02 GiB(실행 3)</td>
+</tr>
+<tr>
+<td>비교하는 갱신(<code>diff_rmv</code>, 두 단계)</td>
+<td>1.02초 · 602 MiB, 18,011행 씀(실행 2)</td>
+<td>12.18초 · 1.96 GiB, 180,101행 씀(실행 3)</td>
+</tr>
+<tr>
+<td>할 일이 없는 갱신</td>
+<td>0.13초 · 3 MiB(실행 2)</td>
+<td>0.03초 · 3 MiB(실행 3)</td>
+</tr>
+<tr>
+<td>스냅샷의 10분의 1 INSERT, MV 없음</td>
+<td>0.86–0.87초</td>
+<td>3.65초 · 704 MiB(실행 3)</td>
+</tr>
+<tr>
+<td>같은 INSERT, INSERT 시점 MV 두 개(<code>05</code>)</td>
+<td>10분의 1마다 0.69–1.86초 · 355 MiB</td>
+<td>10분의 1마다 10.0–29.7초 · <strong>5.07 GiB</strong>(실행 3)</td>
+</tr>
+</tbody>
+</table>
+<p>갱신은 두 크기 모두 정답을 썼습니다(5,000 · 10,010 · 3,000, 50,000 · 100,100 · 30,000, 그리고 <code>'end'</code> 행).
+INSERT 시점 MV는 같은 신규 · 변경 레코드를 찾았고 삭제는 찾지 못했습니다. 파티션이 있는 테이블과 없는 테이블의
+읽은 행 수가 같았던 것은 비교하는 두 스냅샷만 들어 있었기 때문입니다. 파티션 없는 테이블은 보관하는 스냅샷이
+늘수록 읽는 양이 늘어나며, 이는 재지 않았습니다.</p>
+<h3>이 실습이 확인하지 않은 것</h3>
+<ul>
+<li>Kafka Connect Sink 자체: 스냅샷은 <code>INSERT … SELECT</code>로 만들고 재전달 배치는 흉내 냈습니다. 싱크의
+  exactly-once 모드나 재시도가 배치를 어떻게 나누는지는 시험하지 않았습니다.</li>
+<li><code>changes</code>를 주기적으로 읽는 것 말고 소비자에게 알리는 방법: Kafka 엔진 테이블, ClickPipes, 웹훅은 없습니다.</li>
+<li>1,000만 레코드보다 큰 스냅샷, 레플리카당 8 GiB보다 큰 서비스.</li>
+</ul></div>
+  <p class="src"><a href="https://github.com/litkhai/clickhouse-hols/tree/main/workload/snapshot-diff"><span class="en">Open this lab on GitHub →</span><span class="ko">GitHub에서 이 실습 열기 →</span></a></p>
+  <nav class="pager"><a class="step prev" href="../../../labs/workload/replacingmergetree-mv/index.html"><span class="dir"><span class="en">← Previous</span><span class="ko">← 이전</span></span><span class="what">Aggregating materialized views over ReplacingMergeTree</span></a><a class="step next" href="../../../labs/workload/resharding/index.html"><span class="dir"><span class="en">Next →</span><span class="ko">다음 →</span></span><span class="what">Resharding a self-managed ClickHouse cluster: 2 → 3 shards</span></a></nav>
+</main>
+
+<footer class="wrap">
+  <p><span class="en">Generated from the repository by <code>.github/scripts/build_site.py</code>. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, except where a directory says otherwise. <a href="https://github.com/litkhai/clickhouse-hols">Source on GitHub</a>.</span><span class="ko">저장소 내용에서 <code>.github/scripts/build_site.py</code>로 생성됩니다. <a href="https://github.com/litkhai/clickhouse-hols/blob/main/LICENSE">MIT</a>, 디렉토리에 별도 표기가 있는 경우는 예외입니다. <a href="https://github.com/litkhai/clickhouse-hols">GitHub 저장소</a>.</span></p>
+</footer>
+</body>
+</html>
