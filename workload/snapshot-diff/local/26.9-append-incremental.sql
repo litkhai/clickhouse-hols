@@ -1,0 +1,56 @@
+-- local/26.9-append-incremental.sql: REFRESH ... APPEND INCREMENTAL (26.9+) on a snapshot diff.
+--
+-- Run after 00-setup.sql on a 26.9 or later server (verified on 26.9.6.6), with --ignore-error:
+--   clickhouse client -n --ignore-error < 00-setup.sql
+--   clickhouse client -n --ignore-error < local/26.9-append-incremental.sql
+-- An incremental refresh reads only the rows committed to its one source table since the previous refresh.
+-- The source needs enable_block_number_column = 1 and enable_block_offset_column = 1.
+
+DROP VIEW IF EXISTS snapdiff.inc_rmv;
+DROP TABLE IF EXISTS snapdiff.raw_inc;
+DROP TABLE IF EXISTS snapdiff.changes_inc;
+CREATE TABLE snapdiff.raw_inc AS snapdiff.raw
+ENGINE = MergeTree
+PARTITION BY snapshot_id
+ORDER BY (snapshot_id, record_key)
+SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1;
+CREATE TABLE snapdiff.changes_inc AS snapdiff.changes;
+
+INSERT INTO snapdiff.raw_inc (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)
+SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+
+-- 1. the diff of 03-diff.sql (current snapshot JOIN previous snapshot): rejected, Code 36
+CREATE MATERIALIZED VIEW snapdiff.inc_rmv
+REFRESH EVERY 1 HOUR APPEND INCREMENTAL TO snapdiff.changes_inc
+AS
+WITH (SELECT max(snapshot_id) FROM snapdiff.raw_inc) AS cur,
+     (SELECT max(snapshot_id) FROM snapdiff.raw_inc WHERE snapshot_id < cur) AS prev
+SELECT cur AS snapshot_id, prev AS prev_snapshot_id,
+       if(p.in_prev = 0, 'new', 'changed') AS change_type, c.record_key AS record_key
+FROM (SELECT record_key, row_hash FROM snapdiff.raw_inc WHERE snapshot_id = cur) AS c
+LEFT JOIN (SELECT record_key, row_hash AS prev_hash, 1 AS in_prev FROM snapdiff.raw_inc WHERE snapshot_id = prev) AS p
+    USING (record_key)
+WHERE p.in_prev = 0 OR c.row_hash != p.prev_hash;
+
+-- 2. the same classification on one table, without a JOIN: accepted, but each refresh sees only the new rows
+CREATE MATERIALIZED VIEW snapdiff.inc_rmv
+REFRESH EVERY 1 HOUR APPEND INCREMENTAL TO snapdiff.changes_inc
+AS
+SELECT max(raw_inc.snapshot_id) AS snapshot_id, min(raw_inc.snapshot_id) AS prev_snapshot_id,
+       if(uniqExact(raw_inc.snapshot_id) = 1, 'new', 'changed') AS change_type, record_key
+FROM snapdiff.raw_inc
+GROUP BY record_key
+HAVING uniqExact(row_hash) > 1 OR count() = 1;
+SYSTEM WAIT VIEW snapdiff.inc_rmv;
+
+INSERT INTO snapdiff.raw_inc (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)
+SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00');
+SYSTEM REFRESH VIEW snapdiff.inc_rmv;
+SYSTEM WAIT VIEW snapdiff.inc_rmv;
+
+-- truth for 10:00 against 09:00: 50 new, 101 changed, 30 deleted
+SELECT snapshot_id, change_type, count() AS records FROM snapdiff.changes_inc GROUP BY ALL ORDER BY ALL;
+
+DROP VIEW snapdiff.inc_rmv;
+DROP TABLE snapdiff.raw_inc;
+DROP TABLE snapdiff.changes_inc;

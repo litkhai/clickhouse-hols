@@ -1,0 +1,368 @@
+{
+ "meta": {
+  "date": "2026-11-17T11:36:40Z",
+  "version": "26.8.1.654",
+  "replicas_at_start": [
+   [
+    "4rsk2qc-0",
+    "10.67 GiB",
+    "3",
+    "10268"
+   ],
+   [
+    "qbjsgft-0",
+    "10.67 GiB",
+    "3",
+    "10268"
+   ]
+  ],
+  "join_algorithm": "direct,parallel_hash,hash",
+  "args": {
+   "records": [
+    10000000
+   ],
+   "runs": 2,
+   "lean": true,
+   "tag": "-10m-resume",
+   "resume": true,
+   "env": "<env file>"
+  }
+ },
+ "results": [
+  {
+   "records": 10000000,
+   "probe": "replicas",
+   "replicas": [
+    [
+     "4rsk2qc-0",
+     "10.67 GiB",
+     "3",
+     "10268"
+    ],
+    [
+     "qbjsgft-0",
+     "10.67 GiB",
+     "3",
+     "10269"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "raw size",
+   "parts": [
+    [
+     "2026-11-17 09:00:00",
+     "10000000",
+     "1692676144",
+     "3958913152"
+    ],
+    [
+     "2026-11-17 10:00:00",
+     "10020000",
+     "1695672180",
+     "3967518559"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "truth",
+   "new_changed_deleted": [
+    "50000",
+    "100100",
+    "30000"
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "diff two-step: GROUP BY keys, then JOIN the changed keys",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "11121",
+     "read_rows": "40040000",
+     "read_bytes": "11358672407",
+     "memory_usage": "2117971678",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "12633",
+     "read_rows": "40040000",
+     "read_bytes": "11358672407",
+     "memory_usage": "2114926290",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "guard: uniqExact(record_key) of one snapshot",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "1222",
+     "read_rows": "10020000",
+     "read_bytes": "180360000",
+     "memory_usage": "1100303136",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "562",
+     "read_rows": "10020000",
+     "read_bytes": "180360000",
+     "memory_usage": "1099255360",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "diff two-step, raw ORDER BY record_key without partitions",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "18346",
+     "read_rows": "40040000",
+     "read_bytes": "11358674143",
+     "memory_usage": "2853330432",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "10260",
+     "read_rows": "40040000",
+     "read_bytes": "11358674143",
+     "memory_usage": "2319465297",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "refresh: compare",
+   "runs": [
+    {
+     "query_duration_ms": "12177",
+     "read_rows": "60060006",
+     "read_bytes": "11719032445",
+     "memory_usage": "2105133936",
+     "written_rows": "180101",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "refresh: nothing to do",
+   "runs": [
+    {
+     "query_duration_ms": "31",
+     "read_rows": "8070",
+     "read_bytes": "40350",
+     "memory_usage": "3230038",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "changes after refresh",
+   "counts": [
+    [
+     "new",
+     "50000"
+    ],
+    [
+     "changed",
+     "100100"
+    ],
+    [
+     "deleted",
+     "30000"
+    ],
+    [
+     "end",
+     "2"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "insert 1/10 of a snapshot, no MV",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "3654",
+     "read_rows": "10050000",
+     "read_bytes": "80400000",
+     "memory_usage": "738627435",
+     "written_rows": "1001555",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "insert 1/10 of a snapshot, with the two insert-time MVs",
+   "runs": [
+    {
+     "query_duration_ms": "9996",
+     "read_rows": "43175726",
+     "read_bytes": "1475886416",
+     "memory_usage": "3825009915",
+     "written_rows": "2018308",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "17463",
+     "read_rows": "45497005",
+     "read_bytes": "1536441003",
+     "memory_usage": "4018037898",
+     "written_rows": "2018810",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "18218",
+     "read_rows": "48503480",
+     "read_bytes": "1614803107",
+     "memory_usage": "4648793545",
+     "written_rows": "2019649",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "10697",
+     "read_rows": "51515204",
+     "read_bytes": "1693881518",
+     "memory_usage": "5178572998",
+     "written_rows": "2022608",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "22962",
+     "read_rows": "54516981",
+     "read_bytes": "1770339324",
+     "memory_usage": "4995661391",
+     "written_rows": "2016545",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "19461",
+     "read_rows": "57517965",
+     "read_bytes": "1848121147",
+     "memory_usage": "4944797151",
+     "written_rows": "2015493",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "12983",
+     "read_rows": "60524312",
+     "read_bytes": "1927209227",
+     "memory_usage": "5242125804",
+     "written_rows": "2019193",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "12909",
+     "read_rows": "63530160",
+     "read_bytes": "2005422055",
+     "memory_usage": "5329311339",
+     "written_rows": "2019461",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "29721",
+     "read_rows": "66539912",
+     "read_bytes": "2083995682",
+     "memory_usage": "4681004102",
+     "written_rows": "2020571",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "26633",
+     "read_rows": "69546425",
+     "read_bytes": "2161879100",
+     "memory_usage": "5444311219",
+     "written_rows": "2019462",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "changes_mv after insert",
+   "counts": [
+    [
+     "new",
+     "50000"
+    ],
+    [
+     "changed",
+     "100100"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "replicas at the end",
+   "replicas": [
+    [
+     "4rsk2qc-0",
+     "10.67 GiB",
+     "3",
+     "10597"
+    ],
+    [
+     "qbjsgft-0",
+     "10.67 GiB",
+     "3",
+     "10598"
+    ]
+   ]
+  }
+ ]
+}

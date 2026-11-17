@@ -1,0 +1,13 @@
+# Runs against a ClickHouse Cloud service with run.sh and scale.py; tools/hol does not run it (no `clickhouse` key).
+# local/run.sh runs the APPEND INCREMENTAL file on a local 26.9+ server.
+target: cloud
+verified_on: "26.8.1.654"   # ClickHouse Cloud, 2 replicas, 2026-11-17, run.sh 00 → 06 + errors/01 (KEEP=1), scale.py 1M + 10M, then 99
+
+# Publishing keys (tools/lab.schema.md) — new lab 2026-11-17 (#161), published with its notes article
+web: true
+title_ko: "시간마다 오는 전체 스냅샷에서 바뀐 레코드만 찾기"
+summary_ko: "전체 스냅샷을 매시간 다시 받는 MergeTree에서 snapshot_id 경계, 업무 필드만의 tuple 해시, 이전 스냅샷과의 비교로 신규 · 변경 · 삭제를 찾고, 완료 가드가 있는 refreshable MV APPEND로 자동화합니다. 100만 · 1,000만 레코드에서 JOIN 비교와 두 단계 비교의 시간 · 메모리를 쟀습니다."
+title_en: "Diffing hourly full snapshots"
+summary_en: "New, changed and deleted records when a source re-delivers a full snapshot every hour: snapshot_id boundary, tuple hash of the business fields, a two-step diff, a guarded refreshable MV; time and memory at 1M and 10M records."
+category: core-architecture
+tags: [materialized-view, ingestion, kafka, updates-deletes]

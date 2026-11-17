@@ -1,0 +1,897 @@
+# ClickHouse Cloud run of workload/snapshot-diff
+date: 2026-11-17T11:42:40Z
+version: 26.8.1.654
+replicas	2
+enable_analyzer	1
+join_algorithm	direct,parallel_hash,hash
+max_threads	3
+parallel_view_processing	1
+
+## 00-setup.sql
+-- 00-setup.sql: database, a generator for hourly full snapshots, and the tables every later file uses.
+--
+-- The source re-delivers a FULL snapshot every hour into a plain MergeTree (for example through the
+-- ClickHouse Kafka Connect Sink). Each row: record_key, 25 Nullable(String) business fields,
+-- event_timestamp (changes on every delivery) and ingestion_timestamp (set when the row is written).
+
+CREATE DATABASE IF NOT EXISTS snapdiff;
+-- gen(n, v, sid): one full snapshot of n records.
+--   v = 0  the base snapshot: keys 0 .. n-1
+--   v = 1  the next snapshot: keys with n % 1000 < 3 are gone (deleted, 0.3 %),
+--          keys n .. n + n/200 - 1 are added (new, 0.5 %),
+--          f03 changes where n % 100 = 7 (1 %), and f06 goes from NULL to '' where n % 100000 = 11.
+-- f06, f12, f18, f22 and f25 are NULL for about 10 % of the keys; event_timestamp moves on every snapshot.
+CREATE OR REPLACE VIEW snapdiff.gen AS
+SELECT
+    {sid:DateTime} AS snapshot_id,
+    concat('K', leftPad(toString(n), 10, '0')) AS record_key,
+    CAST(concat('C', toString(cityHash64(n, 1) % 40)) AS Nullable(String)) AS f01,
+    CAST(concat('C', toString(cityHash64(n, 2) % 40)) AS Nullable(String)) AS f02,
+    CAST(if({v:UInt8} = 1 AND n % 100 = 7, concat(concat('C', toString(cityHash64(n, 3) % 40)), '_x'), concat('C', toString(cityHash64(n, 3) % 40))) AS Nullable(String)) AS f03,
+    CAST(concat('C', toString(cityHash64(n, 4) % 40)) AS Nullable(String)) AS f04,
+    CAST(concat('C', toString(cityHash64(n, 5) % 40)) AS Nullable(String)) AS f05,
+    CAST(multiIf(n % 100000 = 11, if({v:UInt8} = 1, '', NULL), cityHash64(n, 6, 'null') % 10 = 0, NULL, concat('C', toString(cityHash64(n, 6) % 40))) AS Nullable(String)) AS f06,
+    CAST(concat('C', toString(cityHash64(n, 7) % 40)) AS Nullable(String)) AS f07,
+    CAST(concat('C', toString(cityHash64(n, 8) % 40)) AS Nullable(String)) AS f08,
+    CAST(concat('C', toString(cityHash64(n, 9) % 40)) AS Nullable(String)) AS f09,
+    CAST(concat('C', toString(cityHash64(n, 10) % 40)) AS Nullable(String)) AS f10,
+    CAST(substring(hex(cityHash64(n, 11)), 1, 12) AS Nullable(String)) AS f11,
+    CAST(if(cityHash64(n, 12, 'null') % 10 = 0, NULL, substring(hex(cityHash64(n, 12)), 1, 12)) AS Nullable(String)) AS f12,
+    CAST(substring(hex(cityHash64(n, 13)), 1, 12) AS Nullable(String)) AS f13,
+    CAST(substring(hex(cityHash64(n, 14)), 1, 12) AS Nullable(String)) AS f14,
+    CAST(substring(hex(cityHash64(n, 15)), 1, 12) AS Nullable(String)) AS f15,
+    CAST(substring(hex(cityHash64(n, 16)), 1, 12) AS Nullable(String)) AS f16,
+    CAST(substring(hex(cityHash64(n, 17)), 1, 12) AS Nullable(String)) AS f17,
+    CAST(if(cityHash64(n, 18, 'null') % 10 = 0, NULL, substring(hex(cityHash64(n, 18)), 1, 12)) AS Nullable(String)) AS f18,
+    CAST(substring(hex(cityHash64(n, 19)), 1, 12) AS Nullable(String)) AS f19,
+    CAST(substring(hex(cityHash64(n, 20)), 1, 12) AS Nullable(String)) AS f20,
+    CAST(concat(hex(cityHash64(n, 21)), hex(cityHash64(n, 21, 'b'))) AS Nullable(String)) AS f21,
+    CAST(if(cityHash64(n, 22, 'null') % 10 = 0, NULL, concat(hex(cityHash64(n, 22)), hex(cityHash64(n, 22, 'b')))) AS Nullable(String)) AS f22,
+    CAST(concat(hex(cityHash64(n, 23)), hex(cityHash64(n, 23, 'b'))) AS Nullable(String)) AS f23,
+    CAST(concat(hex(cityHash64(n, 24)), hex(cityHash64(n, 24, 'b'))) AS Nullable(String)) AS f24,
+    CAST(if(cityHash64(n, 25, 'null') % 10 = 0, NULL, concat(hex(cityHash64(n, 25)), hex(cityHash64(n, 25, 'b')))) AS Nullable(String)) AS f25,
+    toDateTime64({sid:DateTime}, 3) + toIntervalMillisecond(n % 600000) AS event_timestamp
+FROM (SELECT number AS n FROM numbers({n:UInt64} + if({v:UInt8} = 1, intDiv({n:UInt64}, 200), 0)))
+WHERE NOT ({v:UInt8} = 1 AND n < {n:UInt64} AND n % 1000 < 3);
+-- The landing table. snapshot_id comes from the producer (the hour the snapshot was taken), not from ClickHouse.
+-- row_hash covers the 25 business fields only (see 02-row-hash.sql), computed once at insert.
+CREATE TABLE IF NOT EXISTS snapdiff.raw
+(
+    snapshot_id DateTime,
+    record_key String,
+    f01 Nullable(String),
+    f02 Nullable(String),
+    f03 Nullable(String),
+    f04 Nullable(String),
+    f05 Nullable(String),
+    f06 Nullable(String),
+    f07 Nullable(String),
+    f08 Nullable(String),
+    f09 Nullable(String),
+    f10 Nullable(String),
+    f11 Nullable(String),
+    f12 Nullable(String),
+    f13 Nullable(String),
+    f14 Nullable(String),
+    f15 Nullable(String),
+    f16 Nullable(String),
+    f17 Nullable(String),
+    f18 Nullable(String),
+    f19 Nullable(String),
+    f20 Nullable(String),
+    f21 Nullable(String),
+    f22 Nullable(String),
+    f23 Nullable(String),
+    f24 Nullable(String),
+    f25 Nullable(String),
+    event_timestamp DateTime64(3),
+    ingestion_timestamp DateTime64(3) DEFAULT now64(3),
+    row_hash UInt64 MATERIALIZED cityHash64(tuple(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25))
+)
+ENGINE = MergeTree
+PARTITION BY snapshot_id
+ORDER BY (snapshot_id, record_key);
+-- One row per snapshot, written by the producer after its last record (a control message on its own topic,
+-- or an end-of-snapshot record routed to this table): how many distinct records the snapshot holds.
+CREATE TABLE IF NOT EXISTS snapdiff.manifest
+(
+    snapshot_id DateTime,
+    expected_rows UInt64,
+    closed_at DateTime DEFAULT now()
+)
+ENGINE = MergeTree
+ORDER BY snapshot_id;
+-- What downstream consumers read: one row per new, changed or deleted record, and one 'end' row per
+-- snapshot that has been compared (record_key = '').
+CREATE TABLE IF NOT EXISTS snapdiff.changes
+(
+    snapshot_id DateTime,
+    prev_snapshot_id DateTime,
+    change_type Enum8('new' = 1, 'changed' = 2, 'deleted' = 3, 'end' = 9),
+    record_key String,
+    f01 Nullable(String),
+    f02 Nullable(String),
+    f03 Nullable(String),
+    f04 Nullable(String),
+    f05 Nullable(String),
+    f06 Nullable(String),
+    f07 Nullable(String),
+    f08 Nullable(String),
+    f09 Nullable(String),
+    f10 Nullable(String),
+    f11 Nullable(String),
+    f12 Nullable(String),
+    f13 Nullable(String),
+    f14 Nullable(String),
+    f15 Nullable(String),
+    f16 Nullable(String),
+    f17 Nullable(String),
+    f18 Nullable(String),
+    f19 Nullable(String),
+    f20 Nullable(String),
+    f21 Nullable(String),
+    f22 Nullable(String),
+    f23 Nullable(String),
+    f24 Nullable(String),
+    f25 Nullable(String),
+    detected_at DateTime DEFAULT now()
+)
+ENGINE = MergeTree
+PARTITION BY toDate(snapshot_id)
+ORDER BY (snapshot_id, change_type, record_key)
+TTL snapshot_id + INTERVAL 7 DAY;
+
+## 01-boundary.sql
+-- 01-boundary.sql: a snapshot arrives in many inserts, so ingestion_timestamp cannot delimit it.
+--
+-- Every hour the producer starts at hh:56 and the sink writes the snapshot over 8 minutes.
+-- The 09:00 snapshot lands 09:56-10:04, the 10:00 snapshot 10:56-11:04; one batch of the 10:00
+-- snapshot is delivered again at 11:20 (a sink retry). ingestion_timestamp is set explicitly to
+-- simulate those times; snapshot_id is what the producer stamps on every record.
+
+TRUNCATE TABLE snapdiff.raw;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp, ingestion_timestamp)
+SELECT *, toDateTime64('2026-11-17 09:56:00', 3) + toIntervalMillisecond(cityHash64(record_key, snapshot_id) % 480000)
+FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp, ingestion_timestamp)
+SELECT *, toDateTime64('2026-11-17 10:56:00', 3) + toIntervalMillisecond(cityHash64(record_key, snapshot_id) % 480000)
+FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00');
+-- the retry: the records of the first minute of the 10:00 load, again
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp, ingestion_timestamp)
+SELECT *, toDateTime64('2026-11-17 11:20:00', 3)
+FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00')
+WHERE cityHash64(record_key, snapshot_id) % 480000 < 60000;
+-- what an hourly window on ingestion_timestamp holds
+SELECT toStartOfHour(ingestion_timestamp) AS ingestion_hour,
+       count() AS rows, uniqExact(record_key) AS records,
+       groupUniqArray(toString(snapshot_id)) AS snapshots_inside
+FROM snapdiff.raw
+GROUP BY ingestion_hour
+ORDER BY ingestion_hour;
+   ┌──────ingestion_hour─┬──rows─┬─records─┬─snapshots_inside──────────────────────────────┐
+1. │ 2026-11-17 09:00:00 │  5061 │    5061 │ ['2026-11-17 09:00:00']                       │
+2. │ 2026-11-17 10:00:00 │ 10005 │    7549 │ ['2026-11-17 09:00:00','2026-11-17 10:00:00'] │
+3. │ 2026-11-17 11:00:00 │  6206 │    6206 │ ['2026-11-17 10:00:00']                       │
+   └─────────────────────┴───────┴─────────┴───────────────────────────────────────────────┘
+-- what snapshot_id holds
+SELECT snapshot_id, count() AS rows, uniqExact(record_key) AS records,
+       min(ingestion_timestamp) AS first_row, max(ingestion_timestamp) AS last_row
+FROM snapdiff.raw
+GROUP BY snapshot_id
+ORDER BY snapshot_id;
+   ┌─────────snapshot_id─┬──rows─┬─records─┬───────────────first_row─┬────────────────last_row─┐
+1. │ 2026-11-17 09:00:00 │ 10000 │   10000 │ 2026-11-17 09:56:00.003 │ 2026-11-17 10:03:59.878 │
+2. │ 2026-11-17 10:00:00 │ 11272 │   10020 │ 2026-11-17 10:56:00.045 │ 2026-11-17 11:20:00.000 │
+   └─────────────────────┴───────┴─────────┴─────────────────────────┴─────────────────────────┘
+-- truth, from the generator's rules (00-setup.sql): records only in the new snapshot, kept but different, gone
+SELECT 'truth' AS t,
+       countIf(number >= 10000) AS new,
+       countIf(number < 10000 AND number % 1000 >= 3 AND (number % 100 = 7 OR number % 100000 = 11)) AS changed,
+       countIf(number < 10000 AND number % 1000 < 3) AS deleted
+FROM numbers(10000 + intDiv(10000, 200));
+   ┌─t─────┬─new─┬─changed─┬─deleted─┐
+1. │ truth │  50 │     101 │      30 │
+   └───────┴─────┴─────────┴─────────┘
+-- the diff of the 11:00 ingestion hour against the 10:00 one (no snapshot_id)
+SELECT 'by ingestion hour' AS t, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE toStartOfHour(ingestion_timestamp) = '2026-11-17 11:00:00' LIMIT 1 BY record_key) AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE toStartOfHour(ingestion_timestamp) = '2026-11-17 10:00:00' LIMIT 1 BY record_key) AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE toStartOfHour(ingestion_timestamp) = '2026-11-17 10:00:00' LIMIT 1 BY record_key) AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE toStartOfHour(ingestion_timestamp) = '2026-11-17 11:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─t─────────────────┬─change_type─┬─records─┐
+1. │ by ingestion hour │ changed     │      29 │
+2. │ by ingestion hour │ deleted     │    3830 │
+3. │ by ingestion hour │ new         │    2487 │
+   └───────────────────┴─────────────┴─────────┘
+-- the same diff by snapshot_id, without and with dropping the re-delivered duplicates
+SELECT 'by snapshot_id, no dedupe' AS t, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─t─────────────────────────┬─change_type─┬─records─┐
+1. │ by snapshot_id, no dedupe │ changed     │     120 │
+2. │ by snapshot_id, no dedupe │ deleted     │      30 │
+3. │ by snapshot_id, no dedupe │ new         │      61 │
+   └───────────────────────────┴─────────────┴─────────┘
+SELECT 'by snapshot_id, LIMIT 1 BY record_key' AS t, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00' LIMIT 1 BY record_key) AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00' LIMIT 1 BY record_key) AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00' LIMIT 1 BY record_key) AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─t─────────────────────────────────────┬─change_type─┬─records─┐
+1. │ by snapshot_id, LIMIT 1 BY record_key │ changed     │     101 │
+2. │ by snapshot_id, LIMIT 1 BY record_key │ deleted     │      30 │
+3. │ by snapshot_id, LIMIT 1 BY record_key │ new         │      50 │
+   └───────────────────────────────────────┴─────────────┴─────────┘
+
+## 02-row-hash.sql
+-- 02-row-hash.sql: which hash finds the changed records.
+--
+-- The hash covers the 25 business fields only. record_key is the join key, ingestion_timestamp is set by the
+-- sink, and event_timestamp moves on every snapshot, so none of them belongs in it.
+
+-- the functions on literals
+SELECT cityHash64(NULL::Nullable(String), 'a') AS variadic_with_null,
+       cityHash64(tuple(NULL::Nullable(String), 'a')) AS tuple_with_null,
+       cityHash64(tuple(''::Nullable(String), 'a')) AS tuple_with_empty,
+       cityHash64(tuple('ab', 'c')) = cityHash64(tuple('a', 'bc')) AS tuple_shift_collides,
+       cityHash64(concat('ab', 'c')) = cityHash64(concat('a', 'bc')) AS concat_shift_collides,
+       cityHash64(ifNull(NULL::Nullable(String), '')) = cityHash64('') AS ifnull_null_equals_empty;
+   ┌─variadic_with_null─┬─────tuple_with_null─┬─────tuple_with_empty─┬─tuple_shift_collides─┬─concat_shift_collides─┬─ifnull_null_equals_empty─┐
+1. │               ᴺᵁᴸᴸ │ 6206526592849077024 │ 12190390838800561413 │                    0 │                     1 │                        1 │
+   └────────────────────┴─────────────────────┴──────────────────────┴──────────────────────┴───────────────────────┴──────────────────────────┘
+-- a clean pair of snapshots
+TRUNCATE TABLE snapdiff.raw;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00');
+-- truth, from the generator's rules (00-setup.sql): records only in the new snapshot, kept but different, gone
+SELECT 'truth' AS t,
+       countIf(number >= 10000) AS new,
+       countIf(number < 10000 AND number % 1000 >= 3 AND (number % 100 = 7 OR number % 100000 = 11)) AS changed,
+       countIf(number < 10000 AND number % 1000 < 3) AS deleted
+FROM numbers(10000 + intDiv(10000, 200));
+   ┌─t─────┬─new─┬─changed─┬─deleted─┐
+1. │ truth │  50 │     101 │      30 │
+   └───────┴─────┴─────────┴─────────┘
+-- rows where the variadic form is NULL (any of the five nullable fields is NULL)
+SELECT snapshot_id, count() AS rows, countIf(cityHash64(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25) IS NULL) AS variadic_hash_is_null
+FROM snapdiff.raw GROUP BY snapshot_id ORDER BY snapshot_id;
+   ┌─────────snapshot_id─┬──rows─┬─variadic_hash_is_null─┐
+1. │ 2026-11-17 09:00:00 │ 10000 │                  4213 │
+2. │ 2026-11-17 10:00:00 │ 10020 │                  4217 │
+   └─────────────────────┴───────┴───────────────────────┘
+-- A: tuple of the 25 business fields (the MATERIALIZED row_hash column)
+SELECT 'A tuple(f01..f25)' AS hash, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─hash──────────────┬─change_type─┬─records─┐
+1. │ A tuple(f01..f25) │ changed     │     101 │
+2. │ A tuple(f01..f25) │ deleted     │      30 │
+3. │ A tuple(f01..f25) │ new         │      50 │
+   └───────────────────┴─────────────┴─────────┘
+-- B: variadic cityHash64(f01, ..., f25): NULL whenever one field is NULL, and NULL != x is not true
+SELECT 'B cityHash64(f01, ..., f25)' AS hash, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, cityHash64(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25) AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, cityHash64(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25) AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─hash────────────────────────┬─change_type─┬─records─┐
+1. │ B cityHash64(f01, ..., f25) │ changed     │      57 │
+2. │ B cityHash64(f01, ..., f25) │ deleted     │      30 │
+3. │ B cityHash64(f01, ..., f25) │ new         │      50 │
+   └─────────────────────────────┴─────────────┴─────────┘
+-- C: ifNull(f, '') before hashing: NULL and '' become the same value
+SELECT 'C ifNull(f, \'\')' AS hash, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, cityHash64(tuple(ifNull(f01, ''), ifNull(f02, ''), ifNull(f03, ''), ifNull(f04, ''), ifNull(f05, ''), ifNull(f06, ''), ifNull(f07, ''), ifNull(f08, ''), ifNull(f09, ''), ifNull(f10, ''), ifNull(f11, ''), ifNull(f12, ''), ifNull(f13, ''), ifNull(f14, ''), ifNull(f15, ''), ifNull(f16, ''), ifNull(f17, ''), ifNull(f18, ''), ifNull(f19, ''), ifNull(f20, ''), ifNull(f21, ''), ifNull(f22, ''), ifNull(f23, ''), ifNull(f24, ''), ifNull(f25, ''))) AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, cityHash64(tuple(ifNull(f01, ''), ifNull(f02, ''), ifNull(f03, ''), ifNull(f04, ''), ifNull(f05, ''), ifNull(f06, ''), ifNull(f07, ''), ifNull(f08, ''), ifNull(f09, ''), ifNull(f10, ''), ifNull(f11, ''), ifNull(f12, ''), ifNull(f13, ''), ifNull(f14, ''), ifNull(f15, ''), ifNull(f16, ''), ifNull(f17, ''), ifNull(f18, ''), ifNull(f19, ''), ifNull(f20, ''), ifNull(f21, ''), ifNull(f22, ''), ifNull(f23, ''), ifNull(f24, ''), ifNull(f25, ''))) AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─hash────────────┬─change_type─┬─records─┐
+1. │ C ifNull(f, '') │ changed     │     100 │
+2. │ C ifNull(f, '') │ deleted     │      30 │
+3. │ C ifNull(f, '') │ new         │      50 │
+   └─────────────────┴─────────────┴─────────┘
+-- D: event_timestamp in the hash: it moves on every snapshot
+SELECT 'D tuple(f01..f25, event_timestamp)' AS hash, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, cityHash64(tuple(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)) AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, cityHash64(tuple(f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)) AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─hash───────────────────────────────┬─change_type─┬─records─┐
+1. │ D tuple(f01..f25, event_timestamp) │ changed     │    9970 │
+2. │ D tuple(f01..f25, event_timestamp) │ deleted     │      30 │
+3. │ D tuple(f01..f25, event_timestamp) │ new         │      50 │
+   └────────────────────────────────────┴─────────────┴─────────┘
+
+## 03-diff.sql
+-- 03-diff.sql: the diff of two snapshots, as rows a consumer can read.
+--
+-- new and changed: the current snapshot LEFT JOIN the previous one's (record_key, row_hash) USING record_key.
+-- deleted: the previous snapshot LEFT ANTI JOIN the current one's keys.
+-- The right side of each JOIN holds keys (and hashes) only, never the 25 fields.
+
+TRUNCATE TABLE snapdiff.raw;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00');
+-- truth, from the generator's rules (00-setup.sql): records only in the new snapshot, kept but different, gone
+SELECT 'truth' AS t,
+       countIf(number >= 10000) AS new,
+       countIf(number < 10000 AND number % 1000 >= 3 AND (number % 100 = 7 OR number % 100000 = 11)) AS changed,
+       countIf(number < 10000 AND number % 1000 < 3) AS deleted
+FROM numbers(10000 + intDiv(10000, 200));
+   ┌─t─────┬─new─┬─changed─┬─deleted─┐
+1. │ truth │  50 │     101 │      30 │
+   └───────┴─────┴─────────┴─────────┘
+SELECT 'JOIN' AS t, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─t────┬─change_type─┬─records─┐
+1. │ JOIN │ changed     │     101 │
+2. │ JOIN │ deleted     │      30 │
+3. │ JOIN │ new         │      50 │
+   └──────┴─────────────┴─────────┘
+-- the same classification in one GROUP BY over both snapshots (keys only, no JOIN)
+SELECT 'GROUP BY' AS t, change_type, count() AS records
+FROM
+(
+    SELECT record_key,
+           multiIf(countIf(snapshot_id = '2026-11-17 09:00:00') = 0, 'new',
+                   countIf(snapshot_id = '2026-11-17 10:00:00') = 0, 'deleted',
+                   anyIf(row_hash, snapshot_id = '2026-11-17 10:00:00') != anyIf(row_hash, snapshot_id = '2026-11-17 09:00:00'), 'changed',
+                   'same') AS change_type
+    FROM snapdiff.raw
+    WHERE snapshot_id IN ('2026-11-17 09:00:00', '2026-11-17 10:00:00')
+    GROUP BY record_key
+)
+WHERE change_type != 'same'
+GROUP BY change_type
+ORDER BY change_type;
+   ┌─t────────┬─change_type─┬─records─┐
+1. │ GROUP BY │ changed     │     101 │
+2. │ GROUP BY │ deleted     │      30 │
+3. │ GROUP BY │ new         │      50 │
+   └──────────┴─────────────┴─────────┘
+-- what changed in a changed record: the old and new value of each field that differs
+SELECT c.record_key,
+       arrayFilter(x -> x.2 IS DISTINCT FROM x.3,
+           arrayZip(['f03', 'f06'], [p.f03, p.f06], [c.f03, c.f06])) AS changed_fields
+FROM (SELECT record_key, f03, f06 FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS c
+INNER JOIN (SELECT record_key, f03, f06 FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00') AS p USING (record_key)
+WHERE record_key IN ('K0000000007', 'K0000000011', 'K0000000107')
+ORDER BY record_key;
+   ┌─record_key──┬─changed_fields──────────┐
+1. │ K0000000007 │ [('f03','C8','C8_x')]   │
+2. │ K0000000011 │ [('f06',NULL,'')]       │
+3. │ K0000000107 │ [('f03','C13','C13_x')] │
+   └─────────────┴─────────────────────────┘
+
+## 04-rmv.sql
+-- 04-rmv.sql: the diff as a refreshable MV that appends to snapdiff.changes, and the partial-snapshot race.
+--
+-- diff_rmv (guarded): compares the oldest snapshot that is not compared yet, only when the manifest row for it has
+-- arrived and all its records are loaded, and writes one 'end' row per snapshot. The next refresh starts after
+-- the last 'end' row, so a refresh that finds nothing to do writes nothing.
+-- diff_rmv_naive: compares the newest snapshot_id in raw with the one before, whatever has arrived.
+
+TRUNCATE TABLE snapdiff.raw;
+TRUNCATE TABLE snapdiff.manifest;
+TRUNCATE TABLE snapdiff.changes;
+DROP VIEW IF EXISTS snapdiff.diff_rmv;
+DROP VIEW IF EXISTS snapdiff.diff_rmv_naive;
+DROP TABLE IF EXISTS snapdiff.changes_naive;
+CREATE TABLE snapdiff.changes_naive AS snapdiff.changes;
+-- snapshot 09:00: all records, then its manifest row
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 09:00:00', uniqExact(record_key) FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 09:00:00';
+CREATE MATERIALIZED VIEW snapdiff.diff_rmv
+REFRESH EVERY 1 HOUR OFFSET 30 MINUTE
+APPEND TO snapdiff.changes
+AS
+WITH
+    (SELECT max(snapshot_id) FROM snapdiff.changes WHERE change_type = 'end') AS done,
+    (SELECT min(snapshot_id) FROM snapdiff.manifest WHERE snapshot_id > done) AS cur,
+    (SELECT max(snapshot_id) FROM snapdiff.manifest WHERE snapshot_id < cur) AS prev,
+    (SELECT any(expected_rows) FROM snapdiff.manifest WHERE snapshot_id = cur) AS cur_expected,
+    (SELECT any(expected_rows) FROM snapdiff.manifest WHERE snapshot_id = prev) AS prev_expected,
+    (SELECT uniqExact(record_key) FROM snapdiff.raw WHERE snapshot_id = cur) AS cur_loaded,
+    (SELECT uniqExact(record_key) FROM snapdiff.raw WHERE snapshot_id = prev) AS prev_loaded,
+    -- ready: an uncompared snapshot whose manifest row has arrived and whose records are all loaded,
+    -- and a previous snapshot that is still complete in raw (not dropped by TTL)
+    cur > done AND cur_loaded >= cur_expected AND (prev = toDateTime(0) OR prev_loaded >= prev_expected) AS ready,
+    ready AND prev > toDateTime(0) AS compare
+SELECT snapshot_id, prev_snapshot_id, change_type, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25
+FROM
+(
+    -- step 2: the full rows of the changed keys only: new and changed from cur, deleted from prev
+    SELECT cur AS snapshot_id, prev AS prev_snapshot_id, CAST(k.change_type AS Enum8('new' = 1, 'changed' = 2, 'deleted' = 3, 'end' = 9)) AS change_type,
+           r.record_key AS record_key, r.f01, r.f02, r.f03, r.f04, r.f05, r.f06, r.f07, r.f08, r.f09, r.f10, r.f11, r.f12, r.f13, r.f14, r.f15, r.f16, r.f17, r.f18, r.f19, r.f20, r.f21, r.f22, r.f23, r.f24, r.f25
+    FROM (SELECT snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25 FROM snapdiff.raw WHERE compare AND snapshot_id IN (prev, cur)) AS r
+    INNER JOIN
+    (
+        -- step 1: classify every key of both snapshots by presence and row_hash (keys and hashes only)
+        SELECT record_key,
+               multiIf(countIf(snapshot_id = prev) = 0, 'new',
+                       countIf(snapshot_id = cur) = 0, 'deleted',
+                       anyIf(row_hash, snapshot_id = cur) != anyIf(row_hash, snapshot_id = prev), 'changed',
+                       'same') AS change_type
+        FROM snapdiff.raw
+        WHERE compare AND snapshot_id IN (prev, cur)
+        GROUP BY record_key
+        HAVING change_type != 'same'
+    ) AS k USING (record_key)
+    WHERE (r.snapshot_id = cur AND k.change_type IN ('new', 'changed')) OR (r.snapshot_id = prev AND k.change_type = 'deleted')
+    LIMIT 1 BY record_key
+    UNION ALL
+    -- one 'end' row per compared snapshot (the first one is only a baseline): where the next refresh starts,
+    -- and the signal for consumers
+    SELECT cur, prev, 'end', '', NULL AS f01, NULL AS f02, NULL AS f03, NULL AS f04, NULL AS f05, NULL AS f06, NULL AS f07, NULL AS f08, NULL AS f09, NULL AS f10, NULL AS f11, NULL AS f12, NULL AS f13, NULL AS f14, NULL AS f15, NULL AS f16, NULL AS f17, NULL AS f18, NULL AS f19, NULL AS f20, NULL AS f21, NULL AS f22, NULL AS f23, NULL AS f24, NULL AS f25
+    WHERE ready
+);
+CREATE MATERIALIZED VIEW snapdiff.diff_rmv_naive
+REFRESH EVERY 1 HOUR OFFSET 30 MINUTE
+APPEND TO snapdiff.changes_naive
+AS
+WITH
+    (SELECT max(snapshot_id) FROM snapdiff.raw) AS cur,
+    (SELECT max(snapshot_id) FROM snapdiff.raw WHERE snapshot_id < cur) AS prev,
+    prev > toDateTime(0) AS compare
+SELECT snapshot_id, prev_snapshot_id, change_type, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25
+FROM
+(
+    -- step 2: the full rows of the changed keys only: new and changed from cur, deleted from prev
+    SELECT cur AS snapshot_id, prev AS prev_snapshot_id, CAST(k.change_type AS Enum8('new' = 1, 'changed' = 2, 'deleted' = 3, 'end' = 9)) AS change_type,
+           r.record_key AS record_key, r.f01, r.f02, r.f03, r.f04, r.f05, r.f06, r.f07, r.f08, r.f09, r.f10, r.f11, r.f12, r.f13, r.f14, r.f15, r.f16, r.f17, r.f18, r.f19, r.f20, r.f21, r.f22, r.f23, r.f24, r.f25
+    FROM (SELECT snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25 FROM snapdiff.raw WHERE compare AND snapshot_id IN (prev, cur)) AS r
+    INNER JOIN
+    (
+        -- step 1: classify every key of both snapshots by presence and row_hash (keys and hashes only)
+        SELECT record_key,
+               multiIf(countIf(snapshot_id = prev) = 0, 'new',
+                       countIf(snapshot_id = cur) = 0, 'deleted',
+                       anyIf(row_hash, snapshot_id = cur) != anyIf(row_hash, snapshot_id = prev), 'changed',
+                       'same') AS change_type
+        FROM snapdiff.raw
+        WHERE compare AND snapshot_id IN (prev, cur)
+        GROUP BY record_key
+        HAVING change_type != 'same'
+    ) AS k USING (record_key)
+    WHERE (r.snapshot_id = cur AND k.change_type IN ('new', 'changed')) OR (r.snapshot_id = prev AND k.change_type = 'deleted')
+    LIMIT 1 BY record_key
+);
+-- a refreshable MV refreshes once when it is created; wait for that one
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv_naive;
+-- snapshot 10:00, 60 % loaded (the sink is still writing) when the refresh runs
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)
+SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 < 6;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv_naive;
+SYSTEM WAIT VIEW snapdiff.diff_rmv_naive;
+-- truth, from the generator's rules (00-setup.sql): records only in the new snapshot, kept but different, gone
+SELECT 'truth' AS t,
+       countIf(number >= 10000) AS new,
+       countIf(number < 10000 AND number % 1000 >= 3 AND (number % 100 = 7 OR number % 100000 = 11)) AS changed,
+       countIf(number < 10000 AND number % 1000 < 3) AS deleted
+FROM numbers(10000 + intDiv(10000, 200));
+   ┌─t─────┬─new─┬─changed─┬─deleted─┐
+1. │ truth │  50 │     101 │      30 │
+   └───────┴─────┴─────────┴─────────┘
+SELECT * FROM (
+SELECT 'after a refresh on a 60 % load' AS t, 'naive' AS mv, snapshot_id, change_type, count() AS records
+FROM snapdiff.changes_naive GROUP BY ALL
+UNION ALL
+SELECT 'after a refresh on a 60 % load', 'guarded', snapshot_id, change_type, count()
+FROM snapdiff.changes GROUP BY ALL
+)
+ORDER BY mv, snapshot_id, change_type;
+   ┌─t──────────────────────────────┬─mv──────┬─────────snapshot_id─┬─change_type─┬─records─┐
+1. │ after a refresh on a 60 % load │ guarded │ 2026-11-17 09:00:00 │ end         │       1 │
+2. │ after a refresh on a 60 % load │ naive   │ 2026-11-17 10:00:00 │ new         │      25 │
+3. │ after a refresh on a 60 % load │ naive   │ 2026-11-17 10:00:00 │ changed     │      54 │
+4. │ after a refresh on a 60 % load │ naive   │ 2026-11-17 10:00:00 │ deleted     │    3959 │
+   └────────────────────────────────┴─────────┴─────────────────────┴─────────────┴─────────┘
+-- the rest of the load, then the producer's manifest row
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp)
+SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 >= 6;
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 10:00:00', 10020;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv_naive;
+SYSTEM WAIT VIEW snapdiff.diff_rmv_naive;
+SELECT * FROM (
+SELECT 'after the load completed' AS t, 'naive' AS mv, snapshot_id, change_type, count() AS records
+FROM snapdiff.changes_naive GROUP BY ALL
+UNION ALL
+SELECT 'after the load completed', 'guarded', snapshot_id, change_type, count()
+FROM snapdiff.changes GROUP BY ALL
+)
+ORDER BY mv, snapshot_id, change_type;
+   ┌─t────────────────────────┬─mv──────┬─────────snapshot_id─┬─change_type─┬─records─┐
+1. │ after the load completed │ guarded │ 2026-11-17 09:00:00 │ end         │       1 │
+2. │ after the load completed │ guarded │ 2026-11-17 10:00:00 │ new         │      50 │
+3. │ after the load completed │ guarded │ 2026-11-17 10:00:00 │ changed     │     101 │
+4. │ after the load completed │ guarded │ 2026-11-17 10:00:00 │ deleted     │      30 │
+5. │ after the load completed │ guarded │ 2026-11-17 10:00:00 │ end         │       1 │
+6. │ after the load completed │ naive   │ 2026-11-17 10:00:00 │ new         │      75 │
+7. │ after the load completed │ naive   │ 2026-11-17 10:00:00 │ changed     │     155 │
+8. │ after the load completed │ naive   │ 2026-11-17 10:00:00 │ deleted     │    3989 │
+   └──────────────────────────┴─────────┴─────────────────────┴─────────────┴─────────┘
+-- two more refreshes of the guarded MV with nothing new: they run, and write nothing
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+-- snapshot 11:00 equals 10:00 except event_timestamp: compared, no change rows, one 'end' row
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 11:00:00');
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 11:00:00', 10020;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SELECT snapshot_id, prev_snapshot_id, change_type, count() AS records, max(detected_at) AS detected_at
+FROM snapdiff.changes GROUP BY ALL ORDER BY snapshot_id, change_type;
+   ┌─────────snapshot_id─┬────prev_snapshot_id─┬─change_type─┬─records─┬─────────detected_at─┐
+1. │ 2026-11-17 09:00:00 │ 1970-01-01 00:00:00 │ end         │       1 │ 2026-11-17 11:42:44 │
+2. │ 2026-11-17 10:00:00 │ 2026-11-17 09:00:00 │ new         │      50 │ 2026-11-17 11:42:45 │
+3. │ 2026-11-17 10:00:00 │ 2026-11-17 09:00:00 │ changed     │     101 │ 2026-11-17 11:42:45 │
+4. │ 2026-11-17 10:00:00 │ 2026-11-17 09:00:00 │ deleted     │      30 │ 2026-11-17 11:42:45 │
+5. │ 2026-11-17 10:00:00 │ 2026-11-17 09:00:00 │ end         │       1 │ 2026-11-17 11:42:45 │
+6. │ 2026-11-17 11:00:00 │ 2026-11-17 10:00:00 │ end         │       1 │ 2026-11-17 11:42:46 │
+   └─────────────────────┴─────────────────────┴─────────────┴─────────┴─────────────────────┘
+-- what a consumer runs: everything after the last snapshot it has read, up to the last 'end' row
+SELECT snapshot_id, change_type, record_key, f03, f06
+FROM snapdiff.changes
+WHERE snapshot_id > '2026-11-17 09:00:00'
+  AND snapshot_id <= (SELECT max(snapshot_id) FROM snapdiff.changes WHERE change_type = 'end')
+  AND change_type != 'end'
+ORDER BY snapshot_id, change_type, record_key
+LIMIT 5;
+   ┌─────────snapshot_id─┬─change_type─┬─record_key──┬─f03─┬─f06──┐
+1. │ 2026-11-17 10:00:00 │ new         │ K0000010000 │ C11 │ C0   │
+2. │ 2026-11-17 10:00:00 │ new         │ K0000010001 │ C32 │ ᴺᵁᴸᴸ │
+3. │ 2026-11-17 10:00:00 │ new         │ K0000010002 │ C24 │ C38  │
+4. │ 2026-11-17 10:00:00 │ new         │ K0000010003 │ C8  │ C4   │
+5. │ 2026-11-17 10:00:00 │ new         │ K0000010004 │ C28 │ C4   │
+   └─────────────────────┴─────────────┴─────────────┴─────┴──────┘
+-- the schedule, on every replica (the refresh runs on one of them)
+SELECT replace(hostName(), substring(hostName(), 1, position(hostName(), '-server-') + 7), '') AS replica,
+       view, status, last_success_time, next_refresh_time, read_rows, written_rows
+FROM clusterAllReplicas(default, system.view_refreshes)
+WHERE database = 'snapdiff'
+ORDER BY view, replica;
+   ┌─replica───┬─view───────────┬─status────┬───last_success_time─┬───next_refresh_time─┬─read_rows─┬─written_rows─┐
+1. │ 4rsk2qc-0 │ diff_rmv       │ Scheduled │ 2026-11-17 11:42:46 │ 2026-11-17 12:30:00 │     40269 │            1 │
+2. │ qbjsgft-0 │ diff_rmv       │ Scheduled │ 2026-11-17 11:42:46 │ 2026-11-17 12:30:00 │      ᴺᵁᴸᴸ │         ᴺᵁᴸᴸ │
+3. │ 4rsk2qc-0 │ diff_rmv_naive │ Scheduled │ 2026-11-17 11:42:45 │ 2026-11-17 12:30:00 │     40044 │          181 │
+4. │ qbjsgft-0 │ diff_rmv_naive │ Scheduled │ 2026-11-17 11:42:45 │ 2026-11-17 12:30:00 │      ᴺᵁᴸᴸ │         ᴺᵁᴸᴸ │
+   └───────────┴────────────────┴───────────┴─────────────────────┴─────────────────────┴───────────┴──────────────┘
+-- every refresh of both MVs in this file and what it wrote (query_log on all replicas), then the parts per refresh
+-- (one part means a reader sees all of a refresh or none of it)
+SYSTEM FLUSH LOGS ON CLUSTER default;
+SELECT event_time, extract(query, '^INSERT INTO (snapdiff\.[a-z_]+) ') AS target, written_rows, exception_code
+FROM clusterAllReplicas(default, system.query_log)
+WHERE event_date = today() AND event_time > now() - INTERVAL 3 MINUTE AND type != 'QueryStart'
+  AND (query LIKE 'INSERT INTO snapdiff.changes %' OR query LIKE 'INSERT INTO snapdiff.changes_naive %')
+ORDER BY event_time_microseconds;
+   ┌──────────event_time─┬─target─────────────────┬─written_rows─┬─exception_code─┐
+1. │ 2026-11-17 11:42:44 │ snapdiff.changes       │            1 │              0 │
+2. │ 2026-11-17 11:42:44 │ snapdiff.changes_naive │            0 │              0 │
+3. │ 2026-11-17 11:42:44 │ snapdiff.changes       │            0 │              0 │
+4. │ 2026-11-17 11:42:44 │ snapdiff.changes_naive │         4038 │              0 │
+5. │ 2026-11-17 11:42:45 │ snapdiff.changes       │          182 │              0 │
+6. │ 2026-11-17 11:42:45 │ snapdiff.changes_naive │          181 │              0 │
+7. │ 2026-11-17 11:42:45 │ snapdiff.changes       │            0 │              0 │
+8. │ 2026-11-17 11:42:45 │ snapdiff.changes       │            0 │              0 │
+9. │ 2026-11-17 11:42:46 │ snapdiff.changes       │            1 │              0 │
+   └─────────────────────┴────────────────────────┴──────────────┴────────────────┘
+SELECT query_id, count() AS new_parts, sum(rows) AS rows
+FROM clusterAllReplicas(default, system.part_log)
+WHERE database = 'snapdiff' AND table = 'changes' AND event_type = 'NewPart' AND event_date = today()
+  AND event_time > now() - INTERVAL 3 MINUTE
+GROUP BY query_id
+ORDER BY min(event_time);
+   ┌─query_id─────────────────────────────┬─new_parts─┬─rows─┐
+1. │ bf9b317b-4c75-4732-8ba6-0b2bb91602e4 │         1 │    1 │
+2. │ 3dba6c58-0658-4448-be59-56f4035a0a30 │         1 │  182 │
+3. │ 6efdff74-b675-4af5-83fe-37da2112f5f1 │         1 │    1 │
+   └──────────────────────────────────────┴───────────┴──────┘
+
+## 05-insert-mv.sql
+-- 05-insert-mv.sql: detecting changes at insert time instead, with a ReplacingMergeTree state table.
+--
+-- state keeps the last row_hash per record_key. mv_detect joins every inserted block to state and writes the
+-- records that are new or whose hash differs; mv_state writes the block's hashes into state.
+-- Deletes cannot be seen this way: a deleted record is a row that never arrives.
+
+DROP VIEW IF EXISTS snapdiff.diff_rmv;
+DROP VIEW IF EXISTS snapdiff.diff_rmv_naive;
+DROP VIEW IF EXISTS snapdiff.mv_detect;
+DROP VIEW IF EXISTS snapdiff.mv_state;
+DROP TABLE IF EXISTS snapdiff.state;
+DROP TABLE IF EXISTS snapdiff.changes_mv;
+TRUNCATE TABLE snapdiff.raw;
+CREATE TABLE snapdiff.state
+(
+    record_key String,
+    row_hash UInt64,
+    snapshot_id DateTime
+)
+ENGINE = ReplacingMergeTree(snapshot_id)
+ORDER BY record_key;
+CREATE TABLE snapdiff.changes_mv AS snapdiff.changes;
+CREATE MATERIALIZED VIEW snapdiff.mv_detect TO snapdiff.changes_mv AS
+SELECT r.snapshot_id AS snapshot_id, s.prev_snapshot AS prev_snapshot_id,
+       if(s.in_state = 0, 'new', 'changed') AS change_type,
+       r.record_key AS record_key, r.f01 AS f01, r.f02 AS f02, r.f03 AS f03, r.f04 AS f04, r.f05 AS f05, r.f06 AS f06, r.f07 AS f07, r.f08 AS f08, r.f09 AS f09, r.f10 AS f10, r.f11 AS f11, r.f12 AS f12, r.f13 AS f13, r.f14 AS f14, r.f15 AS f15, r.f16 AS f16, r.f17 AS f17, r.f18 AS f18, r.f19 AS f19, r.f20 AS f20, r.f21 AS f21, r.f22 AS f22, r.f23 AS f23, r.f24 AS f24, r.f25 AS f25
+FROM snapdiff.raw AS r
+LEFT JOIN (SELECT record_key, argMax(row_hash, snapshot_id) AS prev_hash, max(snapshot_id) AS prev_snapshot, 1 AS in_state
+           FROM snapdiff.state GROUP BY record_key) AS s USING (record_key)
+WHERE s.in_state = 0 OR r.row_hash != s.prev_hash;
+CREATE MATERIALIZED VIEW snapdiff.mv_state TO snapdiff.state AS
+SELECT record_key, row_hash, snapshot_id FROM snapdiff.raw;
+SELECT name, value FROM system.settings WHERE name = 'parallel_view_processing';
+   ┌─name─────────────────────┬─value─┐
+1. │ parallel_view_processing │ 1     │
+   └──────────────────────────┴───────┘
+-- snapshot 09:00 in one insert, then 10:00 in 10 inserts of about 1,000 records (one per sink batch)
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 0;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 1;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 2;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 3;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 4;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 5;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 6;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 7;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 8;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00') WHERE cityHash64(record_key) % 10 = 9;
+-- truth, from the generator's rules (00-setup.sql): records only in the new snapshot, kept but different, gone
+SELECT 'truth' AS t,
+       countIf(number >= 10000) AS new,
+       countIf(number < 10000 AND number % 1000 >= 3 AND (number % 100 = 7 OR number % 100000 = 11)) AS changed,
+       countIf(number < 10000 AND number % 1000 < 3) AS deleted
+FROM numbers(10000 + intDiv(10000, 200));
+   ┌─t─────┬─new─┬─changed─┬─deleted─┐
+1. │ truth │  50 │     101 │      30 │
+   └───────┴─────┴─────────┴─────────┘
+SELECT 'insert-time MV' AS t, snapshot_id, change_type, count() AS records
+FROM snapdiff.changes_mv GROUP BY ALL ORDER BY snapshot_id, change_type;
+   ┌─t──────────────┬─────────snapshot_id─┬─change_type─┬─records─┐
+1. │ insert-time MV │ 2026-11-17 09:00:00 │ new         │   10000 │
+2. │ insert-time MV │ 2026-11-17 10:00:00 │ new         │      50 │
+3. │ insert-time MV │ 2026-11-17 10:00:00 │ changed     │     101 │
+   └────────────────┴─────────────────────┴─────────────┴─────────┘
+
+## 06-ttl.sql
+-- 06-ttl.sql: keep only recent snapshots in raw, and what a too-short TTL does to the diff.
+--
+-- raw is partitioned by snapshot_id, so a TTL on snapshot_id with ttl_only_drop_parts = 1 drops whole
+-- snapshots instead of rewriting parts. Snapshot ids here are relative to now() so the TTL fires.
+
+DROP TABLE IF EXISTS snapdiff.raw_ttl;
+CREATE TABLE snapdiff.raw_ttl AS snapdiff.raw
+ENGINE = MergeTree
+PARTITION BY snapshot_id
+ORDER BY (snapshot_id, record_key)
+TTL snapshot_id + INTERVAL 3 HOUR
+SETTINGS ttl_only_drop_parts = 1;
+-- six hourly snapshots of 1,000 records, the oldest five hours ago
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 1, sid = toStartOfHour(now()) - INTERVAL 5 HOUR);
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 0, sid = toStartOfHour(now()) - INTERVAL 4 HOUR);
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 1, sid = toStartOfHour(now()) - INTERVAL 3 HOUR);
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 0, sid = toStartOfHour(now()) - INTERVAL 2 HOUR);
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 1, sid = toStartOfHour(now()) - INTERVAL 1 HOUR);
+INSERT INTO snapdiff.raw_ttl (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 1000, v = 0, sid = toStartOfHour(now()) - INTERVAL 0 HOUR);
+-- TTL is applied when parts merge; force it now
+OPTIMIZE TABLE snapdiff.raw_ttl FINAL;
+SELECT dateDiff('hour', snapshot_id, toStartOfHour(now())) AS hours_ago, count() AS rows
+FROM snapdiff.raw_ttl GROUP BY snapshot_id ORDER BY snapshot_id;
+   ┌─hours_ago─┬─rows─┐
+1. │         2 │ 1000 │
+2. │         1 │ 1002 │
+3. │         0 │ 1000 │
+   └───────────┴──────┘
+SELECT engine_full LIKE '%TTL snapshot_id + toIntervalHour(3)%' AS has_ttl
+FROM system.tables WHERE database = 'snapdiff' AND name = 'raw_ttl';
+   ┌─has_ttl─┐
+1. │       1 │
+   └─────────┘
+-- the same TTL on the changes table, for how long consumers may fall behind
+ALTER TABLE snapdiff.changes MODIFY TTL snapshot_id + INTERVAL 7 DAY;
+-- a previous snapshot that is gone from raw (dropped by a TTL shorter than the diff's backlog):
+-- the guarded MV does not compare against it, so it reports nothing instead of every record as new.
+-- Here the 10:00 and 11:00 snapshots of 04 are reloaded, 10:00 is compared, and then 10:00 is dropped before 11:00 is compared.
+TRUNCATE TABLE snapdiff.raw;
+TRUNCATE TABLE snapdiff.manifest;
+TRUNCATE TABLE snapdiff.changes;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 09:00:00');
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 1, sid = '2026-11-17 10:00:00');
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 09:00:00', 10000;
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 10:00:00', 10020;
+CREATE MATERIALIZED VIEW snapdiff.diff_rmv REFRESH EVERY 1 HOUR OFFSET 30 MINUTE APPEND TO snapdiff.changes AS
+WITH
+    (SELECT max(snapshot_id) FROM snapdiff.changes WHERE change_type = 'end') AS done,
+    (SELECT min(snapshot_id) FROM snapdiff.manifest WHERE snapshot_id > done) AS cur,
+    (SELECT max(snapshot_id) FROM snapdiff.manifest WHERE snapshot_id < cur) AS prev,
+    (SELECT any(expected_rows) FROM snapdiff.manifest WHERE snapshot_id = cur) AS cur_expected,
+    (SELECT any(expected_rows) FROM snapdiff.manifest WHERE snapshot_id = prev) AS prev_expected,
+    (SELECT uniqExact(record_key) FROM snapdiff.raw WHERE snapshot_id = cur) AS cur_loaded,
+    (SELECT uniqExact(record_key) FROM snapdiff.raw WHERE snapshot_id = prev) AS prev_loaded,
+    -- ready: an uncompared snapshot whose manifest row has arrived and whose records are all loaded,
+    -- and a previous snapshot that is still complete in raw (not dropped by TTL)
+    cur > done AND cur_loaded >= cur_expected AND (prev = toDateTime(0) OR prev_loaded >= prev_expected) AS ready,
+    ready AND prev > toDateTime(0) AS compare
+SELECT snapshot_id, prev_snapshot_id, change_type, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25
+FROM
+(
+    -- step 2: the full rows of the changed keys only: new and changed from cur, deleted from prev
+    SELECT cur AS snapshot_id, prev AS prev_snapshot_id, CAST(k.change_type AS Enum8('new' = 1, 'changed' = 2, 'deleted' = 3, 'end' = 9)) AS change_type,
+           r.record_key AS record_key, r.f01, r.f02, r.f03, r.f04, r.f05, r.f06, r.f07, r.f08, r.f09, r.f10, r.f11, r.f12, r.f13, r.f14, r.f15, r.f16, r.f17, r.f18, r.f19, r.f20, r.f21, r.f22, r.f23, r.f24, r.f25
+    FROM (SELECT snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25 FROM snapdiff.raw WHERE compare AND snapshot_id IN (prev, cur)) AS r
+    INNER JOIN
+    (
+        -- step 1: classify every key of both snapshots by presence and row_hash (keys and hashes only)
+        SELECT record_key,
+               multiIf(countIf(snapshot_id = prev) = 0, 'new',
+                       countIf(snapshot_id = cur) = 0, 'deleted',
+                       anyIf(row_hash, snapshot_id = cur) != anyIf(row_hash, snapshot_id = prev), 'changed',
+                       'same') AS change_type
+        FROM snapdiff.raw
+        WHERE compare AND snapshot_id IN (prev, cur)
+        GROUP BY record_key
+        HAVING change_type != 'same'
+    ) AS k USING (record_key)
+    WHERE (r.snapshot_id = cur AND k.change_type IN ('new', 'changed')) OR (r.snapshot_id = prev AND k.change_type = 'deleted')
+    LIMIT 1 BY record_key
+    UNION ALL
+    -- one 'end' row per compared snapshot (the first one is only a baseline): where the next refresh starts,
+    -- and the signal for consumers
+    SELECT cur, prev, 'end', '', NULL AS f01, NULL AS f02, NULL AS f03, NULL AS f04, NULL AS f05, NULL AS f06, NULL AS f07, NULL AS f08, NULL AS f09, NULL AS f10, NULL AS f11, NULL AS f12, NULL AS f13, NULL AS f14, NULL AS f15, NULL AS f16, NULL AS f17, NULL AS f18, NULL AS f19, NULL AS f20, NULL AS f21, NULL AS f22, NULL AS f23, NULL AS f24, NULL AS f25
+    WHERE ready
+);
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+INSERT INTO snapdiff.raw (snapshot_id, record_key, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, event_timestamp) SELECT * FROM snapdiff.gen(n = 10000, v = 0, sid = '2026-11-17 11:00:00');
+INSERT INTO snapdiff.manifest (snapshot_id, expected_rows) SELECT '2026-11-17 11:00:00', 10000;
+ALTER TABLE snapdiff.raw DROP PARTITION '2026-11-17 10:00:00';
+SYSTEM REFRESH VIEW snapdiff.diff_rmv;
+SYSTEM WAIT VIEW snapdiff.diff_rmv;
+SELECT 'prev dropped' AS t, snapshot_id, change_type, count() AS records FROM snapdiff.changes GROUP BY ALL ORDER BY snapshot_id, change_type;
+   ┌─t────────────┬─────────snapshot_id─┬─change_type─┬─records─┐
+1. │ prev dropped │ 2026-11-17 09:00:00 │ end         │       1 │
+2. │ prev dropped │ 2026-11-17 10:00:00 │ new         │      50 │
+3. │ prev dropped │ 2026-11-17 10:00:00 │ changed     │     101 │
+4. │ prev dropped │ 2026-11-17 10:00:00 │ deleted     │      30 │
+5. │ prev dropped │ 2026-11-17 10:00:00 │ end         │       1 │
+   └──────────────┴─────────────────────┴─────────────┴─────────┘
+-- what a diff against the dropped snapshot would report
+SELECT 'diff against an empty prev' AS t, * FROM (
+SELECT change_type, count() AS records
+FROM
+(
+    SELECT if(p.in_prev = 0, 'new', 'changed') AS change_type
+    FROM (SELECT record_key, row_hash AS h FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 11:00:00') AS c
+    LEFT JOIN (SELECT record_key, row_hash AS prev_h, 1 AS in_prev FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS p USING (record_key)
+    WHERE p.in_prev = 0 OR c.h != p.prev_h
+    UNION ALL
+    SELECT 'deleted'
+    FROM (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 10:00:00') AS p
+    LEFT ANTI JOIN (SELECT record_key FROM snapdiff.raw WHERE snapshot_id = '2026-11-17 11:00:00') AS c USING (record_key)
+)
+GROUP BY change_type
+ORDER BY change_type
+);
+   ┌─t──────────────────────────┬─change_type─┬─records─┐
+1. │ diff against an empty prev │ new         │   10000 │
+   └────────────────────────────┴─────────────┴─────────┘
+DROP VIEW snapdiff.diff_rmv;
+
+## errors/01-append-incremental.sql
+-- errors/01-append-incremental.sql: REFRESH ... APPEND INCREMENTAL arrived in 26.9 (ClickHouse PR #114152).
+-- On a 26.8 service the statement does not parse (Code 62, SYNTAX_ERROR at INCREMENTAL).
+-- local/26.9-append-incremental.sql shows what it does on 26.9.
+CREATE MATERIALIZED VIEW snapdiff.inc_rmv
+REFRESH EVERY 1 HOUR APPEND INCREMENTAL TO snapdiff.changes
+AS SELECT * FROM snapdiff.changes;
+Received exception from server (version 26.8.1):
+Code: 62. DB::Exception: Received from <service>. DB::Exception: Syntax error: failed at position 335 (INCREMENTAL) (line 5, col 29): INCREMENTAL TO snapdiff.changes
+AS SELECT * FROM snapdiff.changes;. Expected one of: TO INNER UUID, TO, token, OpeningRoundBracket, storage definition, ENGINE, PARTITION BY, PRIMARY KEY, ORDER BY, UNIQUE KEY, SAMPLE BY, TTL, SETTINGS, POPULATE, EMPTY, sql security, DEFINER, SQL SECURITY, COMMENT, AS. (SYNTAX_ERROR)
+(query: -- errors/01-append-incremental.sql: REFRESH ... APPEND INCREMENTAL arrived in 26.9 (ClickHouse PR #114152).
+-- On a 26.8 service the statement does not parse (Code 62, SYNTAX_ERROR at INCREMENTAL).
+-- local/26.9-append-incremental.sql shows what it does on 26.9.
+CREATE MATERIALIZED VIEW snapdiff.inc_rmv
+REFRESH EVERY 1 HOUR APPEND INCREMENTAL TO snapdiff.changes
+AS SELECT * FROM snapdiff.changes;)

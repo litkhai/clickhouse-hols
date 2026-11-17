@@ -1,0 +1,670 @@
+{
+ "meta": {
+  "date": "2026-11-17T08:48:36Z",
+  "version": "26.8.1.654",
+  "replicas_at_start": [
+   [
+    "4rsk2qc-0",
+    "6.97 GiB",
+    "2",
+    "184"
+   ],
+   [
+    "5vh6h9e-0",
+    "6.97 GiB",
+    "2",
+    "491967"
+   ],
+   [
+    "oinczsa-0",
+    "6.97 GiB",
+    "2",
+    "491929"
+   ],
+   [
+    "qbjsgft-0",
+    "6.97 GiB",
+    "2",
+    "184"
+   ]
+  ],
+  "join_algorithm": "direct,parallel_hash,hash",
+  "args": {
+   "records": [
+    1000000,
+    10000000
+   ],
+   "runs": 2,
+   "lean": true,
+   "tag": "",
+   "env": "<env file>"
+  }
+ },
+ "results": [
+  {
+   "records": 1000000,
+   "probe": "replicas",
+   "replicas": [
+    [
+     "4rsk2qc-0",
+     "10.80 GiB",
+     "3",
+     "185"
+    ],
+    [
+     "5vh6h9e-0",
+     "10.80 GiB",
+     "3",
+     "491968"
+    ],
+    [
+     "oinczsa-0",
+     "10.80 GiB",
+     "3",
+     "491930"
+    ],
+    [
+     "qbjsgft-0",
+     "10.80 GiB",
+     "3",
+     "185"
+    ]
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "load snapshot v0",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "2227",
+     "read_rows": "1000000",
+     "read_bytes": "8000000",
+     "memory_usage": "781197030",
+     "written_rows": "1000000",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "load snapshot v1",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "3144",
+     "read_rows": "1005000",
+     "read_bytes": "8040000",
+     "memory_usage": "781344414",
+     "written_rows": "1002000",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "raw size",
+   "parts": [
+    [
+     "2026-11-17 09:00:00",
+     "1000000",
+     "170265172",
+     "388358645"
+    ],
+    [
+     "2026-11-17 10:00:00",
+     "1002000",
+     "170580239",
+     "389154033"
+    ]
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "truth",
+   "new_changed_deleted": [
+    "5000",
+    "10010",
+    "3000"
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "diff JOIN, row_hash column",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "1920",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "1493346298",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "1242",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "1478639969",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "classify GROUP BY, keys only",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "204",
+     "read_rows": "2002000",
+     "read_bytes": "52052000",
+     "memory_usage": "318736617",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "801",
+     "read_rows": "2002000",
+     "read_bytes": "52052000",
+     "memory_usage": "288947836",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "5vh6h9e-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "diff two-step: GROUP BY keys, then JOIN the changed keys",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "1168",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "643630647",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "1332",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "441476347",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "guard: uniqExact(record_key) of one snapshot",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "62",
+     "read_rows": "1002000",
+     "read_bytes": "18036000",
+     "memory_usage": "126153208",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "94",
+     "read_rows": "1002000",
+     "read_bytes": "18036000",
+     "memory_usage": "126218664",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "diff two-step, raw ORDER BY record_key without partitions",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "1222",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "609239295",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "1198",
+     "read_rows": "4004000",
+     "read_bytes": "1135870678",
+     "memory_usage": "663257489",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "refresh: compare",
+   "runs": [
+    {
+     "query_duration_ms": "1018",
+     "read_rows": "6006006",
+     "read_bytes": "1171906716",
+     "memory_usage": "630744529",
+     "written_rows": "18011",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "refresh: nothing to do",
+   "runs": [
+    {
+     "query_duration_ms": "131",
+     "read_rows": "9820",
+     "read_bytes": "49100",
+     "memory_usage": "3156134",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "changes after refresh",
+   "counts": [
+    [
+     "new",
+     "5000"
+    ],
+    [
+     "changed",
+     "10010"
+    ],
+    [
+     "deleted",
+     "3000"
+    ],
+    [
+     "end",
+     "2"
+    ]
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "insert 1/10 of a snapshot, no MV",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "856",
+     "read_rows": "1005000",
+     "read_bytes": "8040000",
+     "memory_usage": "175908800",
+     "written_rows": "100027",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "insert 1/10 of a snapshot, with the two insert-time MVs",
+   "runs": [
+    {
+     "query_duration_ms": "784",
+     "read_rows": "2205054",
+     "read_bytes": "92594251",
+     "memory_usage": "326147020",
+     "written_rows": "201572",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "723",
+     "read_rows": "2304705",
+     "read_bytes": "95083194",
+     "memory_usage": "329288109",
+     "written_rows": "201194",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "695",
+     "read_rows": "2405350",
+     "read_bytes": "97916693",
+     "memory_usage": "329545286",
+     "written_rows": "202034",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "1218",
+     "read_rows": "2505862",
+     "read_bytes": "100600549",
+     "memory_usage": "292262725",
+     "written_rows": "202264",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "1108",
+     "read_rows": "2605763",
+     "read_bytes": "103073872",
+     "memory_usage": "343615891",
+     "written_rows": "201764",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "805",
+     "read_rows": "2706550",
+     "read_bytes": "105870454",
+     "memory_usage": "353366335",
+     "written_rows": "202379",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "764",
+     "read_rows": "2805465",
+     "read_bytes": "108025238",
+     "memory_usage": "352874001",
+     "written_rows": "200911",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "791",
+     "read_rows": "2906262",
+     "read_bytes": "110931991",
+     "memory_usage": "372204416",
+     "written_rows": "201940",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "query_duration_ms": "948",
+     "read_rows": "3006521",
+     "read_bytes": "113552409",
+     "memory_usage": "302082931",
+     "written_rows": "202031",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "oinczsa-0"
+    },
+    {
+     "query_duration_ms": "1432",
+     "read_rows": "3107730",
+     "read_bytes": "116436194",
+     "memory_usage": "312463824",
+     "written_rows": "202921",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "5vh6h9e-0"
+    }
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "changes_mv after insert",
+   "counts": [
+    [
+     "new",
+     "5000"
+    ],
+    [
+     "changed",
+     "10010"
+    ]
+   ]
+  },
+  {
+   "records": 1000000,
+   "probe": "replicas at the end",
+   "replicas": [
+    [
+     "4rsk2qc-0",
+     "10.67 GiB",
+     "3",
+     "289"
+    ],
+    [
+     "5vh6h9e-0",
+     "10.67 GiB",
+     "3",
+     "492072"
+    ],
+    [
+     "oinczsa-0",
+     "10.67 GiB",
+     "3",
+     "492034"
+    ],
+    [
+     "qbjsgft-0",
+     "10.67 GiB",
+     "3",
+     "289"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "replicas",
+   "replicas": [
+    [
+     "4rsk2qc-0",
+     "6.83 GiB",
+     "2",
+     "289"
+    ],
+    [
+     "5vh6h9e-0",
+     "6.83 GiB",
+     "2",
+     "492072"
+    ],
+    [
+     "oinczsa-0",
+     "6.83 GiB",
+     "2",
+     "492034"
+    ],
+    [
+     "qbjsgft-0",
+     "6.83 GiB",
+     "2",
+     "289"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "load snapshot v0",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "13755",
+     "read_rows": "10000000",
+     "read_bytes": "80000000",
+     "memory_usage": "1642565652",
+     "written_rows": "10000000",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "load snapshot v1",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "13491",
+     "read_rows": "10050000",
+     "read_bytes": "80400000",
+     "memory_usage": "1663550162",
+     "written_rows": "10020000",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "raw size",
+   "parts": [
+    [
+     "2026-11-17 09:00:00",
+     "10000000",
+     "1692676144",
+     "3958913152"
+    ],
+    [
+     "2026-11-17 10:00:00",
+     "10020000",
+     "1702454137",
+     "3916573855"
+    ]
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "truth",
+   "new_changed_deleted": [
+    "50000",
+    "100100",
+    "30000"
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "diff JOIN, row_hash column",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "7850",
+     "read_rows": "19609532",
+     "read_bytes": "476500656",
+     "memory_usage": "4922028286",
+     "written_rows": "0",
+     "type": "ExceptionWhileProcessing",
+     "exception_code": 241,
+     "replica": "oinczsa-0"
+    },
+    {
+     "query_duration_ms": "12528",
+     "read_rows": "40040000",
+     "read_bytes": "11358672407",
+     "memory_usage": "7225305843",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "classify GROUP BY, keys only",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "3495",
+     "read_rows": "20020000",
+     "read_bytes": "520520000",
+     "memory_usage": "2107144627",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "4rsk2qc-0"
+    },
+    {
+     "query_duration_ms": "2333",
+     "read_rows": "20020000",
+     "read_bytes": "520520000",
+     "memory_usage": "2108580911",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "diff two-step: GROUP BY keys, then JOIN the changed keys",
+   "settings": {},
+   "runs": [
+    {
+     "query_duration_ms": "16852",
+     "read_rows": "40040000",
+     "read_bytes": "11358672407",
+     "memory_usage": "2117982574",
+     "written_rows": "0",
+     "type": "QueryFinish",
+     "exception_code": 0,
+     "replica": "qbjsgft-0"
+    },
+    {
+     "error": "Cannot resolve host (<service>), error 0: Host not found.\nCode: 198. DB::NetException: Not found address of host: <service>. (DNS_ERROR)\n"
+    }
+   ]
+  },
+  {
+   "records": 10000000,
+   "probe": "guard: uniqExact(record_key) of one snapshot",
+   "settings": {},
+   "runs": [
+    {
+     "error": "Cannot resolve host (<service>), error 0: Host not found.\nCode: 198. DB::NetException: Not found address of host: <service>. (DNS_ERROR)\n"
+    },
+    {
+     "error": "Cannot resolve host (<service>), error 0: Host not found.\nCode: 198. DB::NetException: Not found address of host: <service>. (DNS_ERROR)\n"
+    }
+   ]
+  }
+ ]
+}
